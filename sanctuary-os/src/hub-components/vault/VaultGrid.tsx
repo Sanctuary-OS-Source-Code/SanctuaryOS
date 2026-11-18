@@ -1,6 +1,6 @@
 import React from 'react';
 import { formatDisplayName, getExtensionRegex, isScriptExtension, EmptyState, AccordionDrawer, stripPriorityTierPrefix, ActionPill, resolveModHighlanderSlot } from '../../shared';
-import { ModCard } from '../../ModCard';
+import { ModCard } from '../../shared-components/ModCard';
 
 function DrawerFilterSection({ title, options, value, onChange, t }: any) {
   if (!options || options.length === 0) return null;

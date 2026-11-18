@@ -501,7 +501,7 @@ export function Sidebar({
                   <NavButton
                     active={view === "MasonHub"}
                     onClick={() => setView("MasonHub")}
-                    onMouseEnter={() => { import("./MasonHub"); }}
+                    onMouseEnter={() => { import("./views/MasonHub"); }}
                     icon={t("icon_construction", "construction")}
                     label={t("sidebar_mason_hub", "Workshop")}
                     isCollapsed={isSidebarCollapsed}
@@ -537,7 +537,7 @@ export function Sidebar({
                   <NavButton
                     active={view === "ArchitectHub"}
                     onClick={() => setView("ArchitectHub")}
-                    onMouseEnter={() => { import("./ArchitectHub"); }}
+                    onMouseEnter={() => { import("./views/ArchitectHub"); }}
                     icon={t("icon_analytics", "analytics")}
                     label={t("sidebar_architect_hub", "Console")}
                     isCollapsed={isSidebarCollapsed}
@@ -572,7 +572,7 @@ export function Sidebar({
                   <NavButton
                     active={view === "Oversight"}
                     onClick={() => setView("Oversight")}
-                    onMouseEnter={() => { import("./Oversight"); }}
+                    onMouseEnter={() => { import("./views/Oversight"); }}
                     icon={t("icon_security", "security")}
                     label={t("wf_tab_command", "Command")}
                     isCollapsed={isSidebarCollapsed}
@@ -608,7 +608,7 @@ export function Sidebar({
                   <NavButton
                     active={view === "WayfinderHub"}
                     onClick={() => setView("WayfinderHub")}
-                    onMouseEnter={() => { import("./WayfinderHub"); }}
+                    onMouseEnter={() => { import("./views/WayfinderHub"); }}
                     icon={t("icon_terminal", "terminal")}
                     label={t("ui_btn_operations", "Operations")}
                     isCollapsed={isSidebarCollapsed}
@@ -650,7 +650,7 @@ export function Sidebar({
                   setView("KeepersCore");
                   if (setKeepersActiveTab) setKeepersActiveTab("command_center");
                 }}
-                onMouseEnter={() => { import("./KeepersCore"); }}
+                onMouseEnter={() => { import("./views/KeepersCore"); }}
                 icon={t("icon_admin_panel_settings", "admin_panel_settings")}
                 label={t("sidebar_keepers_core", "Keepers Core")}
                 isCollapsed={isSidebarCollapsed}

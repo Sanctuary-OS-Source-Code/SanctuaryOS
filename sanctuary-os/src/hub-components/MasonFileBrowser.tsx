@@ -2,7 +2,7 @@ import { EmptyState, VAULT_CHIP_CLASS } from "../shared";
 import { useState, useEffect } from "react";
 import { readTextFile } from "@tauri-apps/plugin-fs";
 import { UniversalCard } from "../components/universal/UniversalCard";
-import { openSanctuaryContextMenu, SanctuaryContextMenuItem } from "../ContextMenu";
+import { openSanctuaryContextMenu, SanctuaryContextMenuItem } from "../shared-components/ContextMenu";
 import { hasIdeCachedDraft } from "../hooks/useMasonFiles";
 import {
   DynamicLexiconPreviewBanner,

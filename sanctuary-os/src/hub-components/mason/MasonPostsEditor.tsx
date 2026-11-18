@@ -1,0 +1,709 @@
+import React, { useState, useEffect, useMemo, useRef } from "react";
+import AssetPreviewSidebar from "../../side-panels/AssetPreviewSidebar";
+import { supabase } from "../../supabase";
+import { useLexicon } from "../../LexiconContext";
+import { useStore } from "../../store";
+import {
+  SidePanel, EmptyState, LinkAssetSidePanel, PanelHeaderGroup, PanelHeaderButton,
+  extractPostImage, getSafeEditorMarkdown, SidePanelPillToggle, UniversalGroup
+} from "../../shared";
+import { HubOverviewSection } from "../../components/universal/UniversalLayout";
+import { ElevatedHubLayout } from "../../components/layouts/ElevatedHubLayout";
+import { LiquidGlassAlertCard } from "../../components/BlueprintPatchReadiness";
+import MasonPostCard from "./MasonPostCard";
+import MasonPostViewer from "../../side-panels/MasonPostViewer";
+import { PostEditorMode, UnifiedPostBodyEditor, PostAttachmentsManager } from "../../components/universal/UnifiedPostEditor";
+import { useEditor } from '@tiptap/react';
+import StarterKit from '@tiptap/starter-kit';
+import { Markdown } from 'tiptap-markdown';
+import Image from '@tiptap/extension-image';
+import { IconPlugin } from '../../utils/IconPlugin';
+
+
+export function MasonPostsEditor({ masonId, masonProfileId, handleOpenMasonProfile }: { masonId: string, masonProfileId: string, handleOpenMasonProfile?: (masonId: string, postId?: string) => void }) {
+  const { t } = useLexicon();
+  const [posts, setPosts] = useState<any[]>([]);
+  const [title, setTitle] = useState("");
+  const [description, setDescription] = useState("");
+  const [content, setContent] = useState("");
+  const [imageUrl, setImageUrl] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [editingPostId, setEditingPostId] = useState<string | null>(null);
+  const [editingPost, setEditingPost] = useState<any>(null);
+  const [previewPost, setPreviewPost] = useState<any>(null);
+  const [codeSnippet, setCodeSnippet] = useState("");
+  const [showCodeInput, setShowCodeInput] = useState(false);
+  const [, setShowImageInput] = useState(false);
+  const [, setShowIconPicker] = useState(false);
+  const [masonName, setMasonName] = useState<string>("");
+  const [isAssetPanelOpen, setIsAssetPanelOpen] = useState(false);
+  const [confirmDiscard, setConfirmDiscard] = useState(false);
+  const [activeAsset, setActiveAsset] = useState<{ type: string; id: string } | null>(null);
+  const [isEditorOpen, setIsEditorOpen] = useState(false);
+  const [editorMode, setEditorMode] = useState<PostEditorMode>("wysiwyg");
+  const [searchTerm, setSearchTerm] = useState("");
+  const [activeTab, setActiveTab] = useState("overview");
+
+  const [isPinned, setIsPinned] = useState(false);
+  const [isActive, setIsActive] = useState(true);
+  const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
+
+  const masonHubDrafts = useStore(state => state.masonHubDrafts);
+  const setMasonHubDrafts = useStore(state => state.setMasonHubDrafts);
+
+  useEffect(() => {
+    if (isEditorOpen) {
+      const draftId = editingPostId || 'new';
+
+      let isUnchanged = false;
+      if (editingPost) {
+        let rawContent = (editingPost.content || '').replace(/\[IMG:[\s\S]*?\]\s*/g, '').trim();
+        let parsedImage = extractPostImage(editingPost) || "";
+
+        isUnchanged =
+          title === editingPost.title &&
+          description === (editingPost.description || "") &&
+          content === rawContent &&
+          imageUrl === parsedImage &&
+          codeSnippet === (editingPost.code_snippet || "") &&
+          isPinned === !!editingPost.is_pinned &&
+          isActive === (editingPost.is_active !== false);
+      } else {
+        isUnchanged =
+          title === "" &&
+          description === "" &&
+          content === "" &&
+          imageUrl === "" &&
+          codeSnippet === "" &&
+          isPinned === false &&
+          isActive === true;
+      }
+
+      if (isUnchanged) {
+        const timer = setTimeout(() => {
+          setMasonHubDrafts(prev => {
+            if (!prev[draftId]) return prev;
+            const next = { ...prev };
+            delete next[draftId];
+            return next;
+          });
+        }, 350);
+        return () => clearTimeout(timer);
+      } else {
+        const timer = setTimeout(() => {
+          setMasonHubDrafts(prev => ({
+            ...prev,
+            [draftId]: { _draftVersion: 4, title, description, content, imageUrl, codeSnippet, isPinned, isActive }
+          }));
+        }, 350);
+        return () => clearTimeout(timer);
+      }
+    }
+  }, [isEditorOpen, editingPostId, editingPost, title, description, content, imageUrl, codeSnippet, isPinned, isActive]);
+
+  useEffect(() => {
+    if (masonHubDrafts && Object.keys(masonHubDrafts).length > 0) {
+      setMasonHubDrafts(prev => {
+        let changed = false;
+        const next = { ...prev };
+        Object.keys(next).forEach(id => {
+          if (
+            (!next[id]?.content && !next[id]?.title) ||
+            Number(next[id]?._draftVersion || 0) < 4
+          ) {
+            delete next[id];
+            changed = true;
+          }
+        });
+        return changed ? next : prev;
+      });
+    }
+  }, [isEditorOpen]);
+
+  const updateTimeoutRef = useRef<any>(null);
+
+  const editor = useEditor({
+    extensions: [
+      StarterKit,
+      Markdown,
+      IconPlugin,
+      Image
+    ],
+    content: content,
+    onUpdate: ({ editor: ed }) => {
+      if (!ed || ed.isDestroyed) return;
+      if (updateTimeoutRef.current) clearTimeout(updateTimeoutRef.current);
+      updateTimeoutRef.current = setTimeout(() => {
+        if (!ed || ed.isDestroyed || !(ed.storage as any)?.markdown) return;
+        setContent(getSafeEditorMarkdown(ed));
+      }, 500);
+    },
+    editorProps: {
+      attributes: {
+        class: 'w-full flex-1 px-6 py-6 text-[var(--text)] text-sm font-sans focus:outline-none custom-scrollbar min-h-[350px] leading-relaxed [&_h1]:text-2xl [&_h1]:font-black [&_h2]:text-xl [&_h2]:font-bold [&_p]:mb-4 [&_ul]:list-disc [&_ul]:ml-6 [&_ol]:list-decimal [&_ol]:ml-6 [&_a]:text-[var(--accent)] [&_img]:rounded-xl [&_img]:max-w-full [&_code]:bg-[color-mix(in_srgb,var(--text)_10%,transparent)] [&_code]:px-1 [&_code]:rounded [&_hr]:border-[color-mix(in_srgb,var(--text)_10%,transparent)] [&_hr]:my-8',
+      },
+    },
+  });
+
+  const fetchPostsAndAssets = async () => {
+    const { data } = await supabase.from('mason_posts').select('*, masons(*)').eq('mason_id', masonId).order('created_at', { ascending: false });
+    if (data) setPosts(data);
+
+    const { data: masonData } = await supabase.from('masons').select("name").eq('id', masonId).single();
+    if (masonData?.name) setMasonName(masonData.name);
+  };
+
+  useEffect(() => { fetchPostsAndAssets(); }, []);
+  const handleLinkAsset = (asset: any) => {
+    const linkStr = `asset://${asset.type}/${asset.id}`;
+
+    const typeKey = `masonhub_asset_type_${asset.type}`;
+    const defaultTypeLabel = asset.type === 'mod' ? 'Artifact' : asset.type === 'blueprint' ? 'Blueprint' : asset.type === 'chameleon' ? 'Theme' : asset.type === 'workbench_template' ? 'Template' : 'Lexicon';
+    const translatedType = t(typeKey, defaultTypeLabel) !== typeKey ? t(typeKey, defaultTypeLabel) : defaultTypeLabel;
+
+    const text = `${translatedType}: ${asset.name}`;
+
+    if (editor) {
+      editor.chain().focus()
+        .insertContent({
+          type: 'text',
+          text: text,
+          marks: [{ type: 'link', attrs: { href: linkStr } }]
+        })
+        .insertContent(' ')
+        .run();
+    }
+
+    setIsAssetPanelOpen(false);
+  };
+
+  const openEditor = (post?: any) => {
+    const draftId = post ? post.id : 'new';
+    const rawDraft = useStore.getState().masonHubDrafts[draftId];
+    const isStaleDraft = Boolean(rawDraft && Number(rawDraft._draftVersion || 0) < 4);
+    if (isStaleDraft) {
+      setMasonHubDrafts(prev => {
+        const next = { ...prev };
+        delete next[draftId];
+        return next;
+      });
+    }
+    const draft = isStaleDraft ? undefined : rawDraft;
+
+    if (post) {
+      setEditingPostId(post.id);
+      setEditingPost(post);
+      let rawContent = (post.content || '').replace(/\[IMG:[\s\S]*?\]\s*/g, '').trim();
+      let parsedImage = extractPostImage(post) || "";
+
+      setTitle(draft?.title ?? post.title);
+      setDescription(draft?.description ?? (post.description || ""));
+      setCodeSnippet(draft?.codeSnippet ?? (post.code_snippet || ""));
+      setShowCodeInput(!!(draft?.codeSnippet ?? post.code_snippet));
+      setIsPinned(draft?.isPinned ?? !!post.is_pinned);
+      setIsActive(draft?.isActive ?? (post.is_active !== false));
+
+      const contentToSet = draft?.content ?? rawContent;
+      if (updateTimeoutRef.current) clearTimeout(updateTimeoutRef.current);
+      setContent(contentToSet);
+      if (editor) {
+        editor.commands.setContent(contentToSet, { emitUpdate: false });
+      }
+      setImageUrl(draft?.imageUrl ?? parsedImage);
+    } else {
+      setEditingPostId(null);
+      setEditingPost(null);
+      setTitle(draft?.title ?? "");
+      setDescription(draft?.description ?? "");
+      const contentToSet = draft?.content ?? "";
+      if (updateTimeoutRef.current) clearTimeout(updateTimeoutRef.current);
+      setContent(contentToSet);
+      if (editor) {
+        editor.commands.setContent(contentToSet, { emitUpdate: false });
+      }
+      setImageUrl(draft?.imageUrl ?? "");
+      setCodeSnippet(draft?.codeSnippet ?? "");
+      setShowCodeInput(!!draft?.codeSnippet);
+      setIsPinned(draft?.isPinned ?? false);
+      setIsActive(draft?.isActive ?? true);
+    }
+    setIsEditorOpen(true);
+  };
+
+  const closeEditor = () => {
+    setIsEditorOpen(false);
+    setEditingPostId(null);
+    setEditingPost(null);
+    setTitle("");
+    setDescription("");
+    if (updateTimeoutRef.current) clearTimeout(updateTimeoutRef.current);
+    setContent("");
+    if (editor) {
+      editor.commands.setContent("", { emitUpdate: false });
+    }
+    setImageUrl("");
+    setCodeSnippet("");
+    setShowCodeInput(false);
+    setShowImageInput(false);
+    setShowIconPicker(false);
+    setIsPinned(false);
+    setIsActive(true);
+  };
+
+  const handleDiscardChanges = () => {
+    if (!confirmDiscard) {
+      setConfirmDiscard(true);
+      setTimeout(() => setConfirmDiscard(false), 3000);
+      return;
+    }
+    const draftId = editingPostId || 'new';
+    setMasonHubDrafts(prev => {
+      const next = { ...prev };
+      delete next[draftId];
+      return next;
+    });
+    setConfirmDiscard(false);
+    if (editingPost) {
+      let rawContent = (editingPost.content || '').replace(/\[IMG:[\s\S]*?\]\s*/g, '').trim();
+      let parsedImage = extractPostImage(editingPost) || "";
+      setTitle(editingPost.title);
+      setDescription(editingPost.description || "");
+      setCodeSnippet(editingPost.code_snippet || "");
+      setShowCodeInput(!!editingPost.code_snippet);
+      setIsPinned(!!editingPost.is_pinned);
+      setIsActive(editingPost.is_active !== false);
+      if (updateTimeoutRef.current) clearTimeout(updateTimeoutRef.current);
+      setContent(rawContent);
+      if (editor) editor.commands.setContent(rawContent, { emitUpdate: false });
+      setImageUrl(parsedImage);
+    } else {
+      closeEditor();
+    }
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+
+    let finalContent = content;
+    if (editor && !editor.isDestroyed && editorMode === "wysiwyg") {
+      finalContent = getSafeEditorMarkdown(editor) || content;
+      setContent(finalContent);
+    }
+
+    if (!title.trim() || !finalContent.trim()) return;
+
+    const { data: { user } } = await supabase.auth.getUser();
+    if (user) {
+      const { data: profile } = await supabase.from('profiles').select('is_comm_banned, comm_blacklist_reason').eq('id', user.id).single();
+      if (profile?.is_comm_banned) {
+        useStore.getState().pushStatus(`Communications Ban: ${profile.comm_blacklist_reason || 'You are banned from comm-link.'}`, "error");
+        return;
+      }
+    }
+
+    if (isPinned) {
+      const existingPinned = posts.find(p => p.is_pinned && p.id !== editingPostId);
+      if (existingPinned) {
+        if (!window.confirm(t("confirm_pin_replace", "Another {dispatch} is already pinned. Are you sure you want to replace it?"))) {
+          return;
+        }
+        await supabase.rpc('secure_upsert_cloud_file', {
+          p_target: 'mason_posts',
+          p_payload: { id: existingPinned.id, is_pinned: false },
+          p_token: useStore.getState().session?.access_token || ''
+        });
+      }
+    }
+
+    setIsSubmitting(true);
+    const cleanedFinalContent = finalContent.replace(/\[IMG:[\s\S]*?\]\s*/g, '').trim();
+    const cleanedImageUrl = imageUrl.trim().replace(/\\+$/, '').trim();
+    let payload: any = {
+      mason_id: masonId,
+      title: title.trim(),
+      description: description.trim() || null,
+      content: cleanedFinalContent,
+      image_url: cleanedImageUrl || null,
+      code_snippet: codeSnippet.trim() || null,
+      is_pinned: isPinned,
+      is_active: isActive
+    };
+
+    let error = null;
+    let newPostId: string | null = null;
+    const performSave = async (data: any) => {
+      const payloadWithId = editingPostId ? { id: editingPostId, ...data } : data;
+      const res = await supabase.rpc('secure_upsert_cloud_file', {
+        p_target: 'mason_posts',
+        p_payload: payloadWithId,
+        p_token: useStore.getState().session?.access_token || ''
+      });
+      if (!res.error && res.data && res.data.length > 0 && !editingPostId) {
+        newPostId = res.data[0].id;
+      }
+      return { error: res.error, data: res.data };
+    };
+
+    let resObj = await performSave(payload);
+    error = resObj.error;
+
+    for (let attempt = 0; attempt < 5 && error; attempt++) {
+      const errMsg = String(error.message || '');
+      const missingColMatch = errMsg.match(/Could not find the '([^']+)' column/i);
+      const missingCol = missingColMatch?.[1];
+      if (missingCol && Object.prototype.hasOwnProperty.call(payload, missingCol)) {
+        if (missingCol === 'image_url' && imageUrl.trim()) {
+          payload.content = `[IMG:${imageUrl.trim()}]\n\n` + payload.content;
+        }
+        delete payload[missingCol];
+        resObj = await performSave(payload);
+        error = resObj.error;
+        continue;
+      }
+      if (error.code === '42703' || error.code === 'PGRST204' || error.code === 'PGRST205' || errMsg.includes('image_url')) {
+        if (payload.image_url !== undefined) {
+          if (imageUrl.trim()) payload.content = `[IMG:${imageUrl.trim()}]\n\n` + payload.content;
+          delete payload.image_url;
+        }
+        delete payload.is_active;
+        resObj = await performSave(payload);
+        error = resObj.error;
+      }
+      break;
+    }
+
+    if (!error) {
+      if (!editingPostId && newPostId) {
+        const { data: authUser } = await supabase.auth.getUser();
+        if (authUser.user && masonId) {
+          try {
+            const res = await supabase.rpc('dispatch_follower_notifications', {
+              p_mason_id: masonId,
+              p_type: 'new_post',
+              p_reference_id: newPostId,
+              p_message: `${masonName || 'A Creator you follow'} has broadcast a new Transmission.`,
+              p_token: useStore.getState().session?.access_token || '',
+            });
+            if (res.error) console.error("Follower notification dispatch error:", res.error);
+            window.dispatchEvent(new CustomEvent('refresh_notifications'));
+          } catch (e) {
+            console.error("Failed to dispatch follower notifications:", e);
+          }
+        }
+      }
+
+      useStore.getState().setMasonHubDrafts(prev => {
+        const next = { ...prev };
+        delete next[editingPostId || 'new'];
+        return next;
+      });
+      closeEditor();
+      fetchPostsAndAssets();
+      useStore.getState().pushStatus(editingPostId ? t("update_transmission", "Update {Dispatch}") : t("post_success", "{Dispatch} published successfully."), 'success');
+    } else {
+      useStore.getState().pushStatus(`Transmission Failed: ${error.message}`, 'error');
+    }
+    setIsSubmitting(false);
+  };
+
+  const handleDelete = async (id: string) => {
+    await supabase.rpc('secure_delete_cloud_file', {
+      p_target: 'mason_posts',
+      p_id: id,
+      p_token: useStore.getState().session?.access_token || ''
+    });
+    fetchPostsAndAssets();
+  };
+
+  const filteredPosts = useMemo(() => {
+    return posts.filter(p => {
+      if (activeTab === "pinned" && !p.is_pinned) return false;
+      if (activeTab === "active" && p.is_active === false) return false;
+      if (activeTab === "inactive" && p.is_active !== false) return false;
+      return p.title?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        p.content?.toLowerCase().includes(searchTerm.toLowerCase());
+    });
+  }, [posts, searchTerm, activeTab]);
+  const draftKeysStr = useMemo(() => Object.keys(masonHubDrafts).sort().join(','), [masonHubDrafts]);
+
+  const postCards = useMemo(() => {
+    const draftSet = new Set(draftKeysStr.split(','));
+    return filteredPosts.map((post, index) => {
+      const isDraft = draftSet.has(post.id);
+
+      return (
+        <MasonPostCard layout="vertical"
+          key={post.id}
+          post={post}
+          index={index}
+          onPostClick={openEditor}
+          onToggleLike={() => { }}
+          hasUnsavedEdits={isDraft}
+        />
+      );
+    });
+  }, [filteredPosts, draftKeysStr, confirmDelete, t, setPreviewPost]);
+
+  const renderNewDispatchLeadCard = () => (
+    <LiquidGlassAlertCard
+      isAlertCard={false}
+      icon={t("icon_add_circle", "add_circle")}
+      accentVar="var(--accent)"
+      iconColorClass="text-[var(--accent)]"
+      badgeIcon={t("icon_cell_tower", "cell_tower")}
+      badgeLabel={t("tab_posts", "{Dispatches}")}
+      overline={t("tab_posts", "{Dispatches}")}
+      title={t("post_broadcast", "New {Dispatch}")}
+      description={t(
+        "mason_dispatch_lead_desc",
+        "Publish an update, release note, or announcement to your subscribers."
+      )}
+      actionLabel={t("post_broadcast", "New {Dispatch}")}
+      actionIcon={t("icon_add", "add")}
+      actionVariant="glass"
+      onAction={() => openEditor()}
+      onClick={() => openEditor()}
+    />
+  );
+
+  const renderLanding = () => {
+    const recentPosts = posts.slice(0, 3);
+    const draftSet = new Set(draftKeysStr.split(','));
+
+    return (
+      <div className="grid grid-cols-1 xl:grid-cols-2 gap-10 pb-16 animate-in fade-in slide-in-from-bottom-4 duration-500">
+        <HubOverviewSection
+          title={t("title_recent_posts", "Recent {Dispatches}")}
+          icon={t("icon_history", "history")}
+          isEmpty={false}
+          gridClassName="grid grid-cols-1 sm:grid-cols-[repeat(auto-fill,minmax(240px,1fr))] gap-6"
+        >
+          {renderNewDispatchLeadCard()}
+          {recentPosts.map((post, index) => (
+            <div key={post.id} className="w-full">
+              <MasonPostCard layout="vertical"
+                post={post}
+                index={index}
+                onPostClick={openEditor}
+                onToggleLike={() => { }}
+                hasUnsavedEdits={draftSet.has(post.id)}
+              />
+            </div>
+          ))}
+        </HubOverviewSection>
+
+        <HubOverviewSection
+          title={t("title_recent_replies", "Recent Replies")}
+          icon={t("icon_forum", "forum")}
+          isEmpty={true}
+          emptyIcon={t("icon_forum", "forum")}
+          emptyTitle={t("no_replies", "No recent replies")}
+        />
+      </div>
+    );
+  };
+
+  const tabs = [
+    {
+      id: "overview",
+      label: t("overview", "Overview"),
+      icon: t("icon_dashboard", "dashboard")
+    },
+    {
+      id: "active",
+      label: t("tab_active", "Active"),
+      icon: t("icon_check_circle", "check_circle"),
+      number: posts.filter(p => p.is_active !== false).length.toString()
+    },
+    {
+      id: "inactive",
+      label: t("tab_inactive", "Inactive"),
+      icon: t("icon_cancel", "cancel"),
+      number: posts.filter(p => p.is_active === false).length.toString()
+    }
+  ];
+
+  return (
+    <ElevatedHubLayout
+      headerTitle={t("mason_hub_title", "{Mason} Workshop")}
+      headerBreadcrumb={t("tab_posts", "{Dispatches}")}
+      headerIcon={t("icon_edit_document", "edit_document")}
+      search={searchTerm}
+      onSearchChange={setSearchTerm}
+      searchPlaceholder={t("mason_search_placeholder", "Search {dispatches}...")}
+      hideSearch={activeTab === 'overview'}
+      tabs={tabs}
+      activeTab={activeTab}
+      onTabChange={(id) => setActiveTab(id as string)}
+    >
+      <div className="w-full flex flex-col gap-10 pb-32">
+        {activeTab === 'overview' ? (
+          renderLanding()
+        ) : (
+          <div className="grid grid-cols-[repeat(auto-fill,minmax(280px,1fr))] gap-8">
+            {activeTab === "active" && !searchTerm.trim() && renderNewDispatchLeadCard()}
+            {postCards}
+            {(activeTab !== "active" || Boolean(searchTerm.trim())) && filteredPosts.length === 0 && (
+              <EmptyState icon={t("icon_cell_tower", "cell_tower")} title={t("no_transmissions", "No {Dispatches} Found")} className="col-span-full py-16" />
+            )}
+          </div>
+        )}
+      </div>
+
+      {isEditorOpen && (
+        <>
+          <SidePanel
+            isOpen={isEditorOpen}
+            onClose={closeEditor}
+            icon={t("icon_cell_tower", "cell_tower")}
+            iconColorClass="text-[var(--accent)]"
+            widthClass="w-[90vw] md:w-[800px]"
+            title={editingPostId ? t("update_transmission", "Update {Dispatch}") : t("post_broadcast", "New {Dispatch}")}
+            subtitle={editingPostId ? t("editing_record", "Editing Record") : t("composing_broadcast", "Composing Broadcast")}
+            headerActions={
+              <PanelHeaderGroup>
+                {Boolean((editingPostId || 'new') && masonHubDrafts[editingPostId || 'new']) && (
+                  <PanelHeaderButton
+                    onClick={handleDiscardChanges}
+                    disabled={isSubmitting}
+                    tooltip={confirmDiscard ? t("ui_confirm_discard", "Confirm Discard") : t("ui_btn_discard_edits", "Discard Edits")}
+                    icon={confirmDiscard ? t("icon_warning", "warning") : t("icon_delete", "delete")}
+                    variant="danger"
+                    className={confirmDiscard ? "animate-pulse" : ""}
+                  />
+                )}
+                <PanelHeaderButton
+                  onClick={() => setIsPinned(!isPinned)}
+                  disabled={isSubmitting}
+                  tooltip={t("pin_transmission", "Pin {Dispatch}")}
+                  icon={t("icon_push_pin", "push_pin")}
+                  isActive={isPinned}
+                />
+                <PanelHeaderButton
+                  onClick={() => setIsActive(!isActive)}
+                  disabled={isSubmitting}
+                  tooltip={isActive ? t("mark_inactive", "Mark Inactive") : t("mark_active", "Mark Active")}
+                  icon={isActive ? t("icon_visibility", "visibility") : t("icon_visibility_off", "visibility_off")}
+                  isActive={!isActive}
+                  variant={isActive ? "default" : "warning"}
+                />
+                {editingPostId && (
+                  confirmDelete === editingPostId ? (
+                    <PanelHeaderButton
+                      onClick={(e: any) => { e.stopPropagation(); handleDelete(editingPostId); setConfirmDelete(null); closeEditor(); }}
+                      disabled={isSubmitting}
+                      tooltip={t("confirm", "Confirm")}
+                      icon={t("icon_delete_forever", "delete_forever")}
+                      variant="danger"
+                      className="animate-pulse"
+                    />
+                  ) : (
+                    <PanelHeaderButton
+                      onClick={(e: any) => { e.stopPropagation(); setConfirmDelete(editingPostId); }}
+                      disabled={isSubmitting}
+                      tooltip={t("purge", "Purge")}
+                      icon={t("icon_delete", "delete")}
+                      variant="danger"
+                    />
+                  )
+                )}
+                <PanelHeaderButton
+                  onClick={closeEditor}
+                  disabled={isSubmitting}
+                  tooltip={t("local_save", "Save Draft Locally")}
+                  icon={t("icon_save", "save")}
+                />
+                <PanelHeaderButton
+                  onClick={handleSubmit}
+                  disabled={isSubmitting || !title || !content}
+                  tooltip={isSubmitting ? t("btn_saving", "Saving...") : (editingPostId ? t("update_transmission", "Update {Dispatch}") : t("btn_post", "Post Broadcast"))}
+                  icon={isSubmitting ? t("icon_sync", "sync") : t("icon_send", "send")}
+                  variant={((editingPostId || 'new') && masonHubDrafts[editingPostId || 'new']) ? "warning" : "accent"}
+                  className={isSubmitting ? "animate-pulse" : ""}
+                />
+              </PanelHeaderGroup>
+            }
+          >
+            <div className="flex flex-col gap-4 mt-1 relative z-10 w-full pb-8 animate-in fade-in slide-in-from-bottom-2 duration-300">
+              <UniversalGroup title={t("metadata", "Transmission Metadata")} icon={t("icon_tune", "tune")}>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3 w-full">
+                  <div className="flex flex-col gap-1.5 flex-1">
+                    <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest ml-1">{t("post_title", "Post Title")}</label>
+                    <input value={title} onChange={e => setTitle(e.target.value)} placeholder={t("post_title", "Post Title")} className="w-full h-11 glass-surface rounded-xl px-4 text-[var(--text)] text-xs font-bold focus:outline-none focus:theme-border-accent transition-all" />
+                  </div>
+                  <div className="flex flex-col gap-1.5 flex-1">
+                    <div className="flex justify-between items-center mx-1">
+                      <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 uppercase tracking-widest">{t("post_description", "Short Summary")}</label>
+                      <span className={`text-[9px] font-black ${description.length >= 250 ? 'text-[var(--warning)]' : 'text-[var(--subtext)] opacity-60'}`}>{description.length}/250</span>
+                    </div>
+                    <input maxLength={250} value={description} onChange={e => setDescription(e.target.value)} placeholder={t("post_description_ph", "Brief summary shown on cards...")} className="w-full h-11 glass-surface rounded-xl px-4 text-[var(--text)] text-xs font-bold focus:outline-none focus:theme-border-accent transition-all" />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3 w-full">
+                  <SidePanelPillToggle
+                    label={t("pin_transmission", "Pin {Dispatch}")}
+                    icon={t("icon_push_pin", "push_pin")}
+                    checked={isPinned}
+                    onChange={setIsPinned}
+                    variant="accent"
+                  />
+                  <SidePanelPillToggle
+                    label={t("status_active", "Active Transmission")}
+                    icon={t("icon_visibility", "visibility")}
+                    checked={isActive}
+                    onChange={setIsActive}
+                    variant="success"
+                  />
+                </div>
+              </UniversalGroup>
+
+              <UnifiedPostBodyEditor
+                mode={editorMode}
+                onModeChange={setEditorMode}
+                content={content}
+                onContentChange={setContent}
+                editor={editor}
+                placeholder={t("post_content", "{Dispatch} Body...")}
+              />
+
+              <PostAttachmentsManager
+                content={content}
+                onContentChange={setContent}
+                editor={editor}
+                onOpenAssetLinker={() => setIsAssetPanelOpen(true)}
+                imageUrl={imageUrl}
+                onImageUrlChange={setImageUrl}
+                showCodeInput={showCodeInput}
+                onToggleCodeInput={setShowCodeInput}
+                codeSnippet={codeSnippet}
+                onCodeSnippetChange={setCodeSnippet}
+              />
+            </div>
+          </SidePanel>
+        </>
+      )}
+
+      <LinkAssetSidePanel
+        isOpen={isAssetPanelOpen}
+        onClose={() => setIsAssetPanelOpen(false)}
+        onAssetSelect={handleLinkAsset}
+        widthClass="w-[90vw] md:w-[800px]"
+        backdropZ="z-[50000]"
+        panelZ="z-[50001]"
+      />
+
+      {previewPost && (
+        <MasonPostViewer
+          post={previewPost}
+          onClose={() => setPreviewPost(null)}
+          onOpenMasonProfile={handleOpenMasonProfile}
+          userId={masonProfileId}
+          onAssetClick={(type, id) => setActiveAsset({ type, id })}
+        />
+      )}
+
+      {activeAsset && <AssetPreviewSidebar assetType={activeAsset.type} assetId={activeAsset.id} onClose={() => setActiveAsset(null)} />}
+    </ElevatedHubLayout>
+  );
+}

@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { useLexicon } from "../LexiconContext";
-import MarkdownRenderer from "../MarkdownRenderer";
+import MarkdownRenderer from "../shared-components/MarkdownRenderer";
 import {
   CANONICAL_DIRECTIVES,
   CANONICAL_LEGAL_DOCS,

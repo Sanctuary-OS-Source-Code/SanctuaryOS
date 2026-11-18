@@ -15,8 +15,8 @@ import {
   CustomDropdown,
   openModDossier,
 } from "../shared";
-import { ArtifactCard, VaultCard } from "../Cards";
-import { CustomMasonDropdown } from "../ArchitectHub";
+import { ArtifactCard, VaultCard } from "../shared-components/Cards";
+import { CustomMasonDropdown } from "../views/ArchitectHub";
 import { logArchitectAction, computeAuditDiff } from "../lib/audit";
 import { fetchAllTableRows } from "../components/artifact-studio/artifactStudioUtils";
 import {

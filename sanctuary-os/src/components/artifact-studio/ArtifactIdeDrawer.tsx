@@ -5,7 +5,7 @@ import { useStore } from "../../store";
 import { PanelHeaderButton, PanelHeaderGroup, SidePanel, StatBox } from "../../shared";
 import { SidePanelHeroCard } from "../layouts/ElevatedHubLayout";
 import { WorkbenchRawEditor } from "../../workbench/WorkbenchRawEditor";
-import VersionTimeline from "../../VersionTimeline";
+import VersionTimeline from "../../shared-components/VersionTimeline";
 
 export function ArtifactIdeDrawer({
   cwSelectedFile,

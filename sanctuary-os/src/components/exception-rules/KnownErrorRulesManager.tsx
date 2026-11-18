@@ -8,7 +8,7 @@ import { HoverTooltip } from "../../shared-components/alerts";
 import { VAULT_CHIP_CLASS } from "../../shared-components/constants";
 import { CommandScreenSectionHeading } from "../../hub-components/SharedCommandScreenLayout";
 import { formatHumanReadableLogText } from "../../utils/logScrubber";
-import { openSanctuaryContextMenu, SanctuaryContextMenuItem } from "../../ContextMenu";
+import { openSanctuaryContextMenu, SanctuaryContextMenuItem } from "../../shared-components/ContextMenu";
 import { type NormalizedRuleSeverity, type SchemaExceptionRule, normalizeRuleSeverity, syncRulesToRustRuntime, loadExceptionRulesFromSpoke, getExceptionRules, matchExceptionRules, saveExceptionRulesToSpoke } from "./ruleStoreAndMatcher";
 import { KnownErrorRuleEditorSidePanel } from "./ExceptionRuleEditorPanel";
 

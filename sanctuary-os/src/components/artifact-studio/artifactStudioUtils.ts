@@ -1,4 +1,4 @@
-import { StructureNode } from "../../ModStructureBuilder";
+import { StructureNode } from "../../hub-components/mason/ModStructureBuilder";
 
 export type StudioTabId =
   | "overview"

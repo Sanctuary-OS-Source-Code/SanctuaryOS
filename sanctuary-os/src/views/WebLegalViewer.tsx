@@ -1,0 +1,238 @@
+import { useState, useEffect } from "react";
+import { useLexicon } from "../LexiconContext";
+import MarkdownRenderer from "../shared-components/MarkdownRenderer";
+import {
+  CANONICAL_LEGAL_DOCS,
+  fetchSyncedLegalAndCovenants,
+  LegalDocCategory,
+} from "../utils/directivesSync";
+import {
+  SidePanel,
+  SidePanelHeroCard,
+  DashboardStatTile,
+  SidePanelFilterBar,
+  PanelHeaderGroup,
+  PanelHeaderButton,
+  EmptyState,
+} from "../shared";
+import {
+  StructuredReleaseNotesView,
+  LegalDocVersionInfoBlock,
+  useStableReleaseMeta,
+} from "../components/release-notes/ReleaseMarkdownViewer";
+import { cleanPostBodyForViewer } from "../components/release-notes/releaseMarkdownParser";
+
+export default function WebLegalViewer() {
+  const { t } = useLexicon();
+  const { stableVersion } = useStableReleaseMeta();
+  const [activeLegal, setActiveLegal] = useState<string | null>(null);
+  const [legalContent, setLegalContent] = useState<any>(null);
+  const [loading, setLoading] = useState(false);
+  const [viewMode, setViewMode] = useState<"ui" | "normal">("ui");
+
+  useEffect(() => {
+    const handleHashChange = () => {
+      const hash = window.location.hash.replace("#", "").toLowerCase();
+      if (["eula", "privacy", "terms", "compliance"].includes(hash)) {
+        setActiveLegal(hash);
+      } else if (!hash) {
+        setActiveLegal(null);
+      }
+    };
+
+    const handleOpenLegalEvent = (e: Event) => {
+      const detail = String((e as CustomEvent)?.detail || "")
+        .trim()
+        .toLowerCase();
+      const map: Record<string, string> = {
+        eula: "eula",
+        privacy: "privacy",
+        terms: "terms",
+        compliance: "compliance",
+        complianceprotocol: "compliance",
+      };
+      if (map[detail]) {
+        setActiveLegal(map[detail]);
+      }
+    };
+
+    window.addEventListener("hashchange", handleHashChange);
+    window.addEventListener("open_legal_doc", handleOpenLegalEvent);
+    handleHashChange();
+    return () => {
+      window.removeEventListener("hashchange", handleHashChange);
+      window.removeEventListener("open_legal_doc", handleOpenLegalEvent);
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!activeLegal) {
+      setLegalContent(null);
+      return;
+    }
+
+    const fetchLegal = async () => {
+      setLoading(true);
+
+      const catMap: Record<string, LegalDocCategory> = {
+        eula: "EULA",
+        privacy: "Privacy",
+        terms: "Terms",
+        compliance: "ComplianceProtocol",
+      };
+
+      const targetCategory = catMap[activeLegal] || "EULA";
+      const canonicalDoc = CANONICAL_LEGAL_DOCS[targetCategory];
+      const syncedMap = await fetchSyncedLegalAndCovenants();
+      const syncedRec = syncedMap[targetCategory];
+
+      setLegalContent(
+        syncedRec
+          ? {
+            title: syncedRec.title,
+            category: targetCategory,
+            message: syncedRec.content,
+            updated_at: syncedRec.updated_at,
+          }
+          : {
+            title: canonicalDoc.title,
+            category: canonicalDoc.category,
+            message: canonicalDoc.bundledContent,
+          }
+      );
+      setLoading(false);
+    };
+
+    fetchLegal();
+    const handleUpdated = () => fetchLegal();
+    window.addEventListener("sanctuary_directives_updated", handleUpdated);
+    return () =>
+      window.removeEventListener("sanctuary_directives_updated", handleUpdated);
+  }, [activeLegal, t]);
+
+  const handleClose = () => {
+    setActiveLegal(null);
+    if (
+      ["eula", "privacy", "terms", "compliance"].includes(
+        window.location.hash.replace("#", "").toLowerCase()
+      )
+    ) {
+      window.location.hash = "";
+    }
+  };
+
+  return (
+    <SidePanel
+      isOpen={!!activeLegal}
+      onClose={handleClose}
+      icon={t("icon_gavel", "gavel")}
+      iconColorClass="text-[var(--accent)]"
+      title={
+        legalContent?.title ||
+        activeLegal?.toUpperCase() ||
+        t("legal_subtitle", "Legal Document")
+      }
+      subtitle={t("legal_subtitle", "Sanctuary Foundry OS")}
+      widthClass="w-[90vw] md:w-[760px]"
+      headerActions={
+        <PanelHeaderGroup>
+          <PanelHeaderButton
+            icon={t("icon_dashboard", "dashboard")}
+            tooltip={t("tab_visual", "Visual")}
+            onClick={() => setViewMode("ui")}
+            variant={viewMode === "ui" ? "accent" : "default"}
+          />
+          <PanelHeaderButton
+            icon={t("icon_menu_book", "menu_book")}
+            tooltip={t("btn_post", "Post")}
+            onClick={() => setViewMode("normal")}
+            variant={viewMode === "normal" ? "accent" : "default"}
+          />
+        </PanelHeaderGroup>
+      }
+    >
+      <div className="flex flex-col gap-5 mt-2 relative z-10 w-full pb-8">
+        <SidePanelFilterBar className="sm:grid-cols-2 gap-3">
+          <DashboardStatTile
+            variant="filter"
+            className="!w-full"
+            icon={t("icon_gavel", "gavel")}
+            label={t("auth_covenant_eula_badge", "Software License")}
+            number={t("landing_eula", "System EULA")}
+            isActive={activeLegal === "eula"}
+            onClick={() => setActiveLegal("eula")}
+          />
+          <DashboardStatTile
+            variant="filter"
+            className="!w-full"
+            icon={t("icon_shield", "shield")}
+            label={t("auth_covenant_privacy_badge", "Zero-PII & Age Privacy")}
+            number={t("landing_privacy", "Privacy Protocol")}
+            isActive={activeLegal === "privacy"}
+            onClick={() => setActiveLegal("privacy")}
+          />
+          <DashboardStatTile
+            variant="filter"
+            className="!w-full"
+            icon={t("icon_description", "description")}
+            label={t("auth_covenant_terms_badge", "User Rules & Clearances")}
+            number={t("landing_terms", "Terms of Service")}
+            isActive={activeLegal === "terms"}
+            onClick={() => setActiveLegal("terms")}
+          />
+          <DashboardStatTile
+            variant="filter"
+            className="!w-full"
+            icon={t("icon_verified_user", "verified_user")}
+            label={t("compliance_protocol_badge", "Safety & Privacy")}
+            number={t("compliance_protocol_title", "Compliance Protocol")}
+            isActive={activeLegal === "compliance"}
+            onClick={() => setActiveLegal("compliance")}
+          />
+        </SidePanelFilterBar>
+
+        <SidePanelHeroCard
+          icon={t("icon_gavel", "gavel")}
+          overline={t("legal_subtitle", "Sanctuary Foundry OS")}
+          title={
+            legalContent?.title ||
+            activeLegal?.toUpperCase() ||
+            t("legal_subtitle", "Legal Document")
+          }
+          description={t(
+            "subtitle_sanctuary_alerts",
+            "Official legal terms, privacy policy, and end-user license agreement."
+          )}
+          badge={`V${stableVersion}`}
+          badgeIcon={t("icon_verified", "verified")}
+          variant="accent"
+        >
+          <LegalDocVersionInfoBlock
+            content={legalContent?.message || legalContent?.content}
+            updatedAt={legalContent?.updated_at}
+          />
+        </SidePanelHeroCard>
+
+        {loading ? (
+          <EmptyState
+            icon={t("icon_sync", "sync")}
+            title={t("loading", "Loading...")}
+          />
+        ) : viewMode === "ui" ? (
+          <StructuredReleaseNotesView
+            content={legalContent?.message || legalContent?.content || ""}
+            hideIntro={true}
+          />
+        ) : (
+          <div className="glass-panel rounded-2xl p-5 sm:p-6 prose prose-invert max-w-none text-[var(--text)] border border-[color-mix(in_srgb,var(--text)_10%,transparent)]">
+            <MarkdownRenderer
+              content={cleanPostBodyForViewer(
+                legalContent?.message || legalContent?.content || ""
+              )}
+            />
+          </div>
+        )}
+      </div>
+    </SidePanel>
+  );
+}

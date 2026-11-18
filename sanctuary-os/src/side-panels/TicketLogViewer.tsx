@@ -17,7 +17,7 @@ import {
 } from "../shared";
 import CodeSnippetSidebar from "./CodeSnippetSidebar";
 import { scrubLogUserData } from "../utils/logScrubber";
-import { openSanctuaryContextMenu } from "../ContextMenu";
+import { openSanctuaryContextMenu } from "../shared-components/ContextMenu";
 
 interface LogSection {
   title: string;

@@ -1,16 +1,17 @@
 import { TitleBar } from "./TitleBar";
 import { openUrl } from "@tauri-apps/plugin-opener";
-import React, { useState, useEffect, useRef, useMemo, Suspense } from "react";
+import React, {
+  useState,
+  useEffect,
+  useRef,
+  useMemo,
+} from "react";
 import { useShallow } from "zustand/react/shallow";
 import { invoke } from "@tauri-apps/api/core";
 import "./App.css";
-import { ErrorBoundary } from "./ErrorBoundary";
-import { AppModals } from "./AppModals";
 
 import { useModalStore } from "./store/modalStore";
 import { useAppActions } from "./hooks/useAppActions";
-import { readTextFile, writeTextFile, exists, mkdir } from '@tauri-apps/plugin-fs';
-import { appDataDir, join } from "@tauri-apps/api/path";
 import { useModFiltering } from "./hooks/useModFiltering";
 import { useBackupLogic } from "./hooks/useBackupLogic";
 import { useDefconRadar } from "./hooks/useDefconRadar";
@@ -20,78 +21,32 @@ import { useRadarLogic } from "./hooks/useRadarLogic";
 import { useModActions } from "./hooks/useModActions";
 import { useVaultIntake } from "./hooks/useVaultIntake";
 import { useCloudService } from "./hooks/useCloudService";
-import { useStore, syncMasterSchemas, syncGameDatabases, getSafeSchema } from "./store";
-import { isPlaceholderWorkspaceKey, findMatchingWorkspaceEntry } from "./utils/workspaceConfigMatch";
+import { useStore } from "./store";
+import { isPlaceholderWorkspaceKey } from "./utils/workspaceConfigMatch";
 import { useGlobalListeners } from "./hooks/useGlobalListeners";
-import { supabase, supabaseAuth, getActiveGameClient, isStandaloneFork, RESOLVED_SANCTUARY_CONFIG } from "./supabase";
+import { supabase } from "./supabase";
 import { listen } from "@tauri-apps/api/event";
 import { getCurrentWebview } from "@tauri-apps/api/webview";
 import { check } from "@tauri-apps/plugin-updater";
-import { ModData, SidePanel, deriveHumanReadableVersion, loadDLCMap, getExtensionRegex, PixelSnapper, sanitizeVaultModList } from "./shared";
+import {
+  ModData,
+  deriveHumanReadableVersion,
+  getExtensionRegex,
+  sanitizeVaultModList,
+} from "./shared";
 import { useLexicon } from "./LexiconContext";
 import { isDesktop, isLinuxDesktop } from "./utils/envUtils";
-import { isRootDomain, getSubdomain } from "./utils/routingUtils";
 import { Sidebar } from "./Sidebar";
-import { MobileBottomNav } from "./MobileBottomNav";
-import { NexusUpdatesChecker } from "./NexusUpdatesChecker";
-import CommandCenter from "./CommandCenter";
-import { DevBuildClearanceGate } from "./components/DevBuildClearanceGate";
-import { ElevatedPasskeyGate, CompanionPasskeyHandshakeApprover } from "./components/ElevatedPasskeyGate";
-import { getCitizenSecurityPolicy, fetchMfaSecurityState } from "./utils/passkeyUtils";
-import { deriveSpokeRelinkCommitmentHash } from "./utils/stagingCrypto";
-import Vault from "./Vault";
-import { scrubLogUserData, buildFormattedLabReportText, extractReportLoadoutFromLogAndContext } from "./utils/logScrubber";
-import { matchExceptionRules } from "./components/KnownErrorDiagnosisBanner";
-import { isUnrelatedGameBugLog, getExceptionRules, loadExceptionRulesFromSpoke } from "./components/KnownExceptionRules";
-import {
-  checkAndPromptSymlinkCloudSyncConsent,
-  invalidateCloudSyncCache,
-} from "./utils/cloudSyncGuard";
-import { GlobalCommandPalette } from './side-panels/GlobalCommandPalette';
-import { createPortal } from "react-dom";
-import { ContextMenu } from "./ContextMenu";
-import { GlobalTooltip } from "./GlobalTooltip";
+import { fetchMfaSecurityState } from "./utils/passkeyUtils";
 import { useTooltipStore } from "./store/tooltipStore";
 import { useTheme } from "./ThemeContext";
 import { SystemBackground } from "./SystemBackground";
 import { useLabMilestoneNotifications } from "./components/LabVerificationGate";
 
-const ArchitectHub = React.lazy(() => import("./ArchitectHub"));
-const GlobalFeed = React.lazy(() => import("./GlobalFeed"));
-const Settings = React.lazy(() => import("./SettingsTab"));
-const ModDossier = React.lazy(() => import("./ModDossier"));
-const BlueprintArchitect = React.lazy(() => import("./BlueprintArchitect"));
-const Nexus = React.lazy(() => import("./Nexus"));
-const ArtifactScout = React.lazy(() => import("./ArtifactScout").then((m) => ({ default: m.ArtifactScout })));
-const WebLandingPage = React.lazy(() => import("./WebLandingPage"));
-const WorkspaceFirstTimeSetup = React.lazy(() => import("./components/WorkspaceFirstTimeSetup"));
-const NotificationSidebar = React.lazy(() => import("./side-panels/NotificationSidebar"));
-const CitizenTicketsSidePanel = React.lazy(() => import("./side-panels/CitizenTicketsSidePanel"));
-const MasonHub = React.lazy(() => import("./MasonHub"));
-const MasonProfile = React.lazy(() => import("./MasonProfile"));
-const MasonPostViewer = React.lazy(() => import("./side-panels/MasonPostViewer"));
-const SupportHub = React.lazy(() => import("./SupportHub"));
-const Blueprints = React.lazy(() => import("./Blueprints"));
-const StagingPayloadEditor = React.lazy(() => import("./components/StagingPayloadEditor"));
-const Lab = React.lazy(() => import("./Lab"));
-const TimeCapsule = React.lazy(() => import("./TimeCapsule"));
-const Oversight = React.lazy(() => import("./Oversight"));
-const WayfinderHub = React.lazy(() => import("./WayfinderHub"));
-const KeepersCore = React.lazy(() => import("./KeepersCore"));
-const UpdateSidePanel = React.lazy(() => import("./side-panels/UpdateSidePanel").then((m) => ({ default: m.UpdateSidePanel })));
-const NexusUpdatesSidePanel = React.lazy(() => import("./side-panels/NexusUpdatesSidePanel").then((m) => ({ default: m.NexusUpdatesSidePanel })));
-const SupporterCelebrationSidePanel = React.lazy(() => import("./side-panels/SupporterCelebrationSidePanel").then((m) => ({ default: m.SupporterCelebrationSidePanel })));
-const CitizensWorkbench = React.lazy(() => import("./CitizensWorkbench"));
-import {
-  dispatchSanctuaryNotification,
-  getNotificationMode,
-  mapDbNotificationTypeToCategory,
-  seedInitialDeliveredNotifications,
-  hasDeliveredNotification,
-  fetchUnifiedSanctuaryNotifications,
-  syncCrossDeviceNotificationState,
-} from "./utils/notificationHelper";
-import { deriveUserNotificationSyncToken } from "./utils/stagingCrypto";
+import { useAppEdgeAndNetworkSync } from "./hooks/useAppEdgeAndNetworkSync";
+import { useAppNotificationsAndBoot } from "./hooks/useAppNotificationsAndBoot";
+import { useAppLabAndWorkbenchActions } from "./hooks/useAppLabAndWorkbenchActions";
+import { AppMainViewportRouter, AppGlobalOverlays } from "./components/app-shell/AppMainViewportRouter";
 
 function App() {
   if (!window.__sanctuaryCache) {
@@ -259,8 +214,11 @@ function App() {
 
 
   const [forceSweepCounter, setForceSweepCounter] = useState(0);
+  const checkNetworkUpdatesRef = useRef<any>(null);
+  const runRadarSweepRef = useRef<any>(null);
+  const setMalwareAlertRef = useRef<any>(null);
 
-  const { runRadarSweep, fetchVault, malwareAlert, setMalwareAlert } = useRadarLogic(checkNetworkUpdates);
+  const { runRadarSweep, fetchVault, malwareAlert, setMalwareAlert } = useRadarLogic((...args: any[]) => checkNetworkUpdatesRef.current?.(...args));
 
   const { handleDroppedFiles } = useVaultIntake(runRadarSweep);
 
@@ -551,501 +509,6 @@ function App() {
 
   const [associatedMods, setAssociatedMods] = useState<any[]>([]);
 
-  useEffect(() => {
-    const resolveDefaultWebSpoke = () => {
-      try {
-        const last = (localStorage.getItem('sanctuary_last_active_workspace') || '').trim();
-        if (last && last !== 'default_workspace' && last !== 'global') return last;
-      } catch {}
-      const wsList = useStore.getState().workspaces || [];
-      const firstWs = wsList.find(
-        (w: any) => w?.id && w.id !== 'default_workspace' && w.id !== 'global'
-      );
-      return firstWs?.id || '';
-    };
-
-    if (typeof window !== 'undefined') {
-      try {
-        const params = new URLSearchParams(window.location.search);
-        const wantHandshake = params.get('open_passkey_handshake') === '1';
-        const wantNotifs = params.get('open_notifications') === '1';
-
-        if ((wantHandshake || wantNotifs) && !isDesktop() && isRootDomain()) {
-          const targetSpoke = resolveDefaultWebSpoke();
-          if (targetSpoke) {
-            window.location.replace(`/${targetSpoke}${window.location.search}${window.location.hash || ''}`);
-            return;
-          }
-        }
-
-        let cleaned = false;
-        if (wantHandshake) {
-          params.delete('open_passkey_handshake');
-          cleaned = true;
-          try {
-            sessionStorage.setItem('sanctuary_pending_push_action', 'passkey_handshake');
-          } catch {}
-          useModalStore.getState().setIsPasskeyHandshakePanelOpen(true);
-          window.setTimeout(() => {
-            window.dispatchEvent(new CustomEvent('sanctuary-open-passkey-handshake'));
-          }, 250);
-        }
-        if (wantNotifs) {
-          params.delete('open_notifications');
-          cleaned = true;
-          try {
-            sessionStorage.setItem('sanctuary_pending_push_action', 'notifications');
-          } catch {}
-          setIsNotificationSidebarOpen(true);
-        }
-        if (cleaned) {
-          const qs = params.toString();
-          const nextUrl = `${window.location.pathname}${qs ? `?${qs}` : ''}${window.location.hash || ''}`;
-          window.history.replaceState({}, '', nextUrl);
-        }
-      } catch {}
-    }
-
-    const handleSwMessage = (event: MessageEvent) => {
-      if (event.data?.type === 'SANCTUARY_NOTIFICATION_CLICK') {
-        const isHandshake = event.data?.data?.actionTypeId === 'PASSKEY_HANDSHAKE';
-        if (!isDesktop() && isRootDomain()) {
-          const targetSpoke = resolveDefaultWebSpoke();
-          window.location.href = `/${targetSpoke}?${isHandshake ? 'open_passkey_handshake=1' : 'open_notifications=1'}`;
-          return;
-        }
-        if (isHandshake) {
-          useModalStore.getState().setIsPasskeyHandshakePanelOpen(true);
-          window.dispatchEvent(new CustomEvent('sanctuary-open-passkey-handshake'));
-        } else {
-          setIsNotificationSidebarOpen(true);
-        }
-      } else if (event.data?.type === 'SANCTUARY_PUSH_RECEIVED') {
-        window.dispatchEvent(new Event('refresh_notifications'));
-        if (event.data?.data?.actionTypeId === 'PASSKEY_HANDSHAKE') {
-          window.dispatchEvent(new CustomEvent('sanctuary-open-passkey-handshake'));
-        }
-      }
-    };
-    if ('serviceWorker' in navigator) {
-      navigator.serviceWorker.addEventListener('message', handleSwMessage);
-    }
-    return () => {
-      if ('serviceWorker' in navigator) {
-        navigator.serviceWorker.removeEventListener('message', handleSwMessage);
-      }
-    };
-  }, []);
-
-  useEffect(() => {
-    try {
-      const pendingAction = sessionStorage.getItem('sanctuary_pending_push_action');
-      if (!pendingAction) return;
-      if (pendingAction === 'passkey_handshake') {
-        useModalStore.getState().setIsPasskeyHandshakePanelOpen(true);
-        window.dispatchEvent(new CustomEvent('sanctuary-open-passkey-handshake'));
-        if (session?.user?.id) {
-          sessionStorage.removeItem('sanctuary_pending_push_action');
-        }
-      } else if (pendingAction === 'notifications') {
-        setIsNotificationSidebarOpen(true);
-        sessionStorage.removeItem('sanctuary_pending_push_action');
-      }
-    } catch {}
-  }, [session?.user?.id, activeWorkspaceId]);
-
-  useEffect(() => {
-    if (isDesktop()) return;
-    const syncPush = () => {
-      import('./utils/webPushClient')
-        .then(({ syncPwaWebPushSubscription }) => syncPwaWebPushSubscription())
-        .catch(() => {});
-    };
-    syncPush();
-    window.addEventListener('sanctuary_notification_prefs_changed', syncPush);
-    return () => {
-      window.removeEventListener('sanctuary_notification_prefs_changed', syncPush);
-    };
-  }, [session?.user?.id, activeWorkspaceId]);
-
-  useEffect(() => {
-    const getTitleForDbType = (dbType?: string, spokeName?: string, isCrossWs?: boolean) => {
-      let baseTitle = t('notify_system_dispatch', 'System Dispatch');
-      switch (dbType) {
-        case 'keepers_news':
-          baseTitle = t('notify_keepers_news', 'Keepers News');
-          break;
-        case 'patch_update_logs':
-          baseTitle = t('notify_patch_update_logs', 'Patch Update Logs');
-          break;
-        case 'alert_banner':
-          baseTitle = t('notify_alert_banner', 'Global Alerts (Spoke Wayfinders)');
-          break;
-        case 'reply':
-        case 'comment_reply':
-        case 'post_like':
-          baseTitle = t('ui.replies', 'Comm-Link Reply');
-          break;
-        case 'support_reply':
-        case 'ticket_reply':
-        case 'report_resolved':
-          baseTitle = t('notify_support', 'Support Alert');
-          break;
-        case 'new_post':
-          baseTitle = t('btn_new_posts', 'Comm-Link Post');
-          break;
-        case 'system_broadcast':
-        default:
-          baseTitle = t('notify_system_dispatch', 'System Dispatch');
-          break;
-      }
-      if (isCrossWs && spokeName) {
-        return `${spokeName} • ${baseTitle}`;
-      }
-      return baseTitle;
-    };
-
-    const fetchUnread = async (skipCloudPull = false) => {
-      if (!navigator.onLine || localStorage.getItem('sanctuary_local_only') === 'true') return;
-      try {
-        const { data: sessionData } = await supabase.auth.getSession();
-        const activeSession = sessionData?.session || session;
-
-        if (!skipCloudPull && activeSession?.user?.id) {
-          await syncCrossDeviceNotificationState(activeSession);
-        }
-
-        const data = await fetchUnifiedSanctuaryNotifications({
-          supabase,
-          supabaseAuth,
-          session: activeSession,
-          activeWorkspaceId: activeWorkspaceId || undefined,
-          workspaces: useStore.getState().workspaces,
-        });
-
-        if (data && Array.isArray(data)) {
-          // On the very first boot on this device, seed existing notification IDs so historical backlog isn't spammed
-          seedInitialDeliveredNotifications(
-            data.flatMap((n: any) => [
-              `notif:${n.id}`,
-              `notif:${n._spokeId || 'global'}:${n.id}`,
-            ])
-          );
-
-          const enabledUnread = data.filter((n: any) => {
-            if (n.is_read) return false;
-            const cat = n._category || mapDbNotificationTypeToCategory(n.type, n.message);
-            return getNotificationMode(cat, n._spokeId) !== 'NONE';
-          });
-
-          const totalUnread = enabledUnread.length;
-
-          for (const notif of enabledUnread) {
-            const uniqueId = `notif:${notif._spokeId || 'global'}:${notif.id}`;
-            const cat =
-              notif._category ||
-              mapDbNotificationTypeToCategory(notif.type, notif.message);
-            const extraMeta = {
-              category: cat,
-              spokeId: notif._spokeId,
-              referenceId: notif.reference_id,
-              dbType: notif.type,
-            };
-            if (
-              !hasDeliveredNotification(uniqueId, extraMeta) &&
-              !hasDeliveredNotification(`notif:${notif.id}`, extraMeta)
-            ) {
-              dispatchSanctuaryNotification({
-                uniqueId,
-                category: cat,
-                spokeId: notif._spokeId,
-                title: getTitleForDbType(
-                  notif.type,
-                  notif._spokeName,
-                  notif._isCrossWorkspace
-                ),
-                body: notif.message || '',
-                onInApp: () => {
-                  setStatus(`notifications_active ${t('tab_notifs', 'Notifications')}`);
-                  window.dispatchEvent(new Event('new_notification_arrived'));
-                },
-                data: {
-                  notificationId: notif.id,
-                  referenceId: notif.reference_id,
-                  type: notif.type,
-                  spokeId: notif._spokeId,
-                },
-              });
-            }
-          }
-
-          prevUnreadRef.current = totalUnread;
-          isInitialLoadRef.current = false;
-          setUnreadNotificationCount(totalUnread);
-        } else {
-          setUnreadNotificationCount(0);
-        }
-      } catch (e) {
-        // Ignore transient offline error
-      }
-    };
-
-    let cancelled = false;
-    let interval: any = null;
-    let realtimeChannel: any = null;
-    let subscribedClient: any = null;
-    let hubSyncChannel: any = null;
-
-    const handleRefreshEvent = () => fetchUnread(true);
-
-    const setupNetworkFeatures = async () => {
-      if (cancelled) return;
-      fetchUnread(false);
-      if (!interval) {
-        interval = setInterval(() => fetchUnread(false), 30000);
-      }
-      if (session?.user?.id && navigator.onLine && localStorage.getItem('sanctuary_local_only') !== 'true') {
-        if (!realtimeChannel) {
-          const spokeClient = getActiveGameClient();
-          const targetClient = spokeClient || (isStandaloneFork ? supabaseAuth : null);
-          if (targetClient) {
-            subscribedClient = targetClient;
-            realtimeChannel = targetClient
-              .channel(`sanctuary_user_notifs_${session.user.id}_${activeWorkspaceId || 'spoke'}`)
-              .on(
-                'postgres_changes',
-                {
-                  event: 'INSERT',
-                  schema: 'public',
-                  table: 'notifications',
-                  filter: `user_id=eq.${session.user.id}`,
-                },
-                () => {
-                  fetchUnread(false);
-                }
-              )
-              .on(
-                'postgres_changes',
-                {
-                  event: 'INSERT',
-                  schema: 'public',
-                  table: 'system_broadcasts',
-                },
-                async (payload: any) => {
-                  const row = payload?.new;
-                  if (row?.id && row?.is_active) {
-                    if (session?.user?.id) {
-                      await syncCrossDeviceNotificationState(session);
-                    }
-                    const isUrgent = Boolean(row.is_pinned) || String(row.category || '').includes('Alert');
-                    dispatchSanctuaryNotification({
-                      uniqueId: isUrgent ? `urgent_broadcast:${row.id}` : `broadcast:${row.id}`,
-                      category: isUrgent ? 'alert_banner' : 'system_dispatch',
-                      spokeId: activeWorkspaceId || undefined,
-                      title: row.title || t('notify_system_dispatch', 'System Dispatch'),
-                      body: row.message || row.content || '',
-                      data: { broadcastId: row.id, referenceId: row.id, type: 'system_broadcast' },
-                    });
-                  }
-                  fetchUnread(true);
-                }
-              )
-              .subscribe();
-          }
-        }
-
-        if (!hubSyncChannel && supabaseAuth) {
-          try {
-            const notifSyncToken = await deriveUserNotificationSyncToken(
-              session.user.id,
-              session.user.email
-            );
-            if (!cancelled && !hubSyncChannel && notifSyncToken) {
-              hubSyncChannel = supabaseAuth
-                .channel(`sanctuary_notif_sync_${notifSyncToken.slice(0, 16)}`)
-                .on(
-                  'postgres_changes',
-                  {
-                    event: 'INSERT',
-                    schema: 'public',
-                    table: 'citizen_staging_queue',
-                    filter: `user_token=eq.${notifSyncToken}`,
-                  },
-                  (payload: any) => {
-                    if (payload?.new?.payload_type === 'notification_state_sync') {
-                      syncCrossDeviceNotificationState(session).catch(() => {});
-                    }
-                  }
-                )
-                .subscribe();
-            }
-          } catch {}
-        }
-      }
-    };
-
-    setupNetworkFeatures();
-
-    const handleOnline = () => {
-      if (localStorage.getItem("sanctuary_local_only") !== "true") {
-        fetchUnread(false);
-        setupNetworkFeatures();
-      }
-    };
-
-    window.addEventListener('refresh_notifications', handleRefreshEvent);
-    window.addEventListener('sanctuary_notification_prefs_changed', handleRefreshEvent);
-    window.addEventListener('online', handleOnline);
-
-    return () => {
-      cancelled = true;
-      if (interval) clearInterval(interval);
-      if (realtimeChannel) {
-        try {
-          if (subscribedClient && typeof subscribedClient.removeChannel === 'function') {
-            subscribedClient.removeChannel(realtimeChannel);
-          } else if (typeof realtimeChannel.unsubscribe === 'function') {
-            realtimeChannel.unsubscribe();
-          }
-        } catch (e) {}
-      }
-      if (hubSyncChannel) {
-        try {
-          if (supabaseAuth && typeof supabaseAuth.removeChannel === 'function') {
-            supabaseAuth.removeChannel(hubSyncChannel);
-          } else if (typeof hubSyncChannel.unsubscribe === 'function') {
-            hubSyncChannel.unsubscribe();
-          }
-        } catch (e) {}
-      }
-      window.removeEventListener('refresh_notifications', handleRefreshEvent);
-      window.removeEventListener('sanctuary_notification_prefs_changed', handleRefreshEvent);
-      window.removeEventListener('online', handleOnline);
-    };
-  }, [session?.user?.id, activeWorkspaceId]);
-
-  useEffect(() => {
-    if (!activeWorkspaceId) return;
-
-    let isMounted = true;
-    const loadFsPlaysets = async () => {
-      try {
-        let loadedSets: any[] = [];
-
-        if (isDesktop()) {
-          const filePath = await appDataDir();
-          if (!(await exists(filePath))) {
-            await mkdir(filePath, { recursive: true });
-          }
-          const fullPath = await join(filePath, `sanctuary_${activeWorkspaceId}_playsets.json`);
-          const legacySepPath = `${filePath}\\sanctuary_${activeWorkspaceId}_playsets.json`;
-          const storageKey = `sanctuary_${activeWorkspaceId}_playsets`;
-
-          if (await exists(fullPath)) {
-            const contents = await readTextFile(fullPath);
-            loadedSets = JSON.parse(contents);
-          } else if (fullPath !== legacySepPath && (await exists(legacySepPath))) {
-            const contents = await readTextFile(legacySepPath);
-            loadedSets = JSON.parse(contents);
-            await writeTextFile(fullPath, JSON.stringify(loadedSets));
-          } else {
-            const cached = localStorage.getItem(storageKey);
-            if (cached) {
-              loadedSets = JSON.parse(cached);
-              await writeTextFile(fullPath, JSON.stringify(loadedSets));
-            }
-          }
-
-          try {
-            const rawLocal = localStorage.getItem(storageKey);
-            const localArr = rawLocal ? JSON.parse(rawLocal) : [];
-            const isLocalFolderEntry = (s: any) =>
-              s &&
-              s.id &&
-              (String(s.id).startsWith("f_") || String(s.id).startsWith("local_")) &&
-              Array.isArray(s.items) &&
-              !Array.isArray(s.mods) &&
-              !s.isCollection;
-            const localFoldersFromLs = Array.isArray(localArr) ? localArr.filter(isLocalFolderEntry) : [];
-            const fsFolderIds = new Set(
-              (Array.isArray(loadedSets) ? loadedSets : [])
-                .filter(isLocalFolderEntry)
-                .map((s: any) => String(s.id))
-            );
-            const mergedFolders = [
-              ...(Array.isArray(loadedSets) ? loadedSets : []).filter(isLocalFolderEntry),
-              ...localFoldersFromLs.filter((lf: any) => !fsFolderIds.has(String(lf.id))),
-            ];
-            if (localFoldersFromLs.some((lf: any) => !fsFolderIds.has(String(lf.id)))) {
-              loadedSets = [
-                ...(Array.isArray(loadedSets) ? loadedSets : []),
-                ...localFoldersFromLs.filter((lf: any) => !fsFolderIds.has(String(lf.id))),
-              ];
-            }
-            if (mergedFolders.length > 0) {
-              localStorage.setItem(storageKey, JSON.stringify(mergedFolders));
-            } else {
-              localStorage.removeItem(storageKey);
-            }
-          } catch {}
-        } else {
-          const cached = localStorage.getItem(`sanctuary_${activeWorkspaceId}_playsets`);
-          if (cached) {
-            loadedSets = JSON.parse(cached);
-          }
-        }
-
-        if (isMounted) {
-          const store = useStore.getState();
-          store.setPlaySets(loadedSets);
-
-          if (store.activeSetName) {
-            const foundIdx = loadedSets.findIndex((s: any) => s.name === store.activeSetName);
-            if (foundIdx !== -1) {
-              store.setActivePlaySetIndex(foundIdx);
-            }
-          } else if (loadedSets.length > 0) {
-            store.setActiveSetName(loadedSets[0].name);
-            store.setActivePlaySetIndex(0);
-          }
-
-          setPlaysetsLoaded(true);
-        }
-      } catch (err) {
-        console.error("Failed to load playsets from FS", err);
-        if (isMounted) setPlaysetsLoaded(true);
-      }
-    };
-
-    loadFsPlaysets();
-    return () => { isMounted = false; };
-  }, [activeWorkspaceId]);
-
-  useEffect(() => {
-    if (!playsetsLoaded || !activeWorkspaceId) return;
-    const saveFsPlaysets = async () => {
-      try {
-        if (isDesktop()) {
-          const filePath = await appDataDir();
-          if (!(await exists(filePath))) {
-            await mkdir(filePath, { recursive: true });
-          }
-          const fullPath = await join(filePath, `sanctuary_${activeWorkspaceId}_playsets.json`);
-          await writeTextFile(fullPath, JSON.stringify(playSets));
-        } else {
-          try {
-            localStorage.setItem(`sanctuary_${activeWorkspaceId}_playsets`, JSON.stringify(playSets));
-          } catch (e) {
-            console.warn("localStorage quota exceeded for playsets.");
-          }
-        }
-      } catch (err) {
-        console.error("Failed to save playsets to FS", err);
-      }
-    };
-    const debounceTimeout = setTimeout(saveFsPlaysets, 300);
-    return () => clearTimeout(debounceTimeout);
-  }, [playSets, playsetsLoaded, activeWorkspaceId]);
 
   useEffect(() => {
     if (!activeDossier) {
@@ -1477,353 +940,25 @@ function App() {
     fetchBackups,
   );
 
-  const ignoredHashesRef = useRef<Set<string>>(new Set());
-  const networkCheckIdRef = useRef<number>(0);
-  useEffect(() => {
-    let unlistenEdge: (() => void) | null = null;
-    let unlistenMalware: (() => void) | null = null;
-    let unlistenCloudSessionClean: (() => void) | null = null;
-    let cancelled = false;
-    if (isDesktop()) {
-      listen("edge_override_detected", async (event: any) => {
-        if (cancelled) return;
-          try {
-            const payload = event.payload || {};
-            const data = payload.override_json ? JSON.parse(payload.override_json) : {};
-            let embeddedManifest: any = null;
-            if (payload.manifest_json) {
-              try {
-                embeddedManifest = JSON.parse(payload.manifest_json);
-              } catch {}
-            } else if (data.last_fetched_metadata) {
-              try {
-                embeddedManifest = JSON.parse(data.last_fetched_metadata);
-              } catch {}
-            } else if (data.artifact || data.atomic_logic) {
-              embeddedManifest = data;
-            }
-
-            const extractedHashes: string[] = Array.isArray(payload.extracted_hashes)
-              ? payload.extracted_hashes.filter(Boolean)
-              : [];
-            const targetHash =
-              data.target_hash ||
-              embeddedManifest?.payload?.sha256 ||
-              extractedHashes[0] ||
-              "";
-            const archiveHashes: string[] = Array.isArray(data.archive_hashes)
-              ? data.archive_hashes.filter(Boolean)
-              : [];
-            const moduleHashes: string[] = Array.isArray(embeddedManifest?.modules)
-              ? embeddedManifest.modules.map((m: any) => m?.sha256).filter(Boolean)
-              : [];
-            const currentHashes: string[] = Array.isArray(embeddedManifest?.current_hashes)
-              ? embeddedManifest.current_hashes.filter(Boolean)
-              : [];
-            const previousHashes: string[] = Array.isArray(embeddedManifest?.previous_hashes)
-              ? embeddedManifest.previous_hashes.filter(Boolean)
-              : [];
-            const flavorHashes: string[] = Array.isArray(embeddedManifest?.atomic_logic?.flavors)
-              ? embeddedManifest.atomic_logic.flavors.filter(Boolean)
-              : [];
-
-            const allCandidateHashes = Array.from(
-              new Set(
-                [
-                  targetHash,
-                  ...extractedHashes,
-                  ...archiveHashes,
-                  ...moduleHashes,
-                  ...currentHashes,
-                  ...previousHashes,
-                  ...flavorHashes,
-                ].filter(Boolean),
-              ),
-            );
-            const lowerCandidateSet = new Set(allCandidateHashes.map((h) => String(h).toLowerCase()));
-
-            const currentMods = useStore.getState().modList || [];
-            const artifactId =
-              data.artifact_id ||
-              embeddedManifest?.artifact?.id ||
-              embeddedManifest?.artifact?.name ||
-              targetHash ||
-              "edge_artifact";
-            const normSlug = (s: string) =>
-              String(s || "")
-                .split(/[\\/]/)
-                .pop()
-                ?.replace(/\.[^/.]+$/, "")
-                .replace(/[^a-z0-9]/gi, "")
-                .toLowerCase() || "";
-            const targetSlug = normSlug(embeddedManifest?.artifact?.name || artifactId);
-
-            const matchedMods = currentMods.filter((m: any) => {
-              const mh = String(m.hash || "").toLowerCase();
-              if (mh && lowerCandidateSet.has(mh)) return true;
-              if (Array.isArray(m.flavors)) {
-                if (m.flavors.some((f: any) => f.hash && lowerCandidateSet.has(String(f.hash).toLowerCase()))) {
-                  return true;
-                }
-              }
-              if (allCandidateHashes.length === 0 && targetSlug && !m.isVirtual) {
-                return normSlug(m.name) === targetSlug || normSlug(m.displayName) === targetSlug;
-              }
-              return false;
-            });
-
-            matchedMods.forEach((mm: any) => {
-              if (mm.hash) allCandidateHashes.push(mm.hash);
-              if (Array.isArray(mm.flavors)) {
-                mm.flavors.forEach((f: any) => {
-                  if (f.hash) allCandidateHashes.push(f.hash);
-                });
-              }
-            });
-
-            const uniqueFamilyHashes = Array.from(new Set(allCandidateHashes.filter(Boolean)));
-            const resolvedHash = matchedMods[0]?.hash || targetHash || uniqueFamilyHashes[0] || "";
-
-            // Only require manual intervention if Rust flagged a conflicting URL on an existing artifact
-            if (payload.auto_accepted === false) {
-              setEdgeOverrideQueue((prev: any[]) => [...prev, payload]);
-              setDnaMatchQueue((prev: any[]) => {
-                const isDuplicate = prev.some(
-                  (m) => m.reason === "EDGE_OVERRIDE" && m.override_json === payload.override_json,
-                );
-                if (isDuplicate) return prev;
-                return [
-                  ...prev,
-                  {
-                    ...payload,
-                    reason: "EDGE_OVERRIDE",
-                    hash: resolvedHash,
-                    matched_mod_name:
-                      matchedMods[0]?.displayName ||
-                      matchedMods[0]?.name ||
-                      embeddedManifest?.artifact?.name ||
-                      artifactId,
-                  },
-                ];
-              });
-              return;
-            }
-
-            // One-time drag & drop auto-registration: apply metadata, lineage, and edge logic immediately
-            const edgeUrl = (data.manifest_url || embeddedManifest?.manifest_url || "").trim();
-            const masonId = data.mason_id || embeddedManifest?.artifact?.author || "Unknown";
-            const gameId =
-              data.game_id ||
-              embeddedManifest?.artifact?.game_id ||
-              useStore.getState().activeGameSchema?.id ||
-              useStore.getState().activeWorkspaceId ||
-              "default_workspace";
-            const activeVaultPath = useStore.getState().vaultPath || vaultPath;
-
-            let fetchedManifest: any = embeddedManifest;
-            if (activeVaultPath && (edgeUrl || artifactId)) {
-              try {
-                await invoke("register_edge_override", {
-                  vaultPath: activeVaultPath,
-                  overrideData: {
-                    artifact_id: artifactId,
-                    mason_id: masonId,
-                    game_id: gameId,
-                    manifest_url: edgeUrl,
-                    target_hash: resolvedHash,
-                    archive_hashes: uniqueFamilyHashes.filter((h) => h !== resolvedHash),
-                    last_fetched_hash: resolvedHash || undefined,
-                    last_fetched_metadata: embeddedManifest ? JSON.stringify(embeddedManifest) : undefined,
-                  },
-                });
-                if (
-                  edgeUrl &&
-                  /^https?:\/\//i.test(edgeUrl) &&
-                  !edgeUrl.includes("your-domain.com") &&
-                  !edgeUrl.includes("example.com") &&
-                  navigator.onLine
-                ) {
-                  const synced = await invoke<any>("fetch_and_sync_edge_manifest", {
-                    vaultPath: activeVaultPath,
-                    artifactId,
-                  });
-                  if (synced && synced.artifact) fetchedManifest = synced;
-                }
-              } catch {}
-            }
-
-            if (fetchedManifest) {
-              if (fetchedManifest.payload?.sha256) uniqueFamilyHashes.push(fetchedManifest.payload.sha256);
-              if (Array.isArray(fetchedManifest.modules)) {
-                fetchedManifest.modules.forEach((m: any) => {
-                  if (m?.sha256) uniqueFamilyHashes.push(m.sha256);
-                });
-              }
-              if (Array.isArray(fetchedManifest.current_hashes)) {
-                fetchedManifest.current_hashes.forEach((h: string) => {
-                  if (h) uniqueFamilyHashes.push(h);
-                });
-              }
-              if (Array.isArray(fetchedManifest.previous_hashes)) {
-                fetchedManifest.previous_hashes.forEach((h: string) => {
-                  if (h) uniqueFamilyHashes.push(h);
-                });
-              }
-            }
-
-            const finalHashes = Array.from(new Set(uniqueFamilyHashes.filter(Boolean)));
-            const localOvrMap = JSON.parse(localStorage.getItem("sanctuary_local_overrides") || "{}");
-            const edgeLogicMap = JSON.parse(localStorage.getItem("sanctuary_edge_logic") || "{}");
-
-            const activeCurrentHashes = Array.from(
-              new Set(
-                [
-                  ...extractedHashes,
-                  ...(Array.isArray(fetchedManifest?.current_hashes) ? fetchedManifest.current_hashes : []),
-                  ...(Array.isArray(fetchedManifest?.modules)
-                    ? fetchedManifest.modules.map((m: any) => m?.sha256).filter(Boolean)
-                    : []),
-                  fetchedManifest?.payload?.sha256 || targetHash,
-                ].filter(Boolean),
-              ),
-            );
-            const isMultiModule = activeCurrentHashes.length > 1;
-
-            for (const h of finalHashes) {
-              const existingOvr = localOvrMap[h] || {};
-              const isUserDossier = !!existingOvr.is_user_dossier;
-              const modDisplayName = fetchedManifest?.artifact?.name || data.artifact_id || undefined;
-              localOvrMap[h] = {
-                ...existingOvr,
-                ...(isMultiModule
-                  ? { parentName: modDisplayName }
-                  : {
-                      displayName: isUserDossier
-                        ? existingOvr.displayName
-                        : modDisplayName || existingOvr.displayName,
-                    }),
-                author: isUserDossier
-                  ? existingOvr.author
-                  : fetchedManifest?.artifact?.author || masonId || existingOvr.author,
-                version: isUserDossier
-                  ? existingOvr.version
-                  : fetchedManifest?.artifact?.version || existingOvr.version,
-                url: isUserDossier
-                  ? existingOvr.url
-                  : fetchedManifest?.payload?.download_url || existingOvr.url || edgeUrl || undefined,
-                manifest_url: existingOvr.manifest_url || edgeUrl || undefined,
-                requiredDLC: isUserDossier
-                  ? existingOvr.requiredDLC
-                  : fetchedManifest?.atomic_logic?.required_dlc || existingOvr.requiredDLC,
-                compatible_versions: isUserDossier
-                  ? existingOvr.compatible_versions
-                  : fetchedManifest?.artifact?.game_version
-                    ? [fetchedManifest.artifact.game_version]
-                    : existingOvr.compatible_versions,
-              };
-
-              edgeLogicMap[h] = {
-                ...(edgeLogicMap[h] || {}),
-                ...(fetchedManifest?.atomic_logic || {}),
-                manifest_url: edgeUrl || edgeLogicMap[h]?.manifest_url,
-                artifact_id: fetchedManifest?.artifact?.id || artifactId,
-                name: fetchedManifest?.artifact?.name || data.artifact_id || edgeLogicMap[h]?.name,
-                author: fetchedManifest?.artifact?.author || masonId || edgeLogicMap[h]?.author,
-                version: fetchedManifest?.artifact?.version || edgeLogicMap[h]?.version,
-                game_version: fetchedManifest?.artifact?.game_version || edgeLogicMap[h]?.game_version,
-                download_url: fetchedManifest?.payload?.download_url || edgeLogicMap[h]?.download_url,
-                sha256: fetchedManifest?.payload?.sha256 || resolvedHash,
-                current_hashes: activeCurrentHashes,
-                previous_hashes: Array.isArray(fetchedManifest?.previous_hashes)
-                  ? fetchedManifest.previous_hashes
-                  : [],
-                modules: Array.isArray(fetchedManifest?.modules) ? fetchedManifest.modules : [],
-                changelog: fetchedManifest?.changelog || edgeLogicMap[h]?.changelog || [],
-              };
-            }
-
-            localStorage.setItem("sanctuary_local_overrides", JSON.stringify(localOvrMap));
-            localStorage.setItem("sanctuary_edge_logic", JSON.stringify(edgeLogicMap));
-            runRadarSweep(true);
-          } catch (e) {
-            console.error("Failed to process edge_override_detected payload", e);
-          }
-      }).then((unlisten) => {
-        if (cancelled) unlisten();
-        else unlistenEdge = unlisten;
-      });
-
-      listen("malware_detected", async (event: any) => {
-        if (cancelled) return;
-        const debounceKey = `${event.payload.hash}`;
-        if (!event.payload.hash || insertingHashes.current.has(debounceKey)) return;
-        insertingHashes.current.add(debounceKey);
-        setTimeout(() => insertingHashes.current.delete(debounceKey), 250);
-
-        setMalwareAlert((prev: any[]) => {
-          if (!prev) return [event.payload];
-          const existingIdx = prev.findIndex((m) => {
-            const mName = (m.name || m.path || "").split(/[/\\]/).pop()?.toLowerCase();
-            const pName = (event.payload.name || event.payload.path || "").split(/[/\\]/).pop()?.toLowerCase();
-            return event.payload.hash
-              ? m.hash === event.payload.hash && (!mName || !pName || mName === pName)
-              : m.path === event.payload.path;
-          });
-          if (existingIdx !== -1) {
-            const existing = prev[existingIdx];
-            if (event.payload.volatile_original_path && !existing.volatile_original_path) {
-              const next = [...prev];
-              next[existingIdx] = {
-                ...existing,
-                volatile_original_path: event.payload.volatile_original_path,
-              };
-              return next;
-            }
-            return prev;
-          }
-          return [...prev, event.payload];
-        });
-
-        if (localStorage.getItem("sanctuary_share_malware_reports") === "true") {
-          try {
-            const { submitThreatManifestToSpoke } = await import("./supabase");
-            const { error } = await submitThreatManifestToSpoke(event.payload, {
-              isAuto: true,
-              defaultSignature: "Malware DNA Match",
-            });
-            if (error) console.error("Malware Report Insert Error (listen):", error);
-          } catch (e) {
-            console.error("Malware Report Insert Exception (listen):", e);
-          }
-        }
-      }).then((unlisten) => {
-        if (cancelled) unlisten();
-        else unlistenMalware = unlisten;
-      });
-
-      listen("sanctuary-cloud-session-mods-cleaned", () => {
-        if (cancelled) return;
-        invalidateCloudSyncCache();
-        useStore.getState().pushStatus(
-          t(
-            "cloud_guard_session_cleaned_toast",
-            "Game closed — {Mods} symlinks cleaned so cloud sync stays clear."
-          ),
-          "success"
-        );
-      }).then((unlisten) => {
-        if (cancelled) unlisten();
-        else unlistenCloudSessionClean = unlisten;
-      });
-    }
-
-    return () => {
-      cancelled = true;
-      if (unlistenEdge) unlistenEdge();
-      if (unlistenMalware) unlistenMalware();
-      if (unlistenCloudSessionClean) unlistenCloudSessionClean();
-    };
-  }, []);
+  runRadarSweepRef.current = runRadarSweep;
+  setMalwareAlertRef.current = setMalwareAlert;
+  const {
+    ignoredHashesRef,
+    fetchCloudLabQueue,
+    checkNetworkUpdates,
+  } = useAppEdgeAndNetworkSync({
+    insertingHashes,
+    t,
+    setModList,
+    vaultPath,
+    setLabQueue,
+    setNetworkUpdates,
+    setDnaMatchQueue,
+    setEdgeOverrideQueue,
+    runRadarSweepRef,
+    setMalwareAlertRef,
+  });
+  checkNetworkUpdatesRef.current = checkNetworkUpdates;
   useEffect(() => {
     if (
       modList.length > 0 &&
@@ -1873,212 +1008,6 @@ function App() {
     setActiveMasonPostId(postId || null);
     setIsMasonProfilePanelOpen(true);
   };
-  const didInitDLC = useRef(false);
-  useEffect(() => {
-    if (didInitDLC.current) return;
-    didInitDLC.current = true;
-    const bootDLCProtocol = async () => {
-      try {
-        if (!isDesktop()) {
-          loadDLCMap().catch(console.warn);
-          const webSubdomain = getSubdomain() || (isStandaloneFork ? RESOLVED_SANCTUARY_CONFIG.standaloneWorkspace.id : null);
-
-          if (webSubdomain) {
-            try {
-              // Await schema and game databases sync before setting activeWorkspaceId
-              // This ensures UI doesn't mount and query before Core OS credentials load.
-              await Promise.all([
-                syncMasterSchemas(webSubdomain),
-                syncGameDatabases()
-              ]);
-            } catch (e) {
-              console.warn("Sync failed on boot", e);
-            }
-
-            // Essential for web to prevent bleeding from past workspaces
-            useStore.getState().hydrateWorkspaceState(webSubdomain);
-            useStore.setState({ activeWorkspaceId: webSubdomain });
-
-            setIsConfigured(true);
-          } else {
-            // Root domain on web -> Show Hub
-            useStore.getState().hydrateWorkspaceState("default_workspace");
-            useStore.setState({ activeWorkspaceId: "default_workspace" });
-            setIsConfigured(false);
-          }
-          return;
-        }
-        const [config, globalConfig]: [any, any] = await Promise.all([
-          invoke("get_saved_coordinates").catch(() => ({})),
-          invoke("get_global_config").catch(() => ({})),
-        ]);
-        const activeWorkspace = findMatchingWorkspaceEntry(
-          globalConfig?.active_workspace_id,
-          globalConfig?.workspaces || []
-        );
-        const schemaId =
-          (!isPlaceholderWorkspaceKey(activeWorkspace?.schema_id)
-            ? activeWorkspace?.schema_id
-            : "") ||
-          (!isPlaceholderWorkspaceKey(globalConfig?.active_workspace_id)
-            ? globalConfig?.active_workspace_id
-            : "") ||
-          "default_schema";
-
-        // Load cached schema instantly so UI can render without leaking another spoke's default schema
-        const cachedSchema = localStorage.getItem(`sanctuary_master_schema_${schemaId}`);
-        if (cachedSchema) {
-          useStore.getState().setActiveGameSchema(getSafeSchema(JSON.parse(cachedSchema), schemaId));
-        } else {
-          useStore.getState().setActiveGameSchema(getSafeSchema({}, schemaId));
-        }
-
-        const cachePromise = (globalConfig?.active_workspace_id && config?.vault_path)
-          ? invoke<string>("load_master_cache", { vaultPath: config.vault_path }).catch((e) => {
-              console.error("Failed to load master cache during boot:", e);
-              return null;
-            })
-          : Promise.resolve(null);
-
-        // Hydrate Game Database URLs (instant from cache when available) in parallel with local master cache read
-        const [, cacheStr] = await Promise.all([
-          syncGameDatabases(globalConfig?.workspaces).catch(console.warn),
-          cachePromise,
-        ]);
-
-        // Sync master schemas and DLC registry in the background after spoke database URLs are ready
-        syncMasterSchemas(schemaId).catch(console.warn);
-        loadDLCMap().catch(console.warn);
-        loadExceptionRulesFromSpoke().catch(console.warn);
-
-        // Do not blindly overwrite sanctuary_last_active_workspace with globalConfig here!
-        // globalConfig might have 'default_workspace' if the rust config is empty, which destroys the user's selection.
-
-        let initialModList = useStore.getState().modList;
-
-        if (cacheStr) {
-          try {
-            const parsedCache = JSON.parse(cacheStr);
-            if (Array.isArray(parsedCache) && parsedCache.length > 0) {
-              initialModList = parsedCache;
-              setStatus(`${t("status_offline_cache_prefix", "Offline Cache Loaded:")} ${parsedCache.length} ${t("status_offline_cache_suffix", "{Mods} In Your {Vault}.")}`);
-            }
-          } catch (e) {
-            console.error("Failed to parse master cache during boot:", e);
-          }
-        }
-
-        const hasAllConfiguredPaths = Boolean(
-          config?.live_path?.trim() &&
-            config?.mods_path?.trim() &&
-            config?.vault_path?.trim()
-        );
-        if (hasAllConfiguredPaths) {
-          setPendingWorkspaceSetupId(null);
-          setIsConfigured(true);
-        } else {
-          setIsConfigured(false);
-          const pendingSetupId = localStorage.getItem(
-            "sanctuary_pending_workspace_setup"
-          );
-          if (pendingSetupId && !isPlaceholderWorkspaceKey(pendingSetupId)) {
-            setPendingWorkspaceSetupId(pendingSetupId);
-            setView("dashboard");
-          } else {
-            setPendingWorkspaceSetupId(null);
-          }
-        }
-        setLivePath(config?.live_path || "");
-        setModsPath(config?.mods_path || "");
-        setVaultPath(config?.vault_path || "");
-        useStore.getState().setDocsPath(config?.docs_path || config?.user_data_path || "");
-
-        let resolvedWorkspaceId = globalConfig?.active_workspace_id;
-        if (isPlaceholderWorkspaceKey(resolvedWorkspaceId)) {
-          resolvedWorkspaceId =
-            localStorage.getItem("sanctuary_pending_workspace_setup") ||
-            localStorage.getItem("sanctuary_last_active_workspace") ||
-            localStorage.getItem("sanctuary_active_workspace");
-        }
-        if (isPlaceholderWorkspaceKey(resolvedWorkspaceId)) {
-          const w = useStore.getState().workspaces;
-          const firstValid = Array.isArray(w)
-            ? w.find(
-                (ws: any) =>
-                  !isPlaceholderWorkspaceKey(ws?.id) ||
-                  !isPlaceholderWorkspaceKey(ws?.schema_id)
-              )
-            : null;
-          if (firstValid) {
-            resolvedWorkspaceId = firstValid.id || firstValid.schema_id;
-          } else {
-            resolvedWorkspaceId = "default_workspace";
-          }
-        }
-
-        if (resolvedWorkspaceId) {
-          useStore.getState().hydrateWorkspaceState(resolvedWorkspaceId);
-          localStorage.setItem('sanctuary_last_active_workspace', resolvedWorkspaceId);
-        }
-
-        const cachedNetUpdates = useStore.getState().networkUpdates;
-        if (Array.isArray(initialModList) && initialModList.length > 0 && cachedNetUpdates) {
-          const applyNetState = (item: any) => {
-            if (!item) return item;
-            let next = item;
-            const isBroken = cachedNetUpdates.broken?.some((b: any) => (b.hash && b.hash === item.hash) || (b.name && b.name === item.name));
-            const isObsolete = cachedNetUpdates.obsolete?.some((b: any) => (b.hash && b.hash === item.hash) || (b.name && b.name === item.name));
-            const upd = cachedNetUpdates.updated?.find((u: any) => (u.hash && u.hash === item.hash) || (u.name && u.name === item.name));
-            if (isBroken && next.status !== 'broken') next = { ...next, status: 'broken' };
-            else if (isObsolete && next.status !== 'obsolete') next = { ...next, status: 'obsolete' };
-            if (upd) {
-              next = {
-                ...next,
-                hasUpdate: true,
-                newVersion: upd.newVersion || next.newVersion,
-                newGameVersion: upd.newGameVersion || next.newGameVersion,
-                download_url: upd.download_url || next.download_url,
-              };
-            }
-            if (Array.isArray(next.flavors)) {
-              next = { ...next, flavors: next.flavors.map(applyNetState) };
-            }
-            return next;
-          };
-          initialModList = initialModList.map(applyNetState);
-        }
-
-        useStore.setState((state) => ({
-          // Only fallback to local workspaces if syncGameDatabases failed to populate them
-          workspaces: state.workspaces?.length > 0 ? state.workspaces : (globalConfig?.workspaces || []),
-          activeWorkspaceId: resolvedWorkspaceId,
-          modList: initialModList,
-          isGlobalConfigLoaded: true
-        }));
-
-        if (resolvedWorkspaceId && config?.live_path) {
-          invoke<string[]>("scan_installed_dlc", {
-            livePath: config.live_path,
-          })
-            .then((physicalDLC) => setOwnedDLC(physicalDLC))
-            .catch(console.warn);
-          if (config.launch_args) {
-            const maskMatch = config.launch_args.match(/-disablepack:([\w,]+)/i);
-            if (maskMatch?.[1]) {
-              const masked = maskMatch[1]
-                .split(",")
-                .map((s: string) => s.trim().toUpperCase());
-              setMaskedDLC(masked);
-            }
-          }
-        }
-      } catch (err) {
-        console.error("DLC Protocol Sync Failed:", err);
-        useStore.setState({ isGlobalConfigLoaded: true });
-      }
-    };
-    bootDLCProtocol();
-  }, []);
 
   useEffect(() => {
     detectGameVersion();
@@ -2236,785 +1165,32 @@ function App() {
   }, []);
   const { toggleInActiveSet, deletePlaySet, renamePlaySet, importPlaySet, finalizeImport, equipPlaySet } = usePlaySetLogic();
   const { handleSmartSearch, triggerShelter, restoreMod, purgeMod } = useModActions(openUrl, fetchVault, runRadarSweep, activeSetName, equipPlaySet, setShelterActive);
-  async function fetchCloudLabQueue() {
-    try {
-      if (!navigator.onLine || localStorage.getItem("sanctuary_local_only") === "true") return;
-      const { data, error } = await supabase
-        .from("mod_versions")
-        .select(`dna_hash, mods!inner ( name, status )`)
-        .eq("mods.status", "under_review");
-      if (error) throw error;
-      if (data) {
-        const cloudQueue = data.map((dbMod: any) => ({
-          name: dbMod.mods.name,
-          hash: dbMod.dna_hash,
-          status: t("status_dd_review", "Under Review"),
-          color: "var(--warning)",
-          displayName: dbMod.mods.name,
-          isSynced: true,
-        }));
-        setLabQueue(cloudQueue);
-      }
-    } catch (err) {
-      console.error("Failed to fetch cloud lab queue", err);
-    }
-  }
-  useEffect(() => {
-    async function fetchUserRole() {
-      if (!isGameDatabasesSynced) return;
-      if (!navigator.onLine || localStorage.getItem("sanctuary_local_only") === "true") return;
-
-      if (session?.user) {
-        let currentOsRole = "citizen";
-        try {
-          const { data: osData, error: osError } = await supabaseAuth
-            .from("profiles")
-            .select("role")
-            .eq("id", session.user.id)
-            .maybeSingle();
-
-          if (!osError && osData && osData.role) {
-            currentOsRole = osData.role.toLowerCase();
-          }
-        } catch (e) { console.error(e); }
-
-        setOsRole(currentOsRole);
-
-        let newRole = "citizen";
-        try {
-          const gameClient = getActiveGameClient();
-          if (gameClient) {
-            const relinkCommitmentHash = await deriveSpokeRelinkCommitmentHash(
-              session.user.id
-            ).catch(() => "");
-            const syncRes: any = await supabase.rpc("secure_sync_spoke_profile", {
-              p_token: session.access_token,
-              p_relink_commitment_hash: relinkCommitmentHash || undefined,
-            });
-
-            if (syncRes?.data && !syncRes.data.error && syncRes.data.role) {
-              newRole = syncRes.data.role.toLowerCase();
-            } else {
-              const { data: gameData, error: gameError } = await gameClient
-                .from("profiles")
-                .select("role")
-                .eq("id", session.user.id)
-                .maybeSingle();
-
-              if (!gameError && gameData && gameData.role) {
-                newRole = gameData.role.toLowerCase();
-              }
-            }
-          }
-        } catch (e: any) {
-          console.error(e);
-        }
-        if (isStandaloneFork && (newRole === "wayfinder" || currentOsRole === "wayfinder")) {
-          currentOsRole = "keeper";
-        }
-        setOsRole(currentOsRole);
-        setUserRole(newRole);
-
-        const currentView = useStore.getState().view;
-        const elevatedHubs = ["MasonHub", "ArchitectHub", "Oversight", "WayfinderHub", "KeepersCore", "SADefcon"];
-        if (elevatedHubs.includes(currentView)) {
-          if (currentView === "MasonHub" && !session) setView("dashboard");
-          else if (currentView === "ArchitectHub" && !["architect", "oversight", "wayfinder", "admin"].includes(newRole)) setView("dashboard");
-          else if (currentView === "Oversight" && !["oversight", "wayfinder", "admin"].includes(newRole)) setView("dashboard");
-          else if (currentView === "WayfinderHub" && !["wayfinder", "admin"].includes(newRole)) setView("dashboard");
-          else if (currentView === "KeepersCore" && !["core_dev", "admin", "keeper"].includes(currentOsRole)) setView("dashboard");
-          else if (currentView === "SADefcon" && !["keeper", "admin"].includes(currentOsRole)) setView("dashboard");
-        }
-      }
-    }
-    fetchUserRole();
-  }, [activeWorkspaceId, session, isGameDatabasesSynced]);
-
-  const didInitBoot = useRef(false);
-  useEffect(() => {
-    if (didInitBoot.current) return;
-    didInitBoot.current = true;
-
-    const handleOnlineRoleFetch = () => {
-      if (localStorage.getItem("sanctuary_local_only") !== "true") {
-        window.location.reload();
-      }
-    };
-
-    window.addEventListener('online', handleOnlineRoleFetch);
-
-    async function boot() {
-      if (!isDesktop()) {
-        useStore.setState({ isGlobalConfigLoaded: true });
-        setIsConfigured(true);
-        return;
-      }
-      try {
-        localStorage.removeItem("sanctuary_cloud_cache");
-        const config: any = await invoke("get_saved_coordinates");
-
-        if (config.live_path && config.mods_path && config.vault_path) {
-          setIsConfigured(true);
-          setLivePath(config.live_path);
-          setModsPath(config.mods_path);
-          setVaultPath(config.vault_path);
-          useStore.getState().setDocsPath(config.docs_path || config.user_data_path || "");
-
-          const currentSchema = useStore.getState().activeGameSchema;
-          if (currentSchema) {
-            await invoke('update_active_game_schema', { schema: currentSchema }).catch(console.error);
-          }
-
-          // Crash Guard: auto-heal and restore any save airgap stranded by a prior OS reboot or power loss
-          const recoveryDocsBase = String(
-            config.docs_path || config.user_data_path || config.mods_path || ""
-          ).trim();
-          if (recoveryDocsBase) {
-            invoke<{ recovered: boolean; healed_from_vault_mirror: boolean }>(
-              "recover_interrupted_lab_airgap",
-              {
-                docsPath: recoveryDocsBase,
-                vaultPath: config.vault_path || "",
-              }
-            )
-              .then(async (rep) => {
-                if (rep?.recovered) {
-                  try {
-                    await invoke("repopulate_from_shelter");
-                  } catch {}
-                  setStatus(
-                    t(
-                      "lab_crash_recovery_restored",
-                      "{Lab} Crash Guard: Your live save files were automatically verified and restored after an interrupted session."
-                    )
-                  );
-                }
-              })
-              .catch(() => {});
-          }
-
-          // Defer heavy Vault / Conflict Radar disk scans briefly so workspace preparation & master cache hydration finish with zero I/O contention
-          setTimeout(() => {
-            runRadarSweep(false);
-            fetchCloudLabQueue();
-          }, 20);
-          invoke("initialize_vault_watch").catch(console.warn);
-          const docsBase = String(config.docs_path || config.user_data_path || "").trim();
-          if (docsBase) {
-            invoke("initialize_airgap_watch", {
-              docsPath: docsBase,
-              vaultPath: config.vault_path,
-            }).catch(console.warn);
-          }
-
-          invoke("initialize_settings_watch", {
-            modsPath: config.mods_path,
-            vaultPath: config.vault_path,
-          }).catch(console.warn);
-        }
-      } catch (e) {
-        setStatus(t("status_boot_failure", "BOOT FAILURE: Check coordinates."));
-      }
-    }
-
-    boot();
-    return () => { window.removeEventListener('online', handleOnlineRoleFetch); };
-  }, []);
-
-
-  async function checkNetworkUpdates(currentModList: ModData[], isManualSweep: boolean = false) {
-    const currentCheckId = ++networkCheckIdRef.current;
-    try {
-      const syncedMods = currentModList.filter(
-        (m) => !m.isVirtual,
-      );
-      if (syncedMods.length === 0) return;
-      const broken: any[] = [];
-      const obsolete: any[] = [];
-      const updated: any[] = [];
-      let cloudData: any[] = [];
-      let hasError = false;
-      const BATCH_SIZE = 120;
-      const cloudEligibleMods = syncedMods.filter(
-        (m: any) =>
-          m.isSynced &&
-          m.dbId &&
-          Number(m.compliance_tier || 0) === 0 &&
-          String(m.status || "").toLowerCase() !== "unverified",
-      );
-      const allDbIds = [...new Set(cloudEligibleMods.map((m) => m.dbId).filter(Boolean))];
-      const queryPromises: Promise<void>[] = [];
-
-      for (let i = 0; i < allDbIds.length; i += BATCH_SIZE) {
-        const batchIds = allDbIds.slice(i, i + BATCH_SIZE);
-        queryPromises.push(
-          Promise.resolve(
-            supabase
-              .from("mods")
-              .select("id, name, status, compliance_tier, folder_structure, mod_versions(version_label, dna_hash, game_version, download_url)")
-              .in("id", batchIds)
-              .eq("compliance_tier", 0)
-              .order("created_at", { referencedTable: "mod_versions", ascending: false })
-              .limit(1, { referencedTable: "mod_versions" })
-          ).then(({ data, error }) => {
-            if (error) { console.error(error); hasError = true; }
-            if (data) cloudData.push(...data);
-          })
-        );
-      }
-
-      if (queryPromises.length > 0) {
-        await Promise.all(queryPromises);
-      }
-
-      // --- DECENTRALIZED STATIC EDGE MANIFEST POLLING (V2 BATCHED) ---
-      type EdgeBindingEntry = {
-        bindingKey: string;
-        manifestUrl: string;
-        artifactId: string;
-        hashes: Set<string>;
-        masonId?: string;
-        localHash?: string;
-        localVersion?: string;
-      };
-      const edgeBindings = new Map<string, EdgeBindingEntry>();
-      const hashToBindingKey = new Map<string, string>();
-      let localOvrMap: Record<string, any> = {};
-      let edgeLogicMap: Record<string, any> = {};
-      try {
-        localOvrMap = JSON.parse(localStorage.getItem("sanctuary_local_overrides") || "{}");
-      } catch (e) {}
-      try {
-        edgeLogicMap = JSON.parse(localStorage.getItem("sanctuary_edge_logic") || "{}");
-      } catch (e) {}
-
-      const addEdgeBinding = (
-        url: string | undefined,
-        hash?: string,
-        artifactId?: string,
-        masonId?: string,
-        localVersion?: string,
-      ) => {
-        if (!url) return;
-        const cleanUrl = url.trim();
-        if (
-          !/^https:\/\//i.test(cleanUrl) ||
-          cleanUrl.includes("your-domain.com") ||
-          cleanUrl.includes("example.com")
-        ) {
-          return;
-        }
-        const cleanHash = hash ? String(hash).trim() : "";
-        const hashLookupKey = cleanHash ? `${cleanUrl}::${cleanHash.toLowerCase()}` : "";
-        const existingKeyForHash = hashLookupKey ? hashToBindingKey.get(hashLookupKey) : undefined;
-
-        const normArtifactId = String(artifactId || cleanHash || cleanUrl).trim();
-        const compositeKey = existingKeyForHash || `${cleanUrl}::${normArtifactId.toLowerCase()}`;
-
-        if (!edgeBindings.has(compositeKey)) {
-          edgeBindings.set(compositeKey, {
-            bindingKey: compositeKey,
-            manifestUrl: cleanUrl,
-            artifactId: normArtifactId,
-            hashes: new Set<string>(),
-            masonId,
-            localHash: cleanHash || undefined,
-            localVersion: localVersion || undefined,
-          });
-        }
-        const entry = edgeBindings.get(compositeKey)!;
-        if (artifactId && (!entry.artifactId || entry.artifactId === entry.localHash)) {
-          entry.artifactId = String(artifactId).trim();
-        }
-        if (masonId && !entry.masonId) entry.masonId = masonId;
-        if (cleanHash) {
-          entry.hashes.add(cleanHash);
-          if (!entry.localHash) entry.localHash = cleanHash;
-          hashToBindingKey.set(hashLookupKey, compositeKey);
-        }
-        if (localVersion && !entry.localVersion) {
-          entry.localVersion = localVersion;
-        }
-      };
-
-      const storeSnapshot = useStore.getState();
-      const currentVaultPath = storeSnapshot.vaultPath || vaultPath;
-      const activeGameId = String(
-        storeSnapshot.activeWorkspaceId || storeSnapshot.activeGameSchema?.id || "",
-      ).trim();
-      let edgeLogicDirty = false;
-      let localOvrDirty = false;
-
-      if (isDesktop() && currentVaultPath) {
-        try {
-          const sqliteRows = await invoke<any[]>("get_all_edge_manifests", {
-            vaultPath: currentVaultPath,
-            gameId: activeGameId || null,
-          });
-          for (const row of sqliteRows || []) {
-            addEdgeBinding(row.manifest_url, row.target_hash, row.artifact_id, row.mason_id);
-            const rowHashes = [
-              row.target_hash,
-              ...(Array.isArray(row.archive_hashes) ? row.archive_hashes : []),
-            ].filter(Boolean);
-            rowHashes.forEach((ah: string) =>
-              addEdgeBinding(row.manifest_url, ah, row.artifact_id, row.mason_id),
-            );
-            if (row.last_fetched_metadata) {
-              try {
-                const cachedManifest = JSON.parse(row.last_fetched_metadata);
-                if (cachedManifest && cachedManifest.artifact) {
-                  for (const rh of rowHashes) {
-                    if (!edgeLogicMap[rh]) {
-                      edgeLogicMap[rh] = {
-                        ...(cachedManifest.atomic_logic || {}),
-                        manifest_url: row.manifest_url,
-                        artifact_id: cachedManifest.artifact?.id || row.artifact_id,
-                        name: cachedManifest.artifact?.name || row.artifact_id,
-                        author: cachedManifest.artifact?.author || row.mason_id,
-                        version: cachedManifest.artifact?.version,
-                        game_version: cachedManifest.artifact?.game_version,
-                        download_url: cachedManifest.payload?.download_url,
-                        sha256: cachedManifest.payload?.sha256 || row.target_hash,
-                        current_hashes: Array.isArray(cachedManifest.current_hashes)
-                          ? cachedManifest.current_hashes
-                          : [],
-                        previous_hashes: Array.isArray(cachedManifest.previous_hashes)
-                          ? cachedManifest.previous_hashes
-                          : [],
-                        modules: Array.isArray(cachedManifest.modules) ? cachedManifest.modules : [],
-                        changelog: cachedManifest.changelog || [],
-                      };
-                      edgeLogicDirty = true;
-                    }
-                  }
-                }
-              } catch {}
-            }
-          }
-        } catch (e) {}
-      }
-
-      Object.entries(localOvrMap).forEach(([h, ovr]: [string, any]) => {
-        if (ovr?.manifest_url) {
-          addEdgeBinding(ovr.manifest_url, h, ovr.artifact_id || ovr.displayName, ovr.author, ovr.version);
-        } else if (typeof ovr?.url === "string" && /\.json(\?.*)?$/i.test(ovr.url.trim())) {
-          addEdgeBinding(ovr.url.trim(), h, ovr.artifact_id || ovr.displayName, ovr.author, ovr.version);
-        }
-      });
-      Object.entries(edgeLogicMap).forEach(([h, logic]: [string, any]) => {
-        if (logic?.manifest_url) {
-          addEdgeBinding(logic.manifest_url, h, logic.artifact_id || logic.name, logic.author, logic.version);
-        }
-      });
-      syncedMods.forEach((m: any) => {
-        if (m.manifest_url && m.hash) {
-          addEdgeBinding(m.manifest_url, m.hash, m.artifact_id || m.displayName || m.name, m.author, m.version);
-        } else if (
-          m.hash &&
-          typeof m.url === "string" &&
-          /\.json(\?.*)?$/i.test(m.url.trim()) &&
-          (Number(m.compliance_tier || 0) >= 1 || !m.dbId || String(m.status || "").toLowerCase() === "unverified")
-        ) {
-          addEdgeBinding(m.url.trim(), m.hash, m.artifact_id || m.displayName || m.name, m.author, m.version);
-        }
-      });
-
-      if (hasError && cloudData.length === 0 && edgeBindings.size === 0) {
-        console.warn("Network check encountered errors and returned no data. Aborting to prevent wiping cached updates.");
-        return;
-      }
-
-      let debugLog = "";
-
-      if (edgeBindings.size > 0 && navigator.onLine && isDesktop() && currentVaultPath) {
-        const bindingList = Array.from(edgeBindings.values());
-        const urlBindingCounts = new Map<string, number>();
-        for (const b of bindingList) {
-          urlBindingCounts.set(b.manifestUrl, (urlBindingCounts.get(b.manifestUrl) || 0) + 1);
-        }
-
-        const targets = bindingList.map((b) => ({
-          artifact_id: b.artifactId,
-          manifest_url: b.manifestUrl,
-          local_hash: b.localHash || Array.from(b.hashes)[0] || null,
-          local_version: b.localVersion || null,
-        }));
-
-        try {
-          const pollResults = await invoke<any[]>("poll_edge_manifests_batch", {
-            vaultPath: currentVaultPath,
-            gameId: activeGameId,
-            targets,
-            force: Boolean(isManualSweep),
-          });
-
-          const resultsByKey = new Map<string, any>();
-          for (const item of pollResults || []) {
-            if (item?.manifest_url && item?.artifact_id) {
-              resultsByKey.set(
-                `${String(item.manifest_url).trim()}::${String(item.artifact_id).trim().toLowerCase()}`,
-                item,
-              );
-            }
-          }
-
-          for (let idx = 0; idx < bindingList.length; idx++) {
-            const binding = bindingList[idx];
-            const manifestUrl = binding.manifestUrl;
-            const itemResult =
-              resultsByKey.get(`${manifestUrl}::${binding.artifactId.toLowerCase()}`) ||
-              pollResults?.[idx];
-            const manifest = itemResult?.manifest;
-            if (!manifest || !manifest.artifact) continue;
-
-            const currentReleaseHashes = new Set<string>(
-              [
-                manifest.payload?.sha256,
-                ...(Array.isArray(manifest.current_hashes) ? manifest.current_hashes : []),
-                ...(Array.isArray(manifest.modules)
-                  ? manifest.modules.map((m: any) => m?.sha256)
-                  : []),
-              ]
-                .filter(Boolean)
-                .map((h: any) => String(h).toLowerCase().trim()),
-            );
-
-            const previousLineageHashes = new Set<string>(
-              (Array.isArray(manifest.previous_hashes) ? manifest.previous_hashes : [])
-                .filter(Boolean)
-                .map((h: any) => String(h).toLowerCase().trim()),
-            );
-
-            const allFamilyHashes = new Set<string>(
-              [
-                ...Array.from(binding.hashes),
-                manifest.payload?.sha256,
-                ...(Array.isArray(manifest.current_hashes) ? manifest.current_hashes : []),
-                ...(Array.isArray(manifest.modules)
-                  ? manifest.modules.map((m: any) => m?.sha256)
-                  : []),
-                ...(Array.isArray(manifest.previous_hashes) ? manifest.previous_hashes : []),
-                ...(Array.isArray(manifest.atomic_logic?.flavors) ? manifest.atomic_logic.flavors : []),
-              ].filter(Boolean),
-            );
-
-            const lowerFamilyHashes = new Set<string>(
-              Array.from(allFamilyHashes).map((h) => h.toLowerCase()),
-            );
-            const isSharedUrl = (urlBindingCounts.get(manifestUrl) || 0) > 1;
-            const matchedLocalMods = syncedMods.filter((m: any) => {
-              const mHashLower = m.hash ? String(m.hash).toLowerCase() : "";
-              if (mHashLower && lowerFamilyHashes.has(mHashLower)) return true;
-              if (!isSharedUrl) {
-                return (
-                  m.manifest_url === manifestUrl ||
-                  (m.hash && localOvrMap[m.hash]?.manifest_url === manifestUrl)
-                );
-              }
-              const needle = String(manifest.artifact?.id || binding.artifactId || "").toLowerCase();
-              const mNameLower = String(m.displayName || m.name || "").toLowerCase();
-              return Boolean(needle && mNameLower && mNameLower === needle);
-            });
-
-            matchedLocalMods.forEach((m: any) => {
-              if (m.hash) allFamilyHashes.add(m.hash);
-            });
-
-            const isMultiModule = currentReleaseHashes.size > 1 || matchedLocalMods.length > 1;
-
-            for (const famHash of allFamilyHashes) {
-              if (manifest.atomic_logic || manifest.artifact) {
-                edgeLogicMap[famHash] = {
-                  ...(edgeLogicMap[famHash] || {}),
-                  ...(manifest.atomic_logic || {}),
-                  manifest_url: manifestUrl,
-                  artifact_id: manifest.artifact?.id || binding.artifactId,
-                  name: manifest.artifact?.name || binding.artifactId,
-                  author: manifest.artifact?.author || binding.masonId,
-                  version: manifest.artifact?.version,
-                  game_version: manifest.artifact?.game_version,
-                  status:
-                    manifest.artifact?.status ||
-                    manifest.status ||
-                    manifest.atomic_logic?.status,
-                  download_url: manifest.payload?.download_url,
-                  sha256: manifest.payload?.sha256,
-                  current_hashes: Array.from(currentReleaseHashes),
-                  previous_hashes: Array.from(previousLineageHashes),
-                  modules: Array.isArray(manifest.modules) ? manifest.modules : [],
-                  changelog: manifest.changelog || [],
-                };
-                edgeLogicDirty = true;
-              }
-              if (localOvrMap[famHash]) {
-                localOvrMap[famHash] = {
-                  ...localOvrMap[famHash],
-                  ...(isMultiModule &&
-                  manifest.artifact?.name &&
-                  !localOvrMap[famHash]?.is_user_dossier &&
-                  !localOvrMap[famHash]?.parentName
-                    ? { parentName: manifest.artifact.name }
-                    : {}),
-                  manifest_url: localOvrMap[famHash].manifest_url || manifestUrl,
-                  requiredDLC:
-                    localOvrMap[famHash].is_user_dossier ||
-                    localOvrMap[famHash].requiredDLC !== undefined
-                      ? localOvrMap[famHash].requiredDLC
-                      : manifest.atomic_logic?.required_dlc || localOvrMap[famHash].requiredDLC,
-                };
-                localOvrDirty = true;
-              }
-            }
-
-            if (matchedLocalMods.length > 0) {
-              const latestSha = String(manifest.payload?.sha256 || "").toLowerCase().trim();
-              const cleanEdgeVer = String(manifest.artifact?.version || "").toLowerCase().replace(/^v/, "").trim();
-              const edgeStatusRaw = String(
-                manifest.artifact?.status ||
-                  manifest.status ||
-                  manifest.atomic_logic?.status ||
-                  "",
-              )
-                .toLowerCase()
-                .trim();
-
-              for (const localMod of matchedLocalMods) {
-                const localHash = String(localMod.hash || "").toLowerCase().trim();
-                const cleanLocalVer = String(localMod.version || "").toLowerCase().replace(/^v/, "").trim();
-
-                if (edgeStatusRaw === "broken" || edgeStatusRaw === "corrupted") {
-                  if (!broken.some((b) => (b.hash && b.hash === localMod.hash) || b.name === localMod.name)) {
-                    broken.push(localMod);
-                  }
-                } else if (edgeStatusRaw === "obsolete") {
-                  if (!obsolete.some((o) => (o.hash && o.hash === localMod.hash) || o.name === localMod.name)) {
-                    obsolete.push(localMod);
-                  }
-                }
-
-                const isInCurrentRelease = Boolean(localHash && currentReleaseHashes.has(localHash));
-                const isDeprecatedLineageHash = Boolean(localHash && previousLineageHashes.has(localHash));
-                const hashDiffers = isDeprecatedLineageHash || Boolean(latestSha && localHash && !isInCurrentRelease && latestSha !== localHash);
-                const versionDiffers = Boolean(
-                  cleanEdgeVer &&
-                  cleanLocalVer &&
-                  cleanLocalVer !== "local" &&
-                  cleanLocalVer !== ".local" &&
-                  cleanEdgeVer !== cleanLocalVer &&
-                  !isInCurrentRelease,
-                );
-
-                if (hashDiffers || versionDiffers) {
-                  if (!updated.some((u) => u.hash === localMod.hash && u.name === localMod.name)) {
-                    updated.push({
-                      ...localMod,
-                      newVersion: manifest.artifact?.version || "Update",
-                      newGameVersion: manifest.artifact?.game_version,
-                      download_url: manifest.payload?.download_url || manifestUrl,
-                      edge_changelog: manifest.changelog || [],
-                      is_edge_update: true,
-                    });
-                  }
-                }
-              }
-            }
-          }
-        } catch (edgeErr) {
-          console.warn("Edge manifest batch poll failed", edgeErr);
-        }
-      }
-
-      if (edgeLogicDirty) {
-        localStorage.setItem("sanctuary_edge_logic", JSON.stringify(edgeLogicMap));
-      }
-      if (localOvrDirty) {
-        localStorage.setItem("sanctuary_local_overrides", JSON.stringify(localOvrMap));
-      }
-      // ---------------------------------------------------
-
-      cloudData.forEach((cloudMod) => {
-        const localMods = syncedMods.filter((m) => String(m.dbId) === String(cloudMod.id) || m.name === cloudMod.name);
-        if (localMods.length === 0) return;
-
-        if (cloudMod.status === "broken") broken.push(...localMods);
-        else if (cloudMod.status === "obsolete") obsolete.push(...localMods);
-        else {
-          const latestData =
-            cloudMod.mod_versions && cloudMod.mod_versions.length > 0
-              ? cloudMod.mod_versions[0]
-              : null;
-
-          if (!latestData) return;
-
-          const anyHashMatch = localMods.some(m => m.hash && latestData.dna_hash && m.hash.toLowerCase() === latestData.dna_hash.toLowerCase());
-          const hashMismatch = latestData.dna_hash ? !anyHashMatch : false;
-
-          const isRealVer = (v: any) =>
-            Boolean(
-              v &&
-                !/^(v?\.?local|vv\.?local|local node|unknown|v\.?unknown)$/i.test(
-                  String(v).trim()
-                )
-            );
-          const primaryMod =
-            localMods.find((m) => isRealVer(m.version)) || localMods[0];
-
-          const cleanLocalVer = String(primaryMod.version || "")
-            .toLowerCase()
-            .replace(/^v\.?/, "")
-            .trim();
-          const cleanCloudVer = String(latestData.version_label || "")
-            .toLowerCase()
-            .replace(/^v\.?/, "")
-            .trim();
-
-          const hasBothVersions =
-            isRealVer(primaryMod.version) && isRealVer(latestData.version_label);
-          const isExactVersionMatch =
-            hasBothVersions && cleanLocalVer === cleanCloudVer;
-          const versionMismatch =
-            hasBothVersions && cleanLocalVer !== cleanCloudVer;
-
-          debugLog += `Mod: ${primaryMod.name} | anyHashMatch: ${anyHashMatch} | cloudHash: ${latestData.dna_hash} | hashMismatch: ${hashMismatch} | isExactVersionMatch: ${isExactVersionMatch}\n`;
-
-          const needsUpdate = !isExactVersionMatch && (hashMismatch || versionMismatch);
-
-          if (needsUpdate) {
-            localMods.forEach(m => {
-              updated.push({
-                ...m,
-                newVersion: latestData.version_label,
-                newGameVersion: latestData.game_version,
-                download_url: latestData.download_url
-              });
-            });
-          }
-        }
-      });
-
-      try {
-        localStorage.setItem("network_updates_debug", debugLog);
-      } catch (e) { }
-
-      if (networkCheckIdRef.current !== currentCheckId) {
-        console.warn("checkNetworkUpdates superseded by a newer sweep. Aborting stale state update.");
-        return;
-      }
-
-      setNetworkUpdates({ broken, obsolete, updated });
-
-      let bgLocalOvrMap: Record<string, any> = {};
-      try {
-        bgLocalOvrMap = JSON.parse(localStorage.getItem("sanctuary_local_overrides") || "{}") || {};
-      } catch {}
-
-      setModList((prevList: any[]) => {
-        let changed = false;
-        const applyUpdateToMod = (m: any) => {
-          let needsUpdate = false;
-          let newMod = { ...m };
-
-          const localOvrEntry = m.hash
-            ? bgLocalOvrMap[m.hash] || bgLocalOvrMap[String(m.hash).toLowerCase()]
-            : undefined;
-          const hasLocalStatusOvr = Boolean(
-            localOvrEntry?.status && String(localOvrEntry.status).trim() !== ""
-          );
-          const edgeEntry = m.hash ? edgeLogicMap[m.hash] : undefined;
-          const edgeStatus = String(edgeEntry?.status || "").toLowerCase().trim();
-
-          if (!hasLocalStatusOvr) {
-            if (broken.some(b => (b.hash && b.hash === m.hash) || b.name === m.name)) {
-              if (newMod.status !== 'broken') {
-                newMod.status = 'broken';
-                needsUpdate = true;
-              }
-            } else if (obsolete.some(b => (b.hash && b.hash === m.hash) || b.name === m.name)) {
-              if (newMod.status !== 'obsolete') {
-                newMod.status = 'obsolete';
-                needsUpdate = true;
-              }
-            } else if (edgeStatus === 'unstable' && newMod.status !== 'unstable') {
-              newMod.status = 'unstable';
-              needsUpdate = true;
-            }
-          }
-
-          if (edgeEntry) {
-            if (
-              localOvrEntry?.compatible_versions === undefined &&
-              edgeEntry.game_version &&
-              (!Array.isArray(newMod.compatible_versions) || newMod.compatible_versions.length === 0)
-            ) {
-              newMod.compatible_versions = [edgeEntry.game_version];
-              needsUpdate = true;
-            }
-            if (
-              localOvrEntry?.requiredDLC === undefined &&
-              Array.isArray(edgeEntry.required_dlc) &&
-              edgeEntry.required_dlc.length > 0 &&
-              (!Array.isArray(newMod.requiredDLC) || newMod.requiredDLC.length === 0)
-            ) {
-              newMod.requiredDLC = edgeEntry.required_dlc;
-              needsUpdate = true;
-            }
-            if (
-              localOvrEntry?.dependencies === undefined &&
-              localOvrEntry?.requirements === undefined &&
-              Array.isArray(edgeEntry.dependencies) &&
-              edgeEntry.dependencies.length > 0 &&
-              (!Array.isArray(newMod.dependencies) || newMod.dependencies.length === 0)
-            ) {
-              newMod.dependencies = edgeEntry.dependencies;
-              newMod.requirements = edgeEntry.dependencies;
-              needsUpdate = true;
-            }
-          }
-
-          const update = updated.find(u => (u.hash && u.hash === m.hash) || u.name === m.name);
-          if (update) {
-            if (!newMod.hasUpdate || newMod.newVersion !== update.newVersion) {
-              newMod.hasUpdate = true;
-              newMod.newVersion = update.newVersion;
-              newMod.newGameVersion = update.newGameVersion;
-              newMod.download_url = update.download_url;
-              needsUpdate = true;
-            }
-          } else if (newMod.hasUpdate) {
-            delete newMod.hasUpdate;
-            delete newMod.newVersion;
-            delete newMod.newGameVersion;
-            delete newMod.download_url;
-            needsUpdate = true;
-          }
-
-          if (Array.isArray(newMod.flavors)) {
-            let flavorChanged = false;
-            const nextFlavors = newMod.flavors.map((fl: any) => {
-              const updatedFl = applyUpdateToMod(fl);
-              if (updatedFl !== fl) flavorChanged = true;
-              return updatedFl;
-            });
-            if (flavorChanged) {
-              newMod.flavors = nextFlavors;
-              needsUpdate = true;
-            }
-          }
-
-          if (needsUpdate) {
-            changed = true;
-            return newMod;
-          }
-          return m;
-        };
-        const newList = prevList.map(applyUpdateToMod);
-        return changed ? newList : prevList;
-      });
-    } catch (err) {
-      console.error("Update check failed", err);
-    }
-  }
+  useAppNotificationsAndBoot({
+    t,
+    activeWorkspaceId,
+    isGameDatabasesSynced,
+    setUserRole,
+    setOsRole,
+    playSets,
+    setStatus,
+    session,
+    runRadarSweep,
+    setView,
+    playsetsLoaded,
+    setPlaysetsLoaded,
+    setIsConfigured,
+    setPendingWorkspaceSetupId,
+    setLivePath,
+    setModsPath,
+    setVaultPath,
+    setIsNotificationSidebarOpen,
+    setUnreadNotificationCount,
+    prevUnreadRef,
+    isInitialLoadRef,
+    setOwnedDLC,
+    setMaskedDLC,
+    fetchCloudLabQueue,
+  });
 
   async function registerConflict(
     modAHash: string,
@@ -3349,935 +1525,67 @@ function App() {
   useGlobalListeners(fetchBackups, askCustom, t, triggerPrePatchSnapshot, triggerFullEngineBackup, ignoredHashesRef);
   useLabMilestoneNotifications();
 
-  const resolveUserDataDir = (config: any): string =>
-    useStore.getState().docsPath ||
-    config?.docs_path ||
-    config?.user_data_path ||
-    String(config?.mods_path || "").replace(/[\\/][^\\/]+[\\/]?$/, "");
-
-  async function executeHotSwap() {
-    if (!activeLabMod) return;
-    const runHotSwapInternal = async (skipCloudCheck: boolean) => {
-      try {
-        const preConfig: any = await invoke("get_saved_coordinates");
-        if (!skipCloudCheck) {
-          const allowed = await checkAndPromptSymlinkCloudSyncConsent({
-            modsPath: preConfig?.mods_path,
-            vaultPath: preConfig?.vault_path,
-            docsPath: resolveUserDataDir(preConfig),
-            livePath: preConfig?.live_path,
-            actionLabel: t("lab_btn_hot_swap", "Lab Hot-Swap"),
-            onAuthorizedProceed: () => {
-              void runHotSwapInternal(true);
-            },
-          });
-          if (!allowed) {
-            setStatus(
-              t(
-                "cloud_guard_pending_action_canceled",
-                "Cloud-sync folder consent required before projecting symlinks."
-              )
-            );
-            return;
-          }
-        }
-        if (!shelterActive) {
-          setStatus(t("status_auto_isolate", "Auto-isolate..."));
-          await invoke("evacuate_to_shelter");
-          setShelterActive(true);
-          fetchVault();
-        }
-        setStatus(t("status_injecting", "Injecting..."));
-        await invoke("move_to_lab", { filename: activeLabMod.physical_path || activeLabMod.name });
-        const config: any = await invoke("get_saved_coordinates");
-        const dPath = resolveUserDataDir(config);
-        setStatus(t("status_purging_logs", "Deleting Logs..."));
-        await invoke("airgap_saves", { docsPath: dPath, enable: true });
-        await invoke("clear_old_logs", { docsPath: dPath });
-        try {
-          const currentRules = getExceptionRules(activeGameSchema);
-          await invoke("update_active_game_schema", {
-            schema: { ...(activeGameSchema || {}), exception_rules: currentRules },
-          });
-        } catch {}
-        try {
-          await invoke("start_lab_verification_session", {
-            dnaHash: activeLabMod?.hash || activeLabMod?.name || "lab_session",
-            modName: activeLabMod.displayName || activeLabMod.name || "Unknown",
-            docsPath: dPath,
-            vaultPath: config.vault_path || "",
-            linkedFiles: [activeLabMod.name].filter(Boolean),
-            notificationLabels: {
-              failed_title: t("lab_stage_failed", "Simulation Failed"),
-              timer_complete_title: t(
-                "lab_overlay_timer_up_title",
-                "TIMED TEST COMPLETE (0:00) — SAVE GAME NOW!"
-              ),
-              timer_complete_body: t(
-                "lab_overlay_timer_up_desc",
-                "Open the in-game menu and click Save to verify save serialization and unlock publishing."
-              ),
-              verified_title: t("lab_overlay_verified_title", "VERIFICATION PASSED & SIGNED!"),
-              verified_body: t(
-                "lab_overlay_verified_desc",
-                "Save checkpoint verified. You may now safely exit the game."
-              ),
-            },
-          });
-        } catch {}
-        setStatus(t("status_igniting", "Starting Engines..."));
-        await invoke("launch_game", { livePath: config.live_path, modsPath: config.mods_path });
-        setTestErrorFound(false);
-        setTestLogSnippet("");
-        if (logWatcherRef.current) {
-          clearInterval(logWatcherRef.current);
-        }
-        const interval = setInterval(async () => {
-          const res = await invoke<string>("scan_game_logs", { docsPath: dPath });
-          if (res !== "Clean" && !isUnrelatedGameBugLog(res, useStore.getState().activeGameSchema)) {
-            setTestErrorFound(true);
-            setTestLogSnippet(res);
-            setStatus(`${t("status_fatal_error", "Fatal:")} ${res.substring(0, 50)}...`);
-            clearInterval(interval);
-            logWatcherRef.current = null;
-            setLogWatcher(null);
-          }
-        }, 5000);
-        logWatcherRef.current = interval;
-        setLogWatcher(interval);
-      } catch (err) {
-        const errStr = typeof err === "string" ? err : (err as any)?.message || String(err);
-        setStatus(`${t("status_lab_error", "Lab Error:")} ${t(errStr, errStr)}`);
-      }
-    };
-    await runHotSwapInternal(false);
-  }
-  async function openWorkbench(modPath: string) {
-    try {
-      const content = await invoke<string>("read_config_file", {
-        path: modPath,
-      });
-      setConfigContent(content);
-      setEditMode(true);
-    } catch (err) {
-      setStatus(t("status_no_editable", "No editable config."));
-    }
-  }
-  async function saveWorkbenchChanges() {
-    if (!activeDossier) return;
-    setStatus(t("status_committing", "Committing Changes..."));
-    try {
-      const configPath = activeDossier.name.replace(/\.[^/.]+$/, ".cfg");
-      const config: any = await invoke("get_saved_coordinates");
-      const fullPath = `${config.mods_path}/${configPath}`;
-      const msg = await invoke<string>("save_config_file", {
-        path: fullPath,
-        content: configContent,
-      });
-      setStatus(`${t("icon_check_circle", "check_circle")} ${msg}`);
-      setEditMode(false);
-    } catch (err) {
-      setStatus(`${t("status_save_failure", "Save Failure:")}${err}`);
-    }
-  }
-  async function ensureSpokeModVersion(targetMod: any, desiredStatus = "under_review"): Promise<{ modId: string; versionId: string }> {
-    const modHash = targetMod.hash || targetMod.id || targetMod.name;
-    const { data: existingVer, error: searchError } = await supabase
-      .from("mod_versions")
-      .select("id, mod_id")
-      .eq("dna_hash", modHash)
-      .limit(1)
-      .maybeSingle();
-    if (searchError) throw searchError;
-
-    if (existingVer?.id && existingVer?.mod_id) {
-      return { modId: existingVer.mod_id, versionId: existingVer.id };
-    }
-
-    const rawName = targetMod.name || targetMod.displayName || "Unknown Artifact";
-    const cleanName = rawName.split(/[\\/]/).pop()?.replace(getExtensionRegex(activeGameSchema), "") || rawName;
-    const searchPattern = cleanName.replace(/[_ ]/g, "%");
-
-    const { data: existingMods } = await supabase
-      .from("mods")
-      .select("id")
-      .ilike("name", searchPattern)
-      .limit(1);
-
-    let targetModId = existingMods?.[0]?.id;
-    if (!targetModId) {
-      const { data: modData, error: modError } = await supabase
-        .from("mods")
-        .insert([
-          {
-            name: cleanName,
-            status: desiredStatus,
-            description: "Homestead Lab Diagnostic Artifact",
-          },
-        ])
-        .select("id")
-        .single();
-      if (modError) throw modError;
-      targetModId = modData.id;
-    }
-
-    const { data: createdVer, error: verError } = await supabase
-      .from("mod_versions")
-      .insert([
-        {
-          mod_id: targetModId,
-          version_label: deriveHumanReadableVersion(rawName, modHash),
-          game_version: selectedVersion || "Local",
-          dna_hash: modHash,
-        },
-      ])
-      .select("id")
-      .single();
-    if (verError) throw verError;
-
-    return { modId: targetModId, versionId: createdVer.id };
-  }
-
-  async function submitLabReport(reportOverride?: any): Promise<boolean> {
-    if (!session) {
-      alert(t("alert_guest_mode_uploads", "Guest Mode Active:\nUploads are disabled."));
-      return false;
-    }
-    const targetMod = reportOverride?.mod || activeLabMod;
-    const rawSnippet = reportOverride?.logSnippet || testLogSnippet || "";
-    const targetSnippet = scrubLogUserData(rawSnippet);
-    if (!targetMod) return false;
-    const isRestrictedOrUnknownMod = (m: any) =>
-      !m ||
-      (Number(m.compliance_tier || 0) >= 1 && Number(m.compliance_tier || 0) <= 4) ||
-      !m.isSynced ||
-      !m.dbId ||
-      String(m.status || "").toLowerCase() === "unverified";
-    const stagedModsForCheck = [
-      targetMod,
-      ...(reportOverride?.stagedExtras || []),
-      ...(associatedMods || []),
-      reportOverride?.conflictTarget || conflictTarget,
-      ...(reportOverride?.conflictExtras || []),
-    ].filter(Boolean);
-    if (stagedModsForCheck.some(isRestrictedOrUnknownMod)) {
-      alert(
-        t(
-          "alert_restricted_no_lab_reports",
-          "Tier 1–4 and unverified/unknown {mods} cannot be submitted to the global Homestead {Lab} database."
-        )
-      );
-      return false;
-    }
-    setIsSubmittingReport(true);
-    setStatus(t("status_submitting_report", "Uploading Lab Intel..."));
-    let ok = false;
-    try {
-      const { modId, versionId } = await ensureSpokeModVersion(targetMod, "under_review");
-      await supabase
-        .from("mods")
-        .update({ status: "under_review" })
-        .eq("id", modId);
-
-      const autoLoadout = extractReportLoadoutFromLogAndContext({ targetMod, logText: targetSnippet, explicitDependencies: [...(reportOverride?.stagedExtras || []), ...(associatedMods || [])], explicitConflictTarget: reportOverride?.conflictTarget || conflictTarget, explicitConflictExtras: reportOverride?.conflictExtras, linkedFiles: reportOverride?.linkedFiles, modList, activeGameSchema });
-      const stagedDepsList = (autoLoadout.dependencies || []).map((m: any) => m.name).filter(Boolean);
-      const conflictExtrasList = (autoLoadout.conflictExtras || []).map((m: any) => m.name).filter(Boolean);
-      const hasContextPayload = Boolean(
-        autoLoadout.conflictTarget ||
-          stagedDepsList.length > 0 ||
-          conflictExtrasList.length > 0
-      );
-
-      const notePayload = hasContextPayload
-        ? JSON.stringify({
-            conflictTarget: autoLoadout.conflictTarget?.name,
-            dependencies: stagedDepsList,
-            conflictExtras: conflictExtrasList,
-          })
-        : t("status_report_automated", "Automated System Report");
-
-      const currentExceptionRules = useStore.getState().exceptionRules || [];
-      const matchedRules = matchExceptionRules(targetSnippet, currentExceptionRules);
-      const formattedReportLog = buildFormattedLabReportText({
-        reportNumber: reportOverride?.reportNumber || 1,
-        date: reportOverride?.time
-          ? new Date(reportOverride.time).toLocaleString()
-          : new Date().toLocaleString(),
-        gameVersion: selectedVersion || "Local",
-        targetMod,
-        conflictTarget: autoLoadout.conflictTarget,
-        stagedExtras: autoLoadout.dependencies,
-        conflictExtras: autoLoadout.conflictExtras,
-        missingDeps: reportOverride?.missingDeps,
-        linkedFiles: reportOverride?.linkedFiles,
-        matchedRules,
-        rawLogText: targetSnippet,
-        errorFound: true,
-        verified: false,
-        activeGameSchema,
-        modList,
-      });
-
-      const { error } = await supabase.from("homestead_lab_logs").insert([
-        {
-          mod_id: modId,
-          version_id: versionId,
-          mod_version_id: versionId,
-          log_snippet: targetSnippet,
-          log_text: formattedReportLog,
-          status: "pending",
-          tester_note: notePayload,
-        },
-      ]);
-      if (error) throw error;
-      setStatus(t("status_report_secured", "Intel Secured"));
-      useStore.getState().pushStatus(t("status_report_secured", "Intel Secured"), "success");
-      ok = true;
-    } catch (err: any) {
-      const errMsg = `${t("status_report_failed", "Intel Upload Failed:")}${err?.message || String(err)}`;
-      setStatus(errMsg);
-      useStore.getState().pushStatus(errMsg, "error");
-    }
-    setIsSubmittingReport(false);
-    return ok;
-  }
-  async function concludeTest(
-    labContext?: any,
-    targetModOverride?: any,
-    errorFoundOverride?: boolean,
-  ): Promise<boolean> {
-    const targetMod = targetModOverride || activeLabMod;
-    const isError = errorFoundOverride !== undefined ? errorFoundOverride : testErrorFound;
-    setStatus(
-      t(
-        "lab_status_closing_and_restoring",
-        "Closing sandbox & restoring live saves..."
-      )
-    );
-    const config: any = await invoke("get_saved_coordinates").catch(() => ({}));
-    const dPath = resolveUserDataDir(config);
-    try {
-      await invoke("teardown_lab_sandbox_session", {
-        docsPath: dPath,
-        closeGame: true,
-      });
-    } catch (e: any) {
-      const rawErr = typeof e === "string" ? e : e?.message || String(e);
-      const formattedErr = rawErr.includes("lab_err_game_running_saves_locked")
-        ? t(
-            "lab_err_game_running_saves_locked",
-            "Close the running game first so your live saves can be unlocked and restored safely."
-          )
-        : `${t("status_teardown_error", "Teardown Error:")} ${rawErr}`;
-      setStatus(formattedErr);
-      useStore.getState().pushStatus(formattedErr, "error");
-      return false;
-    }
-
-    if (logWatcherRef.current) {
-      clearInterval(logWatcherRef.current);
-      logWatcherRef.current = null;
-    }
-    if (logWatcher) {
-      clearInterval(logWatcher);
-      setLogWatcher(null);
-    }
-
-    try {
-      if (shelterActive) {
-        setStatus(t("status_restoring_bunker_full", "Restoring Loadout..."));
-        const lastSet = localStorage.getItem(
-          `sanctuary_${useStore.getState().activeWorkspaceId || "default"}_active_set`
-        );
-        if (lastSet) {
-          await equipPlaySet(lastSet);
-        } else {
-          await invoke("deploy_playset_bulk", {
-            mods: [],
-            modsPath: config.mods_path,
-            vaultPath: config.vault_path,
-          });
-        }
-        setShelterActive(false);
-      }
-
-      if (!targetMod) {
-        setTestErrorFound(false);
-        setTestLogSnippet("");
-        setStatus(
-          t(
-            "status_airgap_restored",
-            "SAVE AIRGAP DISENGAGED: Live saves restored."
-          )
-        );
-        return true;
-      }
-
-      const effectiveHash = String(targetMod.hash || targetMod.name || "").trim();
-      const hasSignedCertificate = !isError
-        ? await invoke<boolean>("verify_lab_certificate_exists", {
-            vaultPath: config.vault_path || "",
-            dnaHash: effectiveHash,
-          }).catch(() => false)
-        : false;
-
-      // If the user exited the sandbox BEFORE completing the 4-stage gameplay & save checkpoint (and no error occurred),
-      // restore live saves & loadout cleanly WITHOUT marking the {mod} as Verified!
-      if (!isError && !hasSignedCertificate) {
-        setActiveLabMod(null);
-        setTestErrorFound(false);
-        setTestLogSnippet("");
-        setStatus(
-          t(
-            "lab_status_sandbox_exited_unverified",
-            "Sandbox exited & live saves restored — {Mod} remains unverified until all 4 {Lab} stages complete."
-          )
-        );
-        return true;
-      }
-
-      const finalStatus = isError ? "broken" : "verified";
-      const spokeModStatus = isError ? "under_review" : "verified";
-      const uiStatus = isError
-        ? t("status_corrupted", "Corrupted")
-        : t("verified", "Verified");
-      const uiColor = isError ? "var(--danger)" : "var(--success)";
-      const isTargetEligibleForCloudSync =
-        targetMod.isSynced &&
-        targetMod.dbId &&
-        Number(targetMod.compliance_tier || 0) === 0 &&
-        String(targetMod.status || "").toLowerCase() !== "unverified";
-      if (isTargetEligibleForCloudSync) {
-        try {
-          const { modId } = await ensureSpokeModVersion(targetMod, spokeModStatus);
-          await supabase
-            .from("mods")
-            .update({ status: spokeModStatus })
-            .eq("id", modId);
-        } catch (dbErr) {
-          console.warn("Could not sync concluded test to Spoke DB:", dbErr);
-        }
-      }
-      if (isError && targetMod.name) {
-        try {
-          toggleInActiveSet(targetMod.name, true, true);
-        } catch (e) { }
-      }
-      setLabQueue((prev) => prev.filter((m) => m.hash !== targetMod.hash));
-      setModList((prev) =>
-        prev.map((m) =>
-          m.hash === targetMod.hash
-            ? { ...m, status: uiStatus, color: uiColor, isSynced: true }
-            : m,
-        ),
-      );
-      setActiveLabMod(null);
-      setTestErrorFound(false);
-      setTestLogSnippet("");
-      setStatus(
-        `${t("status_artifact_secured_prefix", "{MOD} SECURED: Marked as")} ${finalStatus.toUpperCase()}`,
-      );
-      return true;
-    } catch (err: any) {
-      setStatus(`${t("status_teardown_error", "Teardown Error:")}${err.message}`);
-      return false;
-    }
-  }
-  const fetchLabAssociated = async (mod: ModData) => {
-    setIsLoadingAssociated(true);
-    try {
-      let modId = mod.dbId;
-      if (!modId) {
-        if (mod.hash) {
-          const { data: mvInDb } = await supabase
-            .from("mod_versions")
-            .select("mod_id, mods!inner(file_extension)")
-            .eq("dna_hash", mod.hash)
-            .maybeSingle();
-          if (mvInDb) {
-            const isLocalScript = mod.name?.toLowerCase().includes("script");
-            const isDBScript = (mvInDb.mods as any)?.file_extension?.toLowerCase().includes("script");
-            if (!!isLocalScript === !!isDBScript) {
-              modId = mvInDb.mod_id;
-            }
-          }
-        }
-      }
-      if (!modId) {
-        const cleanMod = (mod.name || "")
-          .split(/[\\/]/)
-          .pop()
-          ?.replace(getExtensionRegex(activeGameSchema), "")
-          .trim();
-        if (cleanMod && cleanMod.length >= 4) {
-          const { data: modsInDb } = await supabase
-            .from("mods")
-            .select("id, file_extension")
-            .ilike("name", cleanMod);
-
-          if (modsInDb && modsInDb.length > 0) {
-            const isScript = mod.name?.toLowerCase().includes("script");
-            const exactMatch = modsInDb.find((m: any) =>
-              isScript
-                ? m.file_extension?.toLowerCase().includes("script")
-                : !m.file_extension?.toLowerCase().includes("script")
-            );
-            modId = exactMatch ? exactMatch.id : modsInDb[0].id;
-          }
-        }
-      }
-
-      if (modId) {
-        const { data: modInDb } = await supabase
-          .from("mods")
-          .select("id")
-          .eq("id", modId)
-          .single();
-
-        if (modInDb) {
-          const { data: deps } = await supabase
-            .from("mod_dependencies")
-            .select("parent_id")
-            .eq("child_id", modInDb.id);
-          const { data: twins } = await supabase
-            .from("mod_relationships")
-            .select("child_id")
-            .eq("parent_id", modInDb.id)
-            .eq("relationship_type", "twin");
-          const { data: twinParents } = await supabase
-            .from("mod_relationships")
-            .select("parent_id")
-            .eq("child_id", modInDb.id)
-            .eq("relationship_type", "twin");
-          const { data: addonParents } = await supabase
-            .from("mod_relationships")
-            .select("parent_id")
-            .eq("child_id", modInDb.id)
-            .eq("relationship_type", "addon");
-
-          const relatedIds = [
-            ...(deps?.map((d) => String(d.parent_id)) || []),
-            ...(twins?.map((t) => String(t.child_id)) || []),
-            ...(twinParents?.map((t) => String(t.parent_id)) || []),
-            ...(addonParents?.map((a) => String(a.parent_id)) || []),
-          ];
-          if (relatedIds.length > 0) {
-            const { data: relatedMods, error } = await supabase
-              .from("mods")
-              .select("id, name, master_author, file_extension")
-              .in("id", relatedIds);
-            if (error) console.error("Error fetching associated mods:", error);
-            setAssociatedMods(relatedMods || []);
-          } else {
-            setAssociatedMods([]);
-          }
-        } else {
-          setAssociatedMods([]);
-        }
-      } else {
-        setAssociatedMods([]);
-      }
-    } catch (err) {
-      console.error("Lab Association Failed:", err);
-    }
-    setIsLoadingAssociated(false);
-  };
-  useEffect(() => {
-    if (view === "lab" && activeLabMod) {
-      fetchLabAssociated(activeLabMod);
-      setConflictTarget(null);
-      setLabConflicts([]);
-    }
-  }, [activeLabMod, view]);
-
-  useEffect(() => {
-    const handleOpenDossierEvent = (e: Event) => {
-      const rawTarget = (e as CustomEvent)?.detail;
-      if (!rawTarget) return;
-
-      const stripSanctuaryPrefix = (val: string) =>
-        String(val || "").replace(/^Sanctuary\d*[/\\]/i, "");
-      const cleanBaseName = (val: string) =>
-        stripSanctuaryPrefix(val)
-          .split(/[\\/]/)
-          .pop()
-          ?.replace(getExtensionRegex(activeGameSchema), "")
-          .trim()
-          .toLowerCase() || "";
-
-      const resolveSingleMod = (item: any) => {
-        const isStr = typeof item === "string";
-        const rawName = isStr
-          ? item
-          : String(item?._originalSetName || item?.name || item?.path || item?.displayName || "");
-        const strippedName = stripSanctuaryPrefix(rawName);
-        const targetBase = cleanBaseName(rawName);
-        const targetHash = !isStr && item?.hash ? String(item.hash) : "";
-        const targetDbId = !isStr && item?.dbId ? String(item.dbId).split("@")[0] : "";
-
-        const allPool: any[] = [...modList];
-        for (const dm of displayModList) {
-          if (dm && !allPool.includes(dm)) allPool.push(dm);
-          if (Array.isArray(dm?.flavors)) {
-            for (const f of dm.flavors) {
-              if (f && !allPool.includes(f)) allPool.push(f);
-            }
-          }
-        }
-
-        const matched = allPool.find((m: any) => {
-          if (!m || m.isCollection) return false;
-          if (targetHash && m.hash && String(m.hash) === targetHash) return true;
-          if (targetDbId && m.dbId && String(m.dbId).split("@")[0] === targetDbId && !m.isVirtual)
-            return true;
-          const mName = stripSanctuaryPrefix(String(m.name || ""));
-          if (strippedName && mName.toLowerCase() === strippedName.toLowerCase()) return true;
-          return Boolean(targetBase && cleanBaseName(m.name || m.displayName || "") === targetBase);
-        });
-
-        if (isStr) {
-          return matched ? { ...matched } : { name: strippedName || rawName, displayName: strippedName || rawName };
-        }
-        return matched
-          ? {
-              ...matched,
-              ...item,
-              name: matched.name || item.name || strippedName,
-              displayName: item.displayName || matched.displayName || matched.name || strippedName,
-              author:
-                item.author && item.author !== "Unknown"
-                  ? item.author
-                  : matched.author || item.author,
-              version:
-                item.version && String(item.version).toLowerCase() !== "v.local"
-                  ? item.version
-                  : matched.version || item.version,
-              description: item.description || matched.description,
-              image_url: item.image_url || item.imageUrl || matched.image_url || matched.imageUrl,
-              url: item.url || item.download_url || matched.url || matched.download_url,
-              hash: item.hash || matched.hash,
-              dbId: item.dbId || matched.dbId,
-              compatible_versions: item.compatible_versions || matched.compatible_versions,
-              requiredDLC: item.requiredDLC || matched.requiredDLC,
-              status_reason: item.status_reason || matched.status_reason,
-              _alert_reason: item._alert_reason,
-            }
-          : {
-              ...item,
-              name: item.name || strippedName || item.displayName || "",
-              status_reason: item.status_reason,
-              _alert_reason: item._alert_reason,
-            };
-      };
-
-      let resolvedMod: any;
-      const groupedItems = Array.isArray(rawTarget?.flavors)
-        ? rawTarget.flavors
-        : Array.isArray(rawTarget?._groupedMods) && rawTarget._groupedMods.length > 1
-          ? rawTarget._groupedMods
-          : null;
-
-      if (groupedItems && groupedItems.length > 1) {
-        const resolvedFlavors = groupedItems.map((gm: any) => resolveSingleMod(gm));
-        const famId = String(
-          rawTarget?.baseFamilyId ||
-            rawTarget?.familyId ||
-            rawTarget?.dbId ||
-            resolvedFlavors[0]?.baseFamilyId ||
-            resolvedFlavors[0]?.dbId ||
-            ""
-        ).split("@")[0];
-        const isCollectionTarget = Boolean(
-          rawTarget?._isCollectionGroup || rawTarget?.isCollection
-        );
-        const setTargetId = String(rawTarget?.setId || rawTarget?.dbId || "").trim();
-        const virtualMatch = displayModList.find((dm: any) => {
-          if (!dm?.isVirtual) return false;
-          if (isCollectionTarget && dm.isCollection) {
-            return Boolean(setTargetId && String(dm.dbId || "").trim() === setTargetId);
-          }
-          if (dm.isCollection) return false;
-          return (
-            (famId &&
-              (String(dm.dbId || "").split("@")[0] === famId ||
-                String(dm.baseFamilyId || "").split("@")[0] === famId)) ||
-            (rawTarget?.displayName &&
-              String(dm.displayName || "").toLowerCase() ===
-                String(rawTarget.displayName).toLowerCase())
-          );
-        });
-        const primaryRef = resolvedFlavors[0] || {};
-        resolvedMod = {
-          ...(virtualMatch || {}),
-          ...primaryRef,
-          ...rawTarget,
-          isVirtual: true,
-          displayName:
-            rawTarget.displayName ||
-            rawTarget._groupedTitle ||
-            virtualMatch?.displayName ||
-            primaryRef.displayName ||
-            primaryRef.name,
-          name:
-            rawTarget.name ||
-            virtualMatch?.name ||
-            primaryRef.name ||
-            rawTarget.displayName ||
-            "",
-          flavors: resolvedFlavors,
-          status_reason: rawTarget.status_reason || primaryRef.status_reason,
-          _alert_reason: rawTarget._alert_reason || primaryRef._alert_reason,
-        };
-      } else {
-        resolvedMod = resolveSingleMod(rawTarget);
-      }
-
-      const defaultName =
-        (resolvedMod.displayName || resolvedMod.name || "")
-          .split(/[\\/]/)
-          .pop()
-          ?.replace(getExtensionRegex(activeGameSchema), "")
-          .replace(/_/g, " ") || "";
-      setMetaNameInput(defaultName);
-      setMetaAuthorInput(resolvedMod.author || "");
-      setMetaVersionInput(resolvedMod.version || "");
-      setMetaDescInput(resolvedMod.description || "");
-      setMetaImageInput(resolvedMod.image_url || resolvedMod.imageUrl || "");
-      setMetaUrlInput(resolvedMod.url || "");
-      setMetaManifestUrlInput(resolvedMod.manifest_url || "");
-      setMetaStatusMsgInput(resolvedMod.status_reason || "");
-      setMetaStatusInput(resolvedMod.status || "WORKING");
-      setMetaAllowWriteInput(resolvedMod.allow_write || false);
-      setMetaIsPaidInput(resolvedMod.is_paid || false);
-      setMetaIsEarlyAccessInput(resolvedMod.is_early_access || false);
-      setIsEditingMeta(false);
-      setEditMode(false);
-      setIsCorrectingMeta(false);
-      setMasonProfileAboveDossier(false);
-      setActiveDossier(resolvedMod);
-    };
-
-    window.addEventListener("sanctuary-open-dossier", handleOpenDossierEvent);
-    return () =>
-      window.removeEventListener("sanctuary-open-dossier", handleOpenDossierEvent);
-  }, [modList, displayModList, activeGameSchema]);
-  const runLabSimulation = async () => {
-    if (!activeLabMod || !conflictTarget) return;
-    setIsLoadingAssociated(true);
-    const { data } = await supabase
-      .from("logical_conflicts")
-      .select("*")
-      .or(
-        `and(mod_a.eq."${activeLabMod.name}",mod_b.eq."${conflictTarget.name}"),and(mod_a.eq."${conflictTarget.name}",mod_b.eq."${activeLabMod.name}")`,
-      );
-    setLabConflicts(data || []);
-    setIsLoadingAssociated(false);
-  };
-  const runProvingRun = async (
-    extraDeployNames: string[] = [],
-    customToolPath?: string,
-    skipCloudCheck = false
-  ) => {
-    if (!activeLabMod) return;
-    try {
-      setStatus(t("status_diagnostic_run", "Initiating proving run: staging simulation..."));
-
-      let depPaths: string[] = [];
-      let modAId = activeLabMod.dbId;
-      if (!modAId) {
-        const { data: verA } = await supabase.from("mod_versions").select("mod_id").eq("dna_hash", activeLabMod.hash).maybeSingle();
-        modAId = verA?.mod_id;
-      }
-      if (!modAId) {
-        const cleanModA = (activeLabMod.name || "").split(/[\\/]/).pop()?.replace(getExtensionRegex(activeGameSchema), '');
-        const { data: modA } = await supabase.from("mods").select("id").ilike("name", cleanModA || "").maybeSingle();
-        modAId = modA?.id;
-      }
-
-      let modBId = conflictTarget?.dbId;
-      if (conflictTarget && !modBId) {
-        const { data: verB } = await supabase.from("mod_versions").select("mod_id").eq("dna_hash", conflictTarget.hash).maybeSingle();
-        modBId = verB?.mod_id;
-      }
-      if (conflictTarget && !modBId) {
-        const cleanModB = (conflictTarget.name || "").split(/[\\/]/).pop()?.replace(getExtensionRegex(activeGameSchema), '');
-        const { data: modB } = await supabase.from("mods").select("id").ilike("name", cleanModB || "").maybeSingle();
-        modBId = modB?.id;
-      }
-      const ids = [modAId, modBId].filter(Boolean);
-
-      if (ids.length > 0) {
-        const orQuery = ids.map(id => `child_id.eq.${id}`).join(',');
-
-        const { data: depLinks } = await supabase.from('mod_dependencies').select('parent_id, child_id').or(orQuery);
-        const { data: addonLinks } = await supabase.from('mod_relationships').select("parent_id").or(orQuery).eq('relationship_type', 'addon');
-
-        let allIds = new Set<string>();
-        if (depLinks) depLinks.forEach((l: any) => allIds.add(l.parent_id));
-        if (addonLinks) addonLinks.forEach((l: any) => allIds.add(l.parent_id));
-
-        if (allIds.size > 0) {
-          const { data: depMods } = await supabase.from('mods').select("name").in('id', Array.from(allIds));
-          if (depMods) depPaths = depMods.map((m: any) => m.name);
-        }
-      }
-
-      const config: any = await invoke("get_saved_coordinates");
-      if (!skipCloudCheck) {
-        const allowed = await checkAndPromptSymlinkCloudSyncConsent({
-          modsPath: config?.mods_path,
-          vaultPath: config?.vault_path,
-          docsPath: config?.docs_path || config?.user_data_path,
-          livePath: config?.live_path,
-          actionLabel: t("lab_btn_start_proving_run", "Start Proving Run"),
-          onAuthorizedProceed: () => {
-            void runProvingRun(extraDeployNames, customToolPath, true);
-          },
-        });
-        if (!allowed) {
-          setStatus(
-            t(
-              "cloud_guard_pending_action_canceled",
-              "Cloud-sync folder consent required before projecting symlinks."
-            )
-          );
-          return;
-        }
-      }
-      await invoke("evacuate_to_shelter");
-
-      const expandSingleTargetOrTwins = (modTarget: any): string[] => {
-        if (!modTarget) return [];
-        if (
-          modTarget.isVirtual &&
-          Array.isArray(modTarget.flavors) &&
-          !modTarget.isCollection &&
-          !modTarget._isCollectionGroup &&
-          modTarget.flavors.length <= 3
-        ) {
-          return modTarget.flavors.map((f: any) => f.name).filter(Boolean);
-        }
-        return [
-          modTarget.physical_path ||
-            modTarget.name ||
-            modTarget.flavors?.[0]?.name,
-        ].filter(Boolean);
-      };
-
-      const rawDeploySet = new Set([
-        ...expandSingleTargetOrTwins(activeLabMod),
-        ...(conflictTarget ? expandSingleTargetOrTwins(conflictTarget) : []),
-        ...depPaths,
-        ...associatedMods.map((m: any) => m.name),
-        ...extraDeployNames
-      ]);
-
-      const normalizeLookup = (s: string) =>
-        (s || "")
-          .split(/[\\/]/)
-          .pop()
-          ?.replace(getExtensionRegex(activeGameSchema), "")
-          .replace(/[^a-z0-9]/gi, "")
-          .toLowerCase() || "";
-
-      const deployPaths = Array.from(rawDeploySet)
-        .map((modName: string) => {
-          const targetNorm = normalizeLookup(modName);
-          const modObj = modList.find((m: any) => {
-            if (m.isVirtual) return false;
-            if (m.name === modName || m.displayName === modName) return true;
-            const mNorm = normalizeLookup(m.name);
-            return mNorm && targetNorm && mNorm === targetNorm;
-          });
-          return modObj ? (modObj.physical_path || modObj.name) : modName;
-        })
-        .filter(Boolean);
-
-      const primaryPath = activeLabMod.physical_path || activeLabMod.name;
-      const additionalMods = deployPaths.filter((p) => p !== primaryPath);
-
-      const linkedFiles = await invoke<string[]>("deploy_mod_for_lab_test", {
-        modPathOrName: primaryPath,
-        dnaHash: activeLabMod.hash || null,
-        additionalMods,
-        isSandbox: false,
-        modsPath: config.mods_path,
-        vaultPath: config.vault_path || "",
-      });
-
-      setShelterActive(true);
-      fetchVault();
-
-      const dPath = resolveUserDataDir(config);
-      setStatus(t("status_purging_logs", "Deleting Logs..."));
-      await invoke("airgap_saves", { docsPath: dPath, enable: true });
-      await invoke("clear_old_logs", { docsPath: dPath });
-
-      try {
-        await invoke("start_lab_verification_session", {
-          dnaHash: activeLabMod?.hash || activeLabMod?.name || "lab_session",
-          modName: activeLabMod.displayName || activeLabMod.name || "Unknown",
-          docsPath: dPath,
-          vaultPath: config.vault_path || "",
-          linkedFiles,
-          notificationLabels: {
-            failed_title: t("lab_stage_failed", "Simulation Failed"),
-            timer_complete_title: t(
-              "lab_overlay_timer_up_title",
-              "TIMED TEST COMPLETE (0:00) — SAVE GAME NOW!"
-            ),
-            timer_complete_body: t(
-              "lab_overlay_timer_up_desc",
-              "Open the in-game menu and click Save to verify save serialization and unlock publishing."
-            ),
-            verified_title: t("lab_overlay_verified_title", "VERIFICATION PASSED & SIGNED!"),
-            verified_body: t(
-              "lab_overlay_verified_desc",
-              "Save checkpoint verified. You may now safely exit the game."
-            ),
-          },
-        });
-      } catch (e) {}
-
-      if (customToolPath && customToolPath.trim()) {
-        setStatus(t("status_external_tool_launched", "Saves Airgapped & External Program Launched."));
-        await invoke("launch_external_tool", {
-          toolPath: customToolPath.trim(),
-          docsPath: dPath,
-          enforceAirgap: true,
-        });
-      } else {
-        setStatus(t("status_igniting", "Starting Engines..."));
-        await invoke("launch_game", { livePath: config.live_path, modsPath: config.mods_path });
-      }
-
-      setTestErrorFound(false);
-      setTestLogSnippet("");
-      if (logWatcherRef.current) {
-        clearInterval(logWatcherRef.current);
-      }
-      const interval = setInterval(async () => {
-        const res = await invoke<string>("scan_game_logs", { docsPath: dPath });
-        if (res !== "Clean" && !isUnrelatedGameBugLog(res, useStore.getState().activeGameSchema)) {
-          const scrubbedRes = scrubLogUserData(res);
-          setTestErrorFound(true);
-          setTestLogSnippet(scrubbedRes);
-          setStatus(`${t("status_fatal_error", "Fatal:")} ${scrubbedRes.substring(0, 50)}...`);
-          clearInterval(interval);
-          logWatcherRef.current = null;
-          setLogWatcher(null);
-          // Do NOT disable save airgap while the game/tool is still running!
-          // Airgap remains engaged until concludeTest() or repopulate_from_shelter().
-        }
-      }, 5000);
-      logWatcherRef.current = interval;
-      setLogWatcher(interval as any);
-    } catch (err) {
-      const errStr = typeof err === "string" ? err : (err as any)?.message || String(err);
-      setStatus(`${t("status_lab_error", "Lab Error:")} ${t(errStr, errStr)}`);
-    }
-  };
-
+  const {
+    executeHotSwap,
+    openWorkbench,
+    saveWorkbenchChanges,
+    submitLabReport,
+    concludeTest,
+    runLabSimulation,
+    runProvingRun,
+  } = useAppLabAndWorkbenchActions({
+    t,
+    setMetaAllowWriteInput,
+    setStatus,
+    session,
+    modList,
+    setModList,
+    activeGameSchema,
+    fetchVault,
+    view,
+    shelterActive,
+    setShelterActive,
+    activeDossier,
+    setActiveDossier,
+    setLabQueue,
+    activeLabMod,
+    setActiveLabMod,
+    setTestErrorFound,
+    testErrorFound,
+    setLogWatcher,
+    logWatcher,
+    logWatcherRef,
+    setTestLogSnippet,
+    testLogSnippet,
+    setIsSubmittingReport,
+    setEditMode,
+    setConfigContent,
+    configContent,
+    setIsEditingMeta,
+    setIsCorrectingMeta,
+    setMetaNameInput,
+    setMetaAuthorInput,
+    setMetaUrlInput,
+    setMetaImageInput,
+    setMetaDescInput,
+    setMetaStatusMsgInput,
+    setMetaStatusInput,
+    setMetaVersionInput,
+    setMetaManifestUrlInput,
+    setMetaIsPaidInput,
+    setMetaIsEarlyAccessInput,
+    selectedVersion,
+    associatedMods,
+    setAssociatedMods,
+    conflictTarget,
+    setConflictTarget,
+    setIsLoadingAssociated,
+    setLabConflicts,
+    setMasonProfileAboveDossier,
+    equipPlaySet,
+    toggleInActiveSet,
+    displayModList,
+  });
   const {
     searchQuery, setSearchQuery,
     filterStatus, setFilterStatus,
@@ -4374,745 +1682,257 @@ function App() {
             unreadNotificationCount={unreadNotificationCount}
             handleQuickLaunch={handleQuickLaunch}
           />
-          <main
-            id="sanctuary-main-scroll"
-            className={`flex-1 min-h-0 relative z-10 overflow-y-auto overflow-x-hidden px-6 pb-6 ${
-              isDesktop()
-                ? "pt-[68px]"
-                : "max-md:overflow-visible md:pt-[68px] max-md:px-4 max-md:pt-[calc(env(safe-area-inset-top,0px)+4.25rem)] max-md:pb-[calc(env(safe-area-inset-bottom,0px)+100px)]"
-            } custom-scrollbar`}
-            style={{
-              flexGrow: 1,
-              width: "100%",
-              WebkitOverflowScrolling: "touch",
-              touchAction: "pan-y",
-            }}
-          >
-            <div className="relative z-10 w-full min-h-full pb-[100px] max-md:pb-[40px]">
-              {isGlobalConfigLoaded && (
-                <Suspense fallback={null}>
-                  {(view === "landing" || (((!isConfigured && !isWorkspaceSetupOverlayOpen) || (!isDesktop() && isRootDomain())) && view !== "settings" && view !== "KeepersCore")) ? (
-                    <WebLandingPage />
-                  ) : (
-                    <ElevatedPasskeyGate
-                      requirePasskey={Boolean(
-                        session?.user?.id &&
-                          getCitizenSecurityPolicy(session).enforceSessionLock &&
-                          !["ArchitectHub", "Oversight", "WayfinderHub", "KeepersCore"].includes(view)
-                      )}
-                      roleLabelKey="auth_citizen_lockdown_role_label"
-                      roleLabelFallback="{Citizen} Account Lockdown"
-                    >
-                      {view === "dashboard" && (
-                        <div style={{ width: '100%', height: '100%' }}>
-                          <ErrorBoundary moduleName="Command Center">
-                            <CommandCenter
-                              key={activeWorkspaceId || 'no-workspace'}
-                              isScanning={isScanning}
-                              runRadarSweep={runRadarSweep}
-                              modList={modList}
-                              quarantineList={quarantineList}
-                              isConfigured={isConfigured}
-                              modsPath={modsPath}
-                              vaultPath={vaultPath}
-                              triggerShelter={triggerShelter}
-                              shelterActive={shelterActive}
-                              shelterContents={shelterContents}
-                              setShowQuarantineModal={setShowQuarantineModal}
-                              setShowBrokenModal={setShowBrokenModal}
-                              handleOpenMasonProfile={handleOpenMasonProfile}
-                              massIngestToCloud={massIngestToCloud}
-                              networkUpdates={networkUpdates}
-                              toggleInActiveSet={toggleInActiveSet}
-                              setView={setView}
-                              setFilterStatus={setFilterStatus}
-                              setIsSupportDeskOpen={() => useModalStore.getState().setIsSupportPanelOpen(true)}
-                              setIsCitizenTicketsOpen={setIsCitizenTicketsOpen}
-                              equipPlaySet={equipPlaySet}
-                              onOpenDossier={setActiveDossier}
-                            />
-                          </ErrorBoundary>
-                        </div>
-                      )}
-
-                      {view === "nexus" && (
-                        <Nexus
-                          key={activeWorkspaceId || 'no-workspace'}
-                          ownedHashes={modList.map((m) => m.hash).filter((h) => !!h)}
-                          onSetStatus={setStatus}
-                          onOpenMasonProfile={handleOpenMasonProfile}
-                          onOpenDossier={setActiveDossier}
-                          syncBlueprintByCode={syncBlueprintByCode}
-                        />
-                      )}
-                      {view === "vault" && (
-                        <ErrorBoundary moduleName="Vault">
-                          <Vault
-                            setView={setView}
-                            isScanning={isScanning}
-                            isBulkMode={isBulkMode} setIsBulkMode={setIsBulkMode}
-                            selectedMods={selectedMods} setSelectedMods={setSelectedMods}
-                            setConfirmDialog={setConfirmDialog} setStatus={setStatus}
-                            runRadarSweep={runRadarSweep} setIsDropzoneOpen={setIsDropzoneOpen}
-                            setLocalFolderModal={setLocalFolderModal} playSets={playSets} setPlaySets={setPlaySets}
-                            equipFilter={equipFilter} setEquipFilter={setEquipFilter}
-                            searchQuery={searchQuery} setSearchQuery={setSearchQuery}
-                            filterStatus={filterStatus} setFilterStatus={setFilterStatus}
-                            activeCategory={activeCategory} setActiveCategory={setActiveCategory}
-                            activeSubType={activeSubType} setActiveSubType={setActiveSubType}
-                            exclusiveSlotFilter={exclusiveSlotFilter} setExclusiveSlotFilter={setExclusiveSlotFilter}
-                            visibleMods={visibleMods} displayModList={displayModList}
-                            activePlaySetIndex={activePlaySetIndex}
-                            setActivePlaySetIndex={setActivePlaySetIndex}
-                            toggleInActiveSet={toggleInActiveSet}
-                            openUrl={openUrl} setLocalFolderName={setLocalFolderName} setLocalFolderType={setLocalFolderType}
-                            executeHotSwap={executeHotSwap} equipPlaySet={equipPlaySet} setMetaNameInput={setMetaNameInput} setMetaAuthorInput={setMetaAuthorInput}
-                            setMetaVersionInput={setMetaVersionInput} setMetaUrlInput={setMetaUrlInput} setActiveDossier={setActiveDossier} setDrawerConfirmHash={setDrawerConfirmHash}
-                            quarantineList={quarantineList} restoreMod={restoreMod} purgeMod={purgeMod}
-                            ownedDLC={ownedDLC} maskedDLC={maskedDLC} setMetaDescInput={setMetaDescInput}
-                            setMetaImageInput={setMetaImageInput} setMetaAllowWriteInput={setMetaAllowWriteInput}
-                            expandedFolder={expandedFolder} setExpandedFolder={setExpandedFolder}
-                            drawerConfirmHash={drawerConfirmHash} modList={modList} anarchyRules={anarchyRules}
-                            setBulkModal={setBulkModal}
-                          />
-                        </ErrorBoundary>
-                      )}
-                      {view === "playsets" && (
-                        <ErrorBoundary moduleName="Blueprints">
-                          {isDesktop() ? (
-                            <Blueprints
-                              playSets={playSets}
-                              setPlaySets={setPlaySets}
-                              activeSetName={activeSetName}
-                              setActiveSetName={setActiveSetName}
-                              equipPlaySet={equipPlaySet}
-                              isDraftingSet={isDraftingSet}
-                              setIsDraftingSet={setIsDraftingSet}
-                              draftSetName={draftSetName}
-                              setDraftSetName={setDraftSetName}
-                              finalizeDraftSet={finalizeDraftSet}
-                              renamePlaySet={renamePlaySet}
-                              deletePlaySet={deletePlaySet}
-                              exportPlaySet={exportPlaySet}
-                              importPlaySet={importPlaySet}
-                              uploadBlueprintToCloud={uploadBlueprintToCloud}
-                              syncBlueprintByCode={syncBlueprintByCode}
-                              setView={setView}
-                              setSnapshotModal={setSnapshotModal}
-                              globalSearchQuery={globalSearchQuery}
-                              setGlobalSearchQuery={setGlobalSearchQuery}
-                              isSearchingCloud={isSearchingCloud}
-                              searchGlobalNetwork={searchGlobalNetwork}
-                              cloudSearchResults={cloudSearchResults}
-                              syncCode={syncCode}
-                              setSyncCode={setSyncCode}
-                              modList={modList}
-                              activePlaySetIndex={activePlaySetIndex}
-                              setActivePlaySetIndex={setActivePlaySetIndex}
-                              toggleInActiveSet={toggleInActiveSet}
-                            />
-                          ) : (
-                            <StagingPayloadEditor
-                              onSetStatus={setStatus}
-                              onOpenDossier={setActiveDossier}
-                              onBrowseMods={() => {
-                                setView("nexus");
-                                useStore.getState().setMarketTab("MODS");
-                              }}
-                              onBrowseBlueprints={() => {
-                                setView("nexus");
-                                useStore.getState().setMarketTab("BLUEPRINTS");
-                              }}
-                            />
-                          )}
-                        </ErrorBoundary>
-                      )}
-                      {view === "GlobalFeed" && (
-                        <ErrorBoundary moduleName="Global Feed">
-                          <GlobalFeed
-                            key={activeWorkspaceId || 'no-workspace'}
-                            onOpenMasonProfile={handleOpenMasonProfile}
-                          />
-                        </ErrorBoundary>
-                      )}
-
-                      {view === "BlueprintArchitect" && playSets[activePlaySetIndex] && (
-                        <ErrorBoundary moduleName="Blueprint Architect">
-                          <BlueprintArchitect
-                            isOpen={true}
-                            onClose={() => setView("dashboard")}
-                            playSet={playSets[activePlaySetIndex]}
-                            modList={modList}
-                            toggleInActiveSet={toggleInActiveSet}
-                            globalSearchQuery={globalSearchQuery}
-                            setGlobalSearchQuery={setGlobalSearchQuery}
-                            onSearchNetwork={searchGlobalNetwork}
-                            cloudResults={cloudSearchResults}
-                            isSearching={isSearchingCloud}
-                            allow_write={true}
-                            onCloudUpload={uploadBlueprintToCloud}
-                            vaultPath={vaultPath}
-                            onRefreshMods={runRadarSweep}
-                            displayModList={displayModList}
-                          />
-                        </ErrorBoundary>
-                      )}
-                      {view === "lab" && (
-                        <ErrorBoundary moduleName="Homestead Lab">
-                          <Lab
-                            onOpenDossier={setActiveDossier}
-                            executeHotSwap={runProvingRun}
-                            shelterActive={shelterActive}
-                            labSearchQuery={labSearchQuery}
-                            setLabSearchQuery={setLabSearchQuery}
-                            labVerificationQueue={labVerificationQueue}
-                            labQueue={labQueue}
-                            activeLabMod={activeLabMod}
-                            setActiveLabMod={setActiveLabMod}
-                            testErrorFound={testErrorFound}
-                            testLogSnippet={testLogSnippet}
-                            isSubmittingReport={isSubmittingReport}
-                            submitLabReport={submitLabReport}
-                            concludeTest={concludeTest}
-                            openWorkbench={openWorkbench}
-                            userRole={userRole}
-                            modList={modList}
-                            setConflictTarget={setConflictTarget}
-                            conflictTarget={conflictTarget}
-                            runLabSimulation={runLabSimulation}
-                            isLoadingAssociated={isLoadingAssociated}
-                            associatedMods={associatedMods}
-                            runProvingRun={runProvingRun}
-                            labConflicts={labConflicts}
-                            setLabConflicts={setLabConflicts}
-                          />
-                        </ErrorBoundary>
-                      )}
-                      {view === "backups" && (
-                        <TimeCapsule
-                          selectedVersion={selectedVersion}
-                          setSelectedVersion={setSelectedVersion}
-                          triggerPrePatchSnapshot={triggerPrePatchSnapshot}
-                          isBackingUp={isBackingUp}
-                          backupProgress={backupProgress}
-                          triggerFullEngineBackup={triggerFullEngineBackup}
-                          backupList={backupList}
-                          getBackupSignature={getBackupSignature}
-                          restoreGameBackup={restoreGameBackup}
-                          renameGameBackup={async (oldName: string, newName: string) => {
-                            try {
-                              await invoke("rename_backup", { oldName, newName });
-                              fetchBackups();
-                            } catch (err) {
-                              alert(err);
-                            }
-                          }}
-                          deleteBackup={deleteBackup}
-                        />
-                      )}
-                      {view === "MasonHub" &&
-                        !!session && <MasonHub key={activeWorkspaceId || 'no-workspace'} sandboxMod={activeSandboxMod} clearSandboxMod={() => setActiveSandboxMod(null)} vaultPath={vaultPath} handleOpenMasonProfile={handleOpenMasonProfile} />}
-                      {view === "ArchitectHub" &&
-                        ["architect", "oversight", "wayfinder", "admin"].includes(
-                          userRole,
-                        ) && (
-                          <ErrorBoundary moduleName="Architect Hub">
-                            <ElevatedPasskeyGate requirePasskey={true} roleLabelKey="passkey_gate_role_architect" roleLabelFallback="Architect">
-                              <ArchitectHub key={activeWorkspaceId || 'no-workspace'} userRole={userRole} equipPlaySet={equipPlaySet} modList={modList} setStatus={setStatus} onOpenDossier={setActiveDossier} onOpenMasonProfile={handleOpenMasonProfile} />
-                            </ElevatedPasskeyGate>
-                          </ErrorBoundary>
-                        )}
-                      {view === "Oversight" &&
-                        ["oversight", "wayfinder", "admin"].includes(userRole) && (
-                          <ErrorBoundary moduleName="Oversight">
-                            <ElevatedPasskeyGate requirePasskey={true} roleLabelKey="passkey_gate_role_oversight" roleLabelFallback="Oversight">
-                              <Oversight key={activeWorkspaceId || 'no-workspace'} />
-                            </ElevatedPasskeyGate>
-                          </ErrorBoundary>
-                        )}
-                      {view === "WayfinderHub" &&
-                        ["wayfinder", "admin"].includes(userRole) && (
-                          <ErrorBoundary moduleName="Wayfinder Hub">
-                            <ElevatedPasskeyGate requirePasskey={true} roleLabelKey="passkey_gate_role_wayfinder" roleLabelFallback="Wayfinder">
-                              <WayfinderHub key={activeWorkspaceId || 'no-workspace'} onOpenMasonProfile={handleOpenMasonProfile} />
-                            </ElevatedPasskeyGate>
-                          </ErrorBoundary>
-                        )}
-                      {view === "KeepersCore" &&
-                        ["core_dev", "admin", "keeper"].includes(osRole) && (
-                          <ErrorBoundary moduleName="Keepers Core">
-                            <ElevatedPasskeyGate requirePasskey={true} roleLabelKey="passkey_gate_role_keeper" roleLabelFallback="Keeper">
-                              <KeepersCore />
-                            </ElevatedPasskeyGate>
-                          </ErrorBoundary>
-                        )}
-                      {view === "ArtifactScout" && <ArtifactScout key={activeWorkspaceId || 'no-workspace'} />}
-                      {view === "CitizensWorkbench" && <CitizensWorkbench key={activeWorkspaceId || 'no-workspace'} onOpenMasonProfile={handleOpenMasonProfile} />}
-                      {view === "settings" && (
-                        <ErrorBoundary moduleName="Settings">
-                          <Settings
-                            anarchyRules={anarchyRules}
-                            setAnarchyRules={setAnarchyRules}
-                          />
-                        </ErrorBoundary>
-                      )}
-                      {view === "MasonProfile" && activeMasonProfileId && (
-                        <ErrorBoundary moduleName="Mason Profile">
-                          <MasonProfile
-                            masonId={activeMasonProfileId}
-                            initialPostId={activeMasonPostId}
-                            onModClick={(mod: any) => setActiveDossier(mod)}
-                          />
-                        </ErrorBoundary>
-                      )}
-                    </ElevatedPasskeyGate>
-                  )}
-                </Suspense>
-              )}
-            </div>
-          </main>
-          {isMasonProfilePanelOpen && activeMasonProfileId && (
-            <ErrorBoundary moduleName="Mason Profile SidePanel">
-              <Suspense fallback={null}>
-                <MasonProfile
-                  isSidePanel={true}
-                  isOpen={isMasonProfilePanelOpen}
-                  onClose={() => setIsMasonProfilePanelOpen(false)}
-                  onOpenFullProfile={() => {
-                    setIsMasonProfilePanelOpen(false);
-                    setView("MasonProfile");
-                  }}
-                  backdropZ={masonProfileAboveDossier ? "z-[121000]" : "z-[118000]"}
-                  panelZ={masonProfileAboveDossier ? "z-[121001]" : "z-[118001]"}
-                  masonId={activeMasonProfileId}
-                  initialPostId={activeMasonPostId}
-                  onModClick={(mod: any) => {
-                    setMasonProfileAboveDossier(false);
-                    setActiveDossier(mod);
-                  }}
-                  syncBlueprintByCode={syncBlueprintByCode}
-                />
-              </Suspense>
-            </ErrorBoundary>
-          )}
-          {activeDossier && (
-            <ErrorBoundary moduleName="ModDossier">
-              <Suspense fallback={null}>
-                <ModDossier
-                mod={activeDossier}
-                modList={modList}
-                ownedDLC={ownedDLC}
-                maskedDLC={maskedDLC}
-                activePlaySet={playSets[activePlaySetIndex]}
-                onToggleInActiveSet={toggleInActiveSet}
-                onShowYeetAlert={(casualties: string[], onConfirm: () => void) =>
-                  setYeetConfirmPending({ casualties, onConfirm })
-                }
-                onClose={() => {
-                  setActiveDossier(null);
-                  setEditMode(false);
-                  setIsEditingMeta(false);
-                  setIsCorrectingMeta(false);
-                }}
-                isEditingMeta={isEditingMeta}
-                setIsEditingMeta={setIsEditingMeta}
-                isCorrecting={isCorrectingMeta}
-                setIsCorrecting={setIsCorrectingMeta}
-                editMode={editMode}
-                setEditMode={setEditMode}
-                configContent={configContent}
-                setConfigContent={setConfigContent}
-                metaInputs={{
-                  name: metaNameInput,
-                  author: metaAuthorInput,
-                  url: metaUrlInput,
-                  manifest_url: metaManifestUrlInput,
-                  image: metaImageInput,
-                  desc: metaDescInput,
-                  statusMsg: metaStatusMsgInput,
-                  status: metaStatusInput,
-                  version: metaVersionInput,
-                  requiredDLC: metaRequiredDLC,
-                  allow_write: metaAllowWriteInput,
-                  is_paid: metaIsPaidInput,
-                  is_early_access: metaIsEarlyAccessInput,
-                }}
-                setMetaInputs={{
-                  name: setMetaNameInput,
-                  author: setMetaAuthorInput,
-                  url: setMetaUrlInput,
-                  manifest_url: setMetaManifestUrlInput,
-                  image: setMetaImageInput,
-                  desc: setMetaDescInput,
-                  statusMsg: setMetaStatusMsgInput,
-                  status: setMetaStatusInput,
-                  version: setMetaVersionInput,
-                  requiredDLC: setMetaRequiredDLC,
-                  allow_write: setMetaAllowWriteInput,
-                  is_paid: setMetaIsPaidInput,
-                  is_early_access: setMetaIsEarlyAccessInput,
-                }}
-                onSendToLab={sendToLabQueue}
-                onSyncToNetwork={(mod: any) => {
-                  setActiveDossier(null);
-                  setActiveSandboxMod(mod);
-                  setView("MasonHub");
-                }}
-                onDesignateTwin={designateTwin}
-                onEstablishBond={establishBond}
-                onRegisterConflict={registerConflict}
-                onSmartSearch={handleSmartSearch}
-                onOpenWorkbench={openWorkbench}
-                onSaveWorkbench={saveWorkbenchChanges}
-                onSaveMetadata={saveLocalMetadata}
-                onResetMetadata={resetLocalMetadata}
-                onOpenMasonProfile={handleOpenMasonProfile}
-                onSecureShred={async (filename: string) => {
-                  try {
-                    await invoke("purge_quarantined_file", {
-                      filename: filename.split("/").pop() || filename,
-                    });
-                    setStatus(`${t("icon_check_circle", "check_circle")} ${t("status_file_shredded", "File deleted securely.")}`);
-                    runRadarSweep();
-                  } catch (err: any) {
-                    setStatus(` Error: ${err}`);
-                  }
-                }}
-              />
-              </Suspense>
-            </ErrorBoundary>
-          )}
-          <AppModals
-            isSidebarCollapsed={isSidebarCollapsed}
-            isNotificationSidebarOpen={isNotificationSidebarOpen}
-            setIsNotificationSidebarOpen={setIsNotificationSidebarOpen}
-            unreadNotificationCount={unreadNotificationCount}
+          <AppMainViewportRouter
+            currentTheme={currentTheme}
+            t={t}
+            activeWorkspaceId={activeWorkspaceId}
+            triggerPrePatchSnapshot={triggerPrePatchSnapshot}
+            triggerFullEngineBackup={triggerFullEngineBackup}
+            restoreGameBackup={restoreGameBackup}
+            fetchBackups={fetchBackups}
+            deleteBackup={deleteBackup}
+            subtitleIndex={subtitleIndex}
+            getBackupSignature={getBackupSignature}
+            backupProgress={backupProgress}
+            userRole={userRole}
+            osRole={osRole}
+            setMetaAllowWriteInput={setMetaAllowWriteInput}
+            metaAllowWriteInput={metaAllowWriteInput}
+            playSets={playSets}
+            setPlaySets={setPlaySets}
+            activeSetName={activeSetName}
+            setActiveSetName={setActiveSetName}
+            statusLog={statusLog}
+            setStatus={setStatus}
+            clearStatusLog={clearStatusLog}
+            session={session}
+            modList={modList}
+            activeGameSchema={activeGameSchema}
+            runRadarSweep={runRadarSweep}
             malwareAlert={malwareAlert}
             setMalwareAlert={setMalwareAlert}
+            handleDroppedFiles={handleDroppedFiles}
+            view={view}
+            setView={setView}
+            isConfigured={isConfigured}
+            isWorkspaceSetupOverlayOpen={isWorkspaceSetupOverlayOpen}
+            modsPath={modsPath}
+            vaultPath={vaultPath}
+            quarantineList={quarantineList}
+            shelterContents={shelterContents}
+            shelterActive={shelterActive}
+            backupList={backupList}
+            isNotificationSidebarOpen={isNotificationSidebarOpen}
+            setIsNotificationSidebarOpen={setIsNotificationSidebarOpen}
+            setGlobalViewingPost={setGlobalViewingPost}
+            globalViewingPost={globalViewingPost}
+            unreadNotificationCount={unreadNotificationCount}
+            setActiveDossier={setActiveDossier}
+            activeDossier={activeDossier}
+            labQueue={labQueue}
+            activeLabMod={activeLabMod}
+            setActiveLabMod={setActiveLabMod}
+            activeSandboxMod={activeSandboxMod}
+            setActiveSandboxMod={setActiveSandboxMod}
+            testErrorFound={testErrorFound}
+            testLogSnippet={testLogSnippet}
+            isSubmittingReport={isSubmittingReport}
+            labSearchQuery={labSearchQuery}
+            setLabSearchQuery={setLabSearchQuery}
+            labVerificationQueue={labVerificationQueue}
+            setEditMode={setEditMode}
+            editMode={editMode}
+            configContent={configContent}
+            setConfigContent={setConfigContent}
+            activePlaySetIndex={activePlaySetIndex}
+            setActivePlaySetIndex={setActivePlaySetIndex}
+            setIsEditingMeta={setIsEditingMeta}
+            isEditingMeta={isEditingMeta}
+            setIsCorrectingMeta={setIsCorrectingMeta}
+            isCorrectingMeta={isCorrectingMeta}
+            setMetaNameInput={setMetaNameInput}
+            metaNameInput={metaNameInput}
+            setMetaAuthorInput={setMetaAuthorInput}
+            metaAuthorInput={metaAuthorInput}
+            setMetaUrlInput={setMetaUrlInput}
+            metaUrlInput={metaUrlInput}
+            setMetaImageInput={setMetaImageInput}
+            metaImageInput={metaImageInput}
+            setMetaDescInput={setMetaDescInput}
+            metaDescInput={metaDescInput}
+            metaStatusMsgInput={metaStatusMsgInput}
+            setMetaStatusMsgInput={setMetaStatusMsgInput}
+            metaStatusInput={metaStatusInput}
+            setMetaStatusInput={setMetaStatusInput}
+            setMetaVersionInput={setMetaVersionInput}
+            metaVersionInput={metaVersionInput}
+            metaManifestUrlInput={metaManifestUrlInput}
+            setMetaManifestUrlInput={setMetaManifestUrlInput}
+            metaIsPaidInput={metaIsPaidInput}
+            setMetaIsPaidInput={setMetaIsPaidInput}
+            metaIsEarlyAccessInput={metaIsEarlyAccessInput}
+            setMetaIsEarlyAccessInput={setMetaIsEarlyAccessInput}
+            globalSearchQuery={globalSearchQuery}
+            setGlobalSearchQuery={setGlobalSearchQuery}
+            cloudSearchResults={cloudSearchResults}
+            isSearchingCloud={isSearchingCloud}
+            isDraftingSet={isDraftingSet}
+            setIsDraftingSet={setIsDraftingSet}
+            draftSetName={draftSetName}
+            setDraftSetName={setDraftSetName}
+            isSidebarCollapsed={isSidebarCollapsed}
+            setIsCitizenTicketsOpen={setIsCitizenTicketsOpen}
+            isCitizenTicketsOpen={isCitizenTicketsOpen}
+            selectedVersion={selectedVersion}
+            setSelectedVersion={setSelectedVersion}
+            ownedDLC={ownedDLC}
+            maskedDLC={maskedDLC}
+            metaRequiredDLC={metaRequiredDLC}
+            setMetaRequiredDLC={setMetaRequiredDLC}
+            setDrawerConfirmHash={setDrawerConfirmHash}
+            drawerConfirmHash={drawerConfirmHash}
+            associatedMods={associatedMods}
+            saveLocalMetadata={saveLocalMetadata}
+            resetLocalMetadata={resetLocalMetadata}
+            setConflictTarget={setConflictTarget}
+            conflictTarget={conflictTarget}
+            isLoadingAssociated={isLoadingAssociated}
+            labConflicts={labConflicts}
+            setLabConflicts={setLabConflicts}
+            activeMasonProfileId={activeMasonProfileId}
+            activeMasonPostId={activeMasonPostId}
+            isMasonProfilePanelOpen={isMasonProfilePanelOpen}
+            setIsMasonProfilePanelOpen={setIsMasonProfilePanelOpen}
+            networkUpdates={networkUpdates}
+            massIngestToCloud={massIngestToCloud}
+            syncBlueprintByCode={syncBlueprintByCode}
+            uploadBlueprintToCloud={uploadBlueprintToCloud}
             snapshotModal={snapshotModal}
             setSnapshotModal={setSnapshotModal}
             snapshotName={snapshotName}
             setSnapshotName={setSnapshotName}
-            executeSnapshot={executeSnapshot}
-            playSets={playSets}
-            activePlaySetIndex={activePlaySetIndex}
-            toggleInActiveSet={toggleInActiveSet}
             bulkModal={bulkModal}
             setBulkModal={setBulkModal}
             bulkName={bulkName}
             setBulkName={setBulkName}
-            executeBulkDraft={executeBulkDraft}
+            isBulkMode={isBulkMode}
+            setIsBulkMode={setIsBulkMode}
             selectedMods={selectedMods}
+            setSelectedMods={setSelectedMods}
             renameModal={renameModal}
             setRenameModal={setRenameModal}
-            executeRename={executeRename}
             renameTarget={renameTarget}
             setRenameTarget={setRenameTarget}
             nameInput={nameInput}
             setNameInput={setNameInput}
-            confirmRename={confirmRename}
             localFolderModal={localFolderModal}
-            equipPlaySet={equipPlaySet}
             setLocalFolderModal={setLocalFolderModal}
             localFolderType={localFolderType}
             setLocalFolderType={setLocalFolderType}
             localFolderName={localFolderName}
             setLocalFolderName={setLocalFolderName}
-            createLocalFolder={createLocalFolder}
             missingImportMods={missingImportMods}
-            pendingImportSet={pendingImportSet}
             setMissingImportMods={setMissingImportMods}
+            pendingImportSet={pendingImportSet}
             setPendingImportSet={setPendingImportSet}
-            finalizeImport={finalizeImport}
-            setIsDropzoneOpen={setIsDropzoneOpen}
+            syncCode={syncCode}
+            setSyncCode={setSyncCode}
             confirmDialog={confirmDialog}
-            resolveDisplayName={(modName: string) => {
-              if (modName.startsWith("FOLDER ")) {
-                const id = modName.replace("FOLDER ", "");
-                const ls = JSON.parse(localStorage.getItem(`sanctuary_${useStore.getState().activeWorkspaceId}_playsets`) || "[]").find((s: any) => s.id === id);
-                if (ls) return ls.name;
-              }
-              if (modName.startsWith("SET ")) {
-                const id = modName.replace("SET ", "");
-                const ps = playSets.find((s: any) => s.id === id);
-                if (ps) return ps.name;
-              }
-              const found = modList.find((m: any) => m.name === modName);
-              return found ? (found.displayName || found.name) : modName.replace(/_/g, " ").replace(/\.[^/.]+$/, "");
-            }}
             setConfirmDialog={setConfirmDialog}
-            isBulkMode={isBulkMode}
-            openBulk={setBulkModal}
-            openLocalFolder={setLocalFolderModal}
             isDropzoneOpen={isDropzoneOpen}
+            setIsDropzoneOpen={setIsDropzoneOpen}
             isDragging={isDragging}
-            dropzoneState={dropzoneState}
-            droppedFiles={droppedFiles}
-            setDropzoneState={setDropzoneState}
-            setDroppedFiles={setDroppedFiles}
             setIsDragging={setIsDragging}
-            handleDroppedFiles={handleDroppedFiles}
-            runRadarSweep={runRadarSweep}
+            dropzoneState={dropzoneState}
+            setDropzoneState={setDropzoneState}
+            droppedFiles={droppedFiles}
+            setDroppedFiles={setDroppedFiles}
             showBrokenModal={showBrokenModal}
             setShowBrokenModal={setShowBrokenModal}
-            modList={modList}
             showQuarantineModal={showQuarantineModal}
             setShowQuarantineModal={setShowQuarantineModal}
-            quarantineList={quarantineList}
-            restoreMod={restoreMod}
-            purgeMod={purgeMod}
-            scoutQueue={scoutQueue}
-            setScoutQueue={setScoutQueue}
-            onOpenScoutDossier={(mod: any) => {
-              const defaultName = (mod.displayName || mod.name || "").split(/[\\/]/).pop()?.replace(getExtensionRegex(activeGameSchema), '').replace(/_/g, ' ') || "";
-              setMetaNameInput(defaultName);
-              setMetaAuthorInput(mod.author || "");
-              setMetaVersionInput(mod.version || "");
-              setMetaDescInput(mod.description || "");
-              setMetaImageInput(mod.image_url || mod.imageUrl || "");
-              setMetaAllowWriteInput(mod.allow_write || false);
-              setMetaIsPaidInput(mod.is_paid || false);
-              setMetaIsEarlyAccessInput(mod.is_early_access || false);
-              setActiveDossier(mod);
-              setIsEditingMeta(true);
-              setEditMode(true);
-              setIsCorrectingMeta(true);
-              useModalStore.getState().setIsSideBrowserOpen(false);
-            }}
-            onOpenDossier={setActiveDossier}
             isBackingUp={isBackingUp}
             isRestoring={isRestoring}
             ingestProgress={ingestProgress}
             isScanning={isScanning}
             showDefconAlert={showDefconAlert}
             setShowDefconAlert={setShowDefconAlert}
-            triggerFullEngineBackup={triggerFullEngineBackup}
-            triggerPrePatchSnapshot={triggerPrePatchSnapshot}
             yeetConfirmPending={yeetConfirmPending}
             setYeetConfirmPending={setYeetConfirmPending}
             dnaMatchQueue={dnaMatchQueue}
             setDnaMatchQueue={setDnaMatchQueue}
             edgeOverrideQueue={edgeOverrideQueue}
             setEdgeOverrideQueue={setEdgeOverrideQueue}
+            scoutQueue={scoutQueue}
+            setScoutQueue={setScoutQueue}
+            isUpdatePanelOpen={isUpdatePanelOpen}
+            isNexusUpdatesPanelOpen={isNexusUpdatesPanelOpen}
+            isSupportPanelOpen={isSupportPanelOpen}
+            createLocalFolder={createLocalFolder}
+            executeBulkDraft={executeBulkDraft}
+            executeSnapshot={executeSnapshot}
+            exportPlaySet={exportPlaySet}
+            executeRename={executeRename}
+            confirmRename={confirmRename}
             ignoredHashesRef={ignoredHashesRef}
-            setStatus={setStatus}
-            statusLog={statusLog}
-            clearStatusLog={clearStatusLog}
+            anarchyRules={anarchyRules}
+            setAnarchyRules={setAnarchyRules}
+            masonProfileAboveDossier={masonProfileAboveDossier}
+            setMasonProfileAboveDossier={setMasonProfileAboveDossier}
+            handleOpenMasonProfile={handleOpenMasonProfile}
+            toggleInActiveSet={toggleInActiveSet}
+            equipPlaySet={equipPlaySet}
+            renamePlaySet={renamePlaySet}
+            deletePlaySet={deletePlaySet}
+            importPlaySet={importPlaySet}
+            finalizeImport={finalizeImport}
+            triggerShelter={triggerShelter}
+            restoreMod={restoreMod}
+            purgeMod={purgeMod}
+            handleSmartSearch={handleSmartSearch}
+            registerConflict={registerConflict}
+            designateTwin={designateTwin}
+            searchGlobalNetwork={searchGlobalNetwork}
+            establishBond={establishBond}
+            sendToLabQueue={sendToLabQueue}
+            finalizeDraftSet={finalizeDraftSet}
+            displayModList={displayModList}
+            handleQuickLaunch={handleQuickLaunch}
+            executeHotSwap={executeHotSwap}
+            openWorkbench={openWorkbench}
+            saveWorkbenchChanges={saveWorkbenchChanges}
+            submitLabReport={submitLabReport}
+            concludeTest={concludeTest}
+            runLabSimulation={runLabSimulation}
+            runProvingRun={runProvingRun}
+            searchQuery={searchQuery}
+            setSearchQuery={setSearchQuery}
+            setFilterStatus={setFilterStatus}
+            filterStatus={filterStatus}
+            equipFilter={equipFilter}
+            setEquipFilter={setEquipFilter}
+            activeCategory={activeCategory}
+            setActiveCategory={setActiveCategory}
+            activeSubType={activeSubType}
+            setActiveSubType={setActiveSubType}
+            exclusiveSlotFilter={exclusiveSlotFilter}
+            setExclusiveSlotFilter={setExclusiveSlotFilter}
+            expandedFolder={expandedFolder}
+            setExpandedFolder={setExpandedFolder}
+            visibleMods={visibleMods}
+            isGlobalConfigLoaded={isGlobalConfigLoaded}
           />
-          <Suspense fallback={null}>
-            {isNotificationSidebarOpen && (
-              <NotificationSidebar
-                onClose={() => setIsNotificationSidebarOpen(false)}
-                onOpenPost={setGlobalViewingPost}
-              />
-            )}
-          </Suspense>
-          <NexusUpdatesChecker />
-          <Suspense fallback={null}>
-            {globalViewingPost && (
-              <MasonPostViewer
-                post={globalViewingPost}
-                onClose={() => setGlobalViewingPost(null)}
-                onOpenMasonProfile={handleOpenMasonProfile}
-                userId={session?.user?.id}
-              />
-            )}
-            {isCitizenTicketsOpen && (
-              <CitizenTicketsSidePanel isOpen={isCitizenTicketsOpen} onClose={() => setIsCitizenTicketsOpen(false)} userId={session?.user?.id} />
-            )}
-          </Suspense>
-          <GlobalCommandPalette
-            onInspectMod={(mod) => {
-              window.dispatchEvent(new CustomEvent("sanctuary-open-dossier", { detail: mod }));
-            }}
-            onToggleModInBlueprint={(mod) => {
-              toggleInActiveSet(mod.name);
-            }}
-            onEquipBlueprint={(setName) => {
-              equipPlaySet(setName);
-            }}
-            onQuickLaunch={() => {
-              handleQuickLaunch();
-            }}
-            onRunRadarSweep={() => {
-              runRadarSweep(true);
-            }}
-            onOpenDropzone={() => {
-              setIsDropzoneOpen(true);
-            }}
-            onTriggerFullBackup={() => {
-              triggerFullEngineBackup();
-            }}
-            onTriggerPrePatchSnapshot={() => {
-              triggerPrePatchSnapshot();
-            }}
-            onOpenNotifications={() => {
-              setIsNotificationSidebarOpen(true);
-            }}
-            onOpenMasonProfile={handleOpenMasonProfile}
-            onOpenDefcon={() => {
-              setShowDefconAlert(true);
-            }}
-            onTriggerShelter={(enable) => {
-              triggerShelter(enable);
-            }}
-            onOpenCitizenTickets={() => {
-              setIsCitizenTicketsOpen(true);
-            }}
-          />
-          <DevBuildClearanceGate />
-          <Suspense fallback={null}>
-            {isUpdatePanelOpen && <UpdateSidePanel />}
-            <SupporterCelebrationSidePanel />
-            {isNexusUpdatesPanelOpen && <NexusUpdatesSidePanel />}
-            {isSupportPanelOpen && <SupportHub />}
-            {isDesktop() && (
-              <WorkspaceFirstTimeSetup isOpen={isWorkspaceSetupOverlayOpen} />
-            )}
-          </Suspense>
-          <ContextMenu />
-          <GlobalTooltip />
-          <PixelSnapper />
         </div>
       </div>
 
-      {!isDesktop() && <MobileBottomNav view={view} setView={setView} subtitleIndex={subtitleIndex} />}
-
-      {!isGlobalConfigLoaded && (() => {
-        const portalRoot =
-          (typeof document !== "undefined" && document.getElementById("sa-portals")) ||
-          (typeof document !== "undefined" ? document.body : null);
-        const lockShieldOverlay = (
-          <div
-            data-sa-malware-active="true"
-            className="fixed inset-0 z-[59998] pointer-events-auto select-none cursor-passkey-locked"
-            onMouseMove={(e) => {
-              useTooltipStore.getState().setTooltip({
-                title: t("status_syncing", "Loading Workspace"),
-                subtitle: t(
-                  "status_establishing_connection",
-                  "Please standby while Sanctuary OS prepares your Workspace."
-                ),
-                variant: "default",
-                icon: t("icon_block", "block"),
-                x: e.clientX,
-                y: e.clientY - 14,
-                align: "center",
-                vAlign: "top",
-              });
-            }}
-            onMouseLeave={() => {
-              useTooltipStore.getState().clearTooltip();
-            }}
-            onClick={(e) => {
-              e.preventDefault();
-              e.stopPropagation();
-            }}
-            onMouseDown={(e) => {
-              e.preventDefault();
-              e.stopPropagation();
-            }}
-            onContextMenu={(e) => {
-              e.preventDefault();
-              e.stopPropagation();
-            }}
-          />
-        );
-        return (
-          <>
-            {portalRoot ? createPortal(lockShieldOverlay, portalRoot) : lockShieldOverlay}
-            <SidePanel
-              isOpen={true}
-              onClose={() => {}}
-              hideCloseButton={true}
-              passthroughBackdrop={true}
-              noBackdropDim={true}
-              backdropZ="z-[60000]"
-              panelZ="z-[60001]"
-              panelClass="sa-malware-lockdown-panel"
-              title={t("status_syncing", "Loading Workspace")}
-              subtitle={t(
-                "status_establishing_connection",
-                "Please standby while Sanctuary OS prepares your Workspace."
-              )}
-              icon={t("icon_sync", "sync")}
-              iconColorClass="text-[var(--accent)]"
-            >
-              <div
-                className="flex flex-col gap-4 mt-2 relative z-10 w-full pb-8"
-                onMouseEnter={() => useTooltipStore.getState().clearTooltip()}
-              >
-                <div
-                  className="glass-panel rounded-2xl p-5 border flex flex-col gap-5"
-                  style={{
-                    borderColor: "color-mix(in srgb, var(--accent) 32%, transparent)",
-                  }}
-                >
-                  <div className="flex items-center gap-3.5 min-w-0">
-                    <div className="w-10 h-10 rounded-xl glass-surface border border-[var(--glass-card-icon-border,rgba(255,255,255,0.22))] bg-[var(--glass-card-icon-bg,rgba(255,255,255,0.08))] shadow-[var(--glass-card-icon-shadow)] text-[var(--accent)] flex items-center justify-center shrink-0">
-                      <span className="material-symbols-outlined !text-[22px] animate-spin">
-                        {t("icon_sync", "sync")}
-                      </span>
-                    </div>
-                    <div className="flex flex-col gap-0.5 min-w-0">
-                      <span className="text-[10px] font-black uppercase tracking-[0.18em] text-[var(--accent)]">
-                        {t("tab_workspace", "Workspace")}
-                      </span>
-                      <h3 className="text-lg font-black tracking-tight text-[var(--text)] leading-tight m-0 truncate">
-                        {t("status_syncing", "Loading Workspace")}
-                      </h3>
-                    </div>
-                  </div>
-
-                  <p className="text-xs font-medium text-[var(--subtext)] leading-relaxed m-0">
-                    {t(
-                      "status_establishing_connection",
-                      "Please standby while Sanctuary OS prepares your Workspace."
-                    )}
-                  </p>
-
-                  <div className="w-full rounded-2xl p-4 bg-[color-mix(in_srgb,var(--text)_4%,transparent)] border border-[color-mix(in_srgb,var(--text)_10%,transparent)] flex flex-col gap-3">
-                    <div className="w-full h-2 rounded-full bg-[color-mix(in_srgb,var(--text)_8%,transparent)] overflow-hidden border border-[color-mix(in_srgb,var(--text)_12%,transparent)]">
-                      <div
-                        className="h-full w-2/3 rounded-full animate-pulse"
-                        style={{
-                          background: "linear-gradient(90deg, transparent, var(--accent), transparent)",
-                        }}
-                      />
-                    </div>
-                    <div className="flex items-center justify-between gap-2 text-[11px] font-mono text-[var(--subtext)]">
-                      <span className="truncate">
-                        {status || t("workspace_loading", "Loading Workspaces...")}
-                      </span>
-                      <span className="text-[var(--accent)] font-bold shrink-0">
-                        {t("active", "Active")}
-                      </span>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </SidePanel>
-          </>
-        );
-      })()}
-      <CompanionPasskeyHandshakeApprover />
-
-      {/* 
-        Global SVG Noise Texture (Top Level)
-        Moved here to sit on top of the entire DOM. This prevents it from being blurred by glass panels
-        (which causes CRT fuzzy artifacts) and prevents its mix-blend-mode from breaking backdrop-filter
-        for the rest of the application.
-      */}
-      {currentTheme.ambientNoise !== false && !isLinuxDesktop() && (
-        <div
-          className="fixed inset-0 w-full h-full opacity-[0.06] mix-blend-overlay pointer-events-none z-[9999999] transform-gpu"
-          style={{
-            backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E")`,
-            backgroundRepeat: 'repeat'
-          }}
-        />
-      )}
-
+      <AppGlobalOverlays
+        view={view}
+        setView={setView}
+        subtitleIndex={subtitleIndex}
+        isGlobalConfigLoaded={isGlobalConfigLoaded}
+        t={t}
+        currentTheme={currentTheme}
+      />
     </div>
   );
 }

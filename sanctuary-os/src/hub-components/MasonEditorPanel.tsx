@@ -7,7 +7,7 @@ import {
   HoverTooltip,
   VAULT_CHIP_CLASS,
 } from "../shared";
-import VersionTimeline from "../VersionTimeline";
+import VersionTimeline from "../shared-components/VersionTimeline";
 import { invoke } from "@tauri-apps/api/core";
 import { useTheme } from "../ThemeContext";
 import {

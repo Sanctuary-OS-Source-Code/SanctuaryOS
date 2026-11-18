@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useLexicon } from '../LexiconContext';
 import { TabContainer } from './shared';
 import { PanelHeaderGroup, PanelHeaderButton } from '../shared';
-import CitizenTickets from '../CitizenTickets';
+import CitizenTickets from '../views/CitizenTickets';
 import TicketDossierSidePanel from '../side-panels/TicketDossierSidePanel';
 import { useStore } from '../store';
 import { isDesktop } from '../utils/envUtils';

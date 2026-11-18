@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { SidePanel, ActionButton, PanelHeaderGroup, PanelHeaderButton, SidePanelHeroCard } from "../shared";
-import WayfinderKeeperTickets from "../WayfinderKeeperTickets";
+import WayfinderKeeperTickets from "../hub-components/WayfinderKeeperTickets";
 import TicketDossierSidePanel from "./TicketDossierSidePanel";
 import WayfinderSupportSidePanel from "./WayfinderSupportSidePanel";
 import { useLexicon } from "../LexiconContext";

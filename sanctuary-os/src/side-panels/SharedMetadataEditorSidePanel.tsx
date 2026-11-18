@@ -21,8 +21,8 @@ import {
   VAULT_CHIP_CLASS,
   fetchAllPaginated,
 } from "../shared";
-import ModStructureBuilder, { StructureNode } from "../ModStructureBuilder";
-import { CustomStatusDropdown, CustomMasonDropdown } from "../ArchitectHub";
+import ModStructureBuilder, { StructureNode } from "../hub-components/mason/ModStructureBuilder";
+import { CustomStatusDropdown, CustomMasonDropdown } from "../views/ArchitectHub";
 import { logArchitectAction, computeAuditDiff } from "../lib/audit";
 import { invalidateNexusCatalogCache } from "../utils/nexusCatalogStats";
 import { importIssueCauseFromLabReports } from "../components/KnownExceptionRules";

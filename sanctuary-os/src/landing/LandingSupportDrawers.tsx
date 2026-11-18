@@ -18,7 +18,7 @@ import {
   UniversalTextArea,
   StatBox,
 } from '../components/universal/UniversalLayout';
-import CitizenTickets from '../CitizenTickets';
+import CitizenTickets from '../views/CitizenTickets';
 import TicketDossierSidePanel from '../side-panels/TicketDossierSidePanel';
 import TicketLogViewer from '../side-panels/TicketLogViewer';
 import { useStore } from '../store';

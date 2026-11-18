@@ -14,7 +14,7 @@ import {
   openModDossier,
   VAULT_CHIP_CLASS,
 } from "../shared";
-import { ConflictLoadOrderInfo } from "../ConflictCard";
+import { ConflictLoadOrderInfo } from "../shared-components/ConflictCard";
 
 const extractType = (name: string) => {
   const upper = String(name).toUpperCase();

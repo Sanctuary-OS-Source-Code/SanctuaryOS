@@ -1,28 +1,14 @@
 {
   "id": "sims4",
   "paths": {
-    "manifest_file": "Resource.cfg",
     "executable_subdir": "Game/Bin",
-    "user_data_dir_mac": "~/Documents/Electronic Arts/The Sims 4",
-    "auto_scan_paths_mac": [
-      "/Applications/The Sims 4.app",
-      "/Applications/EA Games/The Sims 4.app",
-      "~/Applications/The Sims 4.app",
-      "~/Applications/EA Games/The Sims 4.app",
-      "~/Library/Application Support/Origin/LocalContent/The Sims 4",
-      "~/Library/Application Support/Steam/steamapps/common/The Sims 4/The Sims 4.app"
-    ],
+    "default_mod_dir_windows": "%USERPROFILE%/Documents/Electronic Arts/The Sims 4/Mods",
     "default_mod_dir_mac": "~/Documents/Electronic Arts/The Sims 4/Mods",
-    "user_data_dir_linux": "%USERPROFILE%/Documents/Electronic Arts/The Sims 4",
-    "auto_scan_paths_linux": [
-      "~/.steam/steam/steamapps/common/The Sims 4",
-      "~/.local/share/Steam/steamapps/common/The Sims 4",
-      "~/.var/app/com.valvesoftware.Steam/.local/share/Steam/steamapps/common/The Sims 4",
-      "/run/media/mmcblk0p1/steamapps/common/The Sims 4",
-      "/run/media/deck/steamapps/common/The Sims 4"
-    ],
     "default_mod_dir_linux": "%USERPROFILE%/Documents/Electronic Arts/The Sims 4/Mods",
     "user_data_dir_windows": "%USERPROFILE%/Documents/Electronic Arts/The Sims 4",
+    "user_data_dir_mac": "~/Documents/Electronic Arts/The Sims 4",
+    "user_data_dir_linux": "%USERPROFILE%/Documents/Electronic Arts/The Sims 4",
+    "manifest_file": "Resource.cfg",
     "auto_scan_paths_windows": [
       "C:\\Program Files\\EA Games\\The Sims 4",
       "C:\\Program Files\\EA\\Origin Games\\The Sims 4\\Bin",
@@ -50,7 +36,21 @@
       "F:\\Program Files (x86)\\Steam\\steamapps\\common\\The Sims 4\\Game\\Bin",
       "G:\\Program Files (x86)\\Steam\\steamapps\\common\\The Sims 4\\Game\\Bin"
     ],
-    "default_mod_dir_windows": "%USERPROFILE%/Documents/Electronic Arts/The Sims 4/Mods"
+    "auto_scan_paths_mac": [
+      "/Applications/The Sims 4.app",
+      "/Applications/EA Games/The Sims 4.app",
+      "~/Applications/The Sims 4.app",
+      "~/Applications/EA Games/The Sims 4.app",
+      "~/Library/Application Support/Origin/LocalContent/The Sims 4",
+      "~/Library/Application Support/Steam/steamapps/common/The Sims 4/The Sims 4.app"
+    ],
+    "auto_scan_paths_linux": [
+      "~/.steam/steam/steamapps/common/The Sims 4",
+      "~/.local/share/Steam/steamapps/common/The Sims 4",
+      "~/.var/app/com.valvesoftware.Steam/.local/share/Steam/steamapps/common/The Sims 4",
+      "/run/media/mmcblk0p1/steamapps/common/The Sims 4",
+      "/run/media/deck/steamapps/common/The Sims 4"
+    ]
   },
   "game_id": "the-sims-4",
   "extensions": {
@@ -180,9 +180,9 @@
   "constraints": {
     "max_folder_depth": 5,
     "requires_script_unzipping": false,
-    "wrap_loose_files_in_folders": true,
     "mods_dir_is_shared_with_vanilla": false,
-    "preserve_archive_folder_structure": false
+    "preserve_archive_folder_structure": false,
+    "wrap_loose_files_in_folders": true
   },
   "dlc_subdirs": [
     "",
@@ -278,16 +278,14 @@
     "TS4_DX11.exe"
   ],
   "lab_verification": {
-    "require_focus": true,
-    "save_extensions": [
-      ".save",
-      ".ver0",
-      ".ver1",
-      ".ver2",
-      ".ver3",
-      ".ver4"
-    ],
+    "require_for_mason_publish": true,
+    "require_for_scout_approval": true,
+    "required_active_seconds": 120,
     "max_idle_seconds": 20,
+    "require_focus": true,
+    "require_save_checkpoint": true,
+    "seed_sandbox_from_latest_save": true,
+    "enable_hotkey_pause_detection": true,
     "pause_key_vk_codes": [
       192,
       48,
@@ -301,21 +299,23 @@
       98,
       99
     ],
+    "save_extensions": [
+      ".save",
+      ".ver0",
+      ".ver1",
+      ".ver2",
+      ".ver3",
+      ".ver4"
+    ],
     "world_load_signature": {
+      "stabilize_boot_seconds": 16,
       "min_disk_read_mb": 75,
       "min_ram_step_percent": 25,
-      "stabilize_boot_seconds": 16,
+      "warm_cache_ram_step_percent": 45,
       "scratch_activity_subdirs": [
         "saves/scratch"
-      ],
-      "warm_cache_ram_step_percent": 45
-    },
-    "require_save_checkpoint": true,
-    "required_active_seconds": 120,
-    "require_for_mason_publish": true,
-    "require_for_scout_approval": true,
-    "enable_hotkey_pause_detection": true,
-    "seed_sandbox_from_latest_save": true
+      ]
+    }
   },
   "manifest_content": "Priority 500\nPackedFile *.package\nPackedFile */*.package\nPackedFile */*/*.package\nPackedFile */*/*/*.package\nPackedFile */*/*/*/*.package\nPackedFile */Delta/tmscenario1.tmdelta\nPackedFile Data/*Strings.tmcatalog\nPackedFile */Data/*Strings.tmcatalog\n\nPriority 1000\nPackedFile Sanctuary/*.package\nPackedFile Sanctuary/*/*.package\nPackedFile Sanctuary/*/*/*.package\n\nPriority 1500\nPackedFile Sanctuary2/*.package\nPackedFile Sanctuary2/*/*.package\nPackedFile Sanctuary2/*/*/*.package\n\nPriority 2000\nPackedFile Sanctuary3/*.package\nPackedFile Sanctuary3/*/*.package\nPackedFile Sanctuary3/*/*/*.package",
   "conflict_analyzers": [
@@ -356,5 +356,6 @@
     "FP"
   ],
   "min_scout_submissions": 5,
-  "launch_args_dlc_mask_template": "-disablepack:{packs}"
+  "launch_args_dlc_mask_template": "-disablepack:{packs}",
+  "name": "The Sims 4"
 }

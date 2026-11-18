@@ -6,7 +6,7 @@ import {
   PanelHeaderGroup,
   PanelHeaderButton,
 } from "../shared";
-import { VAULT_CHIP_CLASS } from "../Cards";
+import { VAULT_CHIP_CLASS } from "../shared-components/Cards";
 import {
   SanctuaryMonacoEditor,
   defineSanctuaryMonacoThemes,

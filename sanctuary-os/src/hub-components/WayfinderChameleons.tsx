@@ -14,7 +14,7 @@ import {
 } from "../components/layouts/ElevatedHubLayout";
 import { UniversalCard } from "../components/universal/UniversalCard";
 import { LiquidGlassAlertCard } from "../components/BlueprintPatchReadiness";
-import { openSanctuaryContextMenu } from "../ContextMenu";
+import { openSanctuaryContextMenu } from "../shared-components/ContextMenu";
 import { useLexicon, CORE_LEXICONS_CACHE_KEY } from "../LexiconContext";
 import { useStore } from "../store";
 import { isStandaloneFork, getBrandConfig } from "../supabase";

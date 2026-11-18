@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { supabase } from "../supabase";
 import { useLexicon } from "../LexiconContext";
-import MarkdownRenderer from "../MarkdownRenderer";
+import MarkdownRenderer from "../shared-components/MarkdownRenderer";
 import CodeSnippetSidebar from "./CodeSnippetSidebar";
 import {
   SidePanel,
@@ -23,12 +23,12 @@ import { StructuredReleaseNotesView } from "../components/release-notes/ReleaseM
 import { cleanPostBodyForViewer } from "../components/release-notes/releaseMarkdownParser";
 import { extractLinkedAssetsFromMarkdown } from "../components/universal/UnifiedPostEditor";
 import FlagContentSidePanel from "./FlagContentSidePanel";
-import { VAULT_CHIP_CLASS } from "../Cards";
+import { VAULT_CHIP_CLASS } from "../shared-components/Cards";
 import { useStore } from "../store";
 import { useEditor, EditorContent } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
 import { Markdown } from "tiptap-markdown";
-import { IconPlugin } from "../IconPlugin";
+import { IconPlugin } from "../utils/IconPlugin";
 import {
   DispatchMetadataHeader,
   DispatchPollViewer,

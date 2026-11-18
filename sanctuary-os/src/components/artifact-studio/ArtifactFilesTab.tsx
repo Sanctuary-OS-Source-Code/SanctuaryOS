@@ -8,7 +8,7 @@ import {
   isScriptExtension,
   VAULT_CHIP_CLASS,
 } from "../../shared";
-import ModStructureBuilder, { StructureNode } from "../../ModStructureBuilder";
+import ModStructureBuilder, { StructureNode } from "../../hub-components/mason/ModStructureBuilder";
 
 function getFamilyStatusMeta(status: any, t: (k: string, f: string) => string) {
   const s = String(status || "")

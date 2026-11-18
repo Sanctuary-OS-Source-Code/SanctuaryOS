@@ -9,7 +9,7 @@ import {
   SidePanelHeroCard, UniversalGroup, HoverTooltip
 } from "../shared";
 import { UniversalTextArea } from "../components/universal/UniversalLayout";
-import { VAULT_CHIP_CLASS } from "../Cards";
+import { VAULT_CHIP_CLASS } from "../shared-components/Cards";
 import { logArchitectAction } from "../lib/audit";
 
 export function FileVerificationSidePanel({ isOpen, onClose, onJumpToArtifact, isOversight, initialHash, onManualFlag }: { isOpen: boolean, onClose: () => void, onJumpToArtifact?: (modObj: any) => void, isOversight?: boolean, initialHash?: string, onManualFlag?: (hash: string) => void }) {

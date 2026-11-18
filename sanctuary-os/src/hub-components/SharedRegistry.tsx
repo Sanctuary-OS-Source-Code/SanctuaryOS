@@ -16,8 +16,8 @@ import {
 } from "../shared";
 import { CustomClassificationDropdown } from "../shared-components/dropdown-controls/PickersAndCompliance";
 export { CustomClassificationDropdown };
-import { ArtifactCard } from "../Cards";
-import { CustomMasonDropdown, CustomStatusDropdown } from "../ArchitectHub";
+import { ArtifactCard } from "../shared-components/Cards";
+import { CustomMasonDropdown, CustomStatusDropdown } from "../views/ArchitectHub";
 import { logArchitectAction, computeAuditDiff } from "../lib/audit";
 import {
   ElevatedHubLayout,

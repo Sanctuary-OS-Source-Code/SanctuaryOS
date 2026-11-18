@@ -7,6 +7,7 @@ use std::fs;
 use std::io::Read;
 use std::path::{Path, PathBuf};
 use super::archive_ops::*;
+use super::backup_retention::*;
 use super::db_cache::*;
 use super::fs_ops::*;
 use super::heuristics::*;

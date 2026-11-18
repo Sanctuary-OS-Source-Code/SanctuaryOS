@@ -3,7 +3,8 @@ use crate::state::*;
 use std::path::{Path, PathBuf};
 use tauri::Emitter;
 use super::airgap::*;
-use super::lab_session::*;
+use super::lab_save_and_telemetry::current_epoch_secs;
+use super::lab_types_and_audio::LAB_SESSION;
 use super::playset_deploy::*;
 
 fn apply_wine_dll_overrides(

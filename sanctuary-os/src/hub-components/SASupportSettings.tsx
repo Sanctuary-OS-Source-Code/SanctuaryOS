@@ -7,7 +7,7 @@ import { SidePanel, CustomDropdown, EmptyState, PanelHeaderGroup, PanelHeaderBut
 import { ElevatedHubLayout, HubOverviewLanding, HubOverviewSection, HubListGrid } from "../components/layouts/ElevatedHubLayout";
 import { UniversalCard } from "../components/universal/UniversalCard";
 import { LiquidGlassAlertCard } from "../components/BlueprintPatchReadiness";
-import { openSanctuaryContextMenu } from "../ContextMenu";
+import { openSanctuaryContextMenu } from "../shared-components/ContextMenu";
 import { logArchitectAction, computeAuditDiff } from "../lib/audit";
 
 interface CustomField {

@@ -1,7 +1,7 @@
 import React from "react";
 import { SidePanel, SidePanelHeroCard, UniversalGroup, EmptyState } from "../shared";
 import { useLexicon } from "../LexiconContext";
-import MasonPostCard from "../MasonPostCard";
+import MasonPostCard from "../hub-components/mason/MasonPostCard";
 
 export default function MasonRecentPostsSidePanel({ 
   isOpen, 

@@ -17,7 +17,7 @@ const PushTemplateSidePanel = React.lazy(() =>
 const WorkbenchTemplateGuide = React.lazy(() =>
   import("../workbench/WorkbenchTemplateGuide").then((m) => ({ default: m.WorkbenchTemplateGuide }))
 );
-const VersionTimeline = React.lazy(() => import("../VersionTimeline"));
+const VersionTimeline = React.lazy(() => import("../shared-components/VersionTimeline"));
 const MasonEditorPanel = React.lazy(() => import("../hub-components/MasonEditorPanel"));
 
 function StandaloneWorkbenchSidePanel() {

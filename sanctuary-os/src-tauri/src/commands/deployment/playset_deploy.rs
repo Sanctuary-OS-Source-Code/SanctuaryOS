@@ -2,7 +2,7 @@ use crate::commands::state_ops::*;
 use crate::state::*;
 use crate::utils::*;
 use std::path::{Path, PathBuf};
-use super::airgap::*;
+use super::airgap_journal::*;
 
 pub fn cleanup_routed_links(vault_path: &str) {
     if vault_path.trim().is_empty() {

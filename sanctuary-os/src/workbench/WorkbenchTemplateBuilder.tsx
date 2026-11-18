@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useLexicon } from '../LexiconContext';
 import { CustomDropdown, ActionPill, EmptyState, VAULT_CHIP_CLASS, HoverTooltip } from '../shared';
-import IconPicker from '../IconPicker';
+import IconPicker from '../shared-components/IconPicker';
 import { humanizeConfigLabel, resolveCategoryIcon } from './WorkbenchVisualEditor';
 
 interface WorkbenchTemplateBuilderProps {

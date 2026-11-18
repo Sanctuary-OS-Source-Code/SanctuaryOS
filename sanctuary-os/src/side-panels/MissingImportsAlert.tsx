@@ -18,7 +18,7 @@ import {
   UniversalGroup,
   openModDossier,
 } from "../shared";
-import { VAULT_CHIP_CLASS } from "../Cards";
+import { VAULT_CHIP_CLASS } from "../shared-components/Cards";
 
 export function MissingImportsAlert({
   missingImportMods,

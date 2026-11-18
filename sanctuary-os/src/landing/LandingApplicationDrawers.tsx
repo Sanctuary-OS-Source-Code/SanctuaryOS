@@ -1,5 +1,5 @@
 import { useLexicon } from '../LexiconContext';
-import MarkdownRenderer from '../MarkdownRenderer';
+import MarkdownRenderer from '../shared-components/MarkdownRenderer';
 import {
   CANONICAL_LEGAL_DOCS,
   fetchSyncedLegalAndCovenants,

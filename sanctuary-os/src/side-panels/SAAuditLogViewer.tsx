@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback, useMemo, useRef } from "react"
 import { supabaseAuth, getActiveGameClient } from "../supabase";
 import { useLexicon, normalizeAllCapsForThemeCase } from "../LexiconContext";
 import { useStore } from "../store";
-import { SharedIdentityEditor } from "../IdentityMatrix";
+import { SharedIdentityEditor } from "../hub-components/IdentityMatrix";
 import {
   SidePanel,
   CustomDropdown,
@@ -19,7 +19,7 @@ import {
   VAULT_CHIP_CLASS,
 } from "../shared";
 import { UniversalCard } from "../components/universal/UniversalCard";
-import { openSanctuaryContextMenu, SanctuaryContextMenuItem } from "../ContextMenu";
+import { openSanctuaryContextMenu, SanctuaryContextMenuItem } from "../shared-components/ContextMenu";
 import {
   ElevatedHubLayout,
   HubOverviewLanding,

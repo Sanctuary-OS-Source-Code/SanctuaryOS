@@ -5,9 +5,9 @@ import { SidePanel, CustomDropdown, EmptyState, PanelHeaderGroup, PanelHeaderBut
 import { ElevatedHubLayout, HubOverviewLanding, HubOverviewSection, SidePanelHeroCard, SidePanelTitleInput, UniversalGroup } from "../components/layouts/ElevatedHubLayout";
 import { UniversalCard } from "../components/universal/UniversalCard";
 import { LiquidGlassAlertCard } from "../components/BlueprintPatchReadiness";
-import { openSanctuaryContextMenu, SanctuaryContextMenuItem } from "../ContextMenu";
+import { openSanctuaryContextMenu, SanctuaryContextMenuItem } from "../shared-components/ContextMenu";
 import { DynamicTemplatePreviewBanner } from "../chameleon-components/ThemeCard";
-import TemplatePreviewer from "../TemplatePreviewer";
+import TemplatePreviewer from "../shared-components/TemplatePreviewer";
 import { supabase } from "../supabase";
 import { useStore } from "../store";
 

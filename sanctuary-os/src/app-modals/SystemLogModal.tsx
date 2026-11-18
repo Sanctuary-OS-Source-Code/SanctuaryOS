@@ -17,7 +17,7 @@ import {
   EmptyState,
   VAULT_CHIP_CLASS,
 } from "../shared";
-import { openSanctuaryContextMenu } from "../ContextMenu";
+import { openSanctuaryContextMenu } from "../shared-components/ContextMenu";
 import { useVirtualWindow } from "../hooks/useVirtualWindow";
 
 type LogFilterGroup = "all" | "vault" | "lab" | "nexus" | "alerts";

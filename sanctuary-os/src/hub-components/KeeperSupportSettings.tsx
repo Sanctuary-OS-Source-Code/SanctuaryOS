@@ -5,7 +5,7 @@ import { supabase } from "../supabase";
 import { SidePanel, CustomDropdown, EmptyState, PanelHeaderGroup, PanelHeaderButton, VAULT_CHIP_CLASS } from "../shared";
 import { UniversalCard } from "../components/universal/UniversalCard";
 import { LiquidGlassAlertCard } from "../components/BlueprintPatchReadiness";
-import { openSanctuaryContextMenu } from "../ContextMenu";
+import { openSanctuaryContextMenu } from "../shared-components/ContextMenu";
 import { UniversalGroup, UniversalInput, UniversalTextArea, UniversalToggle, SidePanelHeroCard, StatBox } from "../components/universal/UniversalLayout";
 import { ElevatedHubLayout, HubOverviewLanding, HubOverviewSection, HubListGrid, SidePanelTitleInput, SidePanelPillToggle } from "../components/layouts/ElevatedHubLayout";
 import { logArchitectAction, computeAuditDiff } from "../lib/audit";

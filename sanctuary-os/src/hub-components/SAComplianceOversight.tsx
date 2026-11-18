@@ -5,7 +5,7 @@ import { useStore } from '../store';
 import { CustomDropdown, CustomComplianceDropdown, SidePanel, SidePanelPillToggle, PanelHeaderGroup, PanelHeaderButton, ActionButton, SidePanelHeroCard, StatBox, EmptyState, VAULT_CHIP_CLASS, fetchAllPaginated } from '../shared';
 import { UniversalCard } from '../components/universal/UniversalCard';
 import { UniversalInput } from '../components/universal/UniversalLayout';
-import { openSanctuaryContextMenu } from '../ContextMenu';
+import { openSanctuaryContextMenu } from '../shared-components/ContextMenu';
 import { DynamicArtifactPreviewBanner } from '../chameleon-components/ThemeCard';
 import { SharedMetadataEditorSidePanel } from '../side-panels/SharedMetadataEditorSidePanel';
 import { ElevatedHubLayout, HubOverviewLanding, HubOverviewSection, HubListGrid, SidePanelTitleInput, UniversalGroup, UniversalTextArea } from '../components/layouts/ElevatedHubLayout';

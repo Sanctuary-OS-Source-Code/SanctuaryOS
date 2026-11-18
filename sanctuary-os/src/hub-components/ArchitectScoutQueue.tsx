@@ -3,7 +3,7 @@ import { ElevatedHubLayout, HubOverviewLanding, HubOverviewSection, SidePanelTit
 import { UniversalGroup, SidePanelHeroCard, StatBox } from "../components/universal/UniversalLayout";
 import { useState, useEffect } from "react";
 import { fetchAllPaginated, isSupportedExtension } from "../shared";
-import { CustomClassificationDropdown } from "../hub-components/SharedRegistry";
+import { CustomClassificationDropdown } from "./SharedRegistry";
 import { supabase } from "../supabase";
 import { useLexicon } from "../LexiconContext";
 import { useStore } from "../store";
@@ -11,8 +11,8 @@ import {
   SidePanel, GameVersionMultiSelect,
   CustomComplianceDropdown, ModSearchDropdown, EmptyState
 } from "../shared";
-import { ArtifactCard, VAULT_CHIP_CLASS } from "../Cards";
-import { CustomMasonDropdown } from "../ArchitectHub";
+import { ArtifactCard, VAULT_CHIP_CLASS } from "../shared-components/Cards";
+import { CustomMasonDropdown } from "../views/ArchitectHub";
 import { logArchitectAction, computeAuditDiff } from "../lib/audit";
 import { invalidateNexusCatalogCache } from "../utils/nexusCatalogStats";
 import {

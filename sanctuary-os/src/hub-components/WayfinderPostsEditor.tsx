@@ -6,7 +6,7 @@ import { useEditor } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
 import { Markdown } from 'tiptap-markdown';
 import Image from '@tiptap/extension-image';
-import { IconPlugin } from '../IconPlugin';
+import { IconPlugin } from '../utils/IconPlugin';
 import {
   SidePanel, CustomDropdown, EmptyState,
   extractPostImage, getSafeEditorMarkdown, PanelHeaderGroup, PanelHeaderButton, LinkAssetSidePanel,
@@ -14,8 +14,8 @@ import {
 } from "../shared";
 import { ElevatedHubLayout, HubOverviewLanding, HubOverviewSection } from "../components/layouts/ElevatedHubLayout";
 import { LiquidGlassAlertCard } from "../components/BlueprintPatchReadiness";
-import MasonPostCard from "../MasonPostCard";
-import AssetPreviewSidebar from "../AssetPreviewSidebar";
+import MasonPostCard from "./mason/MasonPostCard";
+import AssetPreviewSidebar from "../side-panels/AssetPreviewSidebar";
 import MasonPostViewer from "../side-panels/MasonPostViewer";
 import { logArchitectAction, computeAuditDiff } from "../lib/audit";
 import { extractDispatchMetadata, DispatchPollData } from "../components/universal/DispatchPollAndMeta";

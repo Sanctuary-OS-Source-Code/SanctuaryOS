@@ -9,7 +9,7 @@ import { ElevatedHubLayout, HubOverviewLanding, HubOverviewSection } from "../co
 import { UniversalGroup, UniversalTextArea, SidePanelHeroCard } from "../components/universal/UniversalLayout";
 import { UniversalCard } from "../components/universal/UniversalCard";
 import { LiquidGlassAlertCard } from "../components/BlueprintPatchReadiness";
-import { openSanctuaryContextMenu } from "../ContextMenu";
+import { openSanctuaryContextMenu } from "../shared-components/ContextMenu";
 import { logArchitectAction } from "../lib/audit";
 import { resolvePresetForGameId } from "../utils/gameArchitecturePresets";
 import {

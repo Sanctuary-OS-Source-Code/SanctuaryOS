@@ -11,7 +11,7 @@ import {
   filterBlueprintModArtifacts,
 } from '../shared';
 import { useStore } from '../store';
-import { openSanctuaryContextMenu, SanctuaryContextMenuItem } from '../ContextMenu';
+import { openSanctuaryContextMenu, SanctuaryContextMenuItem } from '../shared-components/ContextMenu';
 
 export function resolveThemePreviewData(raw: any): any {
   if (!raw) return DEFAULT_CORE_THEMES.architect;

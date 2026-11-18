@@ -12,7 +12,7 @@ import {
 import { ElevatedHubLayout, HubOverviewLanding, HubOverviewSection } from "../components/layouts/ElevatedHubLayout";
 import { UniversalGroup, UniversalTextArea, SidePanelHeroCard, StatBox } from "../components/universal/UniversalLayout";
 import { UniversalCard } from "../components/universal/UniversalCard";
-import { openSanctuaryContextMenu } from "../ContextMenu";
+import { openSanctuaryContextMenu } from "../shared-components/ContextMenu";
 import { DynamicArtifactPreviewBanner } from "../chameleon-components/ThemeCard";
 import { buildFamilyHierarchy } from "../components/artifact-studio/artifactStudioUtils";
 import { logArchitectAction, parseAuditLogEntry, formatAuditTableLabel } from "../lib/audit";

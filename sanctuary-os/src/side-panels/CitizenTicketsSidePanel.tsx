@@ -11,7 +11,7 @@ import {
   DashboardStatTile,
   SidePanelFilterBar,
 } from "../shared";
-import CitizenTickets from "../CitizenTickets";
+import CitizenTickets from "../views/CitizenTickets";
 import TicketDossierSidePanel from "./TicketDossierSidePanel";
 import { useLexicon } from "../LexiconContext";
 import { useStore } from "../store";

@@ -10,7 +10,7 @@ import {
   sortTicketsPriorityFirst,
   getTicketSupporterFlags,
 } from "../components/universal/SupportTicketCard";
-import { openSanctuaryContextMenu, SanctuaryContextMenuItem } from "../ContextMenu";
+import { openSanctuaryContextMenu, SanctuaryContextMenuItem } from "../shared-components/ContextMenu";
 import { ElevatedHubLayout, HubOverviewLanding, HubOverviewSection, HubListGrid } from "../components/layouts/ElevatedHubLayout";
 import SASupportSettings from "./SASupportSettings";
 import {

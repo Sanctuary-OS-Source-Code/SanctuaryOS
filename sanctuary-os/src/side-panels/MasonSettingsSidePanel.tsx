@@ -9,7 +9,7 @@ import {
   PanelHeaderButton,
 } from "../shared";
 import { UniversalGroup, UniversalInput, UniversalTextArea } from "../components/layouts/ElevatedHubLayout";
-import { VAULT_CHIP_CLASS } from "../Cards";
+import { VAULT_CHIP_CLASS } from "../shared-components/Cards";
 
 export function MasonSettingsSidePanel({
   isOpen,

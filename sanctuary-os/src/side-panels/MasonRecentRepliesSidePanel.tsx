@@ -9,7 +9,7 @@ import {
   renderTextWithIcons,
 } from "../shared";
 import { useLexicon } from "../LexiconContext";
-import { VAULT_CHIP_CLASS } from "../Cards";
+import { VAULT_CHIP_CLASS } from "../shared-components/Cards";
 
 export default function MasonRecentRepliesSidePanel({ 
   isOpen, 

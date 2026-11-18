@@ -19,7 +19,7 @@ import {
   SupportTicketCard,
   sortTicketsPriorityFirst,
 } from "../components/universal/SupportTicketCard";
-import { openSanctuaryContextMenu } from "../ContextMenu";
+import { openSanctuaryContextMenu } from "../shared-components/ContextMenu";
 import { UniversalGroup, UniversalInput, UniversalTextArea } from "../components/universal/UniversalLayout";
 import { ElevatedHubLayout, HubOverviewLanding, HubOverviewSection } from "../components/layouts/ElevatedHubLayout";
 import KeeperSupportSettings from "./KeeperSupportSettings";

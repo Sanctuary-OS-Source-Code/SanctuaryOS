@@ -19,7 +19,7 @@ import { getLuminance } from '../chameleon-components/ChameleonShared';
 import {
   SidePanelHeroCard,
   UniversalGroup,
-} from '../components/universal/UniversalLayout';
+} from './universal/UniversalLayout';
 import {
   SidePanel,
   SidePanelFilterBar,

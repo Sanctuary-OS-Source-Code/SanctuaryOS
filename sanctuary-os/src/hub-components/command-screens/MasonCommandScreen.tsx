@@ -19,7 +19,7 @@ import {
   CommandScreenSectionHeading,
 } from "../SharedCommandScreenLayout";
 import { UniversalCard } from "../../components/universal/UniversalCard";
-import { openSanctuaryContextMenu, SanctuaryContextMenuItem } from "../../ContextMenu";
+import { openSanctuaryContextMenu, SanctuaryContextMenuItem } from "../../shared-components/ContextMenu";
 import { formatSanctuaryDate } from "../../utils/dateUtils";
 import { isDesktop } from "../../utils/envUtils";
 import { escapePostgrestFilterValue } from "../../utils/postgrestUtils";

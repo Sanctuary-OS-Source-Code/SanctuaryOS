@@ -3,7 +3,7 @@ import { useEditor } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
 import { Markdown } from "tiptap-markdown";
 import Image from "@tiptap/extension-image";
-import { IconPlugin } from "../../IconPlugin";
+import { IconPlugin } from "../../utils/IconPlugin";
 import { useLexicon } from "../../LexiconContext";
 import { SidePanel, PanelHeaderGroup, DashboardStatTile, SidePanelFilterBar } from "../../shared-components/layout";
 import { PanelHeaderButton } from "../../shared-components/buttons";

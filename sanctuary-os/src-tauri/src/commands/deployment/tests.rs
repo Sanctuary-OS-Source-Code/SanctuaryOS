@@ -1,4 +1,4 @@
-use super::{airgap::*, lab_session::*};
+use super::{airgap::*, airgap_journal::*, lab_save_and_telemetry::*, lab_session::*, lab_staging::*, lab_types_and_audio::*};
 
 mod lab_safety_tests {
     use super::*;

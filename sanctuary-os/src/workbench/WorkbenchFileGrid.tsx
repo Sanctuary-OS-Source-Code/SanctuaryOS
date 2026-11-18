@@ -5,7 +5,7 @@ import { EmptyState } from "../shared";
 import { UniversalCard } from "../components/universal/UniversalCard";
 import { LiquidGlassAlertCard } from "../components/BlueprintPatchReadiness";
 import { DynamicTemplatePreviewBanner } from "../chameleon-components/ThemeCard";
-import { openSanctuaryContextMenu, SanctuaryContextMenuItem } from "../ContextMenu";
+import { openSanctuaryContextMenu, SanctuaryContextMenuItem } from "../shared-components/ContextMenu";
 import { isSanctuaryTemplateFile, isSanctuaryTemplateFileName } from "./workbenchFormatUtils";
 import { VAULT_CHIP_CLASS } from "../shared-components/constants";
 import { useVirtualWindow } from "../hooks/useVirtualWindow";

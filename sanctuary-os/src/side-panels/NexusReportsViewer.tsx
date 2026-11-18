@@ -1,9 +1,9 @@
 import { ElevatedHubLayout, HubOverviewLanding, HubOverviewSection, SidePanelHeroCard } from '../components/layouts/ElevatedHubLayout';
 import { UniversalCard } from '../components/universal/UniversalCard';
-import { openSanctuaryContextMenu, SanctuaryContextMenuItem } from '../ContextMenu';
+import { openSanctuaryContextMenu, SanctuaryContextMenuItem } from '../shared-components/ContextMenu';
 import { useState, useEffect } from "react";
 import CodeSnippetSidebar from "./CodeSnippetSidebar";
-import AssetPreviewSidebar from "../AssetPreviewSidebar";
+import AssetPreviewSidebar from "./AssetPreviewSidebar";
 import MasonPostViewer from "./MasonPostViewer";
 import {
   MarketBlueprintPanel,

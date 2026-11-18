@@ -12,7 +12,7 @@ import {
   ActionPill,
   ActionButton,
 } from "../shared";
-import { ChameleonEditorPanel } from "../side-panels/ChameleonEditorPanel";
+import { ChameleonEditorPanel } from "./ChameleonEditorPanel";
 import { ThemeCard } from "../chameleon-components/ThemeCard";
 import { LiquidGlassAlertCard } from "../components/BlueprintPatchReadiness";
 import {
