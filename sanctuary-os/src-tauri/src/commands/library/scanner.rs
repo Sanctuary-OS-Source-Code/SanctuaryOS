@@ -134,6 +134,143 @@ pub(super) fn verify_trusted_lineage_upgrade(
     false
 }
 
+pub(crate) fn collect_folder_mod_units(
+    game_schema: &Option<crate::schema::GameSchema>,
+    mods_lane: &Path,
+) -> Vec<(PathBuf, Vec<PathBuf>)> {
+    let Some(schema) = game_schema.as_ref() else {
+        return Vec::new();
+    };
+    let mode = schema
+        .mod_unit_mode
+        .as_deref()
+        .map(|s| s.trim().to_ascii_lowercase())
+        .unwrap_or_default();
+    if mode != "folder" && mode != "auto" {
+        return Vec::new();
+    }
+    let markers: Vec<String> = schema
+        .mod_unit_markers
+        .clone()
+        .unwrap_or_default()
+        .into_iter()
+        .map(|m| m.trim().replace('\\', "/").trim_matches('/').to_string())
+        .filter(|m| !m.is_empty())
+        .collect();
+    if mode == "auto" && markers.is_empty() {
+        return Vec::new();
+    }
+
+    let tier_folders_lower: HashSet<String> = schema
+        .load_order
+        .as_ref()
+        .and_then(|lo| lo.priority_tiers.as_ref())
+        .into_iter()
+        .flatten()
+        .map(|t| t.folder.trim().trim_start_matches('!').to_ascii_lowercase())
+        .filter(|f| !f.is_empty())
+        .collect();
+    let supported_exts = crate::game_logic::get_supported_extensions(game_schema);
+    let mut candidate_dirs: Vec<PathBuf> = Vec::new();
+
+    if let Ok(entries) = fs::read_dir(mods_lane) {
+        for entry in entries.flatten() {
+            let p = entry.path();
+            if !p.is_dir() || crate::utils::is_macos_or_os_metadata_path(&p) {
+                continue;
+            }
+            let dname_low = entry.file_name().to_string_lossy().to_ascii_lowercase();
+            if matches!(
+                dname_low.as_str(),
+                "sandbox" | "dev" | "quarantine" | "__macosx"
+            ) || dname_low.starts_with('.')
+            {
+                continue;
+            }
+            if tier_folders_lower.contains(&dname_low) {
+                if let Ok(sub_entries) = fs::read_dir(&p) {
+                    for sub_entry in sub_entries.flatten() {
+                        let sp = sub_entry.path();
+                        if sp.is_dir() && !crate::utils::is_macos_or_os_metadata_path(&sp) {
+                            let sname = sub_entry.file_name().to_string_lossy().to_ascii_lowercase();
+                            if !sname.starts_with('.') {
+                                candidate_dirs.push(sp);
+                            }
+                        }
+                    }
+                }
+            } else {
+                candidate_dirs.push(p);
+            }
+        }
+    }
+
+    let mut units = Vec::new();
+    for unit_dir in candidate_dirs {
+        let marker_hit = !markers.is_empty()
+            && markers.iter().any(|m| {
+                let resolved = crate::utils::resolve_case_insensitive_path(&unit_dir, m);
+                resolved.exists()
+            });
+        let qualifies = if mode == "auto" {
+            marker_hit
+        } else if !markers.is_empty() {
+            marker_hit || {
+                let mut tmp = Vec::new();
+                crate::utils::walk_packages(game_schema, &unit_dir, &mut tmp);
+                !tmp.is_empty()
+            }
+        } else {
+            let mut tmp = Vec::new();
+            crate::utils::walk_packages(game_schema, &unit_dir, &mut tmp);
+            !tmp.is_empty()
+        };
+        if !qualifies {
+            continue;
+        }
+
+        let mut constituent_files = Vec::new();
+        for w_entry in walkdir::WalkDir::new(&unit_dir)
+            .follow_links(false)
+            .into_iter()
+            .filter_map(|e| e.ok())
+        {
+            if !w_entry.file_type().is_file() {
+                continue;
+            }
+            let fp = w_entry.path().to_path_buf();
+            if crate::utils::is_macos_or_os_metadata_path(&fp) {
+                continue;
+            }
+            let fname_low = w_entry.file_name().to_string_lossy().to_ascii_lowercase();
+            if fname_low.starts_with('.') || fname_low == "desktop.ini" || fname_low == "thumbs.db" {
+                continue;
+            }
+            let ext_low = fp
+                .extension()
+                .and_then(|e| e.to_str())
+                .map(|s| s.to_ascii_lowercase())
+                .unwrap_or_default();
+            let is_supported = supported_exts.is_empty() || supported_exts.contains(&ext_low);
+            let is_marker = markers.iter().any(|m| {
+                let m_leaf = m.rsplit('/').next().unwrap_or(m);
+                fname_low == m_leaf.to_ascii_lowercase()
+            });
+            let is_script_or_bin = matches!(
+                ext_low.as_str(),
+                "dll" | "exe" | "so" | "dylib" | "py" | "pyc" | "lua" | "ps1" | "bat" | "sh" | "zip"
+            );
+            if is_supported || is_marker || is_script_or_bin {
+                constituent_files.push(fp);
+            }
+        }
+        constituent_files.sort();
+        units.push((unit_dir, constituent_files));
+    }
+    units.sort_by(|a, b| a.0.cmp(&b.0));
+    units
+}
+
 #[tauri::command]
 pub async fn scan_bunker(
     app: tauri::AppHandle,
@@ -287,8 +424,22 @@ pub async fn scan_bunker(
                     }
                 }
 
+                let folder_units = collect_folder_mod_units(&game_schema, &mods_lane);
+                let mut folder_unit_member_idx: std::collections::HashMap<PathBuf, usize> =
+                    std::collections::HashMap::new();
+                for (u_idx, (_, members)) in folder_units.iter().enumerate() {
+                    for mp in members {
+                        folder_unit_member_idx.insert(mp.clone(), u_idx);
+                    }
+                }
+
                 let mut paths = Vec::new();
                 walk_packages(&game_schema, &mods_lane, &mut paths);
+                for mp in folder_unit_member_idx.keys() {
+                    if !paths.contains(mp) {
+                        paths.push(mp.clone());
+                    }
+                }
                 paths.sort();
 
                 let total = paths.len();
@@ -498,6 +649,15 @@ pub async fn scan_bunker(
                 }
 
                 // Phase 3: Assemble ModData & quarantine any detected threats
+                struct UnitMemberRecord {
+                    rel_lower: String,
+                    dna_hash: String,
+                    is_script: bool,
+                    mtime: u64,
+                    corrupted: bool,
+                }
+                let mut unit_records: Vec<Vec<UnitMemberRecord>> =
+                    (0..folder_units.len()).map(|_| Vec::new()).collect();
                 let mut results = Vec::with_capacity(total);
                 for item in items {
                     let is_hash_malware = malware_hashes_set.contains(&item.dna_hash);
@@ -624,19 +784,90 @@ pub async fn scan_bunker(
                         continue;
                     }
 
-                    let status_string = if item.explicitly_local {
-                        "EXPLICIT LOCAL".to_string()
+                    let magic_corrupt = crate::game_logic::verify_schema_magic_bytes(
+                        &item.path,
+                        &game_schema,
+                    )
+                    .is_err();
+
+                    if let Some(&u_idx) = folder_unit_member_idx.get(&item.path) {
+                        let unit_dir = &folder_units[u_idx].0;
+                        let rel_u = item
+                            .path
+                            .strip_prefix(unit_dir)
+                            .unwrap_or(&item.path)
+                            .to_string_lossy()
+                            .replace('\\', "/")
+                            .to_ascii_lowercase();
+                        unit_records[u_idx].push(UnitMemberRecord {
+                            rel_lower: rel_u,
+                            dna_hash: item.dna_hash,
+                            is_script: item.is_script,
+                            mtime: item.mtime,
+                            corrupted: magic_corrupt,
+                        });
+                        continue;
+                    }
+
+                    let (status_string, color_str) = if magic_corrupt {
+                        ("CORRUPTED".to_string(), "var(--warning)".to_string())
+                    } else if item.explicitly_local {
+                        ("EXPLICIT LOCAL".to_string(), "var(--text-sub)".to_string())
                     } else {
-                        "LOCAL_ONLY".to_string()
+                        ("LOCAL_ONLY".to_string(), "var(--text-sub)".to_string())
                     };
 
                     results.push(ModData {
                         name: item.rel.replace("\\", "/"),
                         hash: item.dna_hash,
                         status: status_string,
-                        color: "var(--text-sub)".to_string(),
+                        color: color_str,
                         is_script: item.is_script,
                         mtime: item.mtime,
+                    });
+                }
+
+                for (u_idx, (unit_dir, _)) in folder_units.into_iter().enumerate() {
+                    let mut recs = std::mem::take(&mut unit_records[u_idx]);
+                    if recs.is_empty() {
+                        continue;
+                    }
+                    recs.sort_by(|a, b| a.rel_lower.cmp(&b.rel_lower));
+                    use sha2::{Digest, Sha256};
+                    let mut hasher = Sha256::new();
+                    let mut max_mtime = 0u64;
+                    let mut any_script = false;
+                    let mut any_corrupt = false;
+                    for r in &recs {
+                        hasher.update(r.rel_lower.as_bytes());
+                        hasher.update(b":");
+                        hasher.update(r.dna_hash.as_bytes());
+                        hasher.update(b"\n");
+                        max_mtime = max_mtime.max(r.mtime);
+                        any_script |= r.is_script;
+                        any_corrupt |= r.corrupted;
+                    }
+                    let composite_hash = hex::encode(hasher.finalize());
+                    let unit_rel = unit_dir
+                        .strip_prefix(&mods_lane)
+                        .unwrap_or(&unit_dir)
+                        .to_string_lossy()
+                        .replace('\\', "/");
+                    results.push(ModData {
+                        name: unit_rel,
+                        hash: composite_hash,
+                        status: if any_corrupt {
+                            "CORRUPTED".to_string()
+                        } else {
+                            "LOCAL_ONLY".to_string()
+                        },
+                        color: if any_corrupt {
+                            "var(--warning)".to_string()
+                        } else {
+                            "var(--text-sub)".to_string()
+                        },
+                        is_script: any_script,
+                        mtime: max_mtime,
                     });
                 }
 
@@ -815,4 +1046,42 @@ pub async fn scan_sandbox(
     })
     .await
     .map_err(|e| format!("Task panicked: {}", e))?
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn collect_folder_mod_units_groups_marker_folders_without_exploding_files() {
+        let dir = std::env::temp_dir().join(format!(
+            "sanctuary_folder_units_test_{}",
+            uuid::Uuid::new_v4()
+        ));
+        let mods_lane = dir.join("Mods");
+        let unit_a = mods_lane.join("CoolOverhaul");
+        std::fs::create_dir_all(unit_a.join("Textures")).unwrap();
+        std::fs::write(unit_a.join("manifest.json"), b"{\"id\":\"cool\"}").unwrap();
+        std::fs::write(unit_a.join("Textures").join("data.xml"), b"<root/>").unwrap();
+
+        let schema: Option<crate::schema::GameSchema> = Some(
+            serde_json::from_value(serde_json::json!({
+                "id": "unit_test",
+                "game_id": "unit_test",
+                "mod_unit_mode": "auto",
+                "mod_unit_markers": ["manifest.json"],
+                "extensions": {
+                    "supported": [".json", ".xml"]
+                }
+            }))
+            .unwrap(),
+        );
+
+        let units = collect_folder_mod_units(&schema, &mods_lane);
+        assert_eq!(units.len(), 1);
+        assert_eq!(units[0].0, unit_a);
+        assert_eq!(units[0].1.len(), 2);
+
+        let _ = std::fs::remove_dir_all(&dir);
+    }
 }

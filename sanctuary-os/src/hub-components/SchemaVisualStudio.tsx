@@ -78,7 +78,6 @@ export default function SchemaVisualStudio({
   const commitSchema = (nextSchema: Record<string, any>) => {
     const cleaned = { ...nextSchema };
     delete cleaned.dlc_catalog;
-    delete cleaned.exception_rules;
     onChange(JSON.stringify(cleaned, null, 2));
   };
 
@@ -175,7 +174,6 @@ export default function SchemaVisualStudio({
     delete next.name;
     delete next.archive_containers;
     delete next.dlc_catalog;
-    delete next.exception_rules;
     delete next.mod_categories;
     delete next.taxonomy;
     const aligned = deepAddMissing(baseline, next, false);

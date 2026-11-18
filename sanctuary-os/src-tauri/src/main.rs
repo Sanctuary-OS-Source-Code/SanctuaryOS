@@ -355,6 +355,7 @@ fn main() {
             sanitize_vault,
             auto_detect_paths,
             launch_game,
+            discover_schema_external_tools,
             launch_external_tool,
             airgap_saves,
             recover_interrupted_lab_airgap,

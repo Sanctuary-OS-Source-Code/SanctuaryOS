@@ -624,10 +624,61 @@ pub async fn run_conflict_radar(
             .map(|(_, _, rel_norm)| rel_norm.clone())
             .collect();
 
-        let configured_analyzers: Vec<SchemaConflictAnalyzer> = game_schema
+        let mut configured_analyzers: Vec<SchemaConflictAnalyzer> = game_schema
             .as_ref()
             .and_then(|s| s.conflict_analyzers.clone())
             .unwrap_or_default();
+
+        // Synthesize fallback conflict analyzers from `extensions.parsers` when not explicitly declared in `conflict_analyzers`
+        if let Some(parsers_val) = game_schema.as_ref().and_then(|s| s.extensions.parsers.as_ref()) {
+            let mut register_parser = |ext_raw: &str, parser_type: &str| {
+                let clean = ext_raw.trim().trim_start_matches('.').to_ascii_lowercase();
+                let p_type = parser_type.trim().to_string();
+                if clean.is_empty() || p_type.is_empty() {
+                    return;
+                }
+                let dot_ext = format!(".{}", clean);
+                let already_covered = configured_analyzers.iter().any(|a| {
+                    a.extensions
+                        .iter()
+                        .any(|ae| ae.trim().trim_start_matches('.').eq_ignore_ascii_case(&clean))
+                });
+                if !already_covered {
+                    let magic_bytes =
+                        crate::game_logic::lookup_schema_magic_bytes_for_ext(&game_schema, &clean);
+                    configured_analyzers.push(SchemaConflictAnalyzer {
+                        id: format!("ext_parser_{}", clean),
+                        analyzer_type: p_type,
+                        extensions: vec![dot_ext],
+                        magic_bytes,
+                        ..Default::default()
+                    });
+                }
+            };
+            if let Some(map) = parsers_val.as_object() {
+                for (k, v) in map {
+                    if let Some(pt) = v.as_str() {
+                        register_parser(k, pt);
+                    }
+                }
+            } else if let Some(arr) = parsers_val.as_array() {
+                for item in arr {
+                    if let Some(obj) = item.as_object() {
+                        let k = obj
+                            .get("ext")
+                            .or_else(|| obj.get("extension"))
+                            .and_then(|v| v.as_str())
+                            .unwrap_or("");
+                        let pt = obj
+                            .get("parser")
+                            .or_else(|| obj.get("type"))
+                            .and_then(|v| v.as_str())
+                            .unwrap_or("");
+                        register_parser(k, pt);
+                    }
+                }
+            }
+        }
 
         // Filter extensions for virtual_fs_path if explicitly restricted by schema analyzer
         let vfs_ext_filter: Option<HashSet<String>> = configured_analyzers

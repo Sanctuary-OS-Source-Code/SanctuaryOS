@@ -472,6 +472,34 @@ function main() {
 
   const sortedSimlish = sortLexiconKeys(nextSimlish);
 
+  function hasJsonDiff(filePath, obj) {
+    const serialized = JSON.stringify(obj, null, 2).trim();
+    if (!fs.existsSync(filePath)) return true;
+    const existing = fs.readFileSync(filePath, 'utf-8').trim();
+    return existing !== serialized;
+  }
+
+  if (process.argv.includes('--check')) {
+    const dirty = [
+      ['en-default.json', defaultPath, sortedDefault],
+      ['en-sanctuary.json', sanctuaryPath, sortedSanctuary],
+      ['en-sims.json', simsPath, sortedSims],
+      ['Simlish.json', simlishPath, sortedSimlish],
+    ]
+      .filter(([, filePath, obj]) => hasJsonDiff(filePath, obj))
+      .map(([label]) => label);
+    if (dirty.length > 0) {
+      console.error(
+        `[sync-lexicons] --check failed: lexicon files are out of sync (+${addedFromCode} unextracted, -${prunedDead} dead; dirty: ${dirty.join(', ')}). Run "npm run lexicon:sync" and commit the updated files.`
+      );
+      process.exit(1);
+    }
+    console.log(
+      `[sync-lexicons] --check passed: all lexicon files are in sync (en-default: ${Object.keys(sortedDefault).length} keys).`
+    );
+    return;
+  }
+
   const cDef = writeJsonIfChanged(defaultPath, sortedDefault);
   const cSanc = writeJsonIfChanged(sanctuaryPath, sortedSanctuary);
   const cSims = writeJsonIfChanged(simsPath, sortedSims);

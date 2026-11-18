@@ -573,11 +573,160 @@ fn discover_via_macos_applications(schema: &Option<GameSchema>, s: &GameSchema) 
     None
 }
 
+pub(crate) fn parse_microsoft_game_config_matches(
+    xml: &str,
+    store_ids: &[String],
+    folder_names: &[String],
+) -> bool {
+    let clean = xml.strip_prefix('\u{FEFF}').unwrap_or(xml);
+    let Ok(doc) = roxmltree::Document::parse(clean) else {
+        return false;
+    };
+    let needles: Vec<String> = store_ids
+        .iter()
+        .chain(folder_names.iter())
+        .map(|s| s.trim().to_ascii_lowercase())
+        .filter(|s| !s.is_empty())
+        .collect();
+    if needles.is_empty() {
+        return false;
+    }
+    for node in doc.descendants() {
+        let tag = node.tag_name().name();
+        if tag.eq_ignore_ascii_case("Identity") {
+            if let Some(name) = node.attribute("Name").map(str::trim) {
+                let nl = name.to_ascii_lowercase();
+                if needles.iter().any(|n| nl == *n || nl.contains(n)) {
+                    return true;
+                }
+            }
+        }
+        if matches!(
+            tag.to_ascii_lowercase().as_str(),
+            "storeid" | "productid" | "msaappid" | "displayname"
+        ) {
+            if let Some(txt) = node.text().map(str::trim) {
+                let tl = txt.to_ascii_lowercase();
+                if needles.iter().any(|n| tl == *n || tl.contains(n)) {
+                    return true;
+                }
+            }
+        }
+        if tag.eq_ignore_ascii_case("ShellVisuals") {
+            if let Some(disp) = node.attribute("DefaultDisplayName").map(str::trim) {
+                let dl = disp.to_ascii_lowercase();
+                if needles.iter().any(|n| dl == *n || dl.contains(n)) {
+                    return true;
+                }
+            }
+        }
+    }
+    false
+}
+
+#[cfg(target_os = "windows")]
+fn discover_via_xbox_windows_store(
+    schema: &Option<GameSchema>,
+    s: &GameSchema,
+) -> Option<StorefrontHit> {
+    let store_ids: Vec<String> = s
+        .xbox_store_ids
+        .clone()
+        .unwrap_or_default()
+        .into_iter()
+        .map(|v| v.trim().to_string())
+        .filter(|v| !v.is_empty())
+        .collect();
+    if store_ids.is_empty() {
+        return None;
+    }
+    let folder_terms = collect_schema_folder_terms(s);
+
+    let mut xbox_roots: Vec<PathBuf> = Vec::new();
+    for drive in b'C'..=b'Z' {
+        let drive_root = PathBuf::from(format!("{}:\\", drive as char));
+        if !drive_root.exists() {
+            continue;
+        }
+        let gaming_root_file = drive_root.join(".GamingRoot");
+        if let Ok(bytes) = std::fs::read(&gaming_root_file) {
+            if bytes.len() > 8 {
+                let u16s: Vec<u16> = bytes[8..]
+                    .chunks_exact(2)
+                    .map(|c| u16::from_le_bytes([c[0], c[1]]))
+                    .collect();
+                let rel_root = String::from_utf16_lossy(&u16s)
+                    .trim_end_matches('\0')
+                    .trim()
+                    .to_string();
+                if !rel_root.is_empty() {
+                    let cand = drive_root.join(rel_root);
+                    if cand.is_dir() && !xbox_roots.contains(&cand) {
+                        xbox_roots.push(cand);
+                    }
+                }
+            }
+        }
+        let default_xbox = drive_root.join("XboxGames");
+        if default_xbox.is_dir() && !xbox_roots.contains(&default_xbox) {
+            xbox_roots.push(default_xbox);
+        }
+    }
+
+    for root in xbox_roots {
+        let Ok(entries) = std::fs::read_dir(&root) else {
+            continue;
+        };
+        for entry in entries.flatten() {
+            let game_dir = entry.path();
+            if !game_dir.is_dir() {
+                continue;
+            }
+            for cfg_cand in [
+                game_dir.join("Content").join("MicrosoftGame.config"),
+                game_dir.join("MicrosoftGame.config"),
+            ] {
+                if !cfg_cand.is_file() {
+                    continue;
+                }
+                if let Ok(xml) = std::fs::read_to_string(&cfg_cand) {
+                    if parse_microsoft_game_config_matches(&xml, &store_ids, &folder_terms) {
+                        let content_root = cfg_cand.parent().unwrap_or(&game_dir).to_path_buf();
+                        let resolved_dir = if candidate_matches_exe(&content_root, schema) {
+                            content_root
+                        } else if candidate_matches_exe(&game_dir, schema) {
+                            game_dir
+                        } else {
+                            continue;
+                        };
+                        return Some(StorefrontHit {
+                            source: "xbox".to_string(),
+                            install_dir: resolved_dir,
+                            proton_user_dir: None,
+                            app_id: store_ids.first().cloned(),
+                        });
+                    }
+                }
+            }
+        }
+    }
+    None
+}
+
+#[cfg(not(target_os = "windows"))]
+fn discover_via_xbox_windows_store(
+    _schema: &Option<GameSchema>,
+    _s: &GameSchema,
+) -> Option<StorefrontHit> {
+    None
+}
+
 pub fn discover_game_install(schema: &Option<GameSchema>) -> Option<StorefrontHit> {
     let s = schema.as_ref()?;
     discover_via_steam(schema, s)
         .or_else(|| discover_via_windows_gog_and_uninstall(schema, s))
         .or_else(|| discover_via_epic_and_heroic(schema, s))
+        .or_else(|| discover_via_xbox_windows_store(schema, s))
         .or_else(|| discover_via_lutris(schema, s))
         .or_else(|| discover_via_macos_applications(schema, s))
 }
@@ -617,6 +766,32 @@ mod tests {
         let libs = parse_vdf_library_paths(vdf);
         assert_eq!(libs.len(), 2);
         assert_eq!(libs[1], PathBuf::from("D:\\SteamLibrary"));
+    }
+
+    #[test]
+    fn microsoft_game_config_matches_xbox_store_ids_and_identity() {
+        let cfg_xml = r#"<?xml version="1.0" encoding="utf-8"?>
+<Game configVersion="1">
+  <Identity Name="BethesdaSoftworks.ProjectGold" Publisher="CN=Test" Version="1.0.0.0"/>
+  <StoreId>9NCX12345XYZ</StoreId>
+  <ShellVisuals DefaultDisplayName="Starfield"/>
+</Game>"#;
+
+        assert!(parse_microsoft_game_config_matches(
+            cfg_xml,
+            &["9ncx12345xyz".to_string()],
+            &[],
+        ));
+        assert!(parse_microsoft_game_config_matches(
+            cfg_xml,
+            &["BethesdaSoftworks.ProjectGold".to_string()],
+            &[],
+        ));
+        assert!(!parse_microsoft_game_config_matches(
+            cfg_xml,
+            &["9NONEXISTENT".to_string()],
+            &["OtherGame".to_string()],
+        ));
     }
 }
 

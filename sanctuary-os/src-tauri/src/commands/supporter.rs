@@ -650,77 +650,30 @@ pub async fn download_and_install_update(
             .to_string();
         let want_dev = is_dev.unwrap_or_else(|| clean_ver.to_ascii_lowercase().contains("dev"));
 
-        let repo_slug = match release_repo {
-            Some(raw) => {
-                let trimmed = raw.trim().to_string();
-                if trimmed.is_empty() {
-                    return Err(
-                        "No signed update repository is configured for this standalone fork."
-                            .to_string(),
-                    );
-                }
-                let valid = trimmed.split('/').count() == 2
-                    && trimmed.split('/').all(|seg| {
-                        !seg.is_empty()
-                            && seg
-                                .chars()
-                                .all(|c| c.is_ascii_alphanumeric() || matches!(c, '_' | '.' | '-'))
-                    });
-                if !valid {
-                    return Err("Invalid GitHub release repository slug.".to_string());
-                }
-                trimmed
-            }
-            None => "Sanctuary-OS-Source-Code/SanctuaryOS".to_string(),
-        };
+        let plan = resolve_updater_target_plan(
+            release_repo.as_deref(),
+            &clean_ver,
+            want_dev,
+            option_env!("SANCTUARY_COMPILED_RELEASE_REPO"),
+            option_env!("SANCTUARY_COMPILED_UPDATER_PUBKEY"),
+        )?;
 
-        let updater = if want_dev {
-            let mut endpoints = Vec::new();
-            if !clean_ver.is_empty() {
-                if let Ok(tag_url) = url::Url::parse(&format!(
-                    "https://github.com/{}/releases/download/v{}/latest.json",
-                    repo_slug, clean_ver
-                )) {
-                    endpoints.push(tag_url);
-                }
-            }
-            let dev_manifest_endpoint = url::Url::parse(&format!(
-                "https://github.com/{}/releases/download/dev-latest/latest.json",
-                repo_slug
-            ))
-            .map_err(|e| format!("Invalid signed dev update endpoint: {}", e))?;
-            endpoints.push(dev_manifest_endpoint);
-
-            app_handle
-                .updater_builder()
-                .endpoints(endpoints)
-                .map_err(|e| format!("Failed to configure signed dev update endpoint: {}", e))?
-                .build()
-                .map_err(|e| {
-                    format!(
-                        "Signed updater is not configured in tauri.conf.json (missing Minisign public key or endpoint): {}",
-                        e
-                    )
-                })?
-        } else if repo_slug != "Sanctuary-OS-Source-Code/SanctuaryOS" {
-            let stable_manifest_endpoint = url::Url::parse(&format!(
-                "https://github.com/{}/releases/latest/download/latest.json",
-                repo_slug
-            ))
-            .map_err(|e| format!("Invalid signed release update endpoint: {}", e))?;
-            app_handle
-                .updater_builder()
-                .endpoints(vec![stable_manifest_endpoint])
-                .map_err(|e| format!("Failed to configure signed release update endpoint: {}", e))?
-                .build()
-                .map_err(|e| {
-                    format!(
-                        "Signed updater is not configured in tauri.conf.json (missing Minisign public key or endpoint): {}",
-                        e
-                    )
-                })?
-        } else {
+        let updater = if plan.use_default_tauri_conf {
             app_handle.updater().map_err(|e| {
+                format!(
+                    "Signed updater is not configured in tauri.conf.json (missing Minisign public key or endpoint): {}",
+                    e
+                )
+            })?
+        } else {
+            let mut builder = app_handle
+                .updater_builder()
+                .endpoints(plan.endpoints)
+                .map_err(|e| format!("Failed to configure signed update endpoint: {}", e))?;
+            if let Some(pk) = plan.custom_pubkey {
+                builder = builder.pubkey(pk);
+            }
+            builder.build().map_err(|e| {
                 format!(
                     "Signed updater is not configured in tauri.conf.json (missing Minisign public key or endpoint): {}",
                     e
@@ -801,5 +754,188 @@ pub async fn download_and_install_update(
         );
 
         app_handle.restart();
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct ResolvedUpdaterPlan {
+    pub repo_slug: String,
+    pub endpoints: Vec<url::Url>,
+    pub custom_pubkey: Option<String>,
+    pub use_default_tauri_conf: bool,
+}
+
+fn validate_github_repo_slug(raw: &str) -> Result<String, String> {
+    let trimmed = raw.trim().trim_matches('/').to_string();
+    if trimmed.is_empty() {
+        return Err("No signed update repository is configured for this standalone fork.".to_string());
+    }
+    let segments: Vec<&str> = trimmed.split('/').collect();
+    let valid = segments.len() == 2
+        && segments.iter().all(|seg| {
+            !seg.is_empty()
+                && *seg != "."
+                && *seg != ".."
+                && seg
+                    .chars()
+                    .all(|c| c.is_ascii_alphanumeric() || matches!(c, '_' | '.' | '-'))
+        });
+    if !valid {
+        return Err("Invalid GitHub release repository slug.".to_string());
+    }
+    Ok(trimmed)
+}
+
+pub(crate) fn resolve_updater_target_plan(
+    release_repo_arg: Option<&str>,
+    clean_ver: &str,
+    want_dev: bool,
+    compiled_repo: Option<&str>,
+    compiled_pubkey: Option<&str>,
+) -> Result<ResolvedUpdaterPlan, String> {
+    let pinned_repo = compiled_repo
+        .map(str::trim)
+        .filter(|s| !s.is_empty())
+        .map(validate_github_repo_slug)
+        .transpose()?;
+
+    let repo_slug = match (pinned_repo.as_deref(), release_repo_arg) {
+        (Some(pinned), Some(arg)) => {
+            let trimmed_arg = arg.trim();
+            if trimmed_arg.is_empty() {
+                pinned.to_string()
+            } else {
+                let valid_arg = validate_github_repo_slug(trimmed_arg)?;
+                if !valid_arg.eq_ignore_ascii_case(pinned) {
+                    return Err(format!(
+                        "Update repository '{}' does not match compiled binary update origin '{}'.",
+                        valid_arg, pinned
+                    ));
+                }
+                pinned.to_string()
+            }
+        }
+        (Some(pinned), None) => pinned.to_string(),
+        (None, Some(arg)) => validate_github_repo_slug(arg)?,
+        (None, None) => "Sanctuary-OS-Source-Code/SanctuaryOS".to_string(),
+    };
+
+    let custom_pubkey = match compiled_pubkey.map(str::trim).filter(|s| !s.is_empty()) {
+        Some(raw_pk) => {
+            if raw_pk.chars().any(char::is_whitespace) || raw_pk.len() < 16 {
+                return Err("Compiled updater public key is malformed.".to_string());
+            }
+            Some(raw_pk.to_string())
+        }
+        None => None,
+    };
+
+    let mut endpoints = Vec::new();
+    if want_dev {
+        if !clean_ver.trim().is_empty() {
+            let tag_url = url::Url::parse(&format!(
+                "https://github.com/{}/releases/download/v{}/latest.json",
+                repo_slug,
+                clean_ver.trim()
+            ))
+            .map_err(|e| format!("Invalid signed dev tag endpoint: {}", e))?;
+            endpoints.push(tag_url);
+        }
+        let dev_manifest_endpoint = url::Url::parse(&format!(
+            "https://github.com/{}/releases/download/dev-latest/latest.json",
+            repo_slug
+        ))
+        .map_err(|e| format!("Invalid signed dev update endpoint: {}", e))?;
+        endpoints.push(dev_manifest_endpoint);
+    } else {
+        let stable_manifest_endpoint = url::Url::parse(&format!(
+            "https://github.com/{}/releases/latest/download/latest.json",
+            repo_slug
+        ))
+        .map_err(|e| format!("Invalid signed release update endpoint: {}", e))?;
+        endpoints.push(stable_manifest_endpoint);
+    }
+
+    let use_default_tauri_conf = !want_dev
+        && repo_slug == "Sanctuary-OS-Source-Code/SanctuaryOS"
+        && custom_pubkey.is_none();
+
+    Ok(ResolvedUpdaterPlan {
+        repo_slug,
+        endpoints,
+        custom_pubkey,
+        use_default_tauri_conf,
+    })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::resolve_updater_target_plan;
+
+    #[test]
+    fn official_stable_uses_default_tauri_conf() {
+        let plan = resolve_updater_target_plan(None, "0.6.0", false, None, None).unwrap();
+        assert_eq!(plan.repo_slug, "Sanctuary-OS-Source-Code/SanctuaryOS");
+        assert!(plan.use_default_tauri_conf);
+        assert!(plan.custom_pubkey.is_none());
+        assert_eq!(
+            plan.endpoints[0].as_str(),
+            "https://github.com/Sanctuary-OS-Source-Code/SanctuaryOS/releases/latest/download/latest.json"
+        );
+    }
+
+    #[test]
+    fn official_dev_adds_tag_and_dev_latest_endpoints() {
+        let plan = resolve_updater_target_plan(None, "0.6.0-dev.3", true, None, None).unwrap();
+        assert!(!plan.use_default_tauri_conf);
+        assert_eq!(plan.endpoints.len(), 2);
+        assert_eq!(
+            plan.endpoints[0].as_str(),
+            "https://github.com/Sanctuary-OS-Source-Code/SanctuaryOS/releases/download/v0.6.0-dev.3/latest.json"
+        );
+        assert_eq!(
+            plan.endpoints[1].as_str(),
+            "https://github.com/Sanctuary-OS-Source-Code/SanctuaryOS/releases/download/dev-latest/latest.json"
+        );
+    }
+
+    #[test]
+    fn fork_custom_repo_and_pubkey_are_wired() {
+        let fake_pk = "dW50cnVzdGVkIGNvbW1lbnQ6IGZvcmstcHVia2V5Cg==";
+        let plan = resolve_updater_target_plan(
+            None,
+            "1.0.0",
+            false,
+            Some("example-org/example-fork"),
+            Some(fake_pk),
+        )
+        .unwrap();
+        assert_eq!(plan.repo_slug, "example-org/example-fork");
+        assert_eq!(plan.custom_pubkey.as_deref(), Some(fake_pk));
+        assert!(!plan.use_default_tauri_conf);
+        assert_eq!(
+            plan.endpoints[0].as_str(),
+            "https://github.com/example-org/example-fork/releases/latest/download/latest.json"
+        );
+    }
+
+    #[test]
+    fn pinned_fork_repo_rejects_runtime_redirection() {
+        let err = resolve_updater_target_plan(
+            Some("evil-org/hijack"),
+            "1.0.0",
+            false,
+            Some("example-org/example-fork"),
+            None,
+        )
+        .unwrap_err();
+        assert!(err.contains("does not match compiled binary update origin"));
+    }
+
+    #[test]
+    fn rejects_malformed_or_traversal_repo_slugs() {
+        assert!(resolve_updater_target_plan(Some(""), "0.6.0", false, None, None).is_err());
+        assert!(resolve_updater_target_plan(Some("../escape"), "0.6.0", false, None, None).is_err());
+        assert!(resolve_updater_target_plan(Some("only-owner"), "0.6.0", false, None, None).is_err());
     }
 }

@@ -15,7 +15,10 @@ import {
 import {
   resolveGameWithServiceKey,
 } from './spokeAccessAndOwnership.ts'
-import { handleSubmitDmcaOrLegalNotice } from './dmcaComplianceActions.ts'
+import {
+  handleSearchSpokeDmcaTargets,
+  handleSubmitDmcaOrLegalNotice,
+} from './dmcaComplianceActions.ts'
 
 export async function handlePreAuthGatewayActions(ctx: {
   req: Request;
@@ -317,6 +320,15 @@ export async function handlePreAuthGatewayActions(ctx: {
 
     if (action === 'submit_dmca_or_legal_notice') {
       return await handleSubmitDmcaOrLegalNotice({
+        payload,
+        user,
+        supabaseAdmin,
+        corsHeaders,
+      })
+    }
+
+    if (action === 'search_spoke_dmca_targets') {
+      return await handleSearchSpokeDmcaTargets({
         payload,
         user,
         supabaseAdmin,

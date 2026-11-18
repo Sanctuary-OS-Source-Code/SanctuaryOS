@@ -14,6 +14,17 @@
     "default_mod_dir_windows": ""
   },
   "game_id": "default",
+  "steam_app_id": null,
+  "gog_app_ids": [],
+  "epic_app_names": [],
+  "xbox_store_ids": [],
+  "ea_content_ids": [],
+  "install_folder_names": [],
+  "display_name": "Default Master Schema",
+  "default_lexicon": "en-default",
+  "schema_version": 6,
+  "min_scout_submissions": 3,
+  "executable_names": [],
   "extensions": {
     "labels": {},
     "parsers": {},
@@ -39,7 +50,12 @@
     "priority_tiers": [],
     "document_footer": null,
     "document_header": null,
-    "prefix_separator": null
+    "prefix_separator": null,
+    "index_base": null,
+    "manifest_targets": [],
+    "timestamp_step_secs": null,
+    "asset_overwrite_order": null,
+    "use_tier_priority_as_base": false
   },
   "constraints": {
     "max_folder_depth": null,
@@ -49,8 +65,13 @@
     "preserve_archive_folder_structure": true
   },
   "dlc_subdirs": [],
-  "display_name": "Default Master Schema",
-  "steam_app_id": null,
+  "dlc_file_extensions": [],
+  "dlc_folder_prefixes": [],
+  "wine_dll_overrides": {},
+  "log_subdirs": [],
+  "mod_unit_mode": "file",
+  "mod_unit_markers": [],
+  "mod_metadata_extractor": null,
   "time_capsule": {
     "save_airgap_targets": [],
     "world_state_targets": [],
@@ -59,9 +80,6 @@
   "exception_logs": [],
   "external_tools": [],
   "install_routes": [],
-  "schema_version": 5,
-  "default_lexicon": "en-default",
-  "executable_names": [],
   "lab_verification": {
     "require_focus": true,
     "save_extensions": [],
@@ -90,8 +108,5 @@
     "line_prefix": "",
     "relative_path": ""
   },
-  "dlc_file_extensions": [],
-  "dlc_folder_prefixes": [],
-  "min_scout_submissions": 3,
   "launch_args_dlc_mask_template": null
 }

@@ -120,9 +120,26 @@ export const getSafeSchema = (raw: any, fallbackId: string) => {
     safe.executable_names = [...(preset.executable_names || [])];
   }
   delete safe.dlc_catalog;
-  delete safe.exception_rules;
+  if (safe.exception_rules === undefined && preset.exception_rules !== undefined) {
+    safe.exception_rules = [...preset.exception_rules];
+  }
   if (safe.external_tools === undefined && preset.external_tools !== undefined) {
     safe.external_tools = preset.external_tools;
+  }
+  if (safe.wine_dll_overrides === undefined && preset.wine_dll_overrides !== undefined) {
+    safe.wine_dll_overrides = preset.wine_dll_overrides;
+  }
+  if (safe.mod_unit_mode === undefined && preset.mod_unit_mode !== undefined) {
+    safe.mod_unit_mode = preset.mod_unit_mode;
+  }
+  if (safe.mod_unit_markers === undefined && preset.mod_unit_markers !== undefined) {
+    safe.mod_unit_markers = [...preset.mod_unit_markers];
+  }
+  if (safe.mod_metadata_extractor === undefined && preset.mod_metadata_extractor !== undefined) {
+    safe.mod_metadata_extractor = preset.mod_metadata_extractor;
+  }
+  if (safe.log_subdirs === undefined && preset.log_subdirs !== undefined) {
+    safe.log_subdirs = [...preset.log_subdirs];
   }
   if (!safe.paths) {
     safe.paths = { ...preset.paths };
@@ -206,6 +223,28 @@ export const getSafeSchema = (raw: any, fallbackId: string) => {
           ? safe.paths.manifest_file
           : preset.load_order?.manifest_file ?? "",
       priority_tiers: [...(preset.load_order?.priority_tiers || [])],
+      manifest_targets: preset.load_order?.manifest_targets
+        ? [...preset.load_order.manifest_targets]
+        : undefined,
+    };
+  } else {
+    safe.load_order = {
+      ...(preset.load_order || {}),
+      ...safe.load_order,
+      manifest_file:
+        safe.load_order.manifest_file !== undefined
+          ? safe.load_order.manifest_file
+          : safe.paths?.manifest_file !== undefined
+            ? safe.paths.manifest_file
+            : preset.load_order?.manifest_file ?? "",
+      priority_tiers: Array.isArray(safe.load_order.priority_tiers)
+        ? safe.load_order.priority_tiers
+        : [...(preset.load_order?.priority_tiers || [])],
+      manifest_targets: Array.isArray(safe.load_order.manifest_targets)
+        ? safe.load_order.manifest_targets
+        : preset.load_order?.manifest_targets
+          ? [...preset.load_order.manifest_targets]
+          : undefined,
     };
   }
   delete safe.mod_categories;
@@ -502,7 +541,12 @@ const loadMasonHubDrafts = (wsId: string) => {
 
 
 const loadActiveSet = (wsId: string) => {
-  return localStorage.getItem(`sanctuary_${wsId}_active_set`);
+  try {
+    if (typeof localStorage !== 'undefined') {
+      return localStorage.getItem(`sanctuary_${wsId}_active_set`);
+    }
+  } catch {}
+  return null;
 };
 
 const compactPlaySetsForLocalStorage = (sets: any[], stripLargeInlineMedia = false) => {
@@ -1804,9 +1848,15 @@ export const syncMasterSchemas = async (initialSchemaId: string = 'default') => 
         if (import.meta.env.DEV) {
           const isKeeper = useStore.getState().osRole === 'keeper';
           let missingInCloud = false;
+          const bundledLoadOrder = (BUNDLED_DEFAULT_SCHEMA as any)?.load_order || {};
+          const resolvedLoadOrder = (resolvedDefault as any)?.load_order || {};
           const mergedDefault: Record<string, any> = {
             ...BUNDLED_DEFAULT_SCHEMA,
             ...resolvedDefault,
+            load_order: {
+              ...bundledLoadOrder,
+              ...resolvedLoadOrder,
+            },
           };
           delete mergedDefault.dlc_catalog;
           delete mergedDefault.exception_rules;
@@ -1814,6 +1864,14 @@ export const syncMasterSchemas = async (initialSchemaId: string = 'default') => 
             if (!(k in resolvedDefault)) {
               missingInCloud = true;
               break;
+            }
+          }
+          if (!missingInCloud) {
+            for (const lk of Object.keys(bundledLoadOrder)) {
+              if (!(lk in resolvedLoadOrder)) {
+                missingInCloud = true;
+                break;
+              }
             }
           }
           if (missingInCloud && isKeeper) {

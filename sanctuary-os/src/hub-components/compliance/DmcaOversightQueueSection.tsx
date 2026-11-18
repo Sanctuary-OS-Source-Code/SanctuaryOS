@@ -377,7 +377,7 @@ export default function DmcaOversightQueueSection({
       <SidePanel
         isOpen={Boolean(selectedNotice)}
         onClose={() => setSelectedNotice(null)}
-        title={t("dmca_triage_panel_title", "Statutory DMCA / Legal Triage")}
+        title={t("dmca_admin_panel_title", "DMCA & Legal Notice")}
         subtitle={
           selectedNotice
             ? `#${String(selectedNotice.id).slice(0, 8)} • ${selectedNotice.relay_status}`
@@ -415,7 +415,7 @@ export default function DmcaOversightQueueSection({
             />
 
             <UniversalGroup
-              title={t("dmca_section_legal_contact", "Decrypted Statutory Claimant Block")}
+              title={t("dmca_admin_sec_contact", "Claimant Contact Information")}
               icon={t("icon_badge", "badge")}
             >
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
@@ -430,7 +430,7 @@ export default function DmcaOversightQueueSection({
                 </div>
                 <div>
                   <span className="text-[10px] font-black uppercase text-[var(--subtext)]">
-                    {t("dmca_real_email_label", "Legal Email Address")}
+                    {t("dmca_email_short_label", "Email Address")}
                   </span>
                   <div className="font-mono font-bold text-[var(--text)] no-text-case mt-0.5 break-all">
                     {selectedNotice.decrypted_contact?.email ||
@@ -440,7 +440,7 @@ export default function DmcaOversightQueueSection({
                 {selectedNotice.decrypted_contact?.company_or_agent && (
                   <div>
                     <span className="text-[10px] font-black uppercase text-[var(--subtext)]">
-                      {t("dmca_company_agent_label", "Studio / Organization / Agent")}
+                      {t("dmca_company_agent_label", "Company / Organization (Optional)")}
                     </span>
                     <div className="font-bold text-[var(--text)] mt-0.5">
                       {selectedNotice.decrypted_contact.company_or_agent}
@@ -450,7 +450,7 @@ export default function DmcaOversightQueueSection({
                 {selectedNotice.decrypted_contact?.phone && (
                   <div>
                     <span className="text-[10px] font-black uppercase text-[var(--subtext)]">
-                      {t("dmca_phone_label", "Telephone")}
+                      {t("dmca_phone_label", "Phone Number")}
                     </span>
                     <div className="font-mono font-bold text-[var(--text)] no-text-case mt-0.5">
                       {selectedNotice.decrypted_contact.phone}
@@ -461,9 +461,9 @@ export default function DmcaOversightQueueSection({
               {selectedNotice.decrypted_contact?.physical_address && (
                 <div className="text-xs mt-2">
                   <span className="text-[10px] font-black uppercase text-[var(--subtext)]">
-                    {t("dmca_physical_address_label", "Physical Mailing Address")}
+                    {t("dmca_physical_address_label", "Mailing Address")}
                   </span>
-                  <div className="font-medium text-[var(--text)] whitespace-pre-wrap mt-0.5">
+                  <div className="font-medium text-[var(--text)] whitespace-pre-wrap mt-0.5 no-text-case">
                     {selectedNotice.decrypted_contact.physical_address}
                   </div>
                 </div>
@@ -497,7 +497,7 @@ export default function DmcaOversightQueueSection({
             </UniversalGroup>
 
             <UniversalGroup
-              title={t("dmca_section_scope_targets", "Target Identifiers & Work Proof")}
+              title={t("dmca_admin_sec_targets", "Reported Content & Reference")}
               icon={t("icon_fingerprint", "fingerprint")}
             >
               <div className="flex flex-wrap gap-2">

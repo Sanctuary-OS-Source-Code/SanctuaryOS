@@ -366,6 +366,9 @@ fn try_extract_version_from_schema_descriptor(
 
             if candidate.is_file() {
                 if let Some(bytes) = read_version_bytes_bounded(&candidate) {
+                    if let Some(ver) = try_structured_build_version_bytes(&bytes) {
+                        return Some(ver);
+                    }
                     let (lossy, printable) = decode_version_texts(&bytes);
                     if let Some(ver) =
                         extract_version_from_text_blob(&lossy, &printable, version_ext)
@@ -380,13 +383,8 @@ fn try_extract_version_from_schema_descriptor(
     None
 }
 
-fn try_unreal_build_version(dir: &Path) -> Option<String> {
-    let build_ver_path = dir.join("Build").join("Build.version");
-    if !build_ver_path.is_file() {
-        return None;
-    }
-    let bytes = read_version_bytes_bounded(&build_ver_path)?;
-    let val = serde_json::from_slice::<serde_json::Value>(&bytes).ok()?;
+fn try_structured_build_version_bytes(bytes: &[u8]) -> Option<String> {
+    let val = serde_json::from_slice::<serde_json::Value>(bytes).ok()?;
     let major = val.get("MajorVersion").and_then(|v| v.as_u64())?;
     let minor = val.get("MinorVersion").and_then(|v| v.as_u64()).unwrap_or(0);
     let patch = val.get("PatchVersion").and_then(|v| v.as_u64()).unwrap_or(0);
@@ -406,16 +404,25 @@ fn try_generic_engine_manifests_and_steam(
     docs_path: Option<&str>,
     game_schema: &Option<crate::schema::GameSchema>,
 ) -> Option<String> {
-    // 3a. Unreal Engine Build.version at root or one subdirectory below (e.g., Engine/Build/Build.version or <Game>/Build/Build.version)
-    if let Some(v) = try_unreal_build_version(root_path) {
-        return Some(v);
-    }
-    if let Ok(entries) = fs::read_dir(root_path) {
-        for entry in entries.flatten().take(32) {
-            let p = entry.path();
-            if p.is_dir() {
-                if let Some(v) = try_unreal_build_version(&p) {
-                    return Some(v);
+    // 3a. Structured build-version manifests declared in schema `version_extraction.fallback_paths`
+    if let Some(fallbacks) = game_schema
+        .as_ref()
+        .and_then(|s| s.version_extraction.as_ref())
+        .and_then(|v| v.fallback_paths.as_ref())
+    {
+        for rel in fallbacks {
+            if !is_safe_relative_version_path(rel) {
+                continue;
+            }
+            let cand = crate::utils::resolve_case_insensitive_path(
+                root_path,
+                &rel.trim().replace('\\', "/"),
+            );
+            if cand.is_file() {
+                if let Some(bytes) = read_version_bytes_bounded(&cand) {
+                    if let Some(ver) = try_structured_build_version_bytes(&bytes) {
+                        return Some(ver);
+                    }
                 }
             }
         }
@@ -1489,10 +1496,22 @@ mod version_ripper_tests {
             r#"{"MajorVersion":5,"MinorVersion":4,"PatchVersion":2,"Changelist":33043543}"#,
         )
         .unwrap();
-        let res_unreal = rip_game_version_with_schema_and_docs(
+        // Zero hardcoded engine paths when no schema declares fallback_paths
+        assert!(rip_game_version_with_schema_and_docs(
             &unreal_dir.0.to_string_lossy(),
             None,
             &None,
+        )
+        .is_err());
+
+        let unreal_schema = Some(base_schema_with_ver(crate::schema::VersionExtraction {
+            fallback_paths: Some(vec!["Engine/Build/Build.version".into()]),
+            ..Default::default()
+        }));
+        let res_unreal = rip_game_version_with_schema_and_docs(
+            &unreal_dir.0.to_string_lossy(),
+            None,
+            &unreal_schema,
         )
         .unwrap();
         assert_eq!(res_unreal, "5.4.2.33043543");

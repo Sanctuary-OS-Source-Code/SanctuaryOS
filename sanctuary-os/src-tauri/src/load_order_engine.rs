@@ -134,16 +134,31 @@ fn extract_lsx_attribute_value(xml: &str, attr_id: &str) -> Option<String> {
 }
 
 fn extract_tes_masters_and_author(bytes: &[u8]) -> (Vec<String>, Option<String>, u32) {
+    extract_tes_masters_and_author_with_hint(bytes, false)
+}
+
+fn extract_tes_masters_and_author_with_hint(
+    bytes: &[u8],
+    force_tes4_20: bool,
+) -> (Vec<String>, Option<String>, u32) {
     let mut masters = Vec::new();
     let mut author: Option<String> = None;
-    if bytes.len() < 24 {
+    if bytes.len() < 16 {
         return (masters, author, 0);
     }
     let header_magic = &bytes[0..4];
     let (hdr_len, data_size, header_flags) = if header_magic == b"TES4" {
+        if bytes.len() < 20 {
+            return (masters, author, 0);
+        }
         let size = u32::from_le_bytes([bytes[4], bytes[5], bytes[6], bytes[7]]) as usize;
         let flags = u32::from_le_bytes([bytes[8], bytes[9], bytes[10], bytes[11]]);
-        (24usize, size, flags)
+        let is_legacy_20b_header = force_tes4_20 || (bytes.len() >= 24 && &bytes[20..24] == b"HEDR");
+        let len = if is_legacy_20b_header { 20usize } else { 24usize };
+        if bytes.len() < len {
+            return (masters, author, 0);
+        }
+        (len, size, flags)
     } else if header_magic == b"TES3" {
         let size = u32::from_le_bytes([bytes[4], bytes[5], bytes[6], bytes[7]]) as usize;
         (16usize, size, 0u32)
@@ -331,6 +346,33 @@ fn parse_manifest_text_into_meta(
                     }
                 }
             }
+
+            let extract_xml_tag_list = |tag_key_opt: Option<&str>, target: &mut Vec<String>| {
+                let Some(tag_key) = tag_key_opt.map(str::trim).filter(|s| !s.is_empty()) else {
+                    return;
+                };
+                for node in doc
+                    .descendants()
+                    .filter(|n| n.tag_name().name().eq_ignore_ascii_case(tag_key))
+                {
+                    for child in node.descendants() {
+                        if matches!(
+                            child.tag_name().name().to_ascii_lowercase().as_str(),
+                            "li" | "packageid"
+                        ) {
+                            if let Some(txt) = child.text().map(str::trim).filter(|s| !s.is_empty())
+                            {
+                                if !target.iter().any(|x| x.eq_ignore_ascii_case(txt)) {
+                                    target.push(txt.to_string());
+                                }
+                            }
+                        }
+                    }
+                }
+            };
+            extract_xml_tag_list(extractor.dependencies_key.as_deref(), &mut meta.dependencies);
+            extract_xml_tag_list(extractor.load_before_key.as_deref(), &mut meta.load_before);
+            extract_xml_tag_list(extractor.load_after_key.as_deref(), &mut meta.load_after);
         }
         return;
     }
@@ -376,12 +418,16 @@ pub fn extract_metadata_for_path(
 
     if let Some(extractor) = &s.mod_metadata_extractor {
         if let Some(bin_mode) = &extractor.binary_master_header {
-            if matches!(bin_mode.to_ascii_lowercase().as_str(), "tes4" | "tes3") && path.is_file() {
+            let mode_lower = bin_mode.to_ascii_lowercase();
+            if matches!(mode_lower.as_str(), "tes4" | "tes4_20" | "tes3") && path.is_file() {
                 if let Ok(mut f) = fs::File::open(path) {
                     let mut buf = vec![0u8; 64 * 1024];
                     if let Ok(n) = f.read(&mut buf) {
                         buf.truncate(n);
-                        let (masters, author, flags) = extract_tes_masters_and_author(&buf);
+                        let (masters, author, flags) = extract_tes_masters_and_author_with_hint(
+                            &buf,
+                            mode_lower == "tes4_20",
+                        );
                         meta.header_flags = flags;
                         if !masters.is_empty() {
                             meta.dependencies.extend(masters.clone());
@@ -627,30 +673,66 @@ pub fn apply_timestamp_ordering(
     }
 }
 
-fn render_entry_template(tpl: &str, entry: &OrderedDeployEntry, index0: usize, index_base: usize) -> String {
+fn render_entry_template(
+    tpl: &str,
+    entry: &OrderedDeployEntry,
+    index0: usize,
+    index_base: usize,
+) -> String {
     let mod_id = entry
         .metadata
         .mod_id
         .as_deref()
+        .filter(|s| !s.trim().is_empty())
         .unwrap_or(entry.stem.as_str());
     let mod_name = entry
         .metadata
         .mod_name
         .as_deref()
+        .filter(|s| !s.trim().is_empty())
         .unwrap_or(mod_id);
     let uuid = entry.metadata.uuid.as_deref().unwrap_or("");
-    let ver = entry.metadata.mod_version.as_deref().unwrap_or("1.0.0");
-    tpl.replace("{file}", &entry.rel_path)
+    let ver = entry
+        .metadata
+        .mod_version
+        .as_deref()
+        .filter(|s| !s.trim().is_empty())
+        .unwrap_or("1.0.0");
+    let version64 = entry
+        .metadata
+        .mod_version
+        .as_deref()
+        .filter(|v| !v.is_empty() && v.chars().all(|c| c.is_ascii_digit()))
+        .unwrap_or("36028797018963968");
+    let publish_handle = entry.metadata.publish_handle.as_deref().unwrap_or("0");
+    let idx_val = index0.saturating_add(index_base);
+    let idx1_val = index0.saturating_add(1);
+    let folder = mod_id;
+
+    tpl.replace("{xml_file}", &xml_escape(&entry.rel_path))
+        .replace("{xml_name}", &xml_escape(&entry.file_name))
+        .replace("{xml_stem}", &xml_escape(&entry.stem))
+        .replace("{xml_id}", &xml_escape(mod_id))
+        .replace("{xml_folder}", &xml_escape(folder))
+        .replace("{xml_title}", &xml_escape(mod_name))
+        .replace("{xml_uuid}", &xml_escape(uuid))
+        .replace("{xml_publish_handle}", &xml_escape(publish_handle))
+        .replace("{xml_version64}", &xml_escape(version64))
+        .replace("{file}", &entry.rel_path)
         .replace("{name}", &entry.file_name)
         .replace("{stem}", &entry.stem)
         .replace("{id}", mod_id)
+        .replace("{folder}", folder)
         .replace("{title}", mod_name)
         .replace("{uuid}", uuid)
         .replace("{version}", ver)
+        .replace("{version64}", version64)
+        .replace("{publish_handle}", publish_handle)
         .replace("{tier_folder}", entry.tier_folder.as_deref().unwrap_or(""))
         .replace("{priority}", &entry.tier_priority.to_string())
         .replace("{index0}", &index0.to_string())
-        .replace("{index}", &(index0 + index_base).to_string())
+        .replace("{index1}", &idx1_val.to_string())
+        .replace("{index}", &idx_val.to_string())
 }
 
 fn write_ini_section_manifest(
@@ -822,77 +904,294 @@ fn is_valid_uuid_like(raw: &str) -> bool {
     true
 }
 
-fn write_lsx_module_short_desc(
-    out: &mut String,
-    folder: &str,
-    name: &str,
-    uuid: &str,
-    version64: &str,
-    publish_handle: &str,
-) {
-    out.push_str(&format!(
-        "            <node id=\"ModuleShortDesc\">\n              <attribute id=\"Folder\" type=\"LSString\" value=\"{}\"/>\n              <attribute id=\"MD5\" type=\"LSString\" value=\"\"/>\n              <attribute id=\"Name\" type=\"LSString\" value=\"{}\"/>\n              <attribute id=\"PublishHandle\" type=\"uint64\" value=\"{}\"/>\n              <attribute id=\"UUID\" type=\"FixedString\" value=\"{}\"/>\n              <attribute id=\"Version64\" type=\"int64\" value=\"{}\"/>\n            </node>\n",
-        xml_escape(folder),
-        xml_escape(name),
-        xml_escape(publish_handle),
-        xml_escape(uuid),
-        xml_escape(version64)
-    ));
+fn escape_toml_basic_string(raw: &str) -> String {
+    raw.replace('\\', "\\\\").replace('"', "\\\"")
 }
 
-fn write_bg3_modsettings_lsx(
+fn write_toml_array_table_manifest(
     target_path: &Path,
     desc: &ManifestTargetDescriptor,
     entries: &[OrderedDeployEntry],
 ) -> Result<(), String> {
-    let mut mods_nodes = String::new();
-    let mut seen_uuids = std::collections::HashSet::<String>::new();
+    let entry_key = desc
+        .entry_key
+        .as_deref()
+        .map(str::trim)
+        .filter(|k| !k.is_empty())
+        .unwrap_or("mods");
+    let existing = fs::read_to_string(target_path).unwrap_or_default();
+    let mut kept_lines: Vec<String> = Vec::new();
+    let mut skipping_bracket_array = false;
+    let mut skipping_array_tables = false;
+    let array_assign_prefix = format!("{} =", entry_key);
+    let array_assign_compact = format!("{}=", entry_key);
+    let array_table_hdr = format!("[[{}]]", entry_key);
 
-    for base in &desc.base_entries {
-        let base_uuid = base.uuid.trim();
-        if !is_valid_uuid_like(base_uuid) {
+    for raw_line in existing.lines() {
+        let trimmed = raw_line.trim();
+        if skipping_bracket_array {
+            if trimmed == "]" || trimmed.ends_with(']') {
+                skipping_bracket_array = false;
+            }
             continue;
         }
-        let lower = base_uuid.to_ascii_lowercase();
-        if seen_uuids.insert(lower) {
-            write_lsx_module_short_desc(
-                &mut mods_nodes,
-                base.folder.trim(),
-                base.name.trim(),
-                base_uuid,
-                base.version64.as_deref().unwrap_or("36028797018963968"),
-                base.publish_handle.as_deref().unwrap_or("0"),
-            );
+        if skipping_array_tables {
+            if trimmed.starts_with('[') && !trimmed.eq_ignore_ascii_case(&array_table_hdr) {
+                skipping_array_tables = false;
+            } else {
+                continue;
+            }
+        }
+        if (trimmed.starts_with(&array_assign_prefix) || trimmed.starts_with(&array_assign_compact))
+            && trimmed.contains('[')
+        {
+            if !trimmed.contains(']') {
+                skipping_bracket_array = true;
+            }
+            continue;
+        }
+        if trimmed.eq_ignore_ascii_case(&array_table_hdr) {
+            skipping_array_tables = true;
+            continue;
+        }
+        kept_lines.push(raw_line.to_string());
+    }
+
+    while kept_lines.last().map(|l| l.trim().is_empty()).unwrap_or(false) {
+        kept_lines.pop();
+    }
+
+    let mut out = if kept_lines.is_empty() {
+        String::new()
+    } else {
+        format!("{}\n\n", kept_lines.join("\n"))
+    };
+    out.push_str(&format!("{} = [\n", entry_key));
+    for base in &desc.base_entries {
+        let bname = if !base.name.trim().is_empty() {
+            base.name.trim()
+        } else {
+            base.folder.trim()
+        };
+        if !bname.is_empty() {
+            let bpath = if base.folder.trim().is_empty() {
+                bname
+            } else {
+                base.folder.trim()
+            };
+            out.push_str(&format!(
+                "    {{ enabled = true, name = \"{}\", path = \"{}\" }},\n",
+                escape_toml_basic_string(bname),
+                escape_toml_basic_string(bpath),
+            ));
+        }
+    }
+    for e in entries {
+        let mod_name = e
+            .metadata
+            .mod_name
+            .as_deref()
+            .or(e.metadata.mod_id.as_deref())
+            .unwrap_or(e.stem.as_str());
+        let rel = e.rel_path.replace('\\', "/");
+        out.push_str(&format!(
+            "    {{ enabled = true, name = \"{}\", path = \"{}\" }},\n",
+            escape_toml_basic_string(mod_name),
+            escape_toml_basic_string(&rel),
+        ));
+    }
+    out.push_str("]\n");
+    crate::utils::atomic_write_bytes(target_path, out.as_bytes())
+}
+
+fn write_enabled_object_list_manifest(
+    target_path: &Path,
+    desc: &ManifestTargetDescriptor,
+    entries: &[OrderedDeployEntry],
+) -> Result<(), String> {
+    let entry_key = desc
+        .entry_key
+        .as_deref()
+        .map(str::trim)
+        .filter(|k| !k.is_empty())
+        .unwrap_or("mods");
+
+    let mut items: Vec<serde_json::Value> = Vec::new();
+    let mut seen = std::collections::HashSet::<String>::new();
+
+    for base in &desc.base_entries {
+        let base_id = base
+            .id
+            .as_deref()
+            .map(str::trim)
+            .filter(|s| !s.is_empty())
+            .or_else(|| (!base.name.trim().is_empty()).then_some(base.name.trim()))
+            .or_else(|| (!base.folder.trim().is_empty()).then_some(base.folder.trim()))
+            .unwrap_or("");
+        if !base_id.is_empty() && seen.insert(base_id.to_ascii_lowercase()) {
+            items.push(serde_json::json!({
+                "name": base_id,
+                "enabled": true,
+            }));
         }
     }
 
     for e in entries {
-        let Some(uuid_raw) = e.metadata.uuid.as_deref().map(str::trim) else {
-            continue;
-        };
-        if !is_valid_uuid_like(uuid_raw) {
-            continue;
-        }
-        if !seen_uuids.insert(uuid_raw.to_ascii_lowercase()) {
-            continue;
-        }
-        let folder = e.metadata.mod_id.as_deref().unwrap_or(e.stem.as_str());
-        let name = e.metadata.mod_name.as_deref().unwrap_or(folder);
-        let ver64 = e
+        let mod_id = e
             .metadata
-            .mod_version
+            .mod_id
             .as_deref()
-            .filter(|v| v.chars().all(|c| c.is_ascii_digit()))
-            .unwrap_or("36028797018963968");
-        let publish_handle = e.metadata.publish_handle.as_deref().unwrap_or("0");
-        write_lsx_module_short_desc(&mut mods_nodes, folder, name, uuid_raw, ver64, publish_handle);
+            .map(str::trim)
+            .filter(|s| !s.is_empty())
+            .unwrap_or(e.stem.as_str());
+        if seen.insert(mod_id.to_ascii_lowercase()) {
+            items.push(serde_json::json!({
+                "name": mod_id,
+                "enabled": true,
+            }));
+        }
     }
 
-    let lsx = format!(
-        "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<save>\n  <version major=\"4\" minor=\"7\" revision=\"1\" build=\"3\"/>\n  <region id=\"ModuleSettings\">\n    <node id=\"root\">\n      <children>\n        <node id=\"ModOrder\"/>\n        <node id=\"Mods\">\n          <children>\n{}          </children>\n        </node>\n      </children>\n    </node>\n  </region>\n</save>\n",
-        mods_nodes
-    );
-    crate::utils::atomic_write_bytes(target_path, lsx.as_bytes())
+    let mut obj = serde_json::Map::new();
+    obj.insert(entry_key.to_string(), serde_json::Value::Array(items));
+    let serialized = serde_json::to_string_pretty(&serde_json::Value::Object(obj))
+        .map_err(|e| e.to_string())?;
+    crate::utils::atomic_write_bytes(target_path, format!("{}\n", serialized).as_bytes())
+}
+
+fn write_declarative_template_manifest(
+    target_path: &Path,
+    desc: &ManifestTargetDescriptor,
+    entries: &[OrderedDeployEntry],
+    index_base: usize,
+) -> Result<(), String> {
+    let doc_header = desc
+        .document_header
+        .as_deref()
+        .or(desc.header.as_deref())
+        .unwrap_or("");
+    let item_tpl = desc
+        .entry_template
+        .as_deref()
+        .or(desc.template.as_deref())
+        .filter(|s| !s.is_empty())
+        .unwrap_or("{file}\n");
+    let sec_tpl = desc.secondary_list_template.as_deref();
+    let doc_footer = desc
+        .document_footer
+        .as_deref()
+        .or(desc.footer.as_deref())
+        .unwrap_or("");
+
+    let needs_uuid = desc.require_uuid.unwrap_or(false)
+        || item_tpl.contains("{uuid}")
+        || item_tpl.contains("{xml_uuid}")
+        || sec_tpl.map_or(false, |t| t.contains("{uuid}") || t.contains("{xml_uuid}"));
+
+    let mut effective: Vec<OrderedDeployEntry> = Vec::new();
+    let mut seen_uuids = std::collections::HashSet::<String>::new();
+
+    for base in &desc.base_entries {
+        let base_uuid = base.uuid.trim();
+        if needs_uuid {
+            if !is_valid_uuid_like(base_uuid) || !seen_uuids.insert(base_uuid.to_ascii_lowercase())
+            {
+                continue;
+            }
+        }
+        let folder = if !base.folder.trim().is_empty() {
+            base.folder.trim().to_string()
+        } else if let Some(ref bid) = base.id {
+            bid.trim().to_string()
+        } else {
+            base.name.trim().to_string()
+        };
+        let title = if !base.name.trim().is_empty() {
+            base.name.trim().to_string()
+        } else {
+            folder.clone()
+        };
+        effective.push(OrderedDeployEntry {
+            rel_path: folder.clone(),
+            file_name: folder.clone(),
+            stem: folder.clone(),
+            metadata: ExtractedModMetadata {
+                mod_id: Some(folder),
+                mod_name: Some(title),
+                mod_version: base.version64.clone(),
+                uuid: (!base_uuid.is_empty()).then(|| base_uuid.to_string()),
+                publish_handle: base.publish_handle.clone(),
+                ..Default::default()
+            },
+            ..Default::default()
+        });
+    }
+
+    for e in entries {
+        if needs_uuid {
+            let Some(uuid_raw) = e.metadata.uuid.as_deref().map(str::trim) else {
+                continue;
+            };
+            if !is_valid_uuid_like(uuid_raw) || !seen_uuids.insert(uuid_raw.to_ascii_lowercase())
+            {
+                continue;
+            }
+        }
+        effective.push(e.clone());
+    }
+
+    let mut primary_block = String::new();
+    for (idx, e) in effective.iter().enumerate() {
+        primary_block.push_str(&render_entry_template(item_tpl, e, idx, index_base));
+    }
+
+    let mut secondary_block = String::new();
+    if let Some(stpl) = sec_tpl.filter(|s| !s.is_empty()) {
+        for (idx, e) in effective.iter().enumerate() {
+            secondary_block.push_str(&render_entry_template(stpl, e, idx, index_base));
+        }
+    }
+
+    let rendered = if doc_header.contains("{entries}") || doc_header.contains("{secondary_entries}") {
+        let mut out = doc_header
+            .replace("{entries}", &primary_block)
+            .replace("{secondary_entries}", &secondary_block);
+        if !doc_footer.is_empty() {
+            out.push_str(doc_footer);
+        }
+        out
+    } else {
+        let mut out = String::new();
+        if !doc_header.is_empty() {
+            out.push_str(doc_header);
+        }
+        out.push_str(&primary_block);
+        out.push_str(&secondary_block);
+        if !doc_footer.is_empty() {
+            out.push_str(doc_footer);
+        }
+        out
+    };
+
+    crate::utils::atomic_write_bytes(target_path, rendered.as_bytes())
+}
+
+fn build_lsx_compat_descriptor(desc: &ManifestTargetDescriptor) -> ManifestTargetDescriptor {
+    let mut compat = desc.clone();
+    if compat.document_header.is_none() && compat.header.is_none() {
+        compat.document_header = Some(
+            "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<save>\n  <version major=\"4\" minor=\"7\" revision=\"1\" build=\"3\"/>\n  <region id=\"ModuleSettings\">\n    <node id=\"root\">\n      <children>\n        <node id=\"ModOrder\"/>\n        <node id=\"Mods\">\n          <children>\n{entries}          </children>\n        </node>\n      </children>\n    </node>\n  </region>\n</save>\n".to_string(),
+        );
+    }
+    if compat.entry_template.is_none() && compat.template.is_none() {
+        compat.entry_template = Some(
+            "            <node id=\"ModuleShortDesc\">\n              <attribute id=\"Folder\" type=\"LSString\" value=\"{xml_folder}\"/>\n              <attribute id=\"MD5\" type=\"LSString\" value=\"\"/>\n              <attribute id=\"Name\" type=\"LSString\" value=\"{xml_title}\"/>\n              <attribute id=\"PublishHandle\" type=\"uint64\" value=\"{xml_publish_handle}\"/>\n              <attribute id=\"UUID\" type=\"FixedString\" value=\"{xml_uuid}\"/>\n              <attribute id=\"Version64\" type=\"int64\" value=\"{xml_version64}\"/>\n            </node>\n".to_string(),
+        );
+    }
+    if compat.require_uuid.is_none() {
+        compat.require_uuid = Some(true);
+    }
+    compat
 }
 
 fn resolve_local_appdata_root(schema: &Option<GameSchema>, live_root: &Path) -> Option<PathBuf> {
@@ -985,12 +1284,21 @@ fn entry_matches_extension_list(file_name: &str, exts: &[String]) -> bool {
 fn collect_baseline_filenames_for_load_order(
     mods_dir: &Path,
     live_root: &Path,
+    schema: &Option<GameSchema>,
 ) -> std::collections::HashSet<String> {
     let mut set = std::collections::HashSet::new();
     let mut dirs_to_check = vec![mods_dir.to_path_buf(), live_root.to_path_buf()];
-    let resolved_data = crate::utils::resolve_case_insensitive_path(live_root, "Data");
-    if resolved_data != mods_dir {
-        dirs_to_check.push(resolved_data);
+    if let Some(subdirs) = schema.as_ref().and_then(|s| s.dlc_subdirs.as_ref()) {
+        for sub in subdirs {
+            let trimmed = sub.trim().trim_matches(&['/', '\\'][..]);
+            if trimmed.is_empty() {
+                continue;
+            }
+            let resolved = crate::utils::resolve_case_insensitive_path(live_root, trimmed);
+            if resolved != mods_dir && !dirs_to_check.contains(&resolved) {
+                dirs_to_check.push(resolved);
+            }
+        }
     }
     for d in dirs_to_check {
         if !d.is_dir() {
@@ -1354,7 +1662,7 @@ pub async fn evaluate_blueprint_load_order_diagnostics(
         }
 
         let lo_cfg = schema.as_ref().and_then(|s| s.load_order.as_ref());
-        let baseline = collect_baseline_filenames_for_load_order(&eff_mods_dir, &live_root);
+        let baseline = collect_baseline_filenames_for_load_order(&eff_mods_dir, &live_root, &schema);
         Ok(solve_entries_dag_and_slots(&mut entries, lo_cfg, &baseline))
     })
     .await
@@ -1374,9 +1682,9 @@ pub fn apply_load_order_outputs(
     let strategy = crate::game_logic::get_load_order_strategy(schema);
 
     let mut effective_entries = entries.to_vec();
-    let baseline = collect_baseline_filenames_for_load_order(mods_dir, live_root);
-    let _ = solve_entries_dag_and_slots(&mut effective_entries, lo_cfg, &baseline);
     apply_direction_to_entries(&mut effective_entries, lo_cfg);
+    let baseline = collect_baseline_filenames_for_load_order(mods_dir, live_root, schema);
+    let _ = solve_entries_dag_and_slots(&mut effective_entries, lo_cfg, &baseline);
 
     if strategy == "timestamp" {
         let step = lo_cfg.and_then(|l| l.timestamp_step_secs).unwrap_or(60);
@@ -1440,18 +1748,43 @@ pub fn apply_load_order_outputs(
                 "ini_section" => write_ini_section_manifest(&target_path, desc, &filtered_entries, index_base),
                 "json_array" => write_json_manifest(&target_path, desc, &filtered_entries, false),
                 "json_object_array" => write_json_manifest(&target_path, desc, &filtered_entries, true),
+                "enabled_object_list" | "factorio_mod_list" => {
+                    write_enabled_object_list_manifest(&target_path, desc, &filtered_entries)
+                }
+                "toml_array_table" => write_toml_array_table_manifest(&target_path, desc, &filtered_entries),
                 "xml_list" => write_xml_list_manifest(&target_path, desc, &filtered_entries),
-                "bg3_modsettings_lsx" => write_bg3_modsettings_lsx(&target_path, desc, &filtered_entries),
+                "declarative_template" => {
+                    write_declarative_template_manifest(&target_path, desc, &filtered_entries, index_base)
+                }
+                "bg3_modsettings_lsx" => {
+                    let compat = build_lsx_compat_descriptor(desc);
+                    write_declarative_template_manifest(&target_path, &compat, &filtered_entries, index_base)
+                }
                 _ => {
-                    let tpl = desc.template.as_deref().filter(|t| !t.trim().is_empty()).unwrap_or("{file}");
+                    let tpl = desc
+                        .entry_template
+                        .as_deref()
+                        .or(desc.template.as_deref())
+                        .filter(|t| !t.trim().is_empty())
+                        .unwrap_or("{file}");
                     let mut parts = Vec::new();
-                    if let Some(h) = desc.header.as_deref().filter(|s| !s.trim().is_empty()) {
+                    if let Some(h) = desc
+                        .document_header
+                        .as_deref()
+                        .or(desc.header.as_deref())
+                        .filter(|s| !s.trim().is_empty())
+                    {
                         parts.push(h.trim_end().to_string());
                     }
                     for (idx, e) in filtered_entries.iter().enumerate() {
                         parts.push(render_entry_template(tpl, e, idx, index_base));
                     }
-                    if let Some(f) = desc.footer.as_deref().filter(|s| !s.trim().is_empty()) {
+                    if let Some(f) = desc
+                        .document_footer
+                        .as_deref()
+                        .or(desc.footer.as_deref())
+                        .filter(|s| !s.trim().is_empty())
+                    {
                         parts.push(f.trim_start().to_string());
                     }
                     crate::utils::atomic_write_bytes(
@@ -1593,12 +1926,19 @@ mod tests {
                 folder: "BaseModule".into(),
                 version64: Some("36028797018963968".into()),
                 publish_handle: Some("0".into()),
+                ..Default::default()
             }],
             ..Default::default()
         };
         let mut entries_with_non_uuid = entries.clone();
         entries_with_non_uuid.push(mk_entry("HelperDll", "helper", ""));
-        write_bg3_modsettings_lsx(&lsx_path, &lsx_desc, &entries_with_non_uuid).unwrap();
+        write_declarative_template_manifest(
+            &lsx_path,
+            &build_lsx_compat_descriptor(&lsx_desc),
+            &entries_with_non_uuid,
+            1,
+        )
+        .unwrap();
         let lsx_out = fs::read_to_string(&lsx_path).unwrap();
         assert!(lsx_out.contains("<version major=\"4\" minor=\"7\" revision=\"1\" build=\"3\"/>"));
         assert!(lsx_out.contains("<node id=\"ModOrder\"/>"));
@@ -1831,5 +2171,183 @@ mod tests {
         assert_eq!(diag.slot_usage.iter().find(|b| b.id == "full_plugins").unwrap().used, 1);
         assert_eq!(diag.slot_usage.iter().find(|b| b.id == "medium_plugins").unwrap().used, 1);
         assert_eq!(diag.slot_usage.iter().find(|b| b.id == "light_plugins").unwrap().used, 1);
+    }
+
+    #[test]
+    fn lower_wins_preserves_dag_masters_before_dependents_and_early_masters() {
+        let base = std::env::temp_dir().join(format!(
+            "sanctuary_lower_wins_dag_test_{}",
+            uuid::Uuid::new_v4()
+        ));
+        let mods_dir = base.join("Data");
+        let docs_dir = base.join("Docs");
+        let live_dir = base.clone();
+        std::fs::create_dir_all(&mods_dir).unwrap();
+        std::fs::create_dir_all(&docs_dir).unwrap();
+
+        let schema: Option<GameSchema> = Some(
+            serde_json::from_value(serde_json::json!({
+                "id": "dag_lower_wins",
+                "game_id": "dag_lower_wins",
+                "load_order": {
+                    "strategy": "manifest_list",
+                    "direction": "lower_wins",
+                    "early_master_flag_mask": 1,
+                    "early_master_extensions": [".esm"],
+                    "manifest_targets": [
+                        {
+                            "root_source": "docs_path",
+                            "relative_path": "plugins.txt",
+                            "format": "plugins_asterisk",
+                            "include_extensions": [".esm", ".esp"]
+                        }
+                    ]
+                }
+            }))
+            .unwrap(),
+        );
+
+        let mut master = mk_entry("CoreBase", "CoreBase", "");
+        master.file_name = "CoreBase.esm".into();
+        master.rel_path = "CoreBase.esm".into();
+        master.metadata.header_flags = TES4_FLAG_ESM;
+
+        let mut dep = mk_entry("DepPatch", "DepPatch", "");
+        dep.file_name = "DepPatch.esp".into();
+        dep.rel_path = "DepPatch.esp".into();
+        dep.metadata.masters = vec!["CoreBase.esm".into()];
+
+        let mut free_a = mk_entry("LooseA", "LooseA", "");
+        free_a.file_name = "LooseA.esp".into();
+        free_a.rel_path = "LooseA.esp".into();
+
+        let mut free_b = mk_entry("LooseB", "LooseB", "");
+        free_b.file_name = "LooseB.esp".into();
+        free_b.rel_path = "LooseB.esp".into();
+
+        // User order before direction/DAG: DepPatch first, then LooseA, LooseB, CoreBase.esm last
+        let entries = vec![dep, free_a, free_b, master];
+        let written = apply_load_order_outputs(&schema, &mods_dir, &docs_dir, &live_dir, &entries);
+        assert_eq!(written.len(), 1);
+        let plugins_txt = std::fs::read_to_string(docs_dir.join("plugins.txt")).unwrap();
+        let lines: Vec<&str> = plugins_txt
+            .lines()
+            .filter(|l| l.starts_with('*'))
+            .collect();
+        let master_pos = lines.iter().position(|&l| l == "*CoreBase.esm").unwrap();
+        let dep_pos = lines.iter().position(|&l| l == "*DepPatch.esp").unwrap();
+        let a_pos = lines.iter().position(|&l| l == "*LooseA.esp").unwrap();
+        let b_pos = lines.iter().position(|&l| l == "*LooseB.esp").unwrap();
+        assert!(
+            master_pos < dep_pos,
+            "lower_wins must never place dependent before required master: {:?}",
+            lines
+        );
+        assert_eq!(master_pos, 0, "early_master must stay pinned at index 0");
+        assert!(
+            b_pos < a_pos,
+            "unconstrained LooseB should sort ahead of LooseA under lower_wins: {:?}",
+            lines
+        );
+
+        let _ = std::fs::remove_dir_all(&base);
+    }
+
+    #[test]
+    fn declarative_template_and_toml_and_enabled_object_manifests_and_20b_tes4() {
+        let base = std::env::temp_dir().join(format!(
+            "sanctuary_decl_manifests_test_{}",
+            uuid::Uuid::new_v4()
+        ));
+        let mods_dir = base.join("mods");
+        let docs_dir = base.join("docs");
+        let live_dir = base.join("live");
+        std::fs::create_dir_all(&mods_dir).unwrap();
+        std::fs::create_dir_all(&docs_dir).unwrap();
+        std::fs::create_dir_all(&live_dir).unwrap();
+
+        // Pre-seed TOML with non-managed section to assert preservation
+        let toml_path = live_dir.join("engine.toml");
+        std::fs::write(&toml_path, "[engine]\ndebug = true\n\nmods = [\n    { enabled = true, name = \"old\", path = \"old\" },\n]\n").unwrap();
+
+        let schema: Option<GameSchema> = Some(
+            serde_json::from_value(serde_json::json!({
+                "id": "decl_test",
+                "game_id": "decl_test",
+                "load_order": {
+                    "strategy": "manifest_list",
+                    "direction": "higher_wins",
+                    "manifest_targets": [
+                        {
+                            "root_source": "docs_path",
+                            "relative_path": "mods.xml",
+                            "format": "declarative_template",
+                            "require_uuid": true,
+                            "document_header": "<Root>\n  <Order>\n{secondary_entries}  </Order>\n  <Items>\n{entries}  </Items>\n</Root>\n",
+                            "entry_template": "    <Item folder=\"{xml_folder}\" uuid=\"{xml_uuid}\" title=\"{xml_title}\"/>\n",
+                            "secondary_list_template": "    <OrderId>{xml_uuid}</OrderId>\n",
+                            "base_entries": ["28ac9ce2-2aba-8cda-b3b5-6e922f71b6b8|BaseMod|Base Mod|BaseMod|1"]
+                        },
+                        {
+                            "root_source": "live_path",
+                            "relative_path": "engine.toml",
+                            "format": "toml_array_table",
+                            "entry_key": "mods"
+                        },
+                        {
+                            "root_source": "mods_path",
+                            "relative_path": "mod-list.json",
+                            "format": "enabled_object_list",
+                            "entry_key": "mods",
+                            "base_entries": ["base"]
+                        }
+                    ]
+                }
+            }))
+            .unwrap(),
+        );
+
+        let e1 = mk_entry("Alpha&Co", "alpha_id", "aaaaaaaa-1111-2222-3333-444444444444");
+        let e2 = mk_entry("NoUuidTool", "tool_id", "");
+        let written = apply_load_order_outputs(&schema, &mods_dir, &docs_dir, &live_dir, &[e1, e2]);
+        assert_eq!(written.len(), 3);
+
+        let xml_out = std::fs::read_to_string(docs_dir.join("mods.xml")).unwrap();
+        assert!(xml_out.contains("<OrderId>28ac9ce2-2aba-8cda-b3b5-6e922f71b6b8</OrderId>"));
+        assert!(xml_out.contains("<OrderId>aaaaaaaa-1111-2222-3333-444444444444</OrderId>"));
+        assert!(xml_out.contains("title=\"Base Mod\""));
+        assert!(!xml_out.contains("NoUuidTool"));
+
+        let toml_out = std::fs::read_to_string(&toml_path).unwrap();
+        assert!(toml_out.contains("[engine]\ndebug = true"));
+        assert!(!toml_out.contains("old"));
+        assert!(toml_out.contains("name = \"alpha_id\", path = \"Alpha&Co.pak\""));
+
+        let json_out: serde_json::Value =
+            serde_json::from_str(&std::fs::read_to_string(mods_dir.join("mod-list.json")).unwrap())
+                .unwrap();
+        assert_eq!(json_out["mods"][0]["name"], "base");
+        assert_eq!(json_out["mods"][1]["name"], "alpha_id");
+        assert_eq!(json_out["mods"][2]["name"], "tool_id");
+
+        // 20-byte legacy TES4 record header with HEDR at byte offset 20
+        let mut tes4_20 = Vec::new();
+        tes4_20.extend_from_slice(b"TES4");
+        let mut sub_data = Vec::new();
+        sub_data.extend_from_slice(b"HEDR");
+        sub_data.extend_from_slice(&12u16.to_le_bytes());
+        sub_data.extend_from_slice(&[0u8; 12]);
+        sub_data.extend_from_slice(b"MAST");
+        sub_data.extend_from_slice(&13u16.to_le_bytes());
+        sub_data.extend_from_slice(b"Oblivion.esm\0");
+        tes4_20.extend_from_slice(&(sub_data.len() as u32).to_le_bytes());
+        tes4_20.extend_from_slice(&TES4_FLAG_ESM.to_le_bytes());
+        tes4_20.extend_from_slice(&[0u8; 8]); // 12 + 8 = 20-byte header before HEDR
+        tes4_20.extend_from_slice(&sub_data);
+        let (masters_20, _, flags_20) = extract_tes_masters_and_author(&tes4_20);
+        assert_eq!(masters_20, vec!["Oblivion.esm".to_string()]);
+        assert_eq!(flags_20 & TES4_FLAG_ESM, TES4_FLAG_ESM);
+
+        let _ = std::fs::remove_dir_all(&base);
     }
 }

@@ -498,7 +498,6 @@ export async function installDroppedJsonAssets(
       delete cleanSchema.mod_categories;
       delete cleanSchema.taxonomy;
       delete cleanSchema.dlc_catalog;
-      delete cleanSchema.exception_rules;
 
       const serialized = JSON.stringify(cleanSchema, null, 2);
       try {

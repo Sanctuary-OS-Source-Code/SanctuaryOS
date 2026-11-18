@@ -4,9 +4,10 @@ import packageJson from '../../../package.json';
 import { isClientOnDevBuildStream } from '../../utils/supporterManager';
 import {
   BLINDED_EMAIL_REGEX,
+  collectAllLegalTargetIdentifiers,
   DEFAULT_LEGAL_COMPLIANCE_DRAFT,
   isLegalComplianceDraftValid,
-  parseLegalTargetIdentifiers,
+  LegalComplianceDraft,
 } from '../../landing/DmcaAndLegalFlowSteps';
 
 export function useWebLandingSubmissionFlows({
@@ -269,10 +270,11 @@ export function useWebLandingSubmissionFlows({
           ? contactReplyTo.trim() || rawSessionEmail
           : contactReplyTo.trim() || unblinded;
 
+      const typedDraft = legalDraft as LegalComplianceDraft;
       if (
-        !legalDraft ||
+        !typedDraft ||
         !isLegalComplianceDraftValid(
-          legalDraft,
+          typedDraft,
           resolvedReply,
           contactSubject,
           contactBody
@@ -294,35 +296,33 @@ export function useWebLandingSubmissionFlows({
           body: {
             action: 'submit_dmca_or_legal_notice',
             payload: {
-              notice_type: legalDraft.subType,
-              target_scope: legalDraft.targetScope,
+              notice_type: typedDraft.subType,
+              target_scope: typedDraft.targetScope,
               target_spoke_id:
-                legalDraft.targetScope === 'spoke' ? legalDraft.targetSpokeId : null,
-              target_identifiers: parseLegalTargetIdentifiers(
-                legalDraft.targetIdentifiersRaw
-              ),
-              original_notice_id: legalDraft.originalNoticeId.trim() || null,
+                typedDraft.targetScope === 'spoke' ? typedDraft.targetSpokeId : null,
+              target_identifiers: collectAllLegalTargetIdentifiers(typedDraft),
+              original_notice_id: typedDraft.originalNoticeId.trim() || null,
               work_description:
-                legalDraft.subType === 'privacy_general'
+                typedDraft.subType === 'privacy_general'
                   ? contactBody.trim()
-                  : legalDraft.workDescription.trim(),
-              work_url: legalDraft.workUrl.trim() || null,
+                  : typedDraft.workDescription.trim(),
+              work_url: typedDraft.workUrl.trim() || null,
               subject: contactSubject.trim() || undefined,
               description: contactBody.trim() || undefined,
               legal_contact: {
-                full_legal_name: legalDraft.fullLegalName.trim(),
-                company_or_agent: legalDraft.companyOrAgent.trim(),
-                physical_address: legalDraft.physicalAddress.trim(),
-                phone: legalDraft.phone.trim(),
+                full_legal_name: typedDraft.fullLegalName.trim(),
+                company_or_agent: typedDraft.companyOrAgent.trim(),
+                physical_address: typedDraft.physicalAddress.trim(),
+                phone: typedDraft.phone.trim(),
                 email: resolvedReply,
               },
-              good_faith_attested: legalDraft.goodFaithAttested,
-              perjury_authority_attested: legalDraft.perjuryAuthorityAttested,
-              jurisdiction_attested: legalDraft.jurisdictionAttested,
-              forwarding_acknowledged: legalDraft.forwardingAcknowledged,
+              good_faith_attested: typedDraft.goodFaithAttested,
+              perjury_authority_attested: typedDraft.perjuryAuthorityAttested,
+              jurisdiction_attested: typedDraft.jurisdictionAttested,
+              forwarding_acknowledged: typedDraft.forwardingAcknowledged,
               electronic_signature:
-                legalDraft.electronicSignature.trim() ||
-                legalDraft.fullLegalName.trim(),
+                typedDraft.electronicSignature.trim() ||
+                typedDraft.fullLegalName.trim(),
             },
           },
         });

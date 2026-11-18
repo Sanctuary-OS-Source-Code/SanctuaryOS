@@ -2,79 +2,143 @@ import { createClient, SupabaseClient } from "@supabase/supabase-js";
 import { useStore } from "./store";
 import { fnv1aHashHex } from "./lib/cryptoUtils";
 
+export interface SanctuaryForkOverlay {
+    uplinkBundle?: string;
+    mode?: "hub_and_spoke" | "standalone";
+    supabaseUrl?: string;
+    supabaseAnonKey?: string;
+    standaloneWorkspace?: {
+        id?: string;
+        name?: string;
+        schema_id?: string;
+        icon?: string;
+    };
+    branding?: {
+        appTitle?: string;
+        orgName?: string;
+        logoUrl?: string;
+        supportEmail?: string;
+        githubReleaseRepo?: string;
+        webauthnRpId?: string;
+        subtitles?: string[];
+    };
+    tauri?: {
+        identifier?: string;
+        productName?: string;
+        updaterPubkey?: string;
+    };
+}
+
+declare const __SANCTUARY_FORK_CONFIG__: SanctuaryForkOverlay | null | undefined;
+
+export function getCompiledForkOverlay(): SanctuaryForkOverlay | null {
+    try {
+        if (
+            typeof __SANCTUARY_FORK_CONFIG__ !== "undefined" &&
+            __SANCTUARY_FORK_CONFIG__ &&
+            typeof __SANCTUARY_FORK_CONFIG__ === "object"
+        ) {
+            return __SANCTUARY_FORK_CONFIG__;
+        }
+    } catch {}
+    return null;
+}
+
+const DEFAULT_BRAND_SUBTITLES = [
+    "Advice Never Dictate",
+    "Verify Everything",
+    "Control Your Code",
+    "Own Your Mod List",
+    "Respect Creators",
+    "Community Driven",
+    "Cloud Not Required",
+    "Your Personal Co-Pilot",
+    "Update Not Required",
+    "Yeeting Conflicts Since '26",
+    "King Notepad++ Dethroned",
+    "No Black Boxes",
+    "Private By Design",
+];
+
+function buildBaseSanctuaryConfig(forkOverlay?: SanctuaryForkOverlay | null) {
+    const env = (import.meta as any).env || {};
+    const fork = forkOverlay && typeof forkOverlay === "object" ? forkOverlay : null;
+    const forkBranding = fork?.branding && typeof fork.branding === "object" ? fork.branding : {};
+    const forkWs = fork?.standaloneWorkspace && typeof fork.standaloneWorkspace === "object" ? fork.standaloneWorkspace : {};
+
+    const uplinkBundle = String(env.VITE_SANCTUARY_UPLINK_BUNDLE || fork?.uplinkBundle || "").trim();
+    const mode = (String(env.VITE_SANCTUARY_MODE || fork?.mode || "hub_and_spoke").trim() || "hub_and_spoke") as
+        | "hub_and_spoke"
+        | "standalone";
+    const isStandaloneLike = mode === "standalone" || /^sanctuary-uplink:\/\//i.test(uplinkBundle);
+
+    const supabaseUrl =
+        env.VITE_SUPABASE_URL ||
+        env.VITE_SPOKE_SUPABASE_URL ||
+        fork?.supabaseUrl ||
+        "https://tpsbtaqxlczrysqqmanp.supabase.co";
+    const supabaseAnonKey =
+        env.VITE_SUPABASE_ANON_KEY ||
+        env.VITE_SPOKE_SUPABASE_ANON_KEY ||
+        fork?.supabaseAnonKey ||
+        "sb_publishable_UfZsGP0-5CvUlFOXpLJXaw_eCqQoKaC";
+
+    const explicitRpId = String(env.VITE_WEBAUTHN_RP_ID || forkBranding.webauthnRpId || "").trim();
+    const webauthnRpId =
+        explicitRpId ||
+        (isStandaloneLike && typeof window !== "undefined" && window.location?.hostname
+            ? window.location.hostname
+            : "sanctuaryos.net");
+
+    return {
+        /**
+         * QUICK FORK OPTION A — Run `npm run fork:configure -- --uplink SANCTUARY-UPLINK://...`
+         * or set VITE_SANCTUARY_UPLINK_BUNDLE. Generates untracked-conflict `sanctuary.fork.json`.
+         */
+        uplinkBundle,
+        /**
+         * QUICK FORK OPTION B — Manual / Fork Overlay Configuration
+         * - "hub_and_spoke": Official multi-game network (Core OS Hub DB + Community Spoke DBs via game-gateway).
+         * - "standalone":    Single-database community fork! Uses your single Spoke DB (schema.sql).
+         */
+        mode,
+        supabaseUrl,
+        supabaseAnonKey,
+        standaloneWorkspace: {
+            id: env.VITE_STANDALONE_WORKSPACE_ID || env.VITE_SPOKE_ID || forkWs.id || "standalone",
+            name: env.VITE_STANDALONE_WORKSPACE_NAME || forkWs.name || "Community Workspace",
+            schema_id: env.VITE_STANDALONE_SCHEMA_ID || forkWs.schema_id || "universal",
+            icon: env.VITE_STANDALONE_ICON || forkWs.icon || "sports_esports",
+        },
+        branding: {
+            appTitle: env.VITE_APP_TITLE || forkBranding.appTitle || "Sanctuary OS",
+            orgName: env.VITE_ORG_NAME || forkBranding.orgName || "Sanctuary Foundry",
+            logoUrl: env.VITE_LOGO_URL || forkBranding.logoUrl || "/icon.png",
+            supportEmail: env.VITE_SUPPORT_EMAIL || forkBranding.supportEmail || "support@sanctuaryos.net",
+            githubReleaseRepo: env.VITE_GITHUB_RELEASE_REPO || forkBranding.githubReleaseRepo || "",
+            webauthnRpId,
+            subtitles:
+                Array.isArray(forkBranding.subtitles) && forkBranding.subtitles.length > 0
+                    ? forkBranding.subtitles.map((s) => String(s || "").trim()).filter(Boolean)
+                    : [...DEFAULT_BRAND_SUBTITLES],
+        },
+    };
+}
+
 // ============================================================================
-// SANCTUARY OS — FORK & NETWORK CONFIGURATION (EDIT ONLY THIS BLOCK TO FORK)
+// SANCTUARY OS — FORK & NETWORK CONFIGURATION (RESOLVED ENV > FORK > DEFAULTS)
 // ============================================================================
-export const SANCTUARY_CONFIG = {
-    /**
-     * QUICK FORK OPTION A — Paste a `SANCTUARY-UPLINK://...` bundle exported from the Wayfinder Hub.
-     * When populated, Sanctuary OS automatically switches to "standalone" mode and configures your
-     * Supabase URL, Anon Key, and Workspace identity from this single string.
-     */
-    uplinkBundle: (import.meta as any).env?.VITE_SANCTUARY_UPLINK_BUNDLE || "",
-
-    /**
-     * QUICK FORK OPTION B — Manual Configuration
-     * - "hub_and_spoke": Official multi-game network (Core OS Hub DB + Community Spoke DBs via game-gateway).
-     * - "standalone":    Single-database community fork! Uses your single Spoke DB (schema.sql) for Auth,
-     *                    Profiles, and Game tables directly — NO Hub DB and NO Edge Function required!
-     */
-    mode: ((import.meta as any).env?.VITE_SANCTUARY_MODE || "hub_and_spoke") as "hub_and_spoke" | "standalone",
-
-    // Primary Database Credentials (Core Hub DB in "hub_and_spoke" mode, or your Spoke DB in "standalone" mode)
-    supabaseUrl:
-        (import.meta as any).env?.VITE_SUPABASE_URL ||
-        (import.meta as any).env?.VITE_SPOKE_SUPABASE_URL ||
-        "https://tpsbtaqxlczrysqqmanp.supabase.co",
-    supabaseAnonKey:
-        (import.meta as any).env?.VITE_SUPABASE_ANON_KEY ||
-        (import.meta as any).env?.VITE_SPOKE_SUPABASE_ANON_KEY ||
-        "sb_publishable_UfZsGP0-5CvUlFOXpLJXaw_eCqQoKaC",
-
-    // Standalone Workspace Definition (Used automatically when mode === "standalone")
-    standaloneWorkspace: {
-        id:
-            (import.meta as any).env?.VITE_STANDALONE_WORKSPACE_ID ||
-            (import.meta as any).env?.VITE_SPOKE_ID ||
-            "standalone",
-        name: (import.meta as any).env?.VITE_STANDALONE_WORKSPACE_NAME || "Community Workspace",
-        schema_id: (import.meta as any).env?.VITE_STANDALONE_SCHEMA_ID || "universal",
-        icon: (import.meta as any).env?.VITE_STANDALONE_ICON || "sports_esports",
-    },
-
-    // White-Label Brand Identity (Overridable via VITE_* env vars or live via Title Area Studio)
-    branding: {
-        appTitle: (import.meta as any).env?.VITE_APP_TITLE || "Sanctuary OS",
-        orgName: (import.meta as any).env?.VITE_ORG_NAME || "Sanctuary Foundry",
-        logoUrl: (import.meta as any).env?.VITE_LOGO_URL || "/icon.png",
-        supportEmail: (import.meta as any).env?.VITE_SUPPORT_EMAIL || "support@sanctuaryos.net",
-        githubReleaseRepo: (import.meta as any).env?.VITE_GITHUB_RELEASE_REPO || "",
-        webauthnRpId:
-            (import.meta as any).env?.VITE_WEBAUTHN_RP_ID ||
-            (((import.meta as any).env?.VITE_SANCTUARY_MODE === "standalone" ||
-                /^sanctuary-uplink:\/\//i.test(String((import.meta as any).env?.VITE_SANCTUARY_UPLINK_BUNDLE || "").trim())) &&
-                typeof window !== "undefined" &&
-                window.location?.hostname
-                ? window.location.hostname
-                : "sanctuaryos.net"),
-        subtitles: [
-            "Advice Never Dictate",
-            "Verify Everything",
-            "Control Your Code",
-            "Own Your Mod List",
-            "Respect Creators",
-            "Community Driven",
-            "Cloud Not Required",
-            "Your Personal Co-Pilot",
-            "Update Not Required",
-            "Yeeting Conflicts Since '26",
-            "King Notepad++ Dethroned",
-            "No Black Boxes",
-            "Private By Design",
-        ] as string[],
-    },
-};
+export const SANCTUARY_CONFIG = buildBaseSanctuaryConfig(getCompiledForkOverlay());
 // ============================================================================
+
+export function getConfiguredUpdaterPubkey(forkOverride?: SanctuaryForkOverlay | null): string {
+    const activeFork = forkOverride !== undefined ? forkOverride : getCompiledForkOverlay();
+    return String(
+        (import.meta as any).env?.VITE_TAURI_UPDATER_PUBKEY ||
+        activeFork?.tauri?.updaterPubkey ||
+        ""
+    ).trim();
+}
 
 export const SANCTUARY_RUNTIME_UPLINK_KEY = "sanctuary_runtime_uplink_bundle";
 
@@ -119,15 +183,20 @@ export function setRuntimeUplinkBundle(rawBundle: string | null): boolean {
     }
 }
 
-export function resolveSanctuaryConfig(bundleOverride?: string) {
-    const runtimeBundle = getRuntimeUplinkBundle();
-    const bundle = (bundleOverride ?? (runtimeBundle || SANCTUARY_CONFIG.uplinkBundle || "")).trim();
-    const defaultBranding = SANCTUARY_CONFIG.branding;
+export function resolveSanctuaryConfig(
+    bundleOverride?: string,
+    forkOverride?: SanctuaryForkOverlay | null,
+) {
+    const activeFork = forkOverride !== undefined ? forkOverride : getCompiledForkOverlay();
+    const baseCfg = forkOverride !== undefined ? buildBaseSanctuaryConfig(activeFork) : SANCTUARY_CONFIG;
+    const runtimeBundle = bundleOverride === undefined ? getRuntimeUplinkBundle() : "";
+    const bundle = (bundleOverride ?? (runtimeBundle || baseCfg.uplinkBundle || "")).trim();
+    const defaultBranding = baseCfg.branding;
     if (/^sanctuary-uplink:\/\//i.test(bundle)) {
         try {
             const parsed = parseUplinkBundle(bundle);
             if (parsed?.supabase_url && parsed?.supabase_anon_key) {
-                const schemaId = (parsed.schema_id || SANCTUARY_CONFIG.standaloneWorkspace.schema_id || "universal").trim();
+                const schemaId = (parsed.schema_id || baseCfg.standaloneWorkspace.schema_id || "universal").trim();
                 const parsedBranding = parsed.branding && typeof parsed.branding === "object" ? parsed.branding : {};
                 return {
                     mode: "standalone" as const,
@@ -135,9 +204,9 @@ export function resolveSanctuaryConfig(bundleOverride?: string) {
                     supabaseAnonKey: parsed.supabase_anon_key.trim(),
                     standaloneWorkspace: {
                         id: schemaId,
-                        name: (parsed.name || SANCTUARY_CONFIG.standaloneWorkspace.name || schemaId).trim(),
+                        name: (parsed.name || baseCfg.standaloneWorkspace.name || schemaId).trim(),
                         schema_id: schemaId,
-                        icon: (parsed.icon || SANCTUARY_CONFIG.standaloneWorkspace.icon || "sports_esports").trim(),
+                        icon: (parsed.icon || baseCfg.standaloneWorkspace.icon || "sports_esports").trim(),
                     },
                     branding: {
                         appTitle: String(parsedBranding.appTitle || defaultBranding.appTitle).trim() || "Sanctuary OS",
@@ -146,7 +215,12 @@ export function resolveSanctuaryConfig(bundleOverride?: string) {
                         supportEmail: String(parsedBranding.supportEmail || defaultBranding.supportEmail).trim() || "support@sanctuaryos.net",
                         githubReleaseRepo: String(parsedBranding.githubReleaseRepo || defaultBranding.githubReleaseRepo || "").trim(),
                         webauthnRpId:
-                            String(parsedBranding.webauthnRpId || (import.meta as any).env?.VITE_WEBAUTHN_RP_ID || "").trim() ||
+                            String(
+                                parsedBranding.webauthnRpId ||
+                                (import.meta as any).env?.VITE_WEBAUTHN_RP_ID ||
+                                activeFork?.branding?.webauthnRpId ||
+                                ""
+                            ).trim() ||
                             (typeof window !== "undefined" && window.location?.hostname
                                 ? window.location.hostname
                                 : "sanctuaryos.net"),
@@ -161,10 +235,10 @@ export function resolveSanctuaryConfig(bundleOverride?: string) {
         }
     }
     return {
-        mode: SANCTUARY_CONFIG.mode,
-        supabaseUrl: SANCTUARY_CONFIG.supabaseUrl.trim(),
-        supabaseAnonKey: SANCTUARY_CONFIG.supabaseAnonKey.trim(),
-        standaloneWorkspace: SANCTUARY_CONFIG.standaloneWorkspace,
+        mode: baseCfg.mode,
+        supabaseUrl: baseCfg.supabaseUrl.trim(),
+        supabaseAnonKey: baseCfg.supabaseAnonKey.trim(),
+        standaloneWorkspace: baseCfg.standaloneWorkspace,
         branding: defaultBranding,
     };
 }

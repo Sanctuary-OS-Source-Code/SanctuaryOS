@@ -407,7 +407,6 @@ function devLexiconSyncPlugin() {
                     : content.id || safeId,
               };
               delete (cleanSpokeSchema as any).dlc_catalog;
-              delete (cleanSpokeSchema as any).exception_rules;
               delete (cleanSpokeSchema as any).mod_categories;
               delete (cleanSpokeSchema as any).taxonomy;
               updated = writeJsonIfChanged(targetPath, cleanSpokeSchema);
@@ -515,10 +514,24 @@ function slimMonacoPlugin() {
   };
 }
 
+function loadSanctuaryForkOverlay(): Record<string, any> | null {
+  try {
+    const overlayPath = path.resolve(__dirname, "sanctuary.fork.json");
+    if (!fs.existsSync(overlayPath)) return null;
+    const parsed = JSON.parse(fs.readFileSync(overlayPath, "utf-8"));
+    return parsed && typeof parsed === "object" && !Array.isArray(parsed)
+      ? parsed
+      : null;
+  } catch {
+    return null;
+  }
+}
+
 export default defineConfig(async () => ({
   plugins: [slimMonacoPlugin(), react(), devLexiconSyncPlugin()],
   define: {
     __SANCTUARY_DEV_TOKEN__: JSON.stringify(SANCTUARY_DEV_TOKEN),
+    __SANCTUARY_FORK_CONFIG__: JSON.stringify(loadSanctuaryForkOverlay()),
   },
 
   clearScreen: false,

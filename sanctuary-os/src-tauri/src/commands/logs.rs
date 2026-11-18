@@ -100,13 +100,37 @@ fn collect_multi_root_exception_logs(
             PathBuf::new()
         }
     };
+    let schema_log_subdirs: Vec<String> = game_schema
+        .as_ref()
+        .and_then(|s| s.log_subdirs.as_ref())
+        .into_iter()
+        .flatten()
+        .map(|s| s.trim().trim_matches(&['/', '\\'][..]).to_string())
+        .filter(|s| !s.is_empty() && !s.contains(".."))
+        .collect();
+
+    let mut universal_log_subs: Vec<String> = vec![
+        "logs".to_string(),
+        "Logs".to_string(),
+        "Crashes".to_string(),
+        "CrashDumps".to_string(),
+    ];
+    for s in &schema_log_subdirs {
+        if !universal_log_subs.iter().any(|existing| existing.eq_ignore_ascii_case(s)) {
+            universal_log_subs.push(s.clone());
+        }
+    }
+
     if !eff_docs.as_os_str().is_empty() {
+        for sub in &schema_log_subdirs {
+            push_dir(crate::utils::resolve_case_insensitive_path(&eff_docs, sub), 3);
+        }
         push_dir(eff_docs, 4);
     }
 
     if !config.mods_path.trim().is_empty() {
         let mods_dir = PathBuf::from(config.mods_path.trim());
-        for sub in ["SKSE", "logs", "Logs"] {
+        for sub in &universal_log_subs {
             push_dir(crate::utils::resolve_case_insensitive_path(&mods_dir, sub), 3);
         }
         push_dir(mods_dir, 2);
@@ -114,7 +138,7 @@ fn collect_multi_root_exception_logs(
 
     let live_root = crate::game_logic::resolve_game_engine_root(&config.live_path, game_schema);
     if !live_root.as_os_str().is_empty() && live_root.is_dir() {
-        for sub in ["Logs", "CrashDumps", "r6/logs", "red4ext/logs", "bin"] {
+        for sub in &universal_log_subs {
             push_dir(crate::utils::resolve_case_insensitive_path(&live_root, sub), 3);
         }
         push_dir(live_root.clone(), 2);
@@ -140,7 +164,7 @@ fn collect_multi_root_exception_logs(
             for appdata in &local_appdata_roots {
                 let game_app = crate::utils::resolve_case_insensitive_path(appdata, clean_f);
                 if game_app.is_dir() {
-                    for sub in ["Saved/Crashes", "Saved/Logs", "Crashes", "Logs"] {
+                    for sub in &universal_log_subs {
                         push_dir(crate::utils::resolve_case_insensitive_path(&game_app, sub), 4);
                     }
                     push_dir(game_app, 3);

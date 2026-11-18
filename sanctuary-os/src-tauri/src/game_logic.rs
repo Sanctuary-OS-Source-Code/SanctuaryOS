@@ -1842,6 +1842,124 @@ pub fn expand_env_vars(path: &str) -> String {
     crate::utils::expand_env_vars(path)
 }
 
+pub fn lookup_schema_magic_bytes_for_ext(
+    schema: &Option<GameSchema>,
+    ext_no_dot_lower: &str,
+) -> Option<String> {
+    let mb_val = schema.as_ref()?.extensions.magic_bytes.as_ref()?;
+    let dot_ext = format!(".{}", ext_no_dot_lower.trim_start_matches('.').to_ascii_lowercase());
+    let plain_ext = dot_ext.trim_start_matches('.');
+    match mb_val {
+        serde_json::Value::Object(map) => {
+            for (k, v) in map {
+                let k_norm = format!(".{}", k.trim().trim_start_matches('.').to_ascii_lowercase());
+                if k_norm == dot_ext {
+                    if let Some(s) = v.as_str().map(str::trim).filter(|s| !s.is_empty()) {
+                        return Some(s.to_string());
+                    }
+                }
+            }
+            None
+        }
+        serde_json::Value::Array(arr) => {
+            for item in arr {
+                let Some(obj) = item.as_object() else { continue; };
+                let item_ext = obj
+                    .get("ext")
+                    .or_else(|| obj.get("extension"))
+                    .and_then(|v| v.as_str())
+                    .map(|s| s.trim().trim_start_matches('.').to_ascii_lowercase())
+                    .unwrap_or_default();
+                if item_ext == plain_ext {
+                    if let Some(s) = obj
+                        .get("magic")
+                        .or_else(|| obj.get("magic_bytes"))
+                        .or_else(|| obj.get("hex"))
+                        .and_then(|v| v.as_str())
+                        .map(str::trim)
+                        .filter(|s| !s.is_empty())
+                    {
+                        return Some(s.to_string());
+                    }
+                }
+            }
+            None
+        }
+        _ => None,
+    }
+}
+
+fn decode_hex_magic_pattern(pattern: &str) -> Option<Vec<u8>> {
+    let clean: String = pattern
+        .trim()
+        .trim_start_matches("0x")
+        .trim_start_matches("0X")
+        .chars()
+        .filter(|c| !c.is_ascii_whitespace() && *c != '-' && *c != ':')
+        .collect();
+    if clean.is_empty() || clean.len() % 2 != 0 || !clean.chars().all(|c| c.is_ascii_hexdigit()) {
+        return None;
+    }
+    hex::decode(clean).ok()
+}
+
+/// Validates a non-empty file against `schema.extensions.magic_bytes` when declared for its extension.
+pub fn verify_schema_magic_bytes(
+    path: &Path,
+    schema: &Option<GameSchema>,
+) -> Result<(), String> {
+    if !path.is_file() {
+        return Ok(());
+    }
+    let Some(ext_lower) = path
+        .extension()
+        .and_then(|e| e.to_str())
+        .map(|s| s.trim().to_ascii_lowercase())
+        .filter(|s| !s.is_empty())
+    else {
+        return Ok(());
+    };
+    let Some(expected_spec) = lookup_schema_magic_bytes_for_ext(schema, &ext_lower) else {
+        return Ok(());
+    };
+    let alternatives: Vec<Vec<u8>> = expected_spec
+        .split('|')
+        .filter_map(decode_hex_magic_pattern)
+        .filter(|v| !v.is_empty())
+        .collect();
+    if alternatives.is_empty() {
+        return Ok(());
+    }
+    let meta = std::fs::metadata(path).map_err(|e| e.to_string())?;
+    if meta.len() == 0 {
+        return Err(format!(
+            "CORRUPT_HEADER: '{}' is 0 bytes (expected magic {})",
+            path.file_name().unwrap_or_default().to_string_lossy(),
+            expected_spec
+        ));
+    }
+    let max_len = alternatives.iter().map(|v| v.len()).max().unwrap_or(0).min(64);
+    let mut header = vec![0u8; max_len];
+    let mut f = std::fs::File::open(path).map_err(|e| e.to_string())?;
+    use std::io::Read;
+    let n = f.read(&mut header).map_err(|e| e.to_string())?;
+    header.truncate(n);
+
+    if alternatives
+        .iter()
+        .any(|pat| header.len() >= pat.len() && &header[..pat.len()] == pat.as_slice())
+    {
+        Ok(())
+    } else {
+        Err(format!(
+            "CORRUPT_HEADER: '{}' header mismatch for .{} (expected {})",
+            path.file_name().unwrap_or_default().to_string_lossy(),
+            ext_lower,
+            expected_spec
+        ))
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -1898,5 +2016,42 @@ mod tests {
         assert!(!is_archive_container_extension("zip", &native_zip_schema));
         assert!(is_archive_container_extension("7z", &native_zip_schema));
         assert!(is_archive_container_extension("rar", &native_zip_schema));
+    }
+
+    #[test]
+    fn verify_schema_magic_bytes_accepts_valid_header_and_rejects_mismatch() {
+        let dir = std::env::temp_dir().join(format!(
+            "sanctuary_magic_bytes_test_{}",
+            uuid::Uuid::new_v4()
+        ));
+        std::fs::create_dir_all(&dir).unwrap();
+
+        let schema: Option<GameSchema> = Some(
+            serde_json::from_value(serde_json::json!({
+                "id": "magic_test",
+                "game_id": "magic_test",
+                "extensions": {
+                    "magic_bytes": {
+                        ".bin": "44425046",
+                        ".zipmod": "504B0304|504B0506"
+                    }
+                }
+            }))
+            .unwrap(),
+        );
+
+        let valid_bin = dir.join("good.bin");
+        std::fs::write(&valid_bin, b"DBPF\x02\x00\x00\x00payload").unwrap();
+        assert!(verify_schema_magic_bytes(&valid_bin, &schema).is_ok());
+
+        let corrupt_bin = dir.join("fake.bin");
+        std::fs::write(&corrupt_bin, b"<html>404 Not Found</html>").unwrap();
+        assert!(verify_schema_magic_bytes(&corrupt_bin, &schema).is_err());
+
+        let valid_zip = dir.join("mod.zipmod");
+        std::fs::write(&valid_zip, b"PK\x03\x04content").unwrap();
+        assert!(verify_schema_magic_bytes(&valid_zip, &schema).is_ok());
+
+        let _ = std::fs::remove_dir_all(&dir);
     }
 }

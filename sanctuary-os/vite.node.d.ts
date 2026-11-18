@@ -5,6 +5,7 @@ declare function clearTimeout(handle: any): void;
 declare const process: {
   env: Record<string, string | undefined>;
   cwd(): string;
+  pid: number;
 };
 
 declare module "fs" {
@@ -13,12 +14,14 @@ declare module "fs" {
   export function writeFileSync(path: string, data: string, encoding?: string): void;
   export function mkdirSync(path: string, options?: { recursive?: boolean }): string | undefined;
   export function statSync(path: string): { mtimeMs: number };
+  export function renameSync(oldPath: string, newPath: string): void;
   const fsDefault: {
     existsSync: typeof existsSync;
     readFileSync: typeof readFileSync;
     writeFileSync: typeof writeFileSync;
     mkdirSync: typeof mkdirSync;
     statSync: typeof statSync;
+    renameSync: typeof renameSync;
   };
   export default fsDefault;
 }

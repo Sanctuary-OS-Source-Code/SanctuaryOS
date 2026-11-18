@@ -2,6 +2,12 @@
   "id": "stardew",
   "game_id": "stardew-valley",
   "steam_app_id": "413150",
+  "gog_app_ids": [
+    "1453375253"
+  ],
+  "install_folder_names": [
+    "Stardew Valley"
+  ],
   "display_name": "Stardew Valley",
   "default_lexicon": "en-default",
   "schema_version": 2,
@@ -99,10 +105,33 @@
     "requires_script_unzipping": false,
     "mods_dir_is_shared_with_vanilla": false,
     "preserve_archive_folder_structure": true,
-    "wrap_loose_files_in_folders": true
+    "wrap_loose_files_in_folders": false
+  },
+  "mod_unit_mode": "folder",
+  "mod_unit_markers": [
+    "manifest.json"
+  ],
+  "mod_metadata_extractor": {
+    "manifest_files": [
+      "manifest.json"
+    ],
+    "id_key": "UniqueID",
+    "name_key": "Name",
+    "version_key": "Version",
+    "author_key": "Author",
+    "dependencies_key": "Dependencies"
   },
   "external_tools": [],
-  "conflict_analyzers": [],
+  "conflict_analyzers": [
+    {
+      "id": "content_patcher_json",
+      "type": "selector_path",
+      "extensions": [
+        ".json"
+      ],
+      "selector_path": "Changes,UniqueID,id"
+    }
+  ],
   "version_extraction": {
     "method": "pe_header",
     "relative_path": "Stardew Valley.exe",
@@ -117,12 +146,14 @@
   "load_order": {
     "strategy": "folder_priority",
     "direction": "higher_wins",
+    "asset_overwrite_order": "higher_wins",
     "manifest_file": "",
     "prefix_format": "{index:03}_",
     "prefix_separator": null,
     "line_template": "{file}",
     "document_header": null,
     "document_footer": null,
+    "manifest_targets": [],
     "priority_tiers": [
       {
         "id": "default",

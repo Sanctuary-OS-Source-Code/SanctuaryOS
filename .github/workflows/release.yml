@@ -53,21 +53,28 @@ jobs:
       - name: install Linux WebKitGTK & AppImage dependencies
         if: matrix.platform == 'ubuntu-22.04'
         run: |
-          sudo add-apt-repository -y ppa:ubuntu-toolchain-r/test
           sudo apt-get update
-          sudo apt-get install -y libstdc++6 libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf libssl-dev pkg-config build-essential file wget
+          sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf libssl-dev pkg-config build-essential file wget
 
       - name: setup node
         uses: actions/setup-node@v4
         with:
           node-version: 22
+          cache: 'npm'
+          cache-dependency-path: '**/package-lock.json'
 
       - name: setup rust
         uses: dtolnay/rust-toolchain@stable
         with:
           targets: ${{ matrix.rust_targets }}
 
-      - name: Sync version metadata from tag
+      - name: cache rust crates and target
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: "${{ steps.paths.outputs.dir }}/src-tauri -> target"
+
+      - name: Resolve release metadata safely
+        id: release_meta
         shell: bash
         env:
           PROJECT_DIR: ${{ steps.paths.outputs.dir }}
@@ -77,10 +84,38 @@ jobs:
           node << 'EOF'
           const fs = require("fs");
           const path = require("path");
+          const crypto = require("crypto");
+          const proj = process.env.PROJECT_DIR || "./sanctuary-os";
+          const pkg = JSON.parse(fs.readFileSync(path.join(proj, "package.json"), "utf8"));
+          const rawTag = String(process.env.INPUT_TAG_NAME || process.env.REF_NAME || "").trim();
+          const tag = !rawTag || rawTag === "main" || rawTag === "master"
+            ? `v${pkg.version || "0.6.0"}`
+            : rawTag;
+          const relName = `Sanctuary OS ${tag}`;
+          const relBody = "See the assets to download this version and install.";
+          const delim = `SANCTUARY_EOF_${crypto.randomBytes(8).toString("hex")}`;
+          const safeTag = tag.replace(/[\r\n]/g, "");
+          const safeName = relName.replace(/[\r\n]/g, "");
+          fs.appendFileSync(
+            process.env.GITHUB_OUTPUT,
+            `tag=${safeTag}\nname=${safeName}\nbody<<${delim}\n${relBody}\n${delim}\n`,
+            "utf8"
+          );
+          EOF
+
+      - name: Sync version metadata from tag
+        shell: bash
+        env:
+          PROJECT_DIR: ${{ steps.paths.outputs.dir }}
+          RESOLVED_TAG: ${{ steps.release_meta.outputs.tag }}
+        run: |
+          node << 'EOF'
+          const fs = require("fs");
+          const path = require("path");
           const proj = process.env.PROJECT_DIR || "./sanctuary-os";
           const pkgPath = path.join(proj, "package.json");
           const pkg = JSON.parse(fs.readFileSync(pkgPath, "utf8"));
-          let raw = (process.env.INPUT_TAG_NAME || process.env.REF_NAME || "").trim();
+          let raw = String(process.env.RESOLVED_TAG || "").trim();
           let tag = raw;
           if (!tag || tag === "main" || tag === "master" || !/^[vV]?\d+\.\d+\.\d+(-[a-zA-Z0-9.]+)?$/.test(tag)) {
             tag = `v${pkg.version || "0.6.0"}`;
@@ -114,12 +149,178 @@ jobs:
           fs.writeFileSync(cargoPath, cargo);
           EOF
 
+      - name: Apply Fork Overlay to ephemeral build config
+        env:
+          TAURI_UPDATER_PUBKEY: ${{ secrets.TAURI_UPDATER_PUBKEY }}
+          VITE_GITHUB_RELEASE_REPO: ${{ vars.VITE_GITHUB_RELEASE_REPO }}
+        run: node scripts/configure-fork.mjs --apply-ephemeral-tauri-conf
+        working-directory: ${{ steps.paths.outputs.dir }}
+
+      - name: Configure Windows Authenticode Signing
+        if: matrix.platform == 'windows-latest'
+        shell: bash
+        env:
+          PROJECT_DIR: ${{ steps.paths.outputs.dir }}
+          REQUIRE_WINDOWS_SIGNING: ${{ vars.REQUIRE_WINDOWS_SIGNING }}
+          TAURI_WINDOWS_SIGN_CMD: ${{ secrets.TAURI_WINDOWS_SIGN_CMD }}
+          TAURI_WINDOWS_SIGN_PFX: ${{ secrets.TAURI_WINDOWS_SIGN_PFX }}
+          TAURI_WINDOWS_SIGN_PASSWORD: ${{ secrets.TAURI_WINDOWS_SIGN_PASSWORD }}
+          TAURI_WINDOWS_TIMESTAMP_URL: ${{ vars.TAURI_WINDOWS_TIMESTAMP_URL }}
+          AZURE_TRUSTED_SIGNING_ENDPOINT: ${{ secrets.AZURE_TRUSTED_SIGNING_ENDPOINT }}
+          AZURE_TRUSTED_SIGNING_ACCOUNT: ${{ secrets.AZURE_TRUSTED_SIGNING_ACCOUNT }}
+          AZURE_TRUSTED_SIGNING_PROFILE: ${{ secrets.AZURE_TRUSTED_SIGNING_PROFILE }}
+          AZURE_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
+          AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
+          AZURE_CLIENT_SECRET: ${{ secrets.AZURE_CLIENT_SECRET }}
+        run: |
+          node << 'EOF'
+          const fs = require("fs");
+          const path = require("path");
+          const { execFileSync } = require("child_process");
+
+          const proj = process.env.PROJECT_DIR || "./sanctuary-os";
+          const tauriPath = path.join(proj, "src-tauri/tauri.conf.json");
+          const tempDir = process.env.RUNNER_TEMP || process.env.TEMP || ".";
+          const customCmd = (process.env.TAURI_WINDOWS_SIGN_CMD || "").trim();
+
+          const azureFields = [
+            process.env.AZURE_TRUSTED_SIGNING_ENDPOINT,
+            process.env.AZURE_TRUSTED_SIGNING_ACCOUNT,
+            process.env.AZURE_TRUSTED_SIGNING_PROFILE,
+            process.env.AZURE_TENANT_ID,
+            process.env.AZURE_CLIENT_ID,
+            process.env.AZURE_CLIENT_SECRET,
+          ].map((v) => String(v || "").trim());
+          const azureCount = azureFields.filter(Boolean).length;
+
+          const pfxB64 = String(process.env.TAURI_WINDOWS_SIGN_PFX || "").trim();
+          const pfxPass = String(process.env.TAURI_WINDOWS_SIGN_PASSWORD || "").trim();
+          const pfxCount = (pfxB64 ? 1 : 0) + (pfxPass ? 1 : 0);
+
+          if (azureCount > 0 && azureCount < azureFields.length) {
+            console.error("::error::Partial Azure Trusted Signing secrets detected; configure all 6 AZURE_* variables or none.");
+            process.exit(1);
+          }
+          if (pfxCount === 1) {
+            console.error("::error::Partial Windows PFX signing secrets detected; provide both TAURI_WINDOWS_SIGN_PFX and TAURI_WINDOWS_SIGN_PASSWORD.");
+            process.exit(1);
+          }
+
+          let signCommand = "";
+          if (customCmd) {
+            signCommand = customCmd;
+          } else if (azureCount === azureFields.length) {
+            const acsDir = path.join(tempDir, "acs");
+            const metaPath = path.join(tempDir, "acs-metadata.json");
+            const scriptPath = path.join(tempDir, "sanctuary-win-sign.ps1");
+            fs.mkdirSync(acsDir, { recursive: true });
+            execFileSync("powershell", [
+              "-NoProfile",
+              "-NonInteractive",
+              "-Command",
+              `Invoke-WebRequest -Uri 'https://www.nuget.org/api/v2/package/Microsoft.Trusted.Signing.Client' -OutFile '${path.join(tempDir, "acs.nupkg")}'; Expand-Archive -Force '${path.join(tempDir, "acs.nupkg")}' '${acsDir}'`
+            ], { stdio: "inherit" });
+            fs.writeFileSync(
+              metaPath,
+              JSON.stringify({
+                Endpoint: azureFields[0],
+                CodeSigningAccountName: azureFields[1],
+                CertificateProfileName: azureFields[2],
+              }, null, 2)
+            );
+            fs.writeFileSync(
+              scriptPath,
+              `param([Parameter(Mandatory=$true)][string]$TargetPath)\n` +
+              `$signtool = Get-ChildItem 'C:\\Program Files (x86)\\Windows Kits\\10\\bin' -Recurse -Filter signtool.exe | Where-Object { $_.FullName -like '*\\x64\\signtool.exe' } | Sort-Object FullName -Descending | Select-Object -First 1 -ExpandProperty FullName\n` +
+              `if (-not $signtool) { throw 'Windows SDK signtool.exe not found' }\n` +
+              `$dlib = Get-ChildItem '${acsDir}' -Recurse -Filter 'Azure.CodeSigning.Dlib.dll' | Where-Object { $_.FullName -like '*x64*' } | Select-Object -First 1 -ExpandProperty FullName\n` +
+              `if (-not $dlib) { throw 'Azure.CodeSigning.Dlib.dll not found' }\n` +
+              `& $signtool sign /v /fd SHA256 /tr 'http://timestamp.acs.microsoft.com' /td SHA256 /dlib $dlib /dmdf '${metaPath}' $TargetPath\n` +
+              `if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }\n`
+            );
+            signCommand = `powershell -NoProfile -ExecutionPolicy Bypass -File "${scriptPath}" -TargetPath %1`;
+          } else if (pfxCount === 2) {
+            const pfxPath = path.join(tempDir, "sanctuary-codesign.pfx");
+            const scriptPath = path.join(tempDir, "sanctuary-win-sign.ps1");
+            const tsUrl = String(process.env.TAURI_WINDOWS_TIMESTAMP_URL || "http://timestamp.digicert.com").trim();
+            fs.writeFileSync(pfxPath, Buffer.from(pfxB64, "base64"));
+            fs.writeFileSync(
+              scriptPath,
+              `param([Parameter(Mandatory=$true)][string]$TargetPath)\n` +
+              `$signtool = Get-ChildItem 'C:\\Program Files (x86)\\Windows Kits\\10\\bin' -Recurse -Filter signtool.exe | Where-Object { $_.FullName -like '*\\x64\\signtool.exe' } | Sort-Object FullName -Descending | Select-Object -First 1 -ExpandProperty FullName\n` +
+              `if (-not $signtool) { throw 'Windows SDK signtool.exe not found' }\n` +
+              `& $signtool sign /f '${pfxPath}' /p $env:TAURI_WINDOWS_SIGN_PASSWORD /fd SHA256 /tr '${tsUrl}' /td SHA256 $TargetPath\n` +
+              `if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }\n`
+            );
+            signCommand = `powershell -NoProfile -ExecutionPolicy Bypass -File "${scriptPath}" -TargetPath %1`;
+          } else {
+            if (String(process.env.REQUIRE_WINDOWS_SIGNING || "").trim().toLowerCase() === "true") {
+              console.error("::error::REQUIRE_WINDOWS_SIGNING is true, but no Windows Authenticode signing credentials are configured.");
+              process.exit(1);
+            }
+            console.log("::warning::Windows Authenticode signing not configured; shipping unsigned Windows binaries.");
+          }
+
+          if (signCommand) {
+            const tauri = JSON.parse(fs.readFileSync(tauriPath, "utf8"));
+            tauri.bundle = tauri.bundle || {};
+            tauri.bundle.windows = tauri.bundle.windows || {};
+            tauri.bundle.windows.signCommand = signCommand;
+            fs.writeFileSync(tauriPath, JSON.stringify(tauri, null, 2) + "\n");
+            console.log("Configured Windows Authenticode signCommand in ephemeral tauri.conf.json");
+          }
+          EOF
+
+      - name: Verify Apple Developer signing configuration
+        id: apple_sign
+        if: matrix.platform == 'macos-latest'
+        shell: bash
+        env:
+          GITHUB_REPOSITORY: ${{ github.repository }}
+          ALLOW_ADHOC: ${{ vars.ALLOW_ADHOC_MACOS_SIGNING }}
+          APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
+          APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
+          APPLE_SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+        run: |
+          PRESENT=0
+          for v in "$APPLE_CERTIFICATE" "$APPLE_CERTIFICATE_PASSWORD" "$APPLE_SIGNING_IDENTITY" "$APPLE_ID" "$APPLE_PASSWORD" "$APPLE_TEAM_ID"; do
+            if [ -n "$v" ]; then
+              PRESENT=$((PRESENT + 1))
+            fi
+          done
+          if [ "$PRESENT" -gt 0 ] && [ "$PRESENT" -lt 6 ]; then
+            echo "::error::Partial Apple Developer signing secrets detected ($PRESENT/6 set). Provide all 6 APPLE_* secrets or none."
+            exit 1
+          fi
+          if [ "$PRESENT" -eq 6 ]; then
+            echo "signing_identity=$APPLE_SIGNING_IDENTITY" >> "$GITHUB_OUTPUT"
+          elif [ "$GITHUB_REPOSITORY" = "Sanctuary-OS-Source-Code/SanctuaryOS" ] && [ "${ALLOW_ADHOC}" != "true" ]; then
+            echo "::error::Missing Apple Developer signing secrets on official Sanctuary OS build (set ALLOW_ADHOC_MACOS_SIGNING=true only to explicitly permit ad-hoc '-' builds)."
+            exit 1
+          else
+            echo "::warning::Apple Developer signing secrets absent; falling back to ad-hoc macOS signing ('-')."
+            echo "signing_identity=-" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Run Rust unit tests
         run: cargo test
         working-directory: ${{ steps.paths.outputs.dir }}/src-tauri
 
       - name: install dependencies
-        run: npm install
+        run: npm ci
+        working-directory: ${{ steps.paths.outputs.dir }}
+
+      - name: Verify lexicons are synced
+        if: matrix.platform == 'ubuntu-22.04'
+        run: npm run lexicon:sync -- --check
+        working-directory: ${{ steps.paths.outputs.dir }}
+
+      - name: Frontend TypeScript check
+        if: matrix.platform == 'ubuntu-22.04'
+        run: npx tsc --noEmit
         working-directory: ${{ steps.paths.outputs.dir }}
 
       - name: Edge Functions TypeScript check
@@ -136,13 +337,12 @@ jobs:
         shell: bash
         env:
           GH_TOKEN: ${{ secrets.CUSTOM_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
-          TARGET_TAG: ${{ github.event.inputs.tag_name || github.ref_name }}
+          TARGET_TAG: ${{ steps.release_meta.outputs.tag }}
+          REL_NAME: ${{ steps.release_meta.outputs.name }}
+          REL_NOTES: ${{ steps.release_meta.outputs.body }}
         run: |
           TAG="${TARGET_TAG}"
-          if [ -z "$TAG" ] || [ "$TAG" = "main" ] || [ "$TAG" = "master" ]; then
-            TAG="v0.6.0"
-          fi
-          gh release view "$TAG" >/dev/null 2>&1 || gh release create "$TAG" --title "Sanctuary OS $TAG" --notes "See the assets to download this version and install." --draft || true
+          gh release view "$TAG" >/dev/null 2>&1 || gh release create "$TAG" --title "$REL_NAME" --notes "$REL_NOTES" --draft || true
 
       - name: build and upload Stable binaries
         uses: tauri-apps/tauri-action@v0
@@ -150,24 +350,37 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.CUSTOM_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
-          APPLE_CERTIFICATE: ${{ secrets[format('{0}CERTIFICATE', runner.os == 'macOS' && 'APPLE_' || '')] }}
-          APPLE_CERTIFICATE_PASSWORD: ${{ secrets[format('{0}CERTIFICATE_PASSWORD', runner.os == 'macOS' && 'APPLE_' || '')] }}
-          APPLE_SIGNING_IDENTITY: ${{ secrets[format('{0}SIGNING_IDENTITY', runner.os == 'macOS' && 'APPLE_' || '')] || (matrix.platform == 'macos-latest' && '-' || '') }}
-          APPLE_ID: ${{ secrets[format('{0}ID', runner.os == 'macOS' && 'APPLE_' || '')] }}
-          APPLE_PASSWORD: ${{ secrets[format('{0}PASSWORD', runner.os == 'macOS' && 'APPLE_' || '')] }}
-          APPLE_TEAM_ID: ${{ secrets[format('{0}TEAM_ID', runner.os == 'macOS' && 'APPLE_' || '')] }}
+          TAURI_UPDATER_PUBKEY: ${{ secrets.TAURI_UPDATER_PUBKEY }}
+          VITE_GITHUB_RELEASE_REPO: ${{ vars.VITE_GITHUB_RELEASE_REPO }}
+          TAURI_WINDOWS_SIGN_PASSWORD: ${{ secrets.TAURI_WINDOWS_SIGN_PASSWORD }}
+          AZURE_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
+          AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
+          AZURE_CLIENT_SECRET: ${{ secrets.AZURE_CLIENT_SECRET }}
+          APPLE_CERTIFICATE: ${{ runner.os == 'macOS' && secrets.APPLE_CERTIFICATE || '' }}
+          APPLE_CERTIFICATE_PASSWORD: ${{ runner.os == 'macOS' && secrets.APPLE_CERTIFICATE_PASSWORD || '' }}
+          APPLE_SIGNING_IDENTITY: ${{ steps.apple_sign.outputs.signing_identity || '' }}
+          APPLE_ID: ${{ runner.os == 'macOS' && secrets.APPLE_ID || '' }}
+          APPLE_PASSWORD: ${{ runner.os == 'macOS' && secrets.APPLE_PASSWORD || '' }}
+          APPLE_TEAM_ID: ${{ runner.os == 'macOS' && secrets.APPLE_TEAM_ID || '' }}
           SANCTUARY_SKIP_SPOKE_PULL: "1"
           NO_STRIP: true
           NODE_OPTIONS: "--max-old-space-size=4096"
         with:
           projectPath: ${{ steps.paths.outputs.dir }}
-          tagName: ${{ github.event.inputs.tag_name || github.ref_name }}
-          releaseName: 'Sanctuary OS ${{ github.event.inputs.tag_name || github.ref_name }}'
-          releaseBody: 'See the assets to download this version and install.'
+          tagName: ${{ steps.release_meta.outputs.tag }}
+          releaseName: ${{ steps.release_meta.outputs.name }}
+          releaseBody: ${{ steps.release_meta.outputs.body }}
           releaseDraft: true
           prerelease: false
           includeUpdaterJson: false
           args: ${{ matrix.args }}
+
+      - name: Cleanup temporary Windows signing artifacts
+        if: always() && matrix.platform == 'windows-latest'
+        shell: bash
+        run: |
+          rm -f "$RUNNER_TEMP/sanctuary-codesign.pfx" "$RUNNER_TEMP/acs-metadata.json" "$RUNNER_TEMP/sanctuary-win-sign.ps1" "$RUNNER_TEMP/acs.nupkg"
+          rm -rf "$RUNNER_TEMP/acs"
 
   finalize-stable-release:
     needs: [release]
@@ -220,10 +433,7 @@ jobs:
             if (!asset) continue;
             const signature = fs.readFileSync(path.join("./sigs", sigFile), "utf8").trim();
             if (!signature) continue;
-            const downloadUrl =
-              asset && typeof asset.url === "string" && asset.url.includes("/releases/download/")
-                ? asset.url
-                : `https://github.com/${process.env.GITHUB_REPOSITORY}/releases/download/${encodeURIComponent(tag)}/${encodeURIComponent(targetName)}`;
+            const downloadUrl = `https://github.com/${process.env.GITHUB_REPOSITORY}/releases/download/${encodeURIComponent(tag)}/${encodeURIComponent(asset.name)}`;
 
             const lower = targetName.toLowerCase();
             if (lower.endsWith(".nsis.zip") || lower.endsWith("-setup.exe") || lower.endsWith(".exe") || lower.endsWith(".msi")) {

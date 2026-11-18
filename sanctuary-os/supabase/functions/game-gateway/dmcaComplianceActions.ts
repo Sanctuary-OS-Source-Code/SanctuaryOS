@@ -61,8 +61,11 @@ function normalizeTargetIdentifiers(raw: unknown): string[] {
   return deduped
 }
 
-function isValidTargetIdentifierToken(token: string): boolean {
+const URL_REGEX = /^https?:\/\/[^\s/$.?#].[^\s]*$/i
+
+function isValidTargetIdentifierToken(token: string, targetScope?: string): boolean {
   if (!token || /\s/.test(token)) return false
+  if (targetScope === 'hub' && URL_REGEX.test(token)) return true
   return (
     UUID_REGEX.test(token) ||
     SHA256_REGEX.test(token) ||
@@ -349,7 +352,7 @@ export async function handleSubmitDmcaOrLegalNotice(ctx: {
         '17 U.S.C. § 512(c)(3): A real, routable email address is strictly required. Discord handles and synthetic Blinded Email aliases cannot be used for DMCA notices.'
       )
     }
-    if (targetIdentifiers.length === 0 || !targetIdentifiers.every(isValidTargetIdentifierToken)) {
+    if (targetIdentifiers.length === 0 || !targetIdentifiers.every((tok) => isValidTargetIdentifierToken(tok, targetScope))) {
       throw new Error(
         '17 U.S.C. § 512(c)(3)(A)(iii): Provide exact UUID(s), 64-char SHA-256 hash(es), or public Cloud Blueprint code(s) identifying the specific material.'
       )
@@ -381,7 +384,7 @@ export async function handleSubmitDmcaOrLegalNotice(ctx: {
       )
     }
     const originalNoticeId = String(payload?.original_notice_id || '').trim()
-    const hasRefOrId = UUID_REGEX.test(originalNoticeId) || (targetIdentifiers.length > 0 && targetIdentifiers.every(isValidTargetIdentifierToken))
+    const hasRefOrId = UUID_REGEX.test(originalNoticeId) || (targetIdentifiers.length > 0 && targetIdentifiers.every((tok) => isValidTargetIdentifierToken(tok, targetScope)))
     if (!hasRefOrId || workDescription.length < 10) {
       throw new Error(
         '17 U.S.C. § 512(g)(3)(B): Provide the original Notice ID or specific Target Identifier(s) and description of the removed material.'
@@ -988,4 +991,180 @@ export async function handleExecuteDmcaTriageAction(ctx: {
     strike_count: strikeCountUpdated,
     cloud_publishing_revoked: publishingRevokedNow,
   }
+}
+
+export async function handleSearchSpokeDmcaTargets(ctx: {
+  payload: any;
+  user: any;
+  supabaseAdmin: any;
+  corsHeaders: Record<string, string>;
+}): Promise<Response> {
+  const { payload, user, supabaseAdmin, corsHeaders } = ctx
+  const targetSpokeId = String(payload?.target_spoke_id || '').trim()
+  if (!UUID_REGEX.test(targetSpokeId)) {
+    throw new Error('Valid target Partner Spoke ID is required')
+  }
+
+  const resolved = await resolveGameWithServiceKey(supabaseAdmin, targetSpokeId)
+  if (
+    resolved.error ||
+    !resolved.game ||
+    !resolved.serviceKey ||
+    resolved.game.is_active === false ||
+    resolved.game.is_keepers_only === true
+  ) {
+    throw new Error('Target Partner Spoke unavailable')
+  }
+
+  const spokeDb = createSpokeClient(
+    resolved.game.supabase_url,
+    resolved.game.supabase_anon_key || '',
+    resolved.serviceKey
+  )
+
+  const rawQuery = String(payload?.query || '').trim().slice(0, 100)
+  const safeLike = rawQuery.replace(/[%_(),.'"\\]/g, ' ').trim()
+  const isCounter = String(payload?.notice_type || '').trim().toLowerCase() === 'dmca_counter'
+  const allowedTiers = isCounter ? [0, 6] : [0]
+
+  const items: Array<{
+    identifier: string;
+    kind: 'mod' | 'blueprint' | 'collection';
+    title: string;
+    subtitle: string;
+    is_held: boolean;
+  }> = []
+  const seenKeys = new Set<string>()
+  const pushItem = (item: {
+    identifier: string;
+    kind: 'mod' | 'blueprint' | 'collection';
+    title: string;
+    subtitle: string;
+    is_held: boolean;
+  }) => {
+    const key = `${item.kind}:${item.identifier.toLowerCase()}`
+    if (!item.identifier || seenKeys.has(key)) return
+    seenKeys.add(key)
+    items.push(item)
+  }
+
+  // If Counter-Notice by signed-in creator with no search filter, prioritize their own Tier 6 held mods first
+  if (isCounter && user?.id && !safeLike) {
+    const { data: ownMasons } = await spokeDb
+      .from('masons')
+      .select('id, name')
+      .eq('profile_id', user.id)
+    const ownMasonIds = (ownMasons || []).map((m: any) => m.id).filter(Boolean)
+    if (ownMasonIds.length > 0) {
+      const { data: heldOwnMods } = await spokeDb
+        .from('mods')
+        .select('id, name, master_author, slug, compliance_tier')
+        .in('mason_id', ownMasonIds)
+        .eq('compliance_tier', 6)
+        .limit(12)
+      for (const m of heldOwnMods || []) {
+        pushItem({
+          identifier: String(m.id),
+          kind: 'mod',
+          title: String(m.name || m.slug || m.id),
+          subtitle: String(m.master_author || m.slug || ''),
+          is_held: true,
+        })
+      }
+    }
+  }
+
+  let hashMatchedModIds: string[] = []
+  if (SHA256_REGEX.test(rawQuery)) {
+    const { data: hashVers } = await spokeDb
+      .from('mod_versions')
+      .select('mod_id')
+      .eq('dna_hash', rawQuery.toLowerCase())
+      .limit(8)
+    hashMatchedModIds = (hashVers || []).map((v: any) => v.mod_id).filter(Boolean)
+  }
+
+  let modsQuery = spokeDb
+    .from('mods')
+    .select('id, name, master_author, slug, compliance_tier, status')
+    .in('compliance_tier', allowedTiers)
+    .neq('status', 'rejected')
+    .order('compliance_tier', { ascending: false })
+    .order('created_at', { ascending: false })
+    .limit(12)
+
+  if (UUID_REGEX.test(rawQuery)) {
+    modsQuery = modsQuery.eq('id', rawQuery)
+  } else if (hashMatchedModIds.length > 0) {
+    modsQuery = modsQuery.in('id', hashMatchedModIds)
+  } else if (safeLike) {
+    modsQuery = modsQuery.or(
+      `name.ilike.%${safeLike}%,master_author.ilike.%${safeLike}%,slug.ilike.%${safeLike}%`
+    )
+  }
+
+  let bpQuery = spokeDb
+    .from('blueprints')
+    .select('id, code, name, compliance_tier, is_public')
+    .order('created_at', { ascending: false })
+    .limit(8)
+  if (!isCounter) {
+    bpQuery = bpQuery.eq('is_public', true).eq('compliance_tier', 0)
+  } else {
+    bpQuery = bpQuery.or('is_public.eq.true,compliance_tier.eq.6')
+  }
+  if (safeLike) {
+    bpQuery = bpQuery.or(`name.ilike.%${safeLike}%,code.ilike.%${safeLike}%`)
+  }
+
+  let colQuery = spokeDb
+    .from('collections')
+    .select('id, name, compliance_tier')
+    .in('compliance_tier', allowedTiers)
+    .order('created_at', { ascending: false })
+    .limit(6)
+  if (UUID_REGEX.test(rawQuery)) {
+    colQuery = colQuery.eq('id', rawQuery)
+  } else if (safeLike) {
+    colQuery = colQuery.ilike('name', `%${safeLike}%`)
+  }
+
+  const [{ data: modsRows }, { data: bpRows }, { data: colRows }] = await Promise.all([
+    modsQuery,
+    bpQuery,
+    colQuery,
+  ])
+
+  for (const m of modsRows || []) {
+    pushItem({
+      identifier: String(m.id),
+      kind: 'mod',
+      title: String(m.name || m.slug || m.id),
+      subtitle: String(m.master_author || m.slug || ''),
+      is_held: Number(m.compliance_tier) === 6,
+    })
+  }
+  for (const bp of bpRows || []) {
+    pushItem({
+      identifier: String(bp.code || bp.id),
+      kind: 'blueprint',
+      title: String(bp.name || bp.code),
+      subtitle: String(bp.code || ''),
+      is_held: Number(bp.compliance_tier) === 6,
+    })
+  }
+  for (const c of colRows || []) {
+    pushItem({
+      identifier: String(c.id),
+      kind: 'collection',
+      title: String(c.name || c.id),
+      subtitle: 'Collection',
+      is_held: Number(c.compliance_tier) === 6,
+    })
+  }
+
+  return new Response(
+    JSON.stringify({ ok: true, items }),
+    { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 }
+  )
 }

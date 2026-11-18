@@ -1054,6 +1054,111 @@ pub fn launch_game(
 
 
 #[tauri::command]
+pub fn discover_schema_external_tools(
+    live_path: Option<String>,
+    mods_path: Option<String>,
+    state: tauri::State<'_, AppState>,
+) -> Result<Vec<serde_json::Value>, String> {
+    let game_schema = state.active_schema.lock().unwrap_or_else(|e| e.into_inner()).clone();
+    let Some(tools) = game_schema.as_ref().and_then(|s| s.external_tools.as_ref()) else {
+        return Ok(Vec::new());
+    };
+    let coords = get_saved_coordinates();
+    let eff_live = live_path
+        .as_deref()
+        .map(str::trim)
+        .filter(|s| !s.is_empty())
+        .unwrap_or(&coords.live_path);
+    let eff_mods = mods_path
+        .as_deref()
+        .map(str::trim)
+        .filter(|s| !s.is_empty())
+        .unwrap_or(&coords.mods_path);
+    let live_root = crate::game_logic::resolve_game_engine_root(eff_live, &game_schema);
+    let mods_root = (!eff_mods.is_empty()).then(|| PathBuf::from(eff_mods));
+
+    let mut out = Vec::new();
+    for tool_val in tools {
+        let Some(obj) = tool_val.as_object() else {
+            continue;
+        };
+        let id = obj
+            .get("id")
+            .and_then(|v| v.as_str())
+            .unwrap_or("")
+            .trim()
+            .to_string();
+        let label = obj
+            .get("label")
+            .or_else(|| obj.get("name"))
+            .and_then(|v| v.as_str())
+            .unwrap_or(&id)
+            .to_string();
+        let rel_exe = obj
+            .get("executable")
+            .or_else(|| obj.get("exe"))
+            .or_else(|| obj.get("path"))
+            .and_then(|v| v.as_str())
+            .unwrap_or("")
+            .trim()
+            .to_string();
+        if rel_exe.is_empty() {
+            continue;
+        }
+        let rel_p = Path::new(&rel_exe);
+        let safe_rel = !rel_p.is_absolute()
+            && !rel_p.components().any(|c| {
+                matches!(
+                    c,
+                    std::path::Component::ParentDir | std::path::Component::Prefix(_)
+                )
+            });
+
+        let mut resolved_path: Option<String> = None;
+        if safe_rel {
+            let mut search_roots = Vec::new();
+            if !live_root.as_os_str().is_empty() {
+                search_roots.push(live_root.clone());
+            }
+            if !eff_live.is_empty() {
+                let p = PathBuf::from(eff_live);
+                if !search_roots.contains(&p) {
+                    search_roots.push(p);
+                }
+            }
+            if let Some(ref mr) = mods_root {
+                if !search_roots.contains(mr) {
+                    search_roots.push(mr.clone());
+                }
+            }
+            for sr in search_roots {
+                let cand = crate::utils::resolve_case_insensitive_path(&sr, &rel_exe);
+                if (cand.is_file() || cand.is_dir()) && !is_blocked_shell_or_interpreter_binary(&cand) {
+                    resolved_path = Some(cand.to_string_lossy().to_string());
+                    break;
+                }
+            }
+        }
+        let args = obj.get("args").or_else(|| obj.get("launch_args")).cloned();
+        let description = obj
+            .get("description")
+            .and_then(|v| v.as_str())
+            .map(String::from);
+
+        out.push(serde_json::json!({
+            "id": id,
+            "label": label,
+            "executable": rel_exe,
+            "resolved_path": resolved_path,
+            "installed": resolved_path.is_some(),
+            "args": args,
+            "description": description,
+        }));
+    }
+    Ok(out)
+}
+
+#[tauri::command]
 pub fn launch_external_tool(
     tool_path: String,
     args: Option<Vec<String>>,
@@ -1061,7 +1166,67 @@ pub fn launch_external_tool(
     enforce_airgap: Option<bool>,
     state: tauri::State<'_, AppState>,
 ) -> Result<String, String> {
-    let raw_exe_path = PathBuf::from(tool_path.trim());
+    let coords = get_saved_coordinates();
+    let game_schema = state.active_schema.lock().unwrap_or_else(|e| e.into_inner()).clone();
+    let mut raw_input_path = PathBuf::from(tool_path.trim());
+    let mut schema_default_args: Vec<String> = Vec::new();
+
+    if !raw_input_path.is_absolute() || !raw_input_path.exists() {
+        let needle = tool_path.trim();
+        let live_root = crate::game_logic::resolve_game_engine_root(&coords.live_path, &game_schema);
+        if let Some(tools) = game_schema.as_ref().and_then(|s| s.external_tools.as_ref()) {
+            for tool_val in tools {
+                let Some(obj) = tool_val.as_object() else { continue; };
+                let tid = obj.get("id").and_then(|v| v.as_str()).unwrap_or("").trim();
+                let texe = obj
+                    .get("executable")
+                    .or_else(|| obj.get("exe"))
+                    .or_else(|| obj.get("path"))
+                    .and_then(|v| v.as_str())
+                    .unwrap_or("")
+                    .trim();
+                if texe.is_empty() {
+                    continue;
+                }
+                if needle.eq_ignore_ascii_case(tid) || needle.eq_ignore_ascii_case(texe) {
+                    let rel_p = Path::new(texe);
+                    if !rel_p.is_absolute()
+                        && !rel_p.components().any(|c| {
+                            matches!(
+                                c,
+                                std::path::Component::ParentDir | std::path::Component::Prefix(_)
+                            )
+                        })
+                    {
+                        for sr in [
+                            Some(live_root.clone()),
+                            (!coords.live_path.trim().is_empty()).then(|| PathBuf::from(&coords.live_path)),
+                            (!coords.mods_path.trim().is_empty()).then(|| PathBuf::from(&coords.mods_path)),
+                        ]
+                        .into_iter()
+                        .flatten()
+                        {
+                            let cand = crate::utils::resolve_case_insensitive_path(&sr, texe);
+                            if cand.exists() {
+                                raw_input_path = cand;
+                                break;
+                            }
+                        }
+                        if let Some(arr) = obj.get("args").or_else(|| obj.get("launch_args")).and_then(|v| v.as_array()) {
+                            schema_default_args = arr
+                                .iter()
+                                .filter_map(|x| x.as_str().map(|s| s.trim().to_string()))
+                                .filter(|s| !s.is_empty())
+                                .collect();
+                        }
+                    }
+                    break;
+                }
+            }
+        }
+    }
+
+    let raw_exe_path = raw_input_path;
     let is_app_bundle = raw_exe_path.is_dir()
         && raw_exe_path
             .extension()
@@ -1086,15 +1251,13 @@ pub fn launch_external_tool(
         return Err("Blocked system shell or binary.".to_string());
     }
 
-    let coords = get_saved_coordinates();
     let allowed_roots = crate::utils::get_allowed_workspace_roots(&coords);
     if allowed_roots.is_empty() {
         return Err("Blocked: No configured workspace roots to validate external tool.".into());
     }
     let exe_path = crate::utils::ensure_strict_descendant_of_roots(&raw_exe_path, &allowed_roots)?;
-    let sanitized_args = sanitize_launch_args_list(args.unwrap_or_default())?;
-
-    let game_schema = state.active_schema.lock().unwrap_or_else(|e| e.into_inner()).clone();
+    let eff_raw_args = args.filter(|a| !a.is_empty()).unwrap_or(schema_default_args);
+    let sanitized_args = sanitize_launch_args_list(eff_raw_args)?;
     let resolved_docs = docs_path.unwrap_or_default();
     let should_airgap = enforce_airgap.unwrap_or(true);
     if should_airgap {

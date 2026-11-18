@@ -203,7 +203,69 @@ export function SchemaLoadLabAndRulesTabs({
                     className="h-10 min-w-0 glass-panel rounded-xl px-3.5 text-xs font-mono font-bold text-[var(--text)] border border-[color-mix(in_srgb,var(--text)_12%,transparent)]"
                   />
                 </div>
+
+                <div className="glass-surface rounded-2xl p-3.5 border border-[color-mix(in_srgb,var(--text)_10%,transparent)] flex flex-col gap-2 min-w-0">
+                  <label className="text-[10px] font-black uppercase tracking-widest text-[var(--subtext)]">
+                    {t("schema_studio_lo_asset_overwrite", "Loose Asset Overwrite Winner")}
+                  </label>
+                  <CustomDropdown
+                    disableTint={true}
+                    value={loadOrderObj.asset_overwrite_order ?? "higher_wins"}
+                    onChange={(v: string[]) =>
+                      updateNestedField("load_order", "asset_overwrite_order", v[0] || "higher_wins")
+                    }
+                    options={[
+                      {
+                        id: "higher_wins",
+                        label: t("schema_studio_lo_asset_last", "Last / Higher Priority Wins"),
+                      },
+                      {
+                        id: "first_wins",
+                        label: t("schema_studio_lo_asset_first", "First Deployed Wins"),
+                      },
+                    ]}
+                  />
+                </div>
+
+                <div className="glass-surface rounded-2xl p-3.5 border border-[color-mix(in_srgb,var(--text)_10%,transparent)] flex flex-col gap-2 min-w-0">
+                  <label className="text-[10px] font-black uppercase tracking-widest text-[var(--subtext)]">
+                    {t("schema_studio_lo_timestamp_step", "Timestamp Step (Seconds)")}
+                  </label>
+                  <GlassNumberInput
+                    value={Number(loadOrderObj.timestamp_step_secs ?? 60)}
+                    min={1}
+                    max={86400}
+                    step={10}
+                    onChange={(val) =>
+                      updateNestedField("load_order", "timestamp_step_secs", val)
+                    }
+                  />
+                </div>
+
+                <div className="glass-surface rounded-2xl p-3.5 border border-[color-mix(in_srgb,var(--text)_10%,transparent)] flex flex-col gap-2 min-w-0">
+                  <label className="text-[10px] font-black uppercase tracking-widest text-[var(--subtext)]">
+                    {t("schema_studio_lo_index_base", "Starting Index Base")}
+                  </label>
+                  <GlassNumberInput
+                    value={Number(loadOrderObj.index_base ?? 0)}
+                    min={0}
+                    step={1}
+                    onChange={(val) => updateNestedField("load_order", "index_base", val)}
+                  />
+                </div>
               </div>
+
+              <SchemaToggleRow
+                label={t("schema_studio_lo_tier_base", "Use Tier Priority Number As Prefix Base")}
+                description={t(
+                  "schema_studio_lo_tier_base_desc",
+                  "Starts numeric filename prefixes from the tier priority baseline instead of index 0/1."
+                )}
+                checked={Boolean(loadOrderObj.use_tier_priority_as_base)}
+                onChange={(val) =>
+                  updateNestedField("load_order", "use_tier_priority_as_base", val)
+                }
+              />
 
               <div className="glass-surface rounded-2xl p-4 border border-[color-mix(in_srgb,var(--text)_10%,transparent)] flex flex-col gap-2 min-w-0">
                 <label className="text-[10px] font-black uppercase tracking-widest text-[var(--subtext)]">
@@ -584,6 +646,279 @@ export function SchemaLoadLabAndRulesTabs({
                                   addButtonLabel={t("add", "Add")}
                                 />
                               </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
+                );
+              })()}
+
+              {(() => {
+                const manifestTargets: any[] = Array.isArray(loadOrderObj.manifest_targets)
+                  ? loadOrderObj.manifest_targets
+                  : [];
+                return (
+                  <div className="flex flex-col gap-3 pt-2 border-t border-[color-mix(in_srgb,var(--text)_8%,transparent)]">
+                    <div className="flex items-center justify-between gap-2 flex-wrap">
+                      <div className="flex flex-col gap-0.5">
+                        <span className="text-xs font-black uppercase tracking-wider text-[var(--text)]">
+                          {t("schema_studio_manifest_targets", "Declarative Output Manifest Targets")}
+                        </span>
+                        <span className="text-[11px] font-medium text-[var(--subtext)] opacity-80">
+                          {t(
+                            "schema_studio_manifest_targets_desc",
+                            "Generate engine load-order manifests (text lists, JSON maps, TOML tables, INI sections, or multi-block XML templates) across game, user, or AppData roots."
+                          )}
+                        </span>
+                      </div>
+                      <ActionButton
+                        variant="glass"
+                        icon={t("icon_add", "add")}
+                        onClick={() => {
+                          const nextTarget = {
+                            root_source: "docs_path",
+                            relative_path: "loadorder.txt",
+                            format: "plugins_asterisk",
+                            include_extensions: [],
+                            base_entries: [],
+                          };
+                          updateNestedField("load_order", "manifest_targets", [
+                            ...manifestTargets,
+                            nextTarget,
+                          ]);
+                        }}
+                        className="!px-3.5 !py-1.5 !text-[10px] !rounded-xl"
+                      >
+                        {t("schema_studio_add_manifest_target", "Add Manifest Target")}
+                      </ActionButton>
+                    </div>
+
+                    {manifestTargets.length > 0 && (
+                      <div className="grid grid-cols-1 xl:grid-cols-2 gap-3.5">
+                        {manifestTargets.map((mt: any, mIdx: number) => {
+                          const updateTarget = (patch: Record<string, any>) => {
+                            const next = [...manifestTargets];
+                            next[mIdx] = { ...mt, ...patch };
+                            updateNestedField("load_order", "manifest_targets", next);
+                          };
+                          const baseStrings: string[] = Array.isArray(mt.base_entries)
+                            ? mt.base_entries.map((b: any) =>
+                                typeof b === "string"
+                                  ? b
+                                  : [
+                                      b?.uuid || "",
+                                      b?.id || b?.name || "",
+                                      b?.name || "",
+                                      b?.folder || "",
+                                      b?.version64 || "",
+                                      b?.publish_handle || "",
+                                    ]
+                                      .filter(Boolean)
+                                      .join("|")
+                              )
+                            : [];
+                          return (
+                            <div
+                              key={`mt-${mIdx}`}
+                              className="glass-surface rounded-2xl p-3.5 border border-[color-mix(in_srgb,var(--text)_10%,transparent)] flex flex-col gap-3 min-w-0"
+                            >
+                              <div className="flex items-center justify-between gap-2">
+                                <span className="text-xs font-black font-mono text-[var(--accent)] truncate">
+                                  {`#${mIdx + 1} • ${mt.relative_path || "manifest"}`}
+                                </span>
+                                <button
+                                  type="button"
+                                  onClick={() =>
+                                    updateNestedField(
+                                      "load_order",
+                                      "manifest_targets",
+                                      manifestTargets.filter((_: any, i: number) => i !== mIdx)
+                                    )
+                                  }
+                                  className="w-8 h-8 shrink-0 rounded-xl glass-surface border border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:border-[var(--danger)] flex items-center justify-center text-[var(--subtext)] hover:text-[var(--danger)] cursor-pointer transition-all"
+                                >
+                                  <span className="material-symbols-outlined !text-[15px]">
+                                    {t("icon_delete", "delete")}
+                                  </span>
+                                  <HoverTooltip title={t("delete", "Delete")} />
+                                </button>
+                              </div>
+
+                              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                                <div className="flex flex-col gap-1 min-w-0">
+                                  <label className="text-[9px] font-black uppercase tracking-widest text-[var(--subtext)]">
+                                    {t("schema_studio_route_target_root", "Target Root")}
+                                  </label>
+                                  <CustomDropdown
+                                    disableTint={true}
+                                    value={mt.root_source ?? "docs_path"}
+                                    onChange={(v: string[]) =>
+                                      updateTarget({ root_source: v[0] || "docs_path" })
+                                    }
+                                    options={[
+                                      { id: "docs_path", label: t("schema_studio_route_root_docs", "User Saves & Data Root") },
+                                      { id: "live_path", label: t("schema_studio_route_root_live", "Game Install Root") },
+                                      { id: "mods_path", label: t("schema_studio_route_root_mods", "Active {Mods} Folder") },
+                                      { id: "local_appdata", label: t("schema_studio_route_root_local_appdata", "Local AppData / Proton Prefix Root") },
+                                    ]}
+                                  />
+                                </div>
+                                <div className="flex flex-col gap-1 min-w-0">
+                                  <label className="text-[9px] font-black uppercase tracking-widest text-[var(--subtext)]">
+                                    {t("schema_studio_mt_rel_path", "Relative File Path")}
+                                  </label>
+                                  <input
+                                    type="text"
+                                    value={mt.relative_path ?? ""}
+                                    onChange={(e) => updateTarget({ relative_path: e.target.value })}
+                                    placeholder={t("schema_studio_ph_mt_rel_path", "e.g. loadorder.txt / mods.json")}
+                                    className="h-10 min-w-0 glass-panel rounded-xl px-3 text-xs font-mono font-bold text-[var(--text)] border border-[color-mix(in_srgb,var(--text)_12%,transparent)]"
+                                  />
+                                </div>
+                                <div className="flex flex-col gap-1 min-w-0">
+                                  <label className="text-[9px] font-black uppercase tracking-widest text-[var(--subtext)]">
+                                    {t("schema_studio_mt_format", "Output Format")}
+                                  </label>
+                                  <CustomDropdown
+                                    disableTint={true}
+                                    value={
+                                      mt.format === "factorio_mod_list"
+                                        ? "enabled_object_list"
+                                        : mt.format ?? "plugins_asterisk"
+                                    }
+                                    onChange={(v: string[]) =>
+                                      updateTarget({ format: v[0] || "plugins_asterisk" })
+                                    }
+                                    options={[
+                                      { id: "plugins_asterisk", label: t("schema_studio_mt_fmt_asterisk", "Asterisk List (*plugin)") },
+                                      { id: "declarative_template", label: t("schema_studio_mt_fmt_decl", "Declarative Multi-Block Template") },
+                                      { id: "enabled_object_list", label: t("schema_studio_mt_fmt_enabled_map", "JSON Enabled Object List") },
+                                      { id: "toml_array_table", label: t("schema_studio_mt_fmt_toml", "TOML Array Of Tables") },
+                                      { id: "json_array", label: t("schema_studio_mt_fmt_json_arr", "JSON ID Array") },
+                                      { id: "json_object_array", label: t("schema_studio_mt_fmt_json_obj", "JSON Object Array") },
+                                      { id: "ini_section", label: t("schema_studio_mt_fmt_ini", "INI Section Lines") },
+                                      { id: "xml_list", label: t("schema_studio_mt_fmt_xml", "XML Item List") },
+                                    ]}
+                                  />
+                                </div>
+                                <div className="flex flex-col gap-1 min-w-0">
+                                  <label className="text-[9px] font-black uppercase tracking-widest text-[var(--subtext)]">
+                                    {t("schema_studio_mt_entry_key", "Entry Key / INI Section")}
+                                  </label>
+                                  <input
+                                    type="text"
+                                    value={mt.entry_key ?? mt.section ?? ""}
+                                    onChange={(e) =>
+                                      updateTarget({
+                                        entry_key: e.target.value || undefined,
+                                        section: e.target.value || undefined,
+                                      })
+                                    }
+                                    placeholder={t("schema_studio_ph_mt_entry_key", "mods / activeMods")}
+                                    className="h-10 min-w-0 glass-panel rounded-xl px-3 text-xs font-mono font-bold text-[var(--text)] border border-[color-mix(in_srgb,var(--text)_12%,transparent)]"
+                                  />
+                                </div>
+                              </div>
+
+                              <div className="flex flex-col gap-1 min-w-0">
+                                <label className="text-[9px] font-black uppercase tracking-widest text-[var(--subtext)]">
+                                  {t("extensions", "Extensions")}
+                                </label>
+                                <StringListBuilder
+                                  items={Array.isArray(mt.include_extensions) ? mt.include_extensions : []}
+                                  onChange={(nextExts) => updateTarget({ include_extensions: nextExts })}
+                                  placeholder={t("schema_studio_ph_mt_exts", ".bin / .mod / .dat")}
+                                  addButtonLabel={t("add", "Add")}
+                                />
+                              </div>
+
+                              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                                <div className="flex flex-col gap-1 min-w-0">
+                                  <label className="text-[9px] font-black uppercase tracking-widest text-[var(--subtext)]">
+                                    {t("schema_studio_mt_entry_tpl", "Entry Template")}
+                                  </label>
+                                  <textarea
+                                    rows={2}
+                                    value={mt.entry_template ?? mt.template ?? ""}
+                                    onChange={(e) =>
+                                      updateTarget({
+                                        entry_template: e.target.value || undefined,
+                                        template: e.target.value || undefined,
+                                      })
+                                    }
+                                    placeholder={t("schema_studio_ph_mt_entry_tpl", "{file}")}
+                                    className="w-full glass-panel rounded-xl p-2.5 text-xs font-mono font-bold text-[var(--text)] border border-[color-mix(in_srgb,var(--text)_12%,transparent)]"
+                                  />
+                                </div>
+                                <div className="flex flex-col gap-1 min-w-0">
+                                  <label className="text-[9px] font-black uppercase tracking-widest text-[var(--subtext)]">
+                                    {t("schema_studio_mt_sec_tpl", "Secondary List Template")}
+                                  </label>
+                                  <textarea
+                                    rows={2}
+                                    value={mt.secondary_list_template ?? ""}
+                                    onChange={(e) =>
+                                      updateTarget({
+                                        secondary_list_template: e.target.value || undefined,
+                                      })
+                                    }
+                                    placeholder={t("schema_studio_ph_mt_sec_tpl", "<item id='{xml_id}' />")}
+                                    className="w-full glass-panel rounded-xl p-2.5 text-xs font-mono font-bold text-[var(--text)] border border-[color-mix(in_srgb,var(--text)_12%,transparent)]"
+                                  />
+                                </div>
+                                <div className="flex flex-col gap-1 min-w-0">
+                                  <label className="text-[9px] font-black uppercase tracking-widest text-[var(--subtext)]">
+                                    {t("schema_studio_lo_doc_header", "Structured Document Header Wrapper")}
+                                  </label>
+                                  <textarea
+                                    rows={2}
+                                    value={mt.document_header ?? mt.header ?? ""}
+                                    onChange={(e) =>
+                                      updateTarget({
+                                        document_header: e.target.value || undefined,
+                                        header: e.target.value || undefined,
+                                      })
+                                    }
+                                    className="w-full glass-panel rounded-xl p-2.5 text-xs font-mono font-bold text-[var(--text)] border border-[color-mix(in_srgb,var(--text)_12%,transparent)]"
+                                  />
+                                </div>
+                                <div className="flex flex-col gap-1 min-w-0">
+                                  <label className="text-[9px] font-black uppercase tracking-widest text-[var(--subtext)]">
+                                    {t("schema_studio_lo_doc_footer", "Structured Document Footer Wrapper")}
+                                  </label>
+                                  <textarea
+                                    rows={2}
+                                    value={mt.document_footer ?? mt.footer ?? ""}
+                                    onChange={(e) =>
+                                      updateTarget({
+                                        document_footer: e.target.value || undefined,
+                                        footer: e.target.value || undefined,
+                                      })
+                                    }
+                                    className="w-full glass-panel rounded-xl p-2.5 text-xs font-mono font-bold text-[var(--text)] border border-[color-mix(in_srgb,var(--text)_12%,transparent)]"
+                                  />
+                                </div>
+                              </div>
+
+                              <div className="flex flex-col gap-1 min-w-0">
+                                <label className="text-[9px] font-black uppercase tracking-widest text-[var(--subtext)]">
+                                  {t("schema_studio_mt_base_entries", "Pinned Base / Vanilla Entries")}
+                                </label>
+                                <StringListBuilder
+                                  items={baseStrings}
+                                  onChange={(nextBase) => updateTarget({ base_entries: nextBase })}
+                                  placeholder={t("schema_studio_ph_mt_base_entries", "base or uuid|id|title|folder|version64")}
+                                  addButtonLabel={t("add", "Add")}
+                                />
+                              </div>
+
+                              <SchemaToggleRow
+                                label={t("schema_studio_mt_req_uuid", "Require Valid UUID Per Entry")}
+                                checked={Boolean(mt.require_uuid)}
+                                onChange={(val) => updateTarget({ require_uuid: val })}
+                              />
                             </div>
                           );
                         })}

@@ -1,0 +1,101 @@
+name: CI Gate
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  frontend-and-edge:
+    name: Frontend, Lexicons, Edge TS & Fork CLI
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Detect project directory
+        id: paths
+        shell: bash
+        run: |
+          if [ -f "./sanctuary-os/package.json" ]; then
+            echo "dir=./sanctuary-os" >> "$GITHUB_OUTPUT"
+          else
+            echo "dir=." >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: 'npm'
+          cache-dependency-path: '**/package-lock.json'
+
+      - name: Install frontend dependencies
+        run: npm ci
+        working-directory: ${{ steps.paths.outputs.dir }}
+
+      - name: Verify lexicons are synced
+        run: npm run lexicon:sync -- --check
+        working-directory: ${{ steps.paths.outputs.dir }}
+
+      - name: Frontend TypeScript check
+        run: npx tsc --noEmit
+        working-directory: ${{ steps.paths.outputs.dir }}
+
+      - name: Vite Node config TypeScript check
+        run: npx tsc -p tsconfig.node.json --noEmit
+        working-directory: ${{ steps.paths.outputs.dir }}
+
+      - name: Edge Functions TypeScript check
+        run: npx tsc -p supabase/functions/tsconfig.json --noEmit
+        working-directory: ${{ steps.paths.outputs.dir }}
+
+      - name: Run Vitest suite
+        run: npm test
+        working-directory: ${{ steps.paths.outputs.dir }}
+
+      - name: Verify zero-conflict fork CLI
+        working-directory: ${{ steps.paths.outputs.dir }}
+        run: |
+          node scripts/configure-fork.mjs --check
+          node scripts/configure-fork.mjs --dry-run --mode standalone --supabase-url https://example.supabase.co --anon-key sb_publishable_ci_check --repo example-org/example-fork --rp-id mods.example.org >/dev/null
+
+  rust-engine:
+    name: Rust Core Engine Tests
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Detect project directory
+        id: paths
+        shell: bash
+        run: |
+          if [ -f "./sanctuary-os/package.json" ]; then
+            echo "dir=./sanctuary-os" >> "$GITHUB_OUTPUT"
+          else
+            echo "dir=." >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Install Linux WebKitGTK & AppImage headers
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf libssl-dev pkg-config build-essential file
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache Rust crates and target
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: "${{ steps.paths.outputs.dir }}/src-tauri -> target"
+
+      - name: Run Rust unit tests
+        run: cargo test
+        working-directory: ${{ steps.paths.outputs.dir }}/src-tauri

@@ -402,6 +402,8 @@ pub struct ManifestBaseEntryDescriptor {
     #[serde(default)]
     pub uuid: String,
     #[serde(default)]
+    pub id: Option<String>,
+    #[serde(default)]
     pub name: String,
     #[serde(default)]
     pub folder: String,
@@ -409,6 +411,68 @@ pub struct ManifestBaseEntryDescriptor {
     pub version64: Option<String>,
     #[serde(default)]
     pub publish_handle: Option<String>,
+}
+
+fn deserialize_base_entries_flex<'de, D>(
+    deserializer: D,
+) -> Result<Vec<ManifestBaseEntryDescriptor>, D::Error>
+where
+    D: serde::Deserializer<'de>,
+{
+    let val = serde_json::Value::deserialize(deserializer)?;
+    let Some(arr) = val.as_array() else {
+        return Ok(Vec::new());
+    };
+    let mut out = Vec::with_capacity(arr.len());
+    for item in arr {
+        match item {
+            serde_json::Value::String(s) => {
+                let trimmed = s.trim();
+                if trimmed.is_empty() {
+                    continue;
+                }
+                if trimmed.contains('|') {
+                    let parts: Vec<&str> = trimmed.split('|').map(str::trim).collect();
+                    let uuid = parts.first().copied().unwrap_or("").to_string();
+                    let id = parts.get(1).copied().filter(|x| !x.is_empty()).map(String::from);
+                    let title = parts.get(2).copied().unwrap_or(id.as_deref().unwrap_or("")).to_string();
+                    let folder = parts
+                        .get(3)
+                        .copied()
+                        .filter(|x| !x.is_empty())
+                        .or(id.as_deref())
+                        .unwrap_or(title.as_str())
+                        .to_string();
+                    let version64 = parts.get(4).copied().filter(|x| !x.is_empty()).map(String::from);
+                    let publish_handle = parts.get(5).copied().filter(|x| !x.is_empty()).map(String::from);
+                    out.push(ManifestBaseEntryDescriptor {
+                        uuid,
+                        id,
+                        name: if title.is_empty() { folder.clone() } else { title },
+                        folder,
+                        version64,
+                        publish_handle,
+                    });
+                } else {
+                    out.push(ManifestBaseEntryDescriptor {
+                        uuid: String::new(),
+                        id: Some(trimmed.to_string()),
+                        name: trimmed.to_string(),
+                        folder: trimmed.to_string(),
+                        version64: None,
+                        publish_handle: None,
+                    });
+                }
+            }
+            serde_json::Value::Object(_) => {
+                if let Ok(desc) = serde_json::from_value::<ManifestBaseEntryDescriptor>(item.clone()) {
+                    out.push(desc);
+                }
+            }
+            _ => {}
+        }
+    }
+    Ok(out)
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, Default)]
@@ -422,6 +486,10 @@ pub struct ManifestTargetDescriptor {
     #[serde(default)]
     pub template: Option<String>,
     #[serde(default)]
+    pub entry_template: Option<String>,
+    #[serde(default)]
+    pub secondary_list_template: Option<String>,
+    #[serde(default)]
     pub entry_key: Option<String>,
     #[serde(default)]
     pub section: Option<String>,
@@ -430,11 +498,32 @@ pub struct ManifestTargetDescriptor {
     #[serde(default)]
     pub header: Option<String>,
     #[serde(default)]
+    pub document_header: Option<String>,
+    #[serde(default)]
     pub footer: Option<String>,
     #[serde(default)]
-    pub include_extensions: Vec<String>,
+    pub document_footer: Option<String>,
+    #[serde(default, deserialize_with = "deserialize_opt_bool_flex")]
+    pub require_uuid: Option<bool>,
     #[serde(default)]
+    pub include_extensions: Vec<String>,
+    #[serde(default, deserialize_with = "deserialize_base_entries_flex")]
     pub base_entries: Vec<ManifestBaseEntryDescriptor>,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, Default)]
+#[allow(dead_code)]
+pub struct SchemaExternalTool {
+    #[serde(default)]
+    pub id: String,
+    #[serde(default)]
+    pub label: Option<String>,
+    #[serde(default)]
+    pub executable: String,
+    #[serde(default)]
+    pub args: Option<Vec<String>>,
+    #[serde(default)]
+    pub description: Option<String>,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, Default)]
@@ -595,6 +684,8 @@ pub struct GameSchema {
     pub time_capsule: Option<TimeCapsuleConfig>,
     #[serde(default)]
     pub exception_logs: Option<Vec<LogMatcher>>,
+    #[serde(default)]
+    pub log_subdirs: Option<Vec<String>>,
     #[serde(default)]
     pub exception_rules: Option<Vec<SchemaExceptionRule>>,
     #[serde(default)]

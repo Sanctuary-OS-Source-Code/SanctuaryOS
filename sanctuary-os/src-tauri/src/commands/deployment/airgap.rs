@@ -665,10 +665,17 @@ pub fn apply_save_airgap_with_vault(
 
             let save_exts = resolve_save_extensions(game_schema);
             let allow_dir_slots = is_directory_save_mode(&save_exts);
+            let seed_latest = game_schema
+                .as_ref()
+                .and_then(|s| s.lab_verification.as_ref())
+                .and_then(|lv| lv.seed_sandbox_from_latest_save)
+                .unwrap_or(false);
             let mut state_meta = load_sandbox_state_meta(sandbox_root);
 
-            // If Golden Homestead Baseline (`sandbox_target`) is empty/missing and was originally cloned
-            // from a known live save slot, self-heal `sandbox_target` from the verified airgapped save!
+            // If Golden Homestead Baseline (`sandbox_target`) is empty/missing:
+            // 1) Heal from previously chosen `source_live_save_name` if present, OR
+            // 2) When `seed_sandbox_from_latest_save` is true, automatically clone the newest
+            //    corruption-audited save from the airgapped save pool into `sandbox_target`.
             let mut golden_saves = list_saves_in_dir(&sandbox_target, &save_exts);
             if golden_saves.is_empty() && !state_meta.fresh_sandbox_armed {
                 if let Some(ref src_name) = state_meta.source_live_save_name {
@@ -679,6 +686,35 @@ pub fn apply_save_airgap_with_vault(
                         if copy_save_item_into_dir(&src_path, &sandbox_target, false).is_ok() {
                             set_tree_readonly(&sandbox_target, true);
                             golden_saves = list_saves_in_dir(&sandbox_target, &save_exts);
+                        }
+                    }
+                }
+                if golden_saves.is_empty() && seed_latest {
+                    let mut live_candidates = list_saves_in_dir(&airgap_target, &save_exts);
+                    if live_candidates.is_empty() {
+                        live_candidates = list_saves_in_dir(&ext_target, &save_exts);
+                    }
+                    live_candidates.sort_by(|a, b| b.modified_epoch.cmp(&a.modified_epoch));
+                    for cand in live_candidates {
+                        let cand_path = find_named_save_in_dir(&airgap_target, &cand.file_name, allow_dir_slots)
+                            .or_else(|| find_named_save_in_dir(&ext_target, &cand.file_name, allow_dir_slots));
+                        let Some(src_path) = cand_path else { continue; };
+                        let valid_slot = if src_path.is_dir() {
+                            compute_dir_save_slot_stats(&src_path).is_some()
+                        } else {
+                            audit_save_file_corruption(&src_path, None).is_ok()
+                        };
+                        if !valid_slot {
+                            continue;
+                        }
+                        set_tree_readonly(&sandbox_target, false);
+                        if copy_save_item_into_dir(&src_path, &sandbox_target, false).is_ok() {
+                            set_tree_readonly(&sandbox_target, true);
+                            state_meta.source_live_save_name = Some(cand.file_name.clone());
+                            state_meta.selected_save_name = Some(cand.file_name.clone());
+                            let _ = save_sandbox_state_meta(sandbox_root, &state_meta);
+                            golden_saves = list_saves_in_dir(&sandbox_target, &save_exts);
+                            break;
                         }
                     }
                 }
@@ -836,18 +872,25 @@ pub fn apply_save_airgap_with_vault(
                     }
                     set_tree_readonly(&sandbox_target, true);
                 } else {
-                    // Initial unseeded Homestead world creation: promote only non-corrupted saves into Golden Baseline!
-                    promote_valid_saves_into_golden_sandbox(
-                        live_working_dir,
-                        &sandbox_target,
-                        &save_exts,
-                    )?;
-                    remove_save_tree_strict(live_working_dir, &docs_allowed)?;
-                    if let Some(first_promoted) = list_saves_in_dir(&sandbox_target, &save_exts).first() {
-                        state_meta.selected_save_name = Some(first_promoted.file_name.clone());
-                        state_meta.fresh_sandbox_armed = false;
-                        let _ = save_sandbox_state_meta(sandbox_root, &state_meta);
+                    let seed_latest = game_schema
+                        .as_ref()
+                        .and_then(|s| s.lab_verification.as_ref())
+                        .and_then(|lv| lv.seed_sandbox_from_latest_save)
+                        .unwrap_or(false);
+                    if seed_latest {
+                        // Initial unseeded Homestead world creation: promote only non-corrupted saves into Golden Baseline!
+                        promote_valid_saves_into_golden_sandbox(
+                            live_working_dir,
+                            &sandbox_target,
+                            &save_exts,
+                        )?;
+                        if let Some(first_promoted) = list_saves_in_dir(&sandbox_target, &save_exts).first() {
+                            state_meta.selected_save_name = Some(first_promoted.file_name.clone());
+                            state_meta.fresh_sandbox_armed = false;
+                            let _ = save_sandbox_state_meta(sandbox_root, &state_meta);
+                        }
                     }
+                    remove_save_tree_strict(live_working_dir, &docs_allowed)?;
                 }
                 Ok(())
             };
@@ -1126,7 +1169,13 @@ pub(super) fn configure_lab_test_save_internal(
         &primary_save_rel,
     );
 
+    let seed_latest = game_schema
+        .as_ref()
+        .and_then(|s| s.lab_verification.as_ref())
+        .and_then(|lv| lv.seed_sandbox_from_latest_save)
+        .unwrap_or(false);
     if airgap_active
+        && seed_latest
         && list_saves_in_dir(&sandbox_saves_dir, &save_exts).is_empty()
         && !load_sandbox_state_meta(&storage.sandbox_root).fresh_sandbox_armed
         && working_saves_dir.exists()

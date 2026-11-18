@@ -834,7 +834,16 @@ pub fn extract_chunked_record_keys(
     let Ok(bytes) = std::fs::read(path) else {
         return Vec::new();
     };
-    if bytes.len() < 24 || &bytes[0..4] != b"TES4" {
+    if bytes.len() < 20 || &bytes[0..4] != b"TES4" {
+        return Vec::new();
+    }
+    // Legacy 20-byte chunked record header (HEDR at offset 20) vs 24-byte header (HEDR at offset 24).
+    let rec_hdr_len = if bytes.len() >= 24 && &bytes[20..24] == b"HEDR" {
+        20usize
+    } else {
+        24usize
+    };
+    if bytes.len() < rec_hdr_len {
         return Vec::new();
     }
 
@@ -850,9 +859,9 @@ pub fn extract_chunked_record_keys(
 
     // Parse TES4 header first to map master indices -> master plugin filenames
     let tes4_size = read_le_u32(&bytes[4..8]) as usize;
-    let tes4_end = 24usize.saturating_add(tes4_size).min(bytes.len());
+    let tes4_end = rec_hdr_len.saturating_add(tes4_size).min(bytes.len());
     let mut masters: Vec<String> = Vec::new();
-    let mut hp = 24usize;
+    let mut hp = rec_hdr_len;
     while hp + 6 <= tes4_end {
         let sub = &bytes[hp..hp + 4];
         let slen = read_le_u16(&bytes[hp + 4..hp + 6]) as usize;
@@ -878,16 +887,16 @@ pub fn extract_chunked_record_keys(
 
     let mut keys = Vec::new();
     let mut pos = tes4_end;
-    while pos + 24 <= bytes.len() && keys.len() < MAX_RECORD_KEYS {
+    while pos + rec_hdr_len <= bytes.len() && keys.len() < MAX_RECORD_KEYS {
         let tag_bytes = &bytes[pos..pos + 4];
         let tag = String::from_utf8_lossy(tag_bytes).to_string();
         let data_size = read_le_u32(&bytes[pos + 4..pos + 8]) as usize;
         if tag_bytes == b"GRUP" {
-            pos += 24;
+            pos += rec_hdr_len;
             continue;
         }
         let form_id = read_le_u32(&bytes[pos + 12..pos + 16]);
-        let next_pos = pos.saturating_add(24).saturating_add(data_size);
+        let next_pos = pos.saturating_add(rec_hdr_len).saturating_add(data_size);
         if next_pos <= pos || next_pos > bytes.len() {
             break;
         }

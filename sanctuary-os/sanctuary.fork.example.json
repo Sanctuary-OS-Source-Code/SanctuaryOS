@@ -1,0 +1,32 @@
+{
+  "uplinkBundle": "",
+  "mode": "standalone",
+  "supabaseUrl": "https://your-project-ref.supabase.co",
+  "supabaseAnonKey": "sb_publishable_replace_with_your_anon_key",
+  "standaloneWorkspace": {
+    "id": "community-vault",
+    "name": "Community Vault",
+    "schema_id": "universal",
+    "icon": "sports_esports"
+  },
+  "branding": {
+    "appTitle": "Community Sanctuary",
+    "orgName": "Community Foundry",
+    "logoUrl": "/icon.png",
+    "supportEmail": "support@example.org",
+    "githubReleaseRepo": "example-org/example-sanctuary-fork",
+    "webauthnRpId": "mods.example.org",
+    "subtitles": [
+      "Advice Never Dictate",
+      "Verify Everything",
+      "Control Your Code",
+      "Own Your Mod List",
+      "Private By Design"
+    ]
+  },
+  "tauri": {
+    "identifier": "org.example.community-sanctuary",
+    "productName": "Community Sanctuary",
+    "updaterPubkey": ""
+  }
+}

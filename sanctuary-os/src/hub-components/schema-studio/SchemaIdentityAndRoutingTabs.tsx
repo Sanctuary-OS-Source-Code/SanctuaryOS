@@ -406,6 +406,50 @@ export function SchemaIdentityAndRoutingTabs({
                   />
                 </div>
               </div>
+
+              <div className="grid grid-cols-1 xl:grid-cols-2 gap-3.5">
+                <div className="glass-surface rounded-2xl p-4 border border-[color-mix(in_srgb,var(--text)_10%,transparent)] flex flex-col gap-3 min-w-0">
+                  <label className="text-[10px] font-black uppercase tracking-widest text-[var(--subtext)]">
+                    {t("schema_studio_wine_dll_overrides", "Proton / Wine DLL Overrides")}
+                  </label>
+                  <KeyValueMapBuilder
+                    record={(() => {
+                      const raw = parsedSchema.wine_dll_overrides;
+                      if (Array.isArray(raw)) {
+                        const out: Record<string, string> = {};
+                        for (const item of raw) {
+                          const s = String(item || "").trim();
+                          if (!s) continue;
+                          const eq = s.indexOf("=");
+                          if (eq > 0) {
+                            out[s.slice(0, eq).trim()] = s.slice(eq + 1).trim() || "n,b";
+                          } else {
+                            out[s] = "n,b";
+                          }
+                        }
+                        return out;
+                      }
+                      return raw && typeof raw === "object" ? raw : {};
+                    })()}
+                    onChange={(next) => updateField("wine_dll_overrides", next)}
+                    keyPlaceholder={t("schema_studio_ph_dll_name", "e.g. proxy_loader")}
+                    valPlaceholder={t("schema_studio_ph_dll_mode", "n,b")}
+                  />
+                </div>
+
+                <div className="glass-surface rounded-2xl p-4 border border-[color-mix(in_srgb,var(--text)_10%,transparent)] flex flex-col gap-3 min-w-0">
+                  <label className="text-[10px] font-black uppercase tracking-widest text-[var(--subtext)]">
+                    {t("schema_studio_log_subdirs", "Engine Log & Crash Subdirectories")}
+                  </label>
+                  <StringListBuilder
+                    layout="paths"
+                    items={Array.isArray(parsedSchema.log_subdirs) ? parsedSchema.log_subdirs : []}
+                    onChange={(next) => updateField("log_subdirs", next)}
+                    placeholder={t("schema_studio_ph_log_subdirs", "e.g. logs / crashes / scripts/logs")}
+                    addButtonLabel={t("add", "Add")}
+                  />
+                </div>
+              </div>
             </div>
           </UniversalGroup>
 
@@ -688,6 +732,142 @@ export function SchemaIdentityAndRoutingTabs({
                   )}
                 </div>
               </div>
+
+              <div className="glass-surface rounded-2xl p-3.5 border border-[color-mix(in_srgb,var(--text)_10%,transparent)] flex flex-col gap-2 min-w-0">
+                <label className="text-[10px] font-black uppercase tracking-widest text-[var(--subtext)]">
+                  {t("schema_studio_mod_unit_mode", "{Mod} Packaging Unit Mode")}
+                </label>
+                <CustomDropdown
+                  disableTint={true}
+                  value={parsedSchema.mod_unit_mode ?? "file"}
+                  onChange={(v: string[]) =>
+                    updateField("mod_unit_mode", v[0] || "file")
+                  }
+                  options={[
+                    {
+                      id: "file",
+                      label: t("schema_studio_unit_mode_file", "Individual {Mod} Files"),
+                    },
+                    {
+                      id: "folder",
+                      label: t("schema_studio_unit_mode_folder", "Cohesive Folder Units"),
+                    },
+                    {
+                      id: "auto",
+                      label: t("schema_studio_unit_mode_auto", "Auto-Detect Marker Folders"),
+                    },
+                  ]}
+                />
+              </div>
+
+              <div className="glass-surface rounded-2xl p-3.5 border border-[color-mix(in_srgb,var(--text)_10%,transparent)] flex flex-col gap-2 min-w-0">
+                <label className="text-[10px] font-black uppercase tracking-widest text-[var(--subtext)]">
+                  {t("schema_studio_mod_unit_markers", "Folder Unit Marker Files")}
+                </label>
+                <StringListBuilder
+                  layout="paths"
+                  items={
+                    Array.isArray(parsedSchema.mod_unit_markers)
+                      ? parsedSchema.mod_unit_markers
+                      : []
+                  }
+                  onChange={(next) => updateField("mod_unit_markers", next)}
+                  placeholder={t("schema_studio_ph_unit_markers", "e.g. manifest.json / mod.manifest")}
+                  addButtonLabel={t("add", "Add")}
+                />
+              </div>
+
+              {(() => {
+                const metaExt =
+                  parsedSchema.mod_metadata_extractor &&
+                  typeof parsedSchema.mod_metadata_extractor === "object"
+                    ? parsedSchema.mod_metadata_extractor
+                    : {};
+                const updateMetaExt = (patch: Record<string, any>) =>
+                  updateField("mod_metadata_extractor", { ...metaExt, ...patch });
+                return (
+                  <div className="glass-surface rounded-2xl p-4 border border-[color-mix(in_srgb,var(--text)_10%,transparent)] flex flex-col gap-3.5 min-w-0 md:col-span-2">
+                    <div className="flex flex-col gap-0.5">
+                      <span className="text-[10px] font-black uppercase tracking-widest text-[var(--accent)]">
+                        {t("schema_studio_meta_extractor", "{Mod} Metadata & Master Header Extractor")}
+                      </span>
+                      <span className="text-[11px] font-medium text-[var(--subtext)] opacity-80">
+                        {t(
+                          "schema_studio_meta_extractor_desc",
+                          "Declarative manifest files, JSON/XML/INI keys, and binary master header mode used by the DAG load-order solver."
+                        )}
+                      </span>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                      <div className="flex flex-col gap-1.5 min-w-0">
+                        <label className="text-[9px] font-black uppercase tracking-widest text-[var(--subtext)]">
+                          {t("schema_studio_meta_manifest_files", "Manifest Filenames")}
+                        </label>
+                        <StringListBuilder
+                          layout="paths"
+                          items={Array.isArray(metaExt.manifest_files) ? metaExt.manifest_files : []}
+                          onChange={(next) => updateMetaExt({ manifest_files: next })}
+                          placeholder={t("schema_studio_ph_meta_manifests", "e.g. manifest.json / info.json / mod.xml")}
+                          addButtonLabel={t("add", "Add")}
+                        />
+                      </div>
+
+                      <div className="flex flex-col gap-1.5 min-w-0">
+                        <label className="text-[9px] font-black uppercase tracking-widest text-[var(--subtext)]">
+                          {t("schema_studio_meta_binary_hdr", "Binary Master Header Mode")}
+                        </label>
+                        <CustomDropdown
+                          disableTint={true}
+                          value={metaExt.binary_master_header ?? "none"}
+                          onChange={(v: string[]) => {
+                            const picked = v[0] || "none";
+                            updateMetaExt({
+                              binary_master_header: picked === "none" ? undefined : picked,
+                            });
+                          }}
+                          options={[
+                            { id: "none", label: t("none", "None") },
+                            { id: "tes4", label: t("schema_studio_hdr_chunk24", "24-Byte Binary Record Header") },
+                            { id: "tes4_20", label: t("schema_studio_hdr_chunk20", "20-Byte Legacy Record Header") },
+                            { id: "tes3", label: t("schema_studio_hdr_chunk16", "16-Byte Record Header") },
+                          ]}
+                        />
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
+                      {[
+                        ["id_key", t("schema_studio_meta_id_key", "ID Key"), t("schema_studio_ph_meta_id", "id")],
+                        ["name_key", t("schema_studio_meta_name_key", "Name Key"), t("schema_studio_ph_meta_name", "name")],
+                        ["version_key", t("schema_studio_meta_ver_key", "Version Key"), t("schema_studio_ph_meta_ver", "version")],
+                        ["uuid_key", t("schema_studio_meta_uuid_key", "UUID Key"), t("schema_studio_ph_meta_uuid", "uuid")],
+                        ["author_key", t("schema_studio_meta_author_key", "Author Key"), t("schema_studio_ph_meta_author", "author")],
+                        ["dependencies_key", t("schema_studio_meta_deps_key", "Dependencies Key"), t("schema_studio_ph_meta_deps", "dependencies")],
+                        ["load_before_key", t("schema_studio_meta_before_key", "Load Before Key"), t("schema_studio_ph_meta_before", "loadBefore")],
+                        ["load_after_key", t("schema_studio_meta_after_key", "Load After Key"), t("schema_studio_ph_meta_after", "loadAfter")],
+                      ].map(([fieldKey, labelText, phText]) => (
+                        <div key={fieldKey} className="flex flex-col gap-1 min-w-0">
+                          <label className="text-[9px] font-black uppercase tracking-widest text-[var(--subtext)] truncate">
+                            {labelText}
+                          </label>
+                          <input
+                            type="text"
+                            value={metaExt[fieldKey] ?? ""}
+                            onChange={(e) =>
+                              updateMetaExt({
+                                [fieldKey]: e.target.value ? e.target.value : undefined,
+                              })
+                            }
+                            placeholder={phText}
+                            className="h-9 min-w-0 glass-panel rounded-xl px-3 text-xs font-mono font-bold text-[var(--text)] border border-[color-mix(in_srgb,var(--text)_12%,transparent)]"
+                          />
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                );
+              })()}
             </div>
           </UniversalGroup>
 
@@ -1274,6 +1454,13 @@ export function SchemaIdentityAndRoutingTabs({
                             id: "docs_path",
                             label: t("schema_studio_route_root_docs", "User Saves & Data Root"),
                           },
+                          {
+                            id: "local_appdata",
+                            label: t(
+                              "schema_studio_route_root_local_appdata",
+                              "Local AppData / Proton Prefix Root"
+                            ),
+                          },
                         ]}
                       />
                     </div>
@@ -1315,6 +1502,22 @@ export function SchemaIdentityAndRoutingTabs({
 
                   <div className="flex flex-col gap-1.5 min-w-0">
                     <label className="text-[9px] font-black uppercase tracking-widest text-[var(--subtext)]">
+                      {t("schema_studio_route_file_names", "Exact Filename Matches")}
+                    </label>
+                    <StringListBuilder
+                      items={Array.isArray(route.file_names) ? route.file_names : []}
+                      onChange={(nextNames) => {
+                        const next = [...routesArr];
+                        next[idx] = { ...route, file_names: nextNames };
+                        updateField("install_routes", next);
+                      }}
+                      placeholder={t("schema_studio_ph_route_files", "e.g. proxy_loader.dll / loader.ini")}
+                      addButtonLabel={t("add", "Add")}
+                    />
+                  </div>
+
+                  <div className="flex flex-col gap-1.5 min-w-0">
+                    <label className="text-[9px] font-black uppercase tracking-widest text-[var(--subtext)]">
                       {t("schema_studio_route_extensions", "Routed Extensions")}
                     </label>
                     <StringListBuilder
@@ -1329,18 +1532,44 @@ export function SchemaIdentityAndRoutingTabs({
                     />
                   </div>
 
-                  <SchemaToggleRow
-                    label={t(
-                      "schema_studio_route_preserve_vanilla",
-                      "Backup & Preserve Vanilla Files"
-                    )}
-                    checked={route.preserve_vanilla !== false}
-                    onChange={(val) => {
-                      const next = [...routesArr];
-                      next[idx] = { ...route, preserve_vanilla: val };
-                      updateField("install_routes", next);
-                    }}
-                  />
+                  <div className="grid grid-cols-1 gap-2">
+                    <SchemaToggleRow
+                      label={t(
+                        "schema_studio_route_preserve_vanilla",
+                        "Backup & Preserve Vanilla Files"
+                      )}
+                      checked={route.preserve_vanilla !== false}
+                      onChange={(val) => {
+                        const next = [...routesArr];
+                        next[idx] = { ...route, preserve_vanilla: val };
+                        updateField("install_routes", next);
+                      }}
+                    />
+                    <SchemaToggleRow
+                      label={t(
+                        "schema_studio_route_apply_prefix",
+                        "Apply Load Order Filename Prefix"
+                      )}
+                      checked={Boolean(route.apply_load_order_prefix)}
+                      onChange={(val) => {
+                        const next = [...routesArr];
+                        next[idx] = { ...route, apply_load_order_prefix: val };
+                        updateField("install_routes", next);
+                      }}
+                    />
+                    <SchemaToggleRow
+                      label={t(
+                        "schema_studio_route_apply_wine",
+                        "Auto-Register Proton / Wine DLL Override"
+                      )}
+                      checked={Boolean(route.apply_wine_dll_override)}
+                      onChange={(val) => {
+                        const next = [...routesArr];
+                        next[idx] = { ...route, apply_wine_dll_override: val };
+                        updateField("install_routes", next);
+                      }}
+                    />
+                  </div>
                 </div>
               ))}
             </div>

@@ -481,21 +481,13 @@ pub(super) fn resolve_save_airgap_targets(game_schema: &Option<crate::schema::Ga
     if let Some(s) = game_schema {
         if let Some(tc) = &s.time_capsule {
             if let Some(targets) = &tc.save_airgap_targets {
-                if !targets.is_empty() {
-                    let normalized: Vec<String> = targets
-                        .iter()
-                        .map(|t| {
-                            let tr = t.trim();
-                            if tr.is_empty() || tr == "." {
-                                ".".to_string()
-                            } else {
-                                tr.to_string()
-                            }
-                        })
-                        .collect();
-                    if !normalized.is_empty() {
-                        return normalized;
-                    }
+                let normalized: Vec<String> = targets
+                    .iter()
+                    .map(|t| t.trim().trim_matches(&['/', '\\'][..]).to_string())
+                    .filter(|tr| !tr.is_empty() && tr != "." && tr != "..")
+                    .collect();
+                if !normalized.is_empty() {
+                    return normalized;
                 }
             }
             let save_targets: Vec<String> = tc
@@ -505,14 +497,8 @@ pub(super) fn resolve_save_airgap_targets(game_schema: &Option<crate::schema::Ga
                     t.path.to_lowercase().contains("save")
                         || t.name.to_lowercase().contains("save")
                 })
-                .map(|t| {
-                    let tr = t.path.trim();
-                    if tr.is_empty() || tr == "." {
-                        ".".to_string()
-                    } else {
-                        tr.to_string()
-                    }
-                })
+                .map(|t| t.path.trim().trim_matches(&['/', '\\'][..]).to_string())
+                .filter(|tr| !tr.is_empty() && tr != "." && tr != "..")
                 .collect();
             if !save_targets.is_empty() {
                 return save_targets;
@@ -524,15 +510,48 @@ pub(super) fn resolve_save_airgap_targets(game_schema: &Option<crate::schema::Ga
 
 /// Resolves save airgap target relative paths and deduplicates targets that resolve to the
 /// exact same physical directory on case-insensitive filesystems (e.g. ["Saves", "saves"]).
+/// Expands `"*"` to direct non-hidden child directories of `docs_dir` (and any active journal targets).
 pub(crate) fn resolve_deduplicated_save_targets(
     docs_dir: &Path,
     game_schema: &Option<crate::schema::GameSchema>,
 ) -> Vec<String> {
     let raw_targets = resolve_save_airgap_targets(game_schema);
+    let mut expanded_raw: Vec<String> = Vec::new();
+    for t in raw_targets {
+        if t == "*" {
+            if let Ok(rd) = std::fs::read_dir(docs_dir) {
+                for entry in rd.flatten() {
+                    if let Ok(ft) = entry.file_type() {
+                        if ft.is_dir() {
+                            let dname = entry.file_name().to_string_lossy().to_string();
+                            if !dname.starts_with('.') {
+                                expanded_raw.push(dname);
+                            }
+                        }
+                    }
+                }
+            }
+            let storage = resolve_airgap_storage_paths(docs_dir, None);
+            if let Some(journal) = load_airgap_journal(
+                &storage.primary_airgap_root,
+                Some(storage.secondary_vault_mirror.as_path()),
+            ) {
+                for tj in journal.targets {
+                    let clean = tj.target_name.trim().to_string();
+                    if !clean.is_empty() && clean != "." && clean != "*" {
+                        expanded_raw.push(clean);
+                    }
+                }
+            }
+        } else {
+            expanded_raw.push(t);
+        }
+    }
+
     let mut seen_keys: HashSet<String> = HashSet::new();
     let mut deduped: Vec<String> = Vec::new();
 
-    for t in raw_targets {
+    for t in expanded_raw {
         let resolved_live = crate::utils::resolve_case_insensitive_path(docs_dir, &t);
         let key = if cfg!(any(target_os = "windows", target_os = "macos")) {
             crate::utils::normalize_path_key(&resolved_live).to_lowercase()
@@ -1140,4 +1159,52 @@ pub(super) fn persist_airgap_journal(
         let _ = crate::utils::atomic_write_bytes(&ext_dir.join(".airgap_journal.json"), &serialized);
     }
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn resolve_deduplicated_save_targets_rejects_dot_and_expands_wildcard() {
+        let base = std::env::temp_dir().join(format!(
+            "sanctuary_airgap_targets_test_{}",
+            uuid::Uuid::new_v4()
+        ));
+        let docs_dir = base.join("SaveProfiles");
+        std::fs::create_dir_all(docs_dir.join("76561198000000001")).unwrap();
+        std::fs::create_dir_all(docs_dir.join(".hidden")).unwrap();
+        std::fs::write(docs_dir.join("GraphicsConfig.xml"), b"<cfg/>").unwrap();
+
+        let dot_schema: Option<crate::schema::GameSchema> = Some(
+            serde_json::from_value(serde_json::json!({
+                "id": "dot_test",
+                "game_id": "dot_test",
+                "time_capsule": {
+                    "world_state_targets": [{ "name": "Saves", "path": "." }],
+                    "save_airgap_targets": [".", ""]
+                }
+            }))
+            .unwrap(),
+        );
+        assert!(
+            resolve_deduplicated_save_targets(&docs_dir, &dot_schema).is_empty(),
+            "'.' and '' must never be resolved as airgap targets"
+        );
+
+        let wildcard_schema: Option<crate::schema::GameSchema> = Some(
+            serde_json::from_value(serde_json::json!({
+                "id": "wildcard_test",
+                "game_id": "wildcard_test",
+                "time_capsule": {
+                    "save_airgap_targets": ["*"]
+                }
+            }))
+            .unwrap(),
+        );
+        let targets = resolve_deduplicated_save_targets(&docs_dir, &wildcard_schema);
+        assert_eq!(targets, vec!["76561198000000001".to_string()]);
+
+        let _ = std::fs::remove_dir_all(&base);
+    }
 }

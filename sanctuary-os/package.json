@@ -4,6 +4,8 @@
   "type": "module",
   "scripts": {
     "lexicon:sync": "node scripts/sync-lexicons.mjs",
+    "lexicon:check": "node scripts/sync-lexicons.mjs --check",
+    "fork:configure": "node scripts/configure-fork.mjs",
     "dev": "node scripts/sync-lexicons.mjs && node scripts/pull-spoke-schemas.mjs && vite",
     "pull-schemas": "node scripts/pull-spoke-schemas.mjs",
     "build": "node scripts/sync-lexicons.mjs && node scripts/pull-spoke-schemas.mjs && tsc && node --max-old-space-size=4096 ./node_modules/vite/bin/vite.js build",

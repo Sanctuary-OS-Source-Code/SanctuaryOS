@@ -318,6 +318,9 @@ pub async fn ingest_dropped_file(
             let file_hash = calculate_hash(source).unwrap_or_default();
             if !is_archive_ext && supported.contains(&ext) {
                 hash = file_hash.clone();
+                if !malware_override {
+                    crate::game_logic::verify_schema_magic_bytes(source, &game_schema)?;
+                }
             }
             record_volatile_origin(&file_hash, &source_file_name_str, &source_full_str);
 
@@ -690,7 +693,7 @@ pub async fn ingest_dropped_file(
             ));
             let mut stage_guard = TempStagingGuard(stage_dir.clone());
 
-            let extraction = crate::utils::extract_archive_bounded_to_dir(
+            let mut extraction = crate::utils::extract_archive_bounded_to_dir(
                 source,
                 &stage_dir,
                 Some(&zip_stem),
@@ -698,6 +701,80 @@ pub async fn ingest_dropped_file(
                 MAX_ARCHIVE_ENTRY_BYTES,
                 MAX_ARCHIVE_TOTAL_BYTES,
             )?;
+
+            // Honor `constraints.requires_script_unzipping`: automatically unpack one nested `.zip`
+            // wrapper layer when enabled, never unpacking native script containers (e.g. `.ts4script`, `.jar`).
+            let requires_script_unzipping = game_schema
+                .as_ref()
+                .and_then(|s| s.constraints.as_ref())
+                .and_then(|c| c.requires_script_unzipping)
+                .unwrap_or(false);
+            if requires_script_unzipping {
+                let script_exts: Vec<String> = game_schema
+                    .as_ref()
+                    .and_then(|s| s.extensions.script_extensions.clone())
+                    .unwrap_or_default()
+                    .into_iter()
+                    .map(|e| e.trim_start_matches('.').to_ascii_lowercase())
+                    .collect();
+                if !script_exts.iter().any(|e| e == "zip") {
+                    let mut expanded_files: Vec<ExtractedZipEntry> =
+                        Vec::with_capacity(extraction.files.len());
+                    for entry in extraction.files {
+                        let is_nested_zip = entry
+                            .rel_path
+                            .extension()
+                            .and_then(|e| e.to_str())
+                            .map_or(false, |e| e.eq_ignore_ascii_case("zip"));
+                        if !is_nested_zip {
+                            expanded_files.push(entry);
+                            continue;
+                        }
+                        let inner_stem = entry
+                            .rel_path
+                            .file_stem()
+                            .and_then(|s| s.to_str())
+                            .unwrap_or("scripts");
+                        let inner_parent_rel = entry
+                            .rel_path
+                            .parent()
+                            .map(|p| p.to_path_buf())
+                            .unwrap_or_default();
+                        let inner_stage = entry
+                            .staged_path
+                            .parent()
+                            .unwrap_or(&stage_dir)
+                            .join(inner_stem);
+                        match crate::utils::extract_zip_bounded_to_dir(
+                            &entry.staged_path,
+                            &inner_stage,
+                            Some(inner_stem),
+                            &game_schema,
+                            MAX_ARCHIVE_ENTRY_BYTES,
+                            MAX_ARCHIVE_TOTAL_BYTES.saturating_sub(extraction.total_bytes),
+                        ) {
+                            Ok(inner_ext) if !inner_ext.files.is_empty() => {
+                                extraction.total_bytes =
+                                    extraction.total_bytes.saturating_add(inner_ext.total_bytes);
+                                let _ = std::fs::remove_file(&entry.staged_path);
+                                for mut inner_item in inner_ext.files {
+                                    inner_item.rel_path = if inner_parent_rel.as_os_str().is_empty()
+                                    {
+                                        PathBuf::from(inner_stem).join(&inner_item.rel_path)
+                                    } else {
+                                        inner_parent_rel
+                                            .join(inner_stem)
+                                            .join(&inner_item.rel_path)
+                                    };
+                                    expanded_files.push(inner_item);
+                                }
+                            }
+                            _ => expanded_files.push(entry),
+                        }
+                    }
+                    extraction.files = expanded_files;
+                }
+            }
 
             // Step A: Scan EVERY staged file for malware/heuristics BEFORE FOMOD or touching Vault/Mods
             let mut staged_hashes: Vec<(ExtractedZipEntry, String)> =
@@ -893,6 +970,21 @@ pub async fn ingest_dropped_file(
             let cache = load_cache(&config.vault_path);
             let mut extracted_files = Vec::new();
             let mut extracted_mod_hashes = Vec::new();
+            let preserve_archive_structure = game_schema
+                .as_ref()
+                .and_then(|s| s.constraints.as_ref())
+                .and_then(|c| c.preserve_archive_folder_structure)
+                .unwrap_or(true);
+            let wrap_loose_files = game_schema
+                .as_ref()
+                .and_then(|s| s.constraints.as_ref())
+                .and_then(|c| c.wrap_loose_files_in_folders)
+                .unwrap_or(true);
+            let max_folder_depth = game_schema
+                .as_ref()
+                .and_then(|s| s.constraints.as_ref())
+                .and_then(|c| c.max_folder_depth);
+            let install_routes = crate::game_logic::get_install_routes(&game_schema);
 
             for (entry, extracted_hash) in staged_hashes {
                 let Some(zf_file_name) = entry.rel_path.file_name() else {
@@ -914,7 +1006,40 @@ pub async fn ingest_dropped_file(
                     .map(|list| list.contains(&zf_ext_with_dot))
                     .unwrap_or(false);
 
-                let default_dest = target_base.join(&entry.rel_path);
+                if is_primary_mod_binary && !malware_override {
+                    crate::game_logic::verify_schema_magic_bytes(&entry.staged_path, &game_schema)?;
+                }
+
+                let rel_fwd_lower = entry
+                    .rel_path
+                    .to_string_lossy()
+                    .replace('\\', "/")
+                    .to_ascii_lowercase();
+                let matched_folder_route = install_routes.iter().any(|r| {
+                    r.folder_match
+                        .as_deref()
+                        .map(str::trim)
+                        .filter(|m| !m.is_empty())
+                        .map_or(false, |fm| {
+                            let fm_low = fm.replace('\\', "/").trim_matches('/').to_ascii_lowercase();
+                            rel_fwd_lower.contains(&fm_low)
+                        })
+                });
+
+                let default_dest = if !preserve_archive_structure
+                    && is_primary_mod_binary
+                    && !matched_folder_route
+                {
+                    if (max_folder_depth == Some(0) || !wrap_loose_files)
+                        && sanitized_target_subfolder.is_none()
+                    {
+                        vault_mods_lane.join(zf_file_name)
+                    } else {
+                        target_base.join(zf_file_name)
+                    }
+                } else {
+                    target_base.join(&entry.rel_path)
+                };
                 crate::utils::ensure_strict_descendant_of_roots(
                     &default_dest,
                     &[vault_mods_lane.clone()],

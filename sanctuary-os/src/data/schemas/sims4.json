@@ -56,28 +56,41 @@
   "extensions": {
     "labels": {
       ".7z": "ARCHIVE",
+      ".bpi": "BLUEPRINT INFO",
       ".cfg": "CONFIG",
+      ".hhi": "HOUSEHOLD INFO",
       ".rar": "ARCHIVE",
+      ".rmi": "ROOM INFO",
+      ".sgi": "SIM INFO",
       ".zip": "ARCHIVE",
       ".world": "WORLD",
       ".package": "PACKAGE",
       ".tmdelta": "DELTA",
+      ".trayitem": "TRAY ITEM",
+      ".blueprint": "LOT BLUEPRINT",
       ".tmcatalog": "CATALOG",
-      ".ts4script": "SCRIPT"
+      ".ts4script": "SCRIPT",
+      ".householdbinary": "HOUSEHOLD"
     },
-    "parsers": {},
+    "parsers": {
+      ".package": "binary_chunk_index"
+    },
     "supported": [
       ".package",
       ".ts4script",
       ".world",
-      ".zip",
-      ".rar",
-      ".7z",
       ".tmcatalog",
       ".cfg",
       ".tmdelta",
       ".tmbin",
-      ".dat"
+      ".dat",
+      ".trayitem",
+      ".blueprint",
+      ".bpi",
+      ".householdbinary",
+      ".hhi",
+      ".sgi",
+      ".rmi"
     ],
     "cache_files": [
       "localthumbcache.package",
@@ -96,7 +109,14 @@
       ".ini",
       ".json",
       ".txt",
-      ".xml"
+      ".xml",
+      ".trayitem",
+      ".blueprint",
+      ".bpi",
+      ".householdbinary",
+      ".hhi",
+      ".sgi",
+      ".rmi"
     ],
     "twin_extensions": [],
     "config_extensions": [
@@ -144,9 +164,10 @@
   "load_order": {
     "strategy": "folder_priority",
     "direction": "higher_wins",
-    "line_template": "{file}",
+    "asset_overwrite_order": "higher_wins",
     "manifest_file": "Resource.cfg",
     "prefix_format": "{index:03}_",
+    "line_template": "{file}",
     "priority_tiers": [
       {
         "id": "default",
@@ -265,9 +286,26 @@
       "folder_match": "Worlds",
       "target_subdir": "Data/Shared/Worlds/Areas",
       "preserve_vanilla": true
+    },
+    {
+      "id": "tray_blueprints",
+      "label": "Tray Blueprints & Households",
+      "extensions": [
+        ".trayitem",
+        ".blueprint",
+        ".bpi",
+        ".householdbinary",
+        ".hhi",
+        ".sgi",
+        ".rmi"
+      ],
+      "target_root": "docs_path",
+      "folder_match": "Tray",
+      "target_subdir": "Tray",
+      "preserve_vanilla": false
     }
   ],
-  "schema_version": 16,
+  "schema_version": 17,
   "default_lexicon": "en-sims",
   "executable_names": [
     "TS4_x64.exe",

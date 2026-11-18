@@ -27,6 +27,7 @@ import { isDesktop } from '../utils/envUtils';
 import { isRootDomain } from '../utils/routingUtils';
 import {
   BLINDED_EMAIL_REGEX,
+  collectAllLegalTargetIdentifiers,
   DmcaGuidedComplianceForm,
   DmcaSubTypeSelector,
   isLegalComplianceDraftValid,
@@ -531,7 +532,7 @@ export function LandingSupportDrawers({
                       <span className="text-[10px] text-[var(--subtext)] opacity-75">
                         {t(
                           'landing_fb_bug_sub',
-                          'Keepers Core Ticket System'
+                          'Sanctuary OS Engineering'
                         )}
                       </span>
                     </div>
@@ -1076,10 +1077,7 @@ export function LandingSupportDrawers({
                   label={
                     isSubmittingFeedback
                       ? t('btn_submitting', 'Submitting...')
-                      : t(
-                          'landing_feedback_submit_btn',
-                          'Dispatch to Keepers Core'
-                        )
+                      : t('landing_feedback_send_btn', 'Submit Feedback')
                   }
                   onClick={handleSubmitPlatformFeedback}
                   disabled={
@@ -1100,14 +1098,8 @@ export function LandingSupportDrawers({
       <SidePanel
         isOpen={isContactDrawerOpen}
         onClose={() => setIsContactDrawerOpen(false)}
-        title={t(
-          'landing_contact_drawer_title',
-          'Direct Human Contact — Keepers Core'
-        )}
-        subtitle={t(
-          'landing_contact_human_badge',
-          '100% Human-Reviewed • Never Routed to AI Bots'
-        )}
+        title={t('landing_contact_short_title', 'Direct Contact')}
+        subtitle={t('sanctuary_foundry', 'Sanctuary Foundry')}
         icon={t('icon_support_agent', 'support_agent')}
         widthClass="w-[90vw] md:w-[660px]"
         headerActions={
@@ -1123,10 +1115,7 @@ export function LandingSupportDrawers({
                   ? t('icon_sync', 'sync')
                   : t('icon_send', 'send')
               }
-              tooltip={t(
-                'landing_contact_submit_btn',
-                'Send Direct Human Inquiry'
-              )}
+              tooltip={t('landing_contact_send_short_btn', 'Send Inquiry')}
               onClick={handleSubmitDirectContact}
             />
           </PanelHeaderGroup>
@@ -1135,36 +1124,18 @@ export function LandingSupportDrawers({
         <div className="flex flex-col gap-4 pb-8">
           <SidePanelHeroCard
             icon={t('icon_verified_user', 'verified_user')}
-            overline={t(
-              'landing_contact_human_badge',
-              '100% Human-Reviewed • Never Routed to AI Bots'
-            )}
-            title={t('landing_contact_card_title', 'Direct Human Contact')}
+            overline={t('sanctuary_foundry', 'Sanctuary Foundry')}
+            title={contactChannel.replace('Direct Contact - ', '')}
             description={t(
-              'landing_contact_drawer_sub',
-              'Every inquiry submitted here is reviewed directly by a human Keeper. No chatbots, no automated deflection.'
+              'landing_contact_drawer_clean_sub',
+              'Every inquiry is reviewed directly by a member of the Sanctuary Foundry team.'
             )}
+            badge={`${t('step', 'STEP')} ${Math.min(activeContactStep + 1, 3)} / 3`}
+            badgeIcon={t('icon_checklist', 'checklist')}
             variant="accent"
-          >
-            <div className="grid grid-cols-2 gap-3 w-full">
-              <StatBox
-                label={t('landing_contact_form_channel', 'Inquiry Channel')}
-                value={contactChannel.replace('Direct Contact - ', '')}
-                icon={t('icon_mail', 'mail')}
-                iconColorClass="text-[var(--accent)]"
-                colorClass="text-[var(--accent)]"
-              />
-              <StatBox
-                label={t('step_progress', 'Step Progress')}
-                value={`${Math.min(activeContactStep + 1, 3)} / 3`}
-                icon={t('icon_checklist', 'checklist')}
-                iconColorClass="text-[var(--success)]"
-                colorClass="text-[var(--text)]"
-              />
-            </div>
-          </SidePanelHeroCard>
+          />
 
-          {/* STEP 1: INQUIRY CHANNEL & REPLY HANDLE */}
+          {/* STEP 1: INQUIRY CATEGORY & EMAIL */}
           {activeContactStep > 0 ? (
             <div
               onClick={() => setActiveContactStep(0)}
@@ -1178,10 +1149,10 @@ export function LandingSupportDrawers({
                   {t('step_completed', 'Step Completed')}
                 </span>
                 <h4 className="text-sm font-black text-[var(--text)] truncate">
-                  {t('landing_contact_form_channel', 'Inquiry Channel')}
+                  {t('landing_contact_form_channel', 'Inquiry Category')}
                 </h4>
-                <p className="text-xs text-[var(--subtext)] opacity-80 truncate font-mono">
-                  {`${contactChannel} • ${effectiveContactReply}`}
+                <p className="text-xs text-[var(--subtext)] opacity-80 truncate font-mono no-text-case">
+                  {`${contactChannel.replace('Direct Contact - ', '')} • ${effectiveContactReply}`}
                 </p>
               </div>
               <span className="material-symbols-outlined text-[var(--subtext)] opacity-40 group-hover:opacity-100 group-hover:text-[var(--accent)] transition-all">
@@ -1195,68 +1166,54 @@ export function LandingSupportDrawers({
                   {`${t('step', 'STEP')} 1 / 3`}
                 </span>
                 <h3 className="text-xl font-black text-[var(--text)] tracking-tight mt-1">
-                  {t('landing_contact_form_channel', 'Inquiry Channel')}
+                  {t('landing_contact_form_channel', 'Inquiry Category')}
                 </h3>
               </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
-                {[
-                  {
-                    id: 'Direct Contact - General' as const,
-                    icon: t('icon_mail', 'mail'),
-                    label: t(
-                      'landing_contact_type_general',
-                      'General & Platform Inquiry'
-                    ),
-                  },
-                  {
-                    id: 'Direct Contact - Legal & Compliance' as const,
-                    icon: t('icon_gavel', 'gavel'),
-                    label: t(
-                      'landing_contact_type_legal',
-                      'Legal, DMCA & Privacy Compliance'
-                    ),
-                  },
-                  {
-                    id: 'Direct Contact - Security' as const,
-                    icon: t('icon_shield_lock', 'shield_lock'),
-                    label: t(
-                      'landing_contact_type_security',
-                      'Security & Vulnerability Disclosure'
-                    ),
-                  },
-                ].map((ch) => {
-                  const active = contactChannel === ch.id;
-                  return (
-                    <button
-                      key={ch.id}
-                      type="button"
-                      onClick={() => {
-                        setContactChannel(ch.id);
-                        if (
-                          ch.id === 'Direct Contact - Legal & Compliance' &&
-                          legalDraft.subType !== 'privacy_general' &&
-                          (contactReplyTo.trim().startsWith('@') ||
-                            BLINDED_EMAIL_REGEX.test(contactReplyTo.trim()))
-                        ) {
-                          setContactReplyTo('');
-                        }
-                      }}
-                      className={`p-3.5 rounded-2xl glass-surface border text-left flex flex-col gap-1.5 transition-all cursor-pointer ${
-                        active
-                          ? 'border-[var(--accent)] text-[var(--accent)]'
-                          : 'border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[var(--text)]'
-                      }`}
-                    >
-                      <span className="material-symbols-outlined !text-[20px]">
-                        {ch.icon}
-                      </span>
-                      <span className="text-xs font-black leading-snug">
-                        {ch.label}
-                      </span>
-                    </button>
-                  );
-                })}
+              <div className="flex flex-col gap-1.5">
+                <label className="text-[10px] font-black text-[var(--subtext)] opacity-75 uppercase tracking-widest px-1">
+                  {t('category', 'Category')}
+                </label>
+                <CustomDropdown
+                  disableTint={true}
+                  value={contactChannel}
+                  onChange={(vals: string[]) => {
+                    const nextCh = (vals[0] ||
+                      'Direct Contact - General') as typeof contactChannel;
+                    setContactChannel(nextCh);
+                    if (
+                      nextCh === 'Direct Contact - Legal & Compliance' &&
+                      legalDraft.subType !== 'privacy_general' &&
+                      (contactReplyTo.trim().startsWith('@') ||
+                        BLINDED_EMAIL_REGEX.test(contactReplyTo.trim()))
+                    ) {
+                      setContactReplyTo('');
+                    }
+                  }}
+                  options={[
+                    {
+                      id: 'Direct Contact - General',
+                      label: t(
+                        'landing_contact_type_general',
+                        'General & Platform Inquiry'
+                      ),
+                    },
+                    {
+                      id: 'Direct Contact - Legal & Compliance',
+                      label: t(
+                        'landing_contact_type_legal',
+                        'Legal, DMCA & Privacy'
+                      ),
+                    },
+                    {
+                      id: 'Direct Contact - Security',
+                      label: t(
+                        'landing_contact_type_security',
+                        'Security & Vulnerability Disclosure'
+                      ),
+                    },
+                  ]}
+                />
               </div>
 
               {isLegalChannel && (
@@ -1279,8 +1236,8 @@ export function LandingSupportDrawers({
                 <UniversalInput
                   label={
                     isStrictDmcaFlow
-                      ? `${t('dmca_real_email_label', 'Valid Legal Email Address (No @handles or Blinded Aliases)')} *`
-                      : `${t('landing_contact_form_reply_to', 'Your Reply Email or Discord Handle')} *`
+                      ? `${t('dmca_email_short_label', 'Email Address')} *`
+                      : `${t('landing_contact_form_reply_to', 'Reply Email or Handle')} *`
                   }
                   type={isStrictDmcaFlow ? 'email' : 'text'}
                   className={isStrictDmcaFlow ? 'no-text-case' : undefined}
@@ -1291,7 +1248,7 @@ export function LandingSupportDrawers({
                       ? 'legal@company.com'
                       : t(
                           'landing_contact_form_reply_to_ph',
-                          'you@example.com or @handle so a human Keeper can respond...'
+                          'you@example.com or @handle...'
                         )
                   }
                 />
@@ -1299,20 +1256,20 @@ export function LandingSupportDrawers({
                   Boolean(sessionEmail) &&
                   BLINDED_EMAIL_REGEX.test(String(sessionEmail)) &&
                   !contactReplyTo.trim() && (
-                    <span className="text-[11px] font-medium text-[var(--subtext)] px-1">
+                    <span className="text-[11px] font-medium text-[var(--subtext)] px-1 no-text-case">
                       {t(
                         'dmca_blinded_autofill_suppressed',
-                        'Blinded Email autofill was withheld: 17 U.S.C. § 512 requires a real, non-blinded email address.'
+                        'Blinded email autofill was withheld because DMCA notices require a standard email address.'
                       )}
                     </span>
                   )}
                 {isStrictDmcaFlow &&
                   effectiveContactReply.trim().length > 0 &&
                   !isRealLegalEmail(effectiveContactReply) && (
-                    <span className="text-[11px] font-bold text-[var(--warning)] px-1">
+                    <span className="text-[11px] font-bold text-[var(--warning)] px-1 no-text-case">
                       {t(
                         'dmca_strict_email_validation_err',
-                        'Discord handles (@user), invalid addresses, and synthetic Blinded Email aliases cannot be used for DMCA takedown or counter-notice filings.'
+                        'A valid, non-blinded email address is required for DMCA takedown and counter-notice filings.'
                       )}
                     </span>
                   )}
@@ -1333,7 +1290,7 @@ export function LandingSupportDrawers({
             </div>
           )}
 
-          {/* STEP 2: SUBJECT & MESSAGE (OR STATUTORY DMCA FLOW) */}
+          {/* STEP 2: DETAILS */}
           {maxContactStep >= 1 &&
             (activeContactStep > 1 ? (
               <div
@@ -1350,13 +1307,15 @@ export function LandingSupportDrawers({
                   <h4 className="text-sm font-black text-[var(--text)] truncate">
                     {isStrictDmcaFlow
                       ? legalDraft.subType === 'dmca_takedown'
-                        ? t('dmca_flow_takedown_label', 'DMCA Takedown')
-                        : t('dmca_flow_counter_label', 'Counter-Notice')
+                        ? t('dmca_opt_takedown', 'DMCA Takedown Notice')
+                        : t('dmca_opt_counter', 'DMCA Counter-Notice')
                       : contactSubject}
                   </h4>
-                  <p className="text-xs text-[var(--subtext)] opacity-80 truncate font-mono">
+                  <p className="text-xs text-[var(--subtext)] opacity-80 truncate no-text-case">
                     {isStrictDmcaFlow
-                      ? legalDraft.targetIdentifiersRaw || legalDraft.originalNoticeId
+                      ? legalDraft.selectedTargets.map((s) => s.title).join(', ') ||
+                        legalDraft.targetIdentifiersRaw ||
+                        legalDraft.originalNoticeId
                       : contactBody}
                   </p>
                 </div>
@@ -1373,8 +1332,8 @@ export function LandingSupportDrawers({
                   <h3 className="text-xl font-black text-[var(--text)] tracking-tight mt-1">
                     {isStrictDmcaFlow
                       ? legalDraft.subType === 'dmca_takedown'
-                        ? t('dmca_step2_takedown_heading', '17 U.S.C. § 512(c)(3) Statutory Takedown Notice')
-                        : t('dmca_step2_counter_heading', '17 U.S.C. § 512(g)(3) Counter-Notice Filing')
+                        ? t('dmca_opt_takedown', 'DMCA Takedown Notice')
+                        : t('dmca_opt_counter', 'DMCA Counter-Notice')
                       : t('landing_contact_form_body', 'Message')}
                   </h3>
                 </div>
@@ -1405,7 +1364,7 @@ export function LandingSupportDrawers({
                       onChange={setContactBody}
                       placeholder={t(
                         'landing_contact_form_body_ph',
-                        'Provide full context for the Keepers team...'
+                        'Provide full context for our team...'
                       )}
                       className="min-h-[180px] sm:min-h-[200px]"
                     />
@@ -1435,10 +1394,7 @@ export function LandingSupportDrawers({
                   {`${t('step', 'STEP')} 3 / 3`}
                 </span>
                 <h3 className="text-xl font-black text-[var(--text)] tracking-tight mt-1">
-                  {t(
-                    'landing_contact_submit_btn',
-                    'Send Direct Human Inquiry'
-                  )}
+                  {t('review', 'Review & Submit')}
                 </h3>
               </div>
 
@@ -1446,14 +1402,16 @@ export function LandingSupportDrawers({
                 <div className="glass-surface rounded-2xl p-4 border border-[color-mix(in_srgb,var(--text)_12%,transparent)] flex flex-col gap-1.5 text-xs">
                   <span className="font-black text-[var(--accent)]">
                     {legalDraft.subType === 'dmca_takedown'
-                      ? t('dmca_flow_takedown_label', 'DMCA Takedown')
-                      : t('dmca_flow_counter_label', 'Counter-Notice')}
+                      ? t('dmca_opt_takedown', 'DMCA Takedown Notice')
+                      : t('dmca_opt_counter', 'DMCA Counter-Notice')}
                   </span>
                   <span className="text-[var(--subtext)] no-text-case font-mono">
                     {effectiveContactReply} &bull; {legalDraft.fullLegalName}
                   </span>
-                  <span className="text-[var(--subtext)] no-text-case font-mono truncate">
-                    {legalDraft.targetIdentifiersRaw || legalDraft.originalNoticeId}
+                  <span className="text-[var(--subtext)] no-text-case truncate">
+                    {legalDraft.selectedTargets.map((s) => s.title).join(', ') ||
+                      collectAllLegalTargetIdentifiers(legalDraft).join(', ') ||
+                      legalDraft.originalNoticeId}
                   </span>
                 </div>
               )}
@@ -1466,11 +1424,8 @@ export function LandingSupportDrawers({
                     isSubmittingContact
                       ? t('btn_submitting', 'Submitting...')
                       : isStrictDmcaFlow
-                        ? t('dmca_submit_notice_btn', 'Submit Statutory DMCA Notice')
-                        : t(
-                            'landing_contact_submit_btn',
-                            'Send Direct Human Inquiry'
-                          )
+                        ? t('dmca_submit_short_btn', 'Submit Notice')
+                        : t('landing_contact_send_short_btn', 'Send Inquiry')
                   }
                   onClick={handleSubmitDirectContact}
                   disabled={
