@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useLexicon } from "../../LexiconContext";
-import { ActionButton, VAULT_CHIP_CLASS } from "../../shared";
+import { ActionButton } from "../../shared-components/buttons";
+import { VAULT_CHIP_CLASS } from "../../shared-components/constants";
 import { KeeperDocPresenceEntry } from "../../utils/useKeeperDocPresence";
 
 export interface KeeperDocConflictInfo {

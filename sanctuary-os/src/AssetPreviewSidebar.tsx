@@ -256,7 +256,7 @@ export default function AssetPreviewSidebar({
           {
             content_type: "collection",
             content_id: normalizedId,
-            reporter_id: session.user.id,
+            reporter_id: null,
             reason: localReportState.reason.trim(),
             status: "pending",
           },
@@ -282,8 +282,8 @@ export default function AssetPreviewSidebar({
         const { error: repErr } = await supabase.from("blueprint_reports").insert([
           {
             blueprint_id: normalizedId,
-            reporter_name: session?.user?.user_metadata?.username || "Anonymous",
-            reporter_id: session.user.id,
+            reporter_name: "Anonymous",
+            reporter_id: null,
             reason: localReportState.reason.trim(),
             status: "pending",
           },
@@ -296,8 +296,8 @@ export default function AssetPreviewSidebar({
         const { error: repErr } = await supabase.from("nexus_reports").insert([
           {
             asset_id: normalizedId,
-            reporter_name: session?.user?.user_metadata?.username || "Anonymous",
-            reporter_id: session.user.id,
+            reporter_name: "Anonymous",
+            reporter_id: null,
             reason: localReportState.reason.trim(),
             status: "pending",
           },

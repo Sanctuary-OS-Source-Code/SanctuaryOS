@@ -2,8 +2,10 @@
 
 mod commands;
 mod game_logic;
+mod load_order_engine;
 mod schema;
 mod state;
+mod storefront_discovery;
 mod telemetry;
 mod utils;
 mod watchers;
@@ -12,6 +14,7 @@ use crate::commands::backups::*;
 use crate::commands::cache::*;
 use crate::commands::config::*;
 use crate::commands::deployment::*;
+use crate::load_order_engine::*;
 use crate::commands::edge_network::*;
 use crate::commands::game_info::*;
 use crate::commands::library::*;
@@ -475,6 +478,9 @@ fn main() {
             read_blueprint,
             save_blueprint,
             ingest_dropped_file,
+            inspect_dropped_json_bundles,
+            save_dropped_os_asset,
+            extract_blueprint_mod_metadata,
             resolve_dna_match,
             get_archived_mod_versions,
             get_mod_version_pool_status,

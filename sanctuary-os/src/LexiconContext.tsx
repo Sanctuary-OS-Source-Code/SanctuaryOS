@@ -747,6 +747,7 @@ export const LexiconProvider = ({ children }: any) => {
     }
   });
   const activeGameSchema = useStore((state) => state.activeGameSchema);
+  const modCategories = useStore((state) => state.modCategories);
   const osRoleFromStore = useStore((state) => state.osRole);
   const [builtinOverrides, setBuiltinOverrides] = useState<Record<string, Record<string, any>>>(() => ({
     ...readCachedCoreLexicons(),
@@ -1385,12 +1386,10 @@ export const LexiconProvider = ({ children }: any) => {
         }
       }
     }
-    const cats = Array.isArray(activeGameSchema?.mod_categories)
-      ? activeGameSchema.mod_categories
-      : [];
+    const cats = Array.isArray(modCategories) ? modCategories : [];
     for (const c of cats) {
       if (!c || typeof c !== 'object') continue;
-      const catLabel = c.label || c.name || c.id;
+      const catLabel = c.label || c.id;
       if (c.lexicon_key && catLabel) {
         map[c.lexicon_key] = catLabel;
       }
@@ -1400,7 +1399,7 @@ export const LexiconProvider = ({ children }: any) => {
       if (Array.isArray(c.subcategories)) {
         for (const sub of c.subcategories) {
           if (!sub || typeof sub !== 'object') continue;
-          const subLabel = sub.label || sub.name || sub.id;
+          const subLabel = sub.label || sub.id;
           if (sub.lexicon_key && subLabel) {
             map[sub.lexicon_key] = subLabel;
           }
@@ -1408,7 +1407,7 @@ export const LexiconProvider = ({ children }: any) => {
       }
     }
     return map;
-  }, [activeGameSchema]);
+  }, [activeGameSchema, modCategories]);
 
   const effectiveDictionary = previewLexiconState ? previewLexiconState.dict : dictionary;
   const effectiveLangState = previewLexiconState ? previewLexiconState.name : activeLangState;

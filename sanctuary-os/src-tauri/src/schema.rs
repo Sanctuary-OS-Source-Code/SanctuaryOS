@@ -215,6 +215,8 @@ pub struct SchemaInstallRoute {
     #[serde(default)]
     pub extensions: Vec<String>,
     #[serde(default)]
+    pub file_names: Option<Vec<String>>,
+    #[serde(default)]
     pub folder_match: Option<String>,
     #[serde(default)]
     pub target_root: String,
@@ -222,6 +224,10 @@ pub struct SchemaInstallRoute {
     pub target_subdir: String,
     #[serde(default, deserialize_with = "deserialize_opt_bool_flex")]
     pub preserve_vanilla: Option<bool>,
+    #[serde(default, deserialize_with = "deserialize_opt_bool_flex")]
+    pub apply_load_order_prefix: Option<bool>,
+    #[serde(default, deserialize_with = "deserialize_opt_bool_flex")]
+    pub apply_wine_dll_override: Option<bool>,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, Default)]
@@ -248,6 +254,8 @@ pub struct SchemaConflictAnalyzer {
     pub endian: Option<String>,
     #[serde(default, deserialize_with = "deserialize_opt_bool_flex")]
     pub bitmask_constant_header: Option<bool>,
+    #[serde(default)]
+    pub selector_path: Option<String>,
 }
 
 fn default_true() -> bool {
@@ -327,6 +335,52 @@ pub struct PriorityTier {
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, Default)]
+pub struct ManifestTargetDescriptor {
+    #[serde(default)]
+    pub root_source: String,
+    #[serde(default)]
+    pub relative_path: String,
+    #[serde(default)]
+    pub format: String,
+    #[serde(default)]
+    pub template: Option<String>,
+    #[serde(default)]
+    pub entry_key: Option<String>,
+    #[serde(default)]
+    pub section: Option<String>,
+    #[serde(default)]
+    pub encoding: Option<String>,
+    #[serde(default)]
+    pub header: Option<String>,
+    #[serde(default)]
+    pub footer: Option<String>,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, Default)]
+pub struct SchemaModMetadataExtractor {
+    #[serde(default)]
+    pub manifest_files: Vec<String>,
+    #[serde(default)]
+    pub id_key: Option<String>,
+    #[serde(default)]
+    pub name_key: Option<String>,
+    #[serde(default)]
+    pub version_key: Option<String>,
+    #[serde(default)]
+    pub uuid_key: Option<String>,
+    #[serde(default)]
+    pub author_key: Option<String>,
+    #[serde(default)]
+    pub dependencies_key: Option<String>,
+    #[serde(default)]
+    pub load_before_key: Option<String>,
+    #[serde(default)]
+    pub load_after_key: Option<String>,
+    #[serde(default)]
+    pub binary_master_header: Option<String>,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, Default)]
 pub struct LoadOrderConfig {
     #[serde(default)]
     pub strategy: Option<String>,
@@ -346,6 +400,16 @@ pub struct LoadOrderConfig {
     pub document_footer: Option<String>,
     #[serde(default)]
     pub priority_tiers: Option<Vec<PriorityTier>>,
+    #[serde(default)]
+    pub manifest_targets: Option<Vec<ManifestTargetDescriptor>>,
+    #[serde(default, deserialize_with = "deserialize_opt_u32_flex")]
+    pub index_base: Option<u32>,
+    #[serde(default, deserialize_with = "deserialize_opt_bool_flex")]
+    pub use_tier_priority_as_base: Option<bool>,
+    #[serde(default, deserialize_with = "deserialize_opt_u64_flex")]
+    pub timestamp_step_secs: Option<u64>,
+    #[serde(default)]
+    pub asset_overwrite_order: Option<String>,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, Default)]
@@ -449,6 +513,24 @@ pub struct GameSchema {
     pub install_routes: Option<Vec<SchemaInstallRoute>>,
     #[serde(default)]
     pub lab_verification: Option<SchemaLabVerification>,
+    #[serde(default)]
+    pub wine_dll_overrides: Option<Vec<String>>,
+    #[serde(default)]
+    pub mod_metadata_extractor: Option<SchemaModMetadataExtractor>,
+    #[serde(default)]
+    pub mod_unit_mode: Option<String>,
+    #[serde(default)]
+    pub mod_unit_markers: Option<Vec<String>>,
+    #[serde(default)]
+    pub gog_app_ids: Option<Vec<String>>,
+    #[serde(default)]
+    pub epic_app_names: Option<Vec<String>>,
+    #[serde(default)]
+    pub xbox_store_ids: Option<Vec<String>>,
+    #[serde(default)]
+    pub ea_content_ids: Option<Vec<String>>,
+    #[serde(default)]
+    pub install_folder_names: Option<Vec<String>>,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, Default)]

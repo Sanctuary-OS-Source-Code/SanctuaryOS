@@ -46,7 +46,7 @@ pub fn resolve_route_for_file(
     live_root: &Path,
     docs_root: &Path,
     mods_dir: &Path,
-) -> Option<(PathBuf, PathBuf, bool)> {
+) -> Option<(PathBuf, PathBuf, bool, bool)> {
     if source.is_dir() || routes.is_empty() {
         return None;
     }
@@ -55,6 +55,11 @@ pub fn resolve_route_for_file(
         .and_then(|e| e.to_str())
         .map(|s| format!(".{}", s.to_lowercase()))
         .unwrap_or_default();
+    let fname_lower = source
+        .file_name()
+        .and_then(|n| n.to_str())
+        .unwrap_or_default()
+        .to_lowercase();
     let rel_norm = rel_hint.replace('\\', "/");
     let rel_trimmed = rel_norm.trim_matches('/');
     let rel_lower = rel_trimmed.to_lowercase();
@@ -69,6 +74,16 @@ pub fn resolve_route_for_file(
                 };
                 clean == ext
             });
+
+        let file_name_matched = route
+            .file_names
+            .as_ref()
+            .map(|names| {
+                names
+                    .iter()
+                    .any(|n| !n.trim().is_empty() && n.trim().eq_ignore_ascii_case(&fname_lower))
+            })
+            .unwrap_or(false);
 
         let mut matched_subpath: Option<String> = None;
         let folder_matched = if let Some(fm) = route
@@ -103,7 +118,7 @@ pub fn resolve_route_for_file(
             false
         };
 
-        if ext_matched || folder_matched {
+        if ext_matched || file_name_matched || folder_matched {
             let base_root = match route.target_root.to_lowercase().as_str() {
                 "live_path" | "engine" | "game" => live_root,
                 "docs_path" | "documents" | "docs" | "user_data" => docs_root,
@@ -144,6 +159,7 @@ pub fn resolve_route_for_file(
                 target_file,
                 base_root.to_path_buf(),
                 route.preserve_vanilla.unwrap_or(true),
+                route.apply_load_order_prefix.unwrap_or(false),
             ));
         }
     }
@@ -158,7 +174,19 @@ pub fn route_file_if_matched(
     docs_root: &Path,
     mods_dir: &Path,
 ) -> Option<RoutedFileRecord> {
-    let (target_file, _base_root, preserve_vanilla) = resolve_route_for_file(
+    route_file_with_prefix_if_matched(source, rel_hint, routes, live_root, docs_root, mods_dir, None)
+}
+
+pub fn route_file_with_prefix_if_matched(
+    source: &Path,
+    rel_hint: &str,
+    routes: &[crate::schema::SchemaInstallRoute],
+    live_root: &Path,
+    docs_root: &Path,
+    mods_dir: &Path,
+    prefix: Option<&str>,
+) -> Option<RoutedFileRecord> {
+    let (mut target_file, _base_root, preserve_vanilla, apply_prefix) = resolve_route_for_file(
         source,
         rel_hint,
         routes,
@@ -166,6 +194,12 @@ pub fn route_file_if_matched(
         docs_root,
         mods_dir,
     )?;
+
+    if apply_prefix {
+        if let (Some(pfx), Some(fname)) = (prefix.filter(|p| !p.is_empty()), target_file.file_name().and_then(|n| n.to_str())) {
+            target_file = target_file.with_file_name(format!("{}{}", pfx, fname));
+        }
+    }
 
     if let Some(parent_dir) = target_file.parent() {
         let _ = std::fs::create_dir_all(parent_dir);
@@ -362,7 +396,40 @@ pub async fn deploy_playset_bulk(
             populate_vault_index(&dir_path, &mut vault_index);
         }
 
-        let mods_for_manifest = mods.clone();
+        // Phase 1: Sort DeployMods deterministically by (tier_priority, load_order_index)
+        let mut sorted_mods = mods;
+        let lo_cfg_ref = game_schema.as_ref().and_then(|s| s.load_order.as_ref());
+        let lower_wins = lo_cfg_ref
+            .and_then(|l| l.direction.as_deref())
+            .map_or(false, |d| d.trim().eq_ignore_ascii_case("lower_wins"));
+        sorted_mods.sort_by(|a, b| {
+            let pa = crate::load_order_engine::resolve_tier_priority(&game_schema, a.priority_tier.as_deref());
+            let pb = crate::load_order_engine::resolve_tier_priority(&game_schema, b.priority_tier.as_deref());
+            let ord = pa.cmp(&pb).then_with(|| a.load_order_index.unwrap_or(0).cmp(&b.load_order_index.unwrap_or(0)));
+            if lower_wins { ord.reverse() } else { ord }
+        });
+
+        let asset_last_wins = !lo_cfg_ref
+            .and_then(|l| l.asset_overwrite_order.as_deref())
+            .map_or(false, |o| o.trim().eq_ignore_ascii_case("first_wins"));
+
+        let link_with_overwrite = |src: &Path, dst: &Path| -> bool {
+            let dst_exists = dst.exists() || std::fs::symlink_metadata(dst).is_ok();
+            if dst_exists {
+                if asset_last_wins {
+                    let _ = std::fs::remove_file(dst);
+                } else {
+                    return false;
+                }
+            }
+            create_symlink_file(src, dst)
+                .or_else(|_| std::fs::hard_link(src, dst))
+                .or_else(|_| std::fs::copy(src, dst).map(|_| ()))
+                .is_ok()
+        };
+
+        let ordered_deploy_entries: std::sync::Mutex<Vec<crate::load_order_engine::OrderedDeployEntry>> =
+            std::sync::Mutex::new(Vec::new());
         let mods_allowed_roots = [mods_dir.clone()];
 
         let record_deployed_path = |p: &Path| {
@@ -374,12 +441,28 @@ pub async fn deploy_playset_bulk(
             }
         };
 
-        use rayon::prelude::*;
-        let count: usize = mods
-            .into_par_iter()
-            .map(|m| {
+        // Phase 2: Materialize links deterministically in sorted load order
+        let count: usize = sorted_mods
+            .into_iter()
+            .enumerate()
+            .map(|(sorted_idx, m)| {
                 let folders_to_check: Vec<&str> =
                     priority_folders.iter().map(|s| s.as_str()).collect();
+                let lo_cfg_opt = game_schema.as_ref().and_then(|s| s.load_order.as_ref());
+                let tier_prio = crate::load_order_engine::resolve_tier_priority(
+                    &game_schema,
+                    m.priority_tier.as_deref(),
+                );
+                let order_idx = m.load_order_index.unwrap_or(sorted_idx);
+                let computed_prefix = if load_strategy == "numeric_prefix" {
+                    Some(crate::load_order_engine::compute_load_order_prefix(
+                        order_idx,
+                        lo_cfg_opt,
+                        tier_prio,
+                    ))
+                } else {
+                    None
+                };
 
                 if let Some(structure_val) = &m.folder_structure {
                     if let Ok(nodes) =
@@ -531,18 +614,32 @@ pub async fn deploy_playset_bulk(
                         return 0;
                     }
 
-                    if let Some(rec) = route_file_if_matched(
+                    if let Some(rec) = route_file_with_prefix_if_matched(
                         &source,
                         &m.path,
                         &install_routes,
                         &live_root,
                         &docs_root,
                         &mods_dir,
+                        computed_prefix.as_deref(),
                     ) {
                         if let Ok(mut guard) = routed_records.lock() {
                             if !guard.iter().any(|r| r.target_path == rec.target_path) {
                                 guard.push(rec);
                             }
+                        }
+                        if let Ok(mut oe) = ordered_deploy_entries.lock() {
+                            let fname = source.file_name().and_then(|n| n.to_str()).unwrap_or_default().to_string();
+                            let stem = source.file_stem().and_then(|s| s.to_str()).unwrap_or(&fname).to_string();
+                            oe.push(crate::load_order_engine::OrderedDeployEntry {
+                                rel_path: m.target_path.clone().unwrap_or_else(|| fname.clone()).replace('\\', "/"),
+                                file_name: fname,
+                                stem,
+                                metadata: crate::load_order_engine::extract_metadata_for_path(&source, &game_schema),
+                                tier_folder: detected_tier_folder.clone(),
+                                tier_priority: tier_prio,
+                                deployed_path: None,
+                            });
                         }
                         return 1;
                     }
@@ -580,36 +677,9 @@ pub async fn deploy_playset_bulk(
                             }
                         }
                     }
-                } else if load_strategy == "numeric_prefix" {
-                    if let Some(order_idx) = m.load_order_index {
-                        if let Some(fname) = target.file_name().and_then(|n| n.to_str()) {
-                            let sep = game_schema
-                                .as_ref()
-                                .and_then(|s| s.load_order.as_ref())
-                                .and_then(|lo| lo.prefix_separator.as_deref())
-                                .unwrap_or("_");
-                            let prefix_fmt = game_schema
-                                .as_ref()
-                                .and_then(|s| s.load_order.as_ref())
-                                .and_then(|lo| lo.prefix_format.as_deref())
-                                .filter(|f| !f.is_empty());
-                            let idx_num = order_idx + 1;
-                            let formatted_prefix = if let Some(fmt_str) = prefix_fmt {
-                                if fmt_str.contains("{index:03}") {
-                                    fmt_str.replace("{index:03}", &format!("{:03}", idx_num))
-                                } else if fmt_str.contains("{index:02}") {
-                                    fmt_str.replace("{index:02}", &format!("{:02}", idx_num))
-                                } else if fmt_str.contains("{index}") {
-                                    fmt_str.replace("{index}", &idx_num.to_string())
-                                } else {
-                                    format!("{:03}{}", idx_num, sep)
-                                }
-                            } else {
-                                format!("{:03}{}", idx_num, sep)
-                            };
-                            let prefixed_name = format!("{}{}", formatted_prefix, fname);
-                            target = target.with_file_name(prefixed_name);
-                        }
+                } else if let Some(ref formatted_prefix) = computed_prefix {
+                    if let Some(fname) = target.file_name().and_then(|n| n.to_str()) {
+                        target = target.with_file_name(format!("{}{}", formatted_prefix, fname));
                     }
                 }
 
@@ -653,13 +723,14 @@ pub async fn deploy_playset_bulk(
                             m.path.trim_matches('/'),
                             rel_in_mod.to_string_lossy().replace('\\', "/")
                         );
-                        if let Some(rec) = route_file_if_matched(
+                        if let Some(rec) = route_file_with_prefix_if_matched(
                             file_path,
                             &rel_route_hint,
                             &install_routes,
                             &live_root,
                             &docs_root,
                             &mods_dir,
+                            computed_prefix.as_deref(),
                         ) {
                             if let Ok(mut guard) = routed_records.lock() {
                                 if !guard.iter().any(|r| r.target_path == rec.target_path) {
@@ -691,13 +762,24 @@ pub async fn deploy_playset_bulk(
                                 cur = dir_anc.parent();
                             }
                         }
-                        if create_symlink_file(file_path, &dest)
-                            .or_else(|_| std::fs::hard_link(file_path, &dest))
-                            .or_else(|_| std::fs::copy(file_path, &dest).map(|_| ()))
-                            .is_ok()
-                        {
+                        if link_with_overwrite(file_path, &dest) {
                             record_deployed_path(&dest);
                             dir_linked += 1;
+                        }
+                    }
+                    if dir_linked > 0 {
+                        if let Ok(mut oe) = ordered_deploy_entries.lock() {
+                            let d_name = source.file_name().and_then(|n| n.to_str()).unwrap_or_default().to_string();
+                            let d_rel = target.strip_prefix(&mods_dir).map(|r| r.to_string_lossy().replace('\\', "/")).unwrap_or_else(|_| d_name.clone());
+                            oe.push(crate::load_order_engine::OrderedDeployEntry {
+                                rel_path: d_rel,
+                                file_name: d_name.clone(),
+                                stem: d_name,
+                                metadata: crate::load_order_engine::extract_metadata_for_path(&source, &game_schema),
+                                tier_folder: detected_tier_folder.clone(),
+                                tier_priority: tier_prio,
+                                deployed_path: Some(target.clone()),
+                            });
                         }
                     }
                     return usize::from(dir_linked > 0);
@@ -715,10 +797,23 @@ pub async fn deploy_playset_bulk(
                     }
                 }
 
-                let _ = create_symlink_file(&source, &target)
-                    .or_else(|_| std::fs::hard_link(&source, &target))
-                    .or_else(|_| std::fs::copy(&source, &target).map(|_| ()));
-                record_deployed_path(&target);
+                if link_with_overwrite(&source, &target) {
+                    record_deployed_path(&target);
+                }
+                if let Ok(mut oe) = ordered_deploy_entries.lock() {
+                    let fname = target.file_name().and_then(|n| n.to_str()).unwrap_or_default().to_string();
+                    let stem = target.file_stem().and_then(|s| s.to_str()).unwrap_or(&fname).to_string();
+                    let d_rel = target.strip_prefix(&mods_dir).map(|r| r.to_string_lossy().replace('\\', "/")).unwrap_or_else(|_| fname.clone());
+                    oe.push(crate::load_order_engine::OrderedDeployEntry {
+                        rel_path: d_rel,
+                        file_name: fname,
+                        stem,
+                        metadata: crate::load_order_engine::extract_metadata_for_path(&source, &game_schema),
+                        tier_folder: detected_tier_folder.clone(),
+                        tier_priority: tier_prio,
+                        deployed_path: Some(target.clone()),
+                    });
+                }
 
                 // Schema-configured twin extensions only (zero game-specific fallbacks)
                 if let Some(ext) = source.extension().and_then(|e| e.to_str()) {
@@ -841,7 +936,7 @@ pub async fn deploy_playset_bulk(
                                 {
                                     continue;
                                 }
-                                if !dest.exists() && std::fs::symlink_metadata(&dest).is_err() {
+                                if asset_last_wins || (!dest.exists() && std::fs::symlink_metadata(&dest).is_err()) {
                                     if let Some(dest_parent) = dest.parent() {
                                         let _ = std::fs::create_dir_all(dest_parent);
                                         let mut cur = Some(dest_parent);
@@ -855,11 +950,7 @@ pub async fn deploy_playset_bulk(
                                             cur = dir_anc.parent();
                                         }
                                     }
-                                    if create_symlink_file(path, &dest)
-                                        .or_else(|_| std::fs::hard_link(path, &dest))
-                                        .or_else(|_| std::fs::copy(path, &dest).map(|_| ()))
-                                        .is_ok()
-                                    {
+                                    if link_with_overwrite(path, &dest) {
                                         record_deployed_path(&dest);
                                     }
                                 }
@@ -880,24 +971,19 @@ pub async fn deploy_playset_bulk(
             }
         }
 
-        if load_strategy == "manifest_list" {
-            let mut sorted_mods = mods_for_manifest;
-            sorted_mods.sort_by_key(|m| m.load_order_index.unwrap_or(0));
-            let ordered_files: Vec<String> = sorted_mods
-                .into_iter()
-                .map(|m| {
-                    m.target_path
-                        .unwrap_or_else(|| {
-                            Path::new(&m.path)
-                                .file_name()
-                                .unwrap_or_default()
-                                .to_string_lossy()
-                                .to_string()
-                        })
-                        .replace("\\", "/")
-                })
-                .collect();
-            crate::game_logic::write_load_order_manifest(&game_schema, &mods_dir, &ordered_files);
+        if let Ok(entries) = ordered_deploy_entries.lock() {
+            let written_manifests = crate::load_order_engine::apply_load_order_outputs(
+                &game_schema,
+                &mods_dir,
+                &docs_root,
+                &live_root,
+                &entries,
+            );
+            for wp in written_manifests {
+                if wp.starts_with(&mods_dir) {
+                    record_deployed_path(&wp);
+                }
+            }
         }
 
         if let Ok(entries) = std::fs::read_dir(&vault_mods_lane) {

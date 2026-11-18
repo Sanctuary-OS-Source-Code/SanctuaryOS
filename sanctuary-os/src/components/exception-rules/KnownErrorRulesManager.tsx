@@ -1,7 +1,11 @@
 import { useState, useEffect, useMemo } from "react";
 import { useLexicon } from "../../LexiconContext";
 import { useStore } from "../../store";
-import { SidePanel, CustomDropdown, PanelHeaderGroup, PanelHeaderButton, EmptyState, HoverTooltip, VAULT_CHIP_CLASS, ActionButton, DashboardStatTile, SidePanelFilterBar } from "../../shared";
+import { SidePanel, PanelHeaderGroup, EmptyState, DashboardStatTile, SidePanelFilterBar } from "../../shared-components/layout";
+import { CustomDropdown } from "../../shared-components/dropdowns";
+import { PanelHeaderButton, ActionButton } from "../../shared-components/buttons";
+import { HoverTooltip } from "../../shared-components/alerts";
+import { VAULT_CHIP_CLASS } from "../../shared-components/constants";
 import { CommandScreenSectionHeading } from "../../hub-components/SharedCommandScreenLayout";
 import { formatHumanReadableLogText } from "../../utils/logScrubber";
 import { openSanctuaryContextMenu, SanctuaryContextMenuItem } from "../../ContextMenu";

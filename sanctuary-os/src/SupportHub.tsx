@@ -115,6 +115,8 @@ export default function SupportHub() {
   const [, setCurrentStep] = useState<number>(1);
   const [policyViolations, setPolicyViolations] = useState<string[]>([]);
   const [optedOutSources, setOptedOutSources] = useState<string[]>([]);
+  const [submitAnonymously, setSubmitAnonymously] = useState(false);
+  const [includeLoadoutDiagnostics, setIncludeLoadoutDiagnostics] = useState(false);
   const [previewTelemetryLogs, setPreviewTelemetryLogs] = useState<string>("");
   const [isEditingRawTelemetry, setIsEditingRawTelemetry] = useState(false);
 
@@ -510,6 +512,8 @@ export default function SupportHub() {
       setError("");
       setActiveCardIndex(0);
       setIsEditingRawTelemetry(false);
+      setSubmitAnonymously(false);
+      setIncludeLoadoutDiagnostics(false);
     }
   }, [isOpen]);
 
@@ -561,6 +565,7 @@ export default function SupportHub() {
     for (const source of activeSources) {
       try {
         if (source.type === "OS") {
+          if (!includeLoadoutDiagnostics) continue;
           let sysInfo = "";
           try {
             sysInfo = await invoke<string>("get_system_info");
@@ -612,7 +617,7 @@ export default function SupportHub() {
     }
 
     return scrubLogUserData(bundle.trim());
-  }, [isOpen, supportStream, osPlatform, activeCategory, effectiveTelemetrySources, optedOutSources, logs]);
+  }, [isOpen, supportStream, osPlatform, activeCategory, effectiveTelemetrySources, optedOutSources, logs, includeLoadoutDiagnostics]);
 
   useEffect(() => {
     if (!isOpen) return;
@@ -649,24 +654,25 @@ export default function SupportHub() {
 
         const { error: insertErr } = await supabaseAuth.from("keeper_tickets").insert([
           {
-            author_id: user.id,
+            author_id: submitAnonymously ? null : user.id,
             ticket_type: "Bug Report",
             title: `[Core Bug • ${osPlatform}] ${scrubLogUserData(title.trim())}`,
             description: scrubLogUserData(description.trim()),
             status: "NEW",
             metadata: {
               logs: combinedLogs,
+              is_anonymous: submitAnonymously,
               feedback_meta: {
                 platform: osPlatform,
                 stream: "Core Bug Report",
                 sentiment: "Bug Report",
-                auto_captured: true,
-                author_label:
-                  user.user_metadata?.username ||
-                  user.email?.split("@")[0] ||
-                  t("term_citizen", "Citizen"),
+                auto_captured: includeLoadoutDiagnostics,
+                is_anonymous: submitAnonymously,
+                author_label: submitAnonymously
+                  ? t("anonymous", "Anonymous")
+                  : (user.user_metadata?.username || t("term_citizen", "Citizen")),
               },
-              ...(activeMasonSupporters[0]
+              ...(!submitAnonymously && activeMasonSupporters[0]
                 ? {
                     expedited_support: true,
                     priority_ticket: true,
@@ -853,6 +859,7 @@ export default function SupportHub() {
 
         for (const source of activeSources) {
           if (source.type === 'OS') {
+            if (!includeLoadoutDiagnostics) continue;
             try {
               let sysInfo = "";
               try {
@@ -920,8 +927,8 @@ export default function SupportHub() {
         throw new Error(`Communications Ban: ${profile.comm_blacklist_reason || t("support_banned_default", "You have been banned from submitting support tickets.")}`);
       }
 
-      if (currentSet && activeTab.toLowerCase().includes('bug') && !finalLogs.includes('--- TELEMETRY: Attached Blueprint ---')) {
-        const bpPayload = JSON.stringify({ sanctuary_profile: true, ...currentSet }, null, 2);
+      if (includeLoadoutDiagnostics && currentSet && activeTab.toLowerCase().includes('bug') && !finalLogs.includes('--- TELEMETRY: Attached Blueprint ---')) {
+        const bpPayload = scrubLogUserData(JSON.stringify({ sanctuary_profile: true, ...currentSet }, null, 2));
         finalLogs += `\n--- TELEMETRY: Attached Blueprint ---\n${bpPayload}\n`;
       }
 
@@ -981,12 +988,16 @@ export default function SupportHub() {
         targetMatchedMasonPass || matchedSupporterPass || activeMasonSupporters[0] || null;
 
       const { error: insertErr } = await supabase.from('sanctuary_tickets').insert([{
-        author_id: user.id,
+        author_id: submitAnonymously ? null : user.id,
         ticket_type: activeTab,
         title: scrubLogUserData(title) || (activeCategory?.category_name || t("support_ticket", "Support Ticket")),
         description: scrubLogUserData(description || t("no_description_provided", "No description provided.")),
         status: "open",
         metadata: {
+          is_anonymous: submitAnonymously,
+          ...(submitAnonymously
+            ? { feedback_meta: { author_label: t("anonymous", "Anonymous") } }
+            : {}),
           target_mod_id: activeCategory?.requires_target_mod ? (resolvedCloudTargetModId || null) : null,
           ...(activeCategory?.requires_target_mod && resolvedTargetModName
             ? { target_mod_name: resolvedTargetModName }
@@ -994,7 +1005,7 @@ export default function SupportHub() {
           target_user_id: activeCategory?.requires_target_user ? (targetUserId || null) : null,
           logs: scrubbedFinalLogs,
           custom_fields: scrubbedCustomFields,
-          ...(primaryMasonPass ? {
+          ...(!submitAnonymously && primaryMasonPass ? {
             expedited_support: true,
             priority_ticket: true,
             priority_level: "mason_supporter",
@@ -1005,12 +1016,12 @@ export default function SupportHub() {
             supporter_provider: primaryMasonPass.provider,
             supporter_pass_hash: primaryMasonPass.cryptographic_pass,
           } : {}),
-          ...(spokeSupporterPass ? {
+          ...(!submitAnonymously && spokeSupporterPass ? {
             is_spoke_supporter: true,
             spoke_supporter_id: spokeSupporterPass.spoke_id,
             spoke_supporter_name: spokeSupporterPass.spoke_name,
           } : {}),
-          ...(isPatronUser ? {
+          ...(!submitAnonymously && isPatronUser ? {
             is_foundry_patron: true,
             patron_months: patronMonths,
           } : {}),
@@ -1729,16 +1740,28 @@ export default function SupportHub() {
                               {effectiveTelemetrySources.length > 0 && (
                                 <div className="flex flex-col gap-2">
                                   {effectiveTelemetrySources.map((source: any) => {
+                                    if (source.type === "OS") {
+                                      return (
+                                        <SidePanelPillToggle
+                                          key={source.id}
+                                          checked={includeLoadoutDiagnostics}
+                                          icon={t("icon_memory", "memory")}
+                                          label={t("support_include_diag_toggle", "Include Scrubbed {Vault} & System Diagnostics")}
+                                          description={
+                                            includeLoadoutDiagnostics
+                                              ? t("support_include_diag_on", "Scrubbed {Blueprint}, OS & session logs included")
+                                              : t("support_include_diag_off", "Excluded by default — zero loadout telemetry sent")
+                                          }
+                                          onChange={() => setIncludeLoadoutDiagnostics((v) => !v)}
+                                        />
+                                      );
+                                    }
                                     const isOptedOut = optedOutSources.includes(source.id);
                                     return (
                                       <SidePanelPillToggle
                                         key={source.id}
                                         checked={!isOptedOut}
-                                        icon={
-                                          source.type === "OS"
-                                            ? t("icon_memory", "memory")
-                                            : t("icon_folder", "folder")
-                                        }
+                                        icon={t("icon_folder", "folder")}
                                         label={source.label}
                                         description={
                                           !isOptedOut
@@ -1839,6 +1862,14 @@ export default function SupportHub() {
                                 <TicketLogViewer logs={previewTelemetryLogs} />
                               </div>
                             )}
+
+                            <SidePanelPillToggle
+                              checked={submitAnonymously}
+                              icon={t("icon_visibility_off", "visibility_off")}
+                              label={t("support_submit_anon_toggle", "Submit Ticket Anonymously")}
+                              description={t("support_submit_anon_desc", "Omit your account ID from this ticket submission.")}
+                              onChange={() => setSubmitAnonymously((v) => !v)}
+                            />
 
                             <div className="flex flex-wrap items-center justify-end gap-2.5 pt-3 border-t border-[color-mix(in_srgb,var(--text)_8%,transparent)]">
                               {idx > 0 && (

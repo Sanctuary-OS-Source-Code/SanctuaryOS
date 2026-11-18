@@ -519,7 +519,6 @@ export default function WebLandingPage() {
             auto_captured: feedbackStream === 'Core Bug Report',
             author_label:
               session?.user?.user_metadata?.username ||
-              session?.user?.email?.split('@')[0] ||
               'Community Member',
           },
         },
@@ -711,7 +710,6 @@ export default function WebLandingPage() {
     setKeeperFocus('Systems & Backend Engineer (Rust / Tauri)');
     setKeeperHandle(
       session?.user?.user_metadata?.username ||
-        session?.user?.email?.split('@')[0] ||
         ''
     );
     setKeeperContact(session?.user?.email || '');
@@ -753,7 +751,6 @@ export default function WebLandingPage() {
     const finalHandle =
       keeperHandle.trim() ||
       session?.user?.user_metadata?.username ||
-      session?.user?.email?.split('@')[0] ||
       '';
     const finalContact = keeperContact.trim() || session?.user?.email || '';
     if (!finalHandle || !finalContact || keeperExperience.trim().length < 40) {

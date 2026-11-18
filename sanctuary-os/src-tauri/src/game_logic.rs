@@ -203,23 +203,6 @@ pub fn generate_manifest_if_needed(schema: &Option<GameSchema>, mods_dir: &Path)
     }
 }
 
-pub fn write_load_order_manifest(
-    schema: &Option<GameSchema>,
-    mods_dir: &Path,
-    ordered_files: &[String],
-) {
-    if get_load_order_strategy(schema) != "manifest_list" {
-        return;
-    }
-    if let Some((manifest_file, content)) = generate_manifest_content(schema, ordered_files) {
-        let target = mods_dir.join(manifest_file);
-        if let Some(parent) = target.parent() {
-            let _ = std::fs::create_dir_all(parent);
-        }
-        let _ = crate::utils::atomic_write_bytes(&target, content.as_bytes());
-    }
-}
-
 pub fn is_script_extension(schema: &Option<GameSchema>, ext: &str) -> bool {
     let ext_clean = ext.trim_start_matches('.').to_lowercase();
     if ext_clean.is_empty() {
@@ -307,14 +290,11 @@ pub fn is_dlc_folder(schema: &Option<GameSchema>, folder_name: &str) -> bool {
 pub fn get_archive_extensions(schema: &Option<GameSchema>) -> Vec<String> {
     if let Some(s) = schema {
         if let Some(containers) = &s.extensions.archive_containers {
-            let cleaned: Vec<String> = containers
+            return containers
                 .iter()
                 .map(|e| e.trim_start_matches('.').to_lowercase())
                 .filter(|e| !e.is_empty())
                 .collect();
-            if !cleaned.is_empty() {
-                return cleaned;
-            }
         }
     }
     vec!["zip".to_string()]

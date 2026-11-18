@@ -14,9 +14,6 @@
     "default_mod_dir_windows": ""
   },
   "game_id": "default",
-  "taxonomy": {
-    "categories": []
-  },
   "extensions": {
     "labels": {},
     "parsers": {},
@@ -62,7 +59,6 @@
   "exception_logs": [],
   "external_tools": [],
   "install_routes": [],
-  "mod_categories": [],
   "schema_version": 5,
   "default_lexicon": "en-default",
   "executable_names": [],

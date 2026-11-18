@@ -708,6 +708,12 @@ async function executeStandaloneDirectRpc(fnName: string, args: any = {}) {
             return { data: { success: true, queued_pending: nextStatus === 'pending', mod_id: modId, mod: updated }, error: null };
         }
 
+        if (fnName === 'increment_mason_post_view') {
+            return await rawAuthClient.rpc('increment_mason_post_view', {
+                p_post_id: args?.p_post_id || args?.post_id,
+            });
+        }
+
         return await rawAuthClient.rpc(fnName, args);
     } catch (err: any) {
         console.error(`Standalone RPC Error (${fnName}):`, err);
@@ -1219,7 +1225,8 @@ export const supabase = new Proxy({} as SupabaseClient, {
                     'dispatch_broadcast_notifications',
                     'flag_mod_for_compliance',
                     'increment_asset_downloads',
-                    'increment_blueprint_downloads'
+                    'increment_blueprint_downloads',
+                    'increment_mason_post_view'
                 ].includes(fnName);
 
                 if (isStandaloneFork && isInterceptedRpc) {
@@ -1286,11 +1293,14 @@ export const supabase = new Proxy({} as SupabaseClient, {
                         'dispatch_broadcast_notifications': 'dispatch_broadcast_notifications',
                         'flag_mod_for_compliance': 'flag_mod_for_compliance',
                         'increment_asset_downloads': 'increment_spoke_counter',
-                        'increment_blueprint_downloads': 'increment_spoke_counter'
+                        'increment_blueprint_downloads': 'increment_spoke_counter',
+                        'increment_mason_post_view': 'increment_mason_post_view'
                     };
 
                     let payload: any = {};
-                    if (fnName === 'increment_asset_downloads') {
+                    if (fnName === 'increment_mason_post_view') {
+                        payload = { post_id: args?.p_post_id || args?.post_id };
+                    } else if (fnName === 'increment_asset_downloads') {
                         payload = { kind: 'asset', id: args?.asset_id };
                     } else if (fnName === 'increment_blueprint_downloads') {
                         payload = { kind: 'blueprint', id: args?.blueprint_id };
@@ -1340,9 +1350,13 @@ export const supabase = new Proxy({} as SupabaseClient, {
                     }
 
                     const res = await supabaseAuth.functions.invoke('game-gateway', {
-                        headers: {
-                            Authorization: `Bearer ${token}`
-                        },
+                        ...(token
+                            ? {
+                                headers: {
+                                    Authorization: `Bearer ${token}`,
+                                },
+                              }
+                            : {}),
                         body: {
                             game_id: targetGameId,
                             action: actionMap[fnName],
@@ -1645,11 +1659,11 @@ export async function submitThreatManifestToSpoke(
         let lastError: any = null;
 
         // 1. Prefer authenticated gateway upsert (uses scoped Spoke Gateway Token and works even before workspace hydration)
+        const targetGameId =
+            state.workspaces?.find((w: any) => w.id === wsId)?.game_id ||
+            state.workspaces?.find((w: any) => w.id === wsId)?.schema_id ||
+            wsId;
         if (state.session?.access_token && !isStandaloneFork) {
-            const targetGameId =
-                state.workspaces?.find((w: any) => w.id === wsId)?.game_id ||
-                state.workspaces?.find((w: any) => w.id === wsId)?.schema_id ||
-                wsId;
             let rpcRes = await (supabase as any).rpc('secure_upsert_cloud_file', {
                 p_game_id: targetGameId,
                 p_target: 'malware_reports',
@@ -1666,6 +1680,19 @@ export async function submitThreatManifestToSpoke(
                 insertedData = rpcRes.data;
             } else if (rpcRes?.error) {
                 lastError = rpcRes.error;
+            }
+        } else if (!isStandaloneFork) {
+            const anonGw = await supabaseAuth.functions.invoke('game-gateway', {
+                body: {
+                    game_id: targetGameId,
+                    action: 'submit_anonymous_malware_manifest',
+                    payload: extendedRowPayload,
+                },
+            });
+            if (!anonGw?.error && !anonGw?.data?.error && anonGw?.data?.success !== false) {
+                insertedData = anonGw.data?.data ?? anonGw.data;
+            } else if (anonGw?.error || anonGw?.data?.error) {
+                lastError = anonGw?.error || new Error(anonGw?.data?.error);
             }
         }
 

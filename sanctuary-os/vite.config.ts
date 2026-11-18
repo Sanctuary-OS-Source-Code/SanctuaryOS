@@ -377,6 +377,8 @@ function devLexiconSyncPlugin() {
               };
               delete (cleanDefault as any).dlc_catalog;
               delete (cleanDefault as any).exception_rules;
+              delete (cleanDefault as any).mod_categories;
+              delete (cleanDefault as any).taxonomy;
               const dataSchemaPath = path.resolve(__dirname, 'src/data/schemas/default.json');
               const rootSchemaPath = path.resolve(__dirname, 'schema.json');
               const u1 = writeJsonIfChanged(dataSchemaPath, cleanDefault);
@@ -406,6 +408,8 @@ function devLexiconSyncPlugin() {
               };
               delete (cleanSpokeSchema as any).dlc_catalog;
               delete (cleanSpokeSchema as any).exception_rules;
+              delete (cleanSpokeSchema as any).mod_categories;
+              delete (cleanSpokeSchema as any).taxonomy;
               updated = writeJsonIfChanged(targetPath, cleanSpokeSchema);
             } else {
               res.statusCode = 400;
@@ -480,8 +484,39 @@ function devLexiconSyncPlugin() {
 }
 
 
+function slimMonacoPlugin() {
+  const virtualId = "\0sanctuary-empty-monaco-feature";
+  const blockedSuffixes = [
+    "/languages/features/typescript/register.js",
+    "/languages/features/css/register.js",
+    "/languages/features/html/register.js",
+  ];
+  return {
+    name: "sanctuary-slim-monaco",
+    enforce: "pre" as const,
+    resolveId(source: string, importer?: string) {
+      if (!importer) return null;
+      const normImporter = importer.replace(/\\/g, "/");
+      if (!normImporter.includes("/monaco-editor/")) return null;
+      const normSource = source.replace(/\\/g, "/");
+      if (
+        blockedSuffixes.some(
+          (suffix) => normSource.endsWith(suffix) || normImporter.endsWith(suffix)
+        )
+      ) {
+        return virtualId;
+      }
+      return null;
+    },
+    load(id: string) {
+      if (id === virtualId) return "export {};";
+      return null;
+    },
+  };
+}
+
 export default defineConfig(async () => ({
-  plugins: [react(), devLexiconSyncPlugin()],
+  plugins: [slimMonacoPlugin(), react(), devLexiconSyncPlugin()],
   define: {
     __SANCTUARY_DEV_TOKEN__: JSON.stringify(SANCTUARY_DEV_TOKEN),
   },
@@ -518,6 +553,12 @@ export default defineConfig(async () => ({
   },
   build: {
     chunkSizeWarningLimit: 600,
+    modulePreload: {
+      resolveDependencies: (_filename, deps, { hostType }) =>
+        hostType === "html"
+          ? deps.filter((d) => !d.includes("monaco-") && !d.includes("tiptap-"))
+          : deps,
+    },
     rollupOptions: {
       output: {
         manualChunks(id) {

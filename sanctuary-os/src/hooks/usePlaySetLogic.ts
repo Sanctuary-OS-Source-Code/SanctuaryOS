@@ -59,9 +59,9 @@ function executeConflictOverride(
     const firstOverrideTier =
       targetTierFolder ||
       schemaTiers.find((pt: any) => pt.folder && pt.folder.length > 0)?.folder ||
-      "Sanctuary";
+      "";
     const knownFoldersLower = new Set(
-      ["sanctuary", "sanctuary2", "sanctuary3", ...schemaTiers.map((pt: any) => (pt.folder || "").toLowerCase())].filter(Boolean)
+      schemaTiers.map((pt: any) => (pt.folder || "").toLowerCase()).filter(Boolean)
     );
 
     setPlaySets((prevSets: any[]) => {
@@ -973,14 +973,7 @@ export function usePlaySetLogic() {
         const rawNewMods = new Set<any>(currentSet.mods);
         const healedMods = new Set<any>();
         const localSets = prevSets;
-        const tierFolders: string[] = [
-          "sanctuary",
-          "!sanctuary",
-          "sanctuary2",
-          "!sanctuary2",
-          "sanctuary3",
-          "!sanctuary3",
-        ];
+        const tierFolders: string[] = [];
         if (Array.isArray(activeGameSchema?.load_order?.priority_tiers)) {
           for (const tObj of activeGameSchema.load_order.priority_tiers) {
             const f = String(tObj?.folder || "").trim().toLowerCase();
@@ -2094,8 +2087,12 @@ export function usePlaySetLogic() {
           targetPath = folderPath ? `${folderPath}/${flatFileName}` : flatFileName;
         }
 
-        if (modName.toLowerCase().startsWith("sanctuary/") || modName.toLowerCase().startsWith("sanctuary\\")) {
-          targetPath = `Sanctuary/${targetPath}`;
+        const firstSlashSeg = String(modName || "").replace(/\\/g, "/").split("/")[0]?.toLowerCase() || "";
+        const schemaTierMatch = (activeGameSchema?.load_order?.priority_tiers || []).find(
+          (pt: any) => String(pt?.folder || "").toLowerCase() === firstSlashSeg
+        );
+        if (schemaTierMatch?.folder && !targetPath.toLowerCase().startsWith(`${schemaTierMatch.folder.toLowerCase()}/`)) {
+          targetPath = `${schemaTierMatch.folder}/${targetPath}`;
         }
 
         deployPayload.push({ path: vaultSourcePath, allow_write: modObj?.allow_write || false, target_path: targetPath });
@@ -2122,8 +2119,12 @@ export function usePlaySetLogic() {
           const folderPath = fileNameToPathMap.get(flatLower) ?? fileNameToPathMap.get(noExt) ?? fileNameToPathMap.get(norm);
           if (folderPath !== undefined && folderPath !== null) {
             let targetPath = folderPath ? `${folderPath}/${flatFileName}` : flatFileName;
-            if (m.name.toLowerCase().startsWith("sanctuary/") || m.name.toLowerCase().startsWith("sanctuary\\")) {
-              targetPath = `Sanctuary/${targetPath}`;
+            const firstSegM = String(m.name || "").replace(/\\/g, "/").split("/")[0]?.toLowerCase() || "";
+            const tierM = (activeGameSchema?.load_order?.priority_tiers || []).find(
+              (pt: any) => String(pt?.folder || "").toLowerCase() === firstSegM
+            );
+            if (tierM?.folder && !targetPath.toLowerCase().startsWith(`${tierM.folder.toLowerCase()}/`)) {
+              targetPath = `${tierM.folder}/${targetPath}`;
             }
             deployPayload.push({ path: m.name, allow_write: true, target_path: targetPath });
             explicitlyDeployedFlatNames.add(flatLower);
@@ -2404,7 +2405,7 @@ export function usePlaySetLogic() {
       if (!rawModName) return;
       const schemaTiers = activeGameSchema?.load_order?.priority_tiers || [];
       const knownFoldersLower = new Set(
-        ["sanctuary", "sanctuary2", "sanctuary3", ...schemaTiers.map((pt: any) => (pt.folder || "").toLowerCase())].filter(Boolean)
+        schemaTiers.map((pt: any) => (pt.folder || "").toLowerCase()).filter(Boolean)
       );
       const cleanTarget = (rawModName.split(/[\\/]/).pop() || rawModName).toLowerCase();
 

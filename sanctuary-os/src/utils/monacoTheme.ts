@@ -1,34 +1,144 @@
-import { useEffect } from 'react';
-import { loader } from '@monaco-editor/react';
-import * as monaco from 'monaco-editor';
-import editorWorker from 'monaco-editor/editor/editor.worker.js?worker';
-import jsonWorker from 'monaco-editor/language/json/json.worker.js?worker';
-import cssWorker from 'monaco-editor/language/css/css.worker.js?worker';
-import htmlWorker from 'monaco-editor/language/html/html.worker.js?worker';
-import tsWorker from 'monaco-editor/language/typescript/ts.worker.js?worker';
+import React, { useEffect, useState } from 'react';
+import type { EditorProps, DiffEditorProps } from '@monaco-editor/react';
+import { useLexicon } from '../LexiconContext';
 
-if (typeof self !== 'undefined') {
-  const monacoSelf = self as typeof self & {
-    MonacoEnvironment?: {
-      getWorker: (_moduleId: string, label: string) => Worker;
+type LoadedMonacoBundle = {
+  Editor: React.ComponentType<EditorProps>;
+  DiffEditor: React.ComponentType<DiffEditorProps>;
+  monaco: any;
+};
+
+let monacoInitPromise: Promise<LoadedMonacoBundle> | null = null;
+let cachedMonacoBundle: LoadedMonacoBundle | null = null;
+
+/**
+ * Lazily initializes Monaco Editor on first mount with only the core editor and JSON
+ * web workers (omitting heavy TypeScript/CSS/HTML compiler workers) and configures
+ * the local ESM loader so offline/Tauri CSP never falls back to external CDNs.
+ */
+export function ensureMonacoInitialized(): Promise<LoadedMonacoBundle> {
+  if (cachedMonacoBundle) {
+    return Promise.resolve(cachedMonacoBundle);
+  }
+  if (!monacoInitPromise) {
+    monacoInitPromise = (async () => {
+      const [monaco, reactMonaco, editorWorkerMod, jsonWorkerMod] = await Promise.all([
+        import('monaco-editor'),
+        import('@monaco-editor/react'),
+        import('monaco-editor/editor/editor.worker.js?worker'),
+        import('monaco-editor/language/json/json.worker.js?worker'),
+      ]);
+
+      const EditorWorkerCtor = editorWorkerMod.default;
+      const JsonWorkerCtor = jsonWorkerMod.default;
+
+      if (typeof self !== 'undefined') {
+        const monacoSelf = self as typeof self & {
+          MonacoEnvironment?: {
+            getWorker: (_moduleId: string, label: string) => Worker;
+          };
+        };
+        monacoSelf.MonacoEnvironment = {
+          getWorker(_moduleId: string, label: string) {
+            if (label === 'json') return new JsonWorkerCtor();
+            return new EditorWorkerCtor();
+          },
+        };
+      }
+
+      if (typeof window !== 'undefined') {
+        (window as Window & { monaco?: typeof monaco }).monaco = monaco;
+      }
+
+      reactMonaco.loader.config({ monaco });
+
+      cachedMonacoBundle = {
+        Editor: reactMonaco.default,
+        DiffEditor: reactMonaco.DiffEditor,
+        monaco,
+      };
+      return cachedMonacoBundle;
+    })().catch((err) => {
+      monacoInitPromise = null;
+      throw err;
+    });
+  }
+  return monacoInitPromise;
+}
+
+export function SanctuaryMonacoEditor(props: EditorProps) {
+  const { t } = useLexicon();
+  const [bundle, setBundle] = useState<LoadedMonacoBundle | null>(cachedMonacoBundle);
+
+  useEffect(() => {
+    let active = true;
+    if (!bundle) {
+      ensureMonacoInitialized()
+        .then((loaded) => {
+          if (active) setBundle(loaded);
+        })
+        .catch(() => {});
+    }
+    return () => {
+      active = false;
     };
-  };
-  monacoSelf.MonacoEnvironment = {
-    getWorker(_moduleId: string, label: string) {
-      if (label === 'json') return new jsonWorker();
-      if (label === 'css' || label === 'scss' || label === 'less') return new cssWorker();
-      if (label === 'html' || label === 'handlebars' || label === 'razor') return new htmlWorker();
-      if (label === 'typescript' || label === 'javascript') return new tsWorker();
-      return new editorWorker();
-    },
-  };
+  }, [bundle]);
+
+  if (!bundle) {
+    return React.createElement(
+      'div',
+      {
+        className:
+          'w-full h-full flex items-center justify-center gap-2 text-xs font-bold text-[var(--subtext)] opacity-75',
+      },
+      React.createElement(
+        'span',
+        { className: 'material-symbols-outlined !text-[18px] animate-spin text-[var(--accent)]' },
+        t('icon_sync', 'sync')
+      ),
+      React.createElement('span', null, t('loading', 'Loading...'))
+    );
+  }
+
+  return React.createElement(bundle.Editor, props);
 }
 
-if (typeof window !== 'undefined') {
-  (window as Window & { monaco?: typeof monaco }).monaco = monaco;
-}
+export function SanctuaryMonacoDiffEditor(props: DiffEditorProps) {
+  const { t } = useLexicon();
+  const [bundle, setBundle] = useState<LoadedMonacoBundle | null>(cachedMonacoBundle);
 
-loader.config({ monaco });
+  useEffect(() => {
+    let active = true;
+    if (!bundle) {
+      ensureMonacoInitialized()
+        .then((loaded) => {
+          if (active) setBundle(loaded);
+        })
+        .catch(() => {});
+    }
+    return () => {
+      active = false;
+    };
+  }, [bundle]);
+
+  if (!bundle) {
+    return React.createElement(
+      'div',
+      {
+        className:
+          'w-full h-full flex items-center justify-center gap-2 text-xs font-bold text-[var(--subtext)] opacity-75',
+      },
+      React.createElement(
+        'span',
+        { className: 'material-symbols-outlined !text-[18px] animate-spin text-[var(--accent)]' },
+        t('icon_sync', 'sync')
+      ),
+      React.createElement('span', null, t('loading', 'Loading...'))
+    );
+  }
+
+  return React.createElement(bundle.DiffEditor, props);
+}
 
 function parseColorToRgb(input: string, fallback: [number, number, number]): [number, number, number] {
   if (!input || input === 'transparent') return fallback;
@@ -363,4 +473,3 @@ export function useSanctuaryMonacoTheme(currentTheme: any, isLight?: boolean) {
     monaco.editor.setTheme(resolvedLight ? 'sanctuary-glass-light' : 'sanctuary-glass-dark');
   }, [currentTheme, isLight]);
 }
-

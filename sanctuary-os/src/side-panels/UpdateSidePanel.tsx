@@ -33,14 +33,16 @@ import {
   LEGACY_BLOG_BROADCAST_TITLE,
   PUBLIC_CHANGELOG_BROADCAST_CATEGORY,
   DEV_CHANGELOG_BROADCAST_CATEGORY,
-  StructuredReleaseNotesView,
   cleanPostBodyForViewer,
+} from "../components/release-notes/releaseMarkdownParser";
+import {
   parseSeedCommunityBlog,
   parseLatestChangelogBlock,
   deserializeReleasePostRow,
   deserializeChangelogRow,
   isBundledVersionNewer,
-} from "../components/ReleaseNotesShowcase";
+} from "../components/release-notes/releasePostSerializers";
+import { StructuredReleaseNotesView } from "../components/release-notes/ReleaseMarkdownViewer";
 import packageJson from "../../package.json";
 import bundledCommunityBlog from "../../../Release Notes (Community Blog).md?raw";
 import bundledDevBlog from "../../../Release Notes (Dev).md?raw";

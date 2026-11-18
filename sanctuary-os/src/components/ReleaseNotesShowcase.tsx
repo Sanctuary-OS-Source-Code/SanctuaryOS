@@ -2,17 +2,14 @@ import React, { useState, useEffect, useMemo, useCallback, useRef } from "react"
 import { useLexicon } from "../LexiconContext";
 import { useStore } from "../store";
 import { supabaseAuth } from "../supabase";
-import { useEditor } from "@tiptap/react";
-import StarterKit from "@tiptap/starter-kit";
-import { Markdown } from "tiptap-markdown";
-import Image from "@tiptap/extension-image";
-import { IconPlugin } from "../IconPlugin";
-import { SidePanel, PanelHeaderGroup, PanelHeaderButton, DashboardStatTile, SidePanelFilterBar, StatBox, LinkAssetSidePanel, handleOpenUrl, getSafeEditorMarkdown } from "../shared";
+import { SidePanel, PanelHeaderGroup, DashboardStatTile, SidePanelFilterBar } from "../shared-components/layout";
+import { PanelHeaderButton } from "../shared-components/buttons";
+import { handleOpenUrl } from "../shared-components/misc";
+import { getSafeEditorMarkdown } from "../shared-components/stringUtils";
 import { SidePanelHeroCard } from "./layouts/ElevatedHubLayout";
 import { UniversalCard } from "./universal/UniversalCard";
-import { UniversalGroup } from "./universal/UniversalLayout";
+import { UniversalGroup, StatBox } from "./universal/UniversalLayout";
 import { DispatchPollData, DispatchPollViewer } from "./universal/DispatchPollAndMeta";
-import { PostEditorMode, UnifiedPostBodyEditor, PostAttachmentsManager } from "./universal/UnifiedPostEditor";
 import { getKeepersPipelineConfig, getSupporterState, DEFAULT_KEEPERS_PIPELINE_CONFIG, KeepersPipelineConfig } from "../utils/supporterManager";
 import packageJson from "../../package.json";
 import bundledCommunityBlog from "../../../Release Notes (Community Blog).md?raw";
@@ -22,7 +19,7 @@ import bundledRunningChangelog from "../../../changelog (running).md?raw";
 import { readAllLocalDocSnapshots, writeLocalDirectiveFile, syncPublishedToLocalFallbackIfSafe, markLocalDocSyncedHash, LocalDocSlug } from "../utils/directivesSync";
 import { isDesktop } from "../utils/envUtils";
 import { useKeeperDocPresence, KeeperDocSavedBroadcast } from "../utils/useKeeperDocPresence";
-import { KeeperDocConflictBar, KeeperDocConflictInfo } from "./universal/KeeperDocConflictBar";
+import type { KeeperDocConflictInfo } from "./universal/KeeperDocConflictBar";
 import { VAULT_CHIP_CLASS } from "../shared-components/constants";
 import { LEGACY_BLOG_BROADCAST_TITLE, PUBLIC_CHANGELOG_BROADCAST_CATEGORY, DEV_CHANGELOG_BROADCAST_CATEGORY, GITHUB_RELEASES_WEB_URL, GITHUB_WEB_DEV_RELEASE_URL, KeepersReleasePostRecord, cleanPostBodyForViewer } from "./release-notes/releaseMarkdownParser";
 import { parseSeedCommunityBlog, formatReleasePostToMarkdownFile, parseLatestChangelogBlock, serializeReleasePostMessage, deserializeReleasePostRow, deserializeChangelogRow, areReleasePostsEquivalent, areChangelogsEquivalent } from "./release-notes/releasePostSerializers";
@@ -30,6 +27,9 @@ import { StructuredReleaseNotesView } from "./release-notes/ReleaseMarkdownViewe
 export * from "./release-notes/releaseMarkdownParser";
 export * from "./release-notes/releasePostSerializers";
 export * from "./release-notes/ReleaseMarkdownViewer";
+
+type PostEditorMode = "visual" | "wysiwyg" | "markdown";
+const LazyReleaseNotesEditorDrawer = React.lazy(() => import("./release-notes/ReleaseNotesEditorDrawer"));
 
 type ReleaseDocSlotKey =
   | "stable:post"
@@ -367,26 +367,8 @@ export function ReleaseNotesShowcase({
   ): string => `${currentUserId}::release:${ch}:${docType}`;
 
   const updateTimeoutRef = useRef<any>(null);
-
-  const editor = useEditor({
-    extensions: [StarterKit, Markdown, IconPlugin, Image],
-    content: draftBody,
-    onUpdate: ({ editor: ed }) => {
-      if (!ed || ed.isDestroyed) return;
-      if (updateTimeoutRef.current) clearTimeout(updateTimeoutRef.current);
-      updateTimeoutRef.current = setTimeout(() => {
-        if (!ed || ed.isDestroyed || !(ed.storage as any)?.markdown) return;
-        setDraftBody(getSafeEditorMarkdown(ed));
-        setIsDirty(true);
-      }, 300);
-    },
-    editorProps: {
-      attributes: {
-        class:
-          "w-full flex-1 px-6 py-6 text-[var(--text)] text-sm font-sans focus:outline-none custom-scrollbar min-h-[350px] leading-relaxed [&_h1]:text-2xl [&_h1]:font-black [&_h2]:text-xl [&_h2]:font-bold [&_p]:mb-4 [&_ul]:list-disc [&_ul]:ml-6 [&_ol]:list-decimal [&_ol]:ml-6 [&_a]:text-[var(--accent)] [&_img]:rounded-xl [&_img]:max-w-full [&_code]:bg-[color-mix(in_srgb,var(--text)_10%,transparent)] [&_code]:px-1 [&_code]:rounded [&_hr]:border-[color-mix(in_srgb,var(--text)_10%,transparent)] [&_hr]:my-8",
-      },
-    },
-  });
+  const tiptapEditorRef = useRef<any>(null);
+  const [editorSyncSeq, setEditorSyncSeq] = useState(0);
 
   const persistReleaseStateCache = useCallback(
     (stateObj: {
@@ -938,7 +920,7 @@ export function ReleaseNotesShowcase({
           false
         );
         setDraftBody(latestCl);
-        if (editor) editor.commands.setContent(latestCl || "", { emitUpdate: false });
+        setEditorSyncSeq((n) => n + 1);
       } else {
         const latestPost = deserializeReleasePostRow(
           latestRow,
@@ -955,9 +937,7 @@ export function ReleaseNotesShowcase({
         setShowCodeInput(Boolean(latestPost.codeSnippet));
         setDraftPollData(latestPost.pollData || null);
         setDraftBody(latestPost.body);
-        if (editor) {
-          editor.commands.setContent(latestPost.body || "", { emitUpdate: false });
-        }
+        setEditorSyncSeq((n) => n + 1);
       }
       setBaseRevision(latestRev);
       setConflictServerInfo(null);
@@ -1112,9 +1092,7 @@ export function ReleaseNotesShowcase({
         : target.body;
       setDraftBody(nextBody);
       if (updateTimeoutRef.current) clearTimeout(updateTimeoutRef.current);
-      if (editor) {
-        editor.commands.setContent(nextBody || "", { emitUpdate: false });
-      }
+      setEditorSyncSeq((n) => n + 1);
     },
     [
       editorDocType,
@@ -1128,7 +1106,6 @@ export function ReleaseNotesShowcase({
       defaultStableDate,
       revisionsBySlot,
       currentUserId,
-      editor,
       t,
     ]
   );
@@ -1149,9 +1126,7 @@ export function ReleaseNotesShowcase({
     if (editorDocType === "changelog") {
       const nextBody = localInfo.localContent.trim();
       setDraftBody(nextBody);
-      if (editor) {
-        editor.commands.setContent(nextBody, { emitUpdate: false });
-      }
+      setEditorSyncSeq((n) => n + 1);
     } else {
       const parsed = parseSeedCommunityBlog(localInfo.localContent);
       if (parsed.mainTitle) setDraftTitle(parsed.mainTitle);
@@ -1161,9 +1136,7 @@ export function ReleaseNotesShowcase({
       if (parsed.platform) setDraftPlatform(parsed.platform);
       const nextBody = (parsed.cleanBody || localInfo.localContent).trim();
       setDraftBody(nextBody);
-      if (editor) {
-        editor.commands.setContent(nextBody, { emitUpdate: false });
-      }
+      setEditorSyncSeq((n) => n + 1);
     }
     setIsDirty(true);
     useStore
@@ -1217,8 +1190,9 @@ export function ReleaseNotesShowcase({
               : "Lexicon";
     const text = `${translatedType}: ${asset.name}`;
 
-    if (editor) {
-      editor
+    const activeEditor = tiptapEditorRef.current;
+    if (activeEditor) {
+      activeEditor
         .chain()
         .focus()
         .insertContent({
@@ -1469,8 +1443,9 @@ export function ReleaseNotesShowcase({
       updateTimeoutRef.current = null;
     }
     let finalBody = draftBody;
-    if (editor && !editor.isDestroyed && editorMode === "wysiwyg") {
-      finalBody = getSafeEditorMarkdown(editor) || draftBody;
+    const activeEditor = tiptapEditorRef.current;
+    if (activeEditor && !activeEditor.isDestroyed && editorMode === "wysiwyg") {
+      finalBody = getSafeEditorMarkdown(activeEditor) || draftBody;
       setDraftBody(finalBody);
     }
     if (!finalBody.trim()) return;
@@ -2543,319 +2518,61 @@ export function ReleaseNotesShowcase({
         </div>
       </SidePanel>
 
-      {/* SidePanel: Reuse the Dispatch / Comm-Link Post Editor for Public & Dev Release Posts & Changelogs */}
-      {isKeepers && (
-        <>
-          <SidePanel
-            isOpen={isEditorOpen}
+      {/* SidePanel: Reuse the Dispatch / Comm-Link Post Editor lazily only when Keeper editor opens */}
+      {isKeepers && isEditorOpen && (
+        <React.Suspense fallback={null}>
+          <LazyReleaseNotesEditorDrawer
+            isEditorOpen={isEditorOpen}
             onClose={() => setIsEditorOpen(false)}
-            icon={t("icon_cell_tower", "cell_tower")}
-            widthClass="w-[800px]"
-            backdropZ="z-[60000]"
-            panelZ="z-[60001]"
-            title={t("update_transmission", "Update {Dispatch}")}
-            subtitle={
-              editorChannel === "dev"
-                ? `${t("release_notes_dev_post_label", "Dev Channel Post")} • ${
-                    editorDocType === "changelog"
-                      ? t("release_notes_tile_changelog", "Changelog")
-                      : t("btn_post", "Post")
-                  }`
-                : `${t("release_notes_public_post_label", "Public Channel Post")} • ${
-                    editorDocType === "changelog"
-                      ? t("release_notes_tile_changelog", "Changelog")
-                      : t("btn_post", "Post")
-                  }`
+            editorMode={editorMode}
+            setEditorMode={setEditorMode}
+            editorChannel={editorChannel}
+            editorDocType={editorDocType}
+            populateDraftForChannel={populateDraftForChannel}
+            draftTitle={draftTitle}
+            setDraftTitle={setDraftTitle}
+            draftSummary={draftSummary}
+            setDraftSummary={setDraftSummary}
+            draftVersion={draftVersion}
+            setDraftVersion={setDraftVersion}
+            draftReleaseDate={draftReleaseDate}
+            setDraftReleaseDate={setDraftReleaseDate}
+            draftPlatform={draftPlatform}
+            setDraftPlatform={setDraftPlatform}
+            draftImageUrl={draftImageUrl}
+            setDraftImageUrl={setDraftImageUrl}
+            draftCodeSnippet={draftCodeSnippet}
+            setDraftCodeSnippet={setDraftCodeSnippet}
+            draftPollData={draftPollData}
+            setDraftPollData={setDraftPollData}
+            draftBody={draftBody}
+            setDraftBody={setDraftBody}
+            showCodeInput={showCodeInput}
+            setShowCodeInput={setShowCodeInput}
+            isAssetPanelOpen={isAssetPanelOpen}
+            setIsAssetPanelOpen={setIsAssetPanelOpen}
+            isSaving={isSaving}
+            isPublishing={isPublishing}
+            isDirty={isDirty}
+            setIsDirty={setIsDirty}
+            editorSyncSeq={editorSyncSeq}
+            tiptapEditorRef={tiptapEditorRef}
+            updateTimeoutRef={updateTimeoutRef}
+            localMdBySlot={localMdBySlot}
+            peerEditors={
+              activePresence.peersByDocKey[
+                getReleaseDocKey(editorChannel, editorDocType)
+              ] || []
             }
-            headerActions={
-              <PanelHeaderGroup>
-                {(isDesktop() || import.meta.env.DEV) &&
-                  Boolean(
-                    localMdBySlot[`${editorChannel}:${editorDocType}`]
-                      ?.localContent
-                  ) && (
-                    <PanelHeaderButton
-                      onClick={handleImportLocalReleaseMd}
-                      disabled={isSaving || isPublishing}
-                      tooltip={t(
-                        "keeper_local_md_import_btn",
-                        "Import .md to Draft"
-                      )}
-                      icon={t("icon_upload_file", "upload_file")}
-                      variant={
-                        localMdBySlot[`${editorChannel}:${editorDocType}`]
-                          ?.hasLocalChanges
-                          ? "warning"
-                          : "default"
-                      }
-                    />
-                  )}
-                <PanelHeaderButton
-                  onClick={() => handleSaveKeepersPost(false)}
-                  disabled={
-                    isSaving ||
-                    !draftBody.trim() ||
-                    (editorDocType === "post" && !draftTitle.trim())
-                  }
-                  tooltip={
-                    isSaving
-                      ? t("btn_saving", "Saving...")
-                      : t("dir_btn_save_sync_staged", "Save Shared Draft")
-                  }
-                  icon={isSaving ? t("icon_sync", "sync") : t("icon_save", "save")}
-                  variant={isDirty ? "warning" : "default"}
-                />
-                <PanelHeaderButton
-                  onClick={() => handleSaveKeepersPost(true)}
-                  disabled={
-                    isSaving ||
-                    !draftBody.trim() ||
-                    (editorDocType === "post" && !draftTitle.trim())
-                  }
-                  tooltip={
-                    isSaving
-                      ? t("btn_saving", "Saving...")
-                      : t("dir_btn_publish_live", "Update / Publish to {Citizens}")
-                  }
-                  icon={isSaving ? t("icon_sync", "sync") : t("icon_publish", "publish")}
-                  variant="accent"
-                  className={isSaving ? "animate-pulse" : ""}
-                />
-              </PanelHeaderGroup>
-            }
-          >
-            <div
-              className={`flex flex-col gap-6 flex-1 min-h-0 animate-in fade-in slide-in-from-bottom-2 duration-300 ${
-                editorMode === "markdown" ? "pb-0" : ""
-              }`}
-            >
-              <KeeperDocConflictBar
-                peerEditors={
-                  activePresence.peersByDocKey[
-                    getReleaseDocKey(editorChannel, editorDocType)
-                  ] || []
-                }
-                hasLocalMdChanges={Boolean(
-                  (isDesktop() || import.meta.env.DEV) &&
-                    localMdBySlot[`${editorChannel}:${editorDocType}`]
-                      ?.hasLocalChanges
-                )}
-                localFileName={
-                  localMdBySlot[`${editorChannel}:${editorDocType}`]?.fileName
-                }
-                onImportLocalMd={handleImportLocalReleaseMd}
-                conflictInfo={conflictServerInfo}
-                onLoadLatestFromHub={handleLoadLatestReleaseFromHub}
-                onOverwriteWithMine={() =>
-                  handleSaveKeepersPost(pendingPublishRef.current, true)
-                }
-                onDismissConflict={() => setConflictServerInfo(null)}
-              />
-
-              {/* Switch between Public and Dev Release Channel + Post vs Changelog */}
-              <SidePanelFilterBar className="grid-cols-2 sm:grid-cols-4 gap-3">
-                <DashboardStatTile
-                  variant="filter"
-                  className="!w-full"
-                  icon={
-                    <span className="material-symbols-outlined">
-                      {t("icon_verified", "verified")}
-                    </span>
-                  }
-                  label={t("release_notes_meta_channel_public", "Public")}
-                  number={t("btn_post", "Post")}
-                  isActive={editorChannel === "stable" && editorDocType === "post"}
-                  onClick={() => populateDraftForChannel("stable", "post")}
-                />
-                <DashboardStatTile
-                  variant="filter"
-                  className="!w-full"
-                  icon={
-                    <span className="material-symbols-outlined">
-                      {t("icon_terminal", "terminal")}
-                    </span>
-                  }
-                  label={t("release_notes_meta_channel_public", "Public")}
-                  number={t("release_notes_tile_changelog", "Changelog")}
-                  isActive={editorChannel === "stable" && editorDocType === "changelog"}
-                  onClick={() => populateDraftForChannel("stable", "changelog")}
-                />
-                <DashboardStatTile
-                  variant="filter"
-                  className="!w-full"
-                  icon={
-                    <span className="material-symbols-outlined">{t("icon_bolt", "bolt")}</span>
-                  }
-                  label={t("release_notes_meta_channel_dev", "Dev")}
-                  number={t("btn_post", "Post")}
-                  isActive={editorChannel === "dev" && editorDocType === "post"}
-                  onClick={() => populateDraftForChannel("dev", "post")}
-                />
-                <DashboardStatTile
-                  variant="filter"
-                  className="!w-full"
-                  icon={
-                    <span className="material-symbols-outlined">
-                      {t("icon_terminal", "terminal")}
-                    </span>
-                  }
-                  label={t("release_notes_meta_channel_dev", "Dev")}
-                  number={t("release_notes_tile_changelog", "Changelog")}
-                  isActive={editorChannel === "dev" && editorDocType === "changelog"}
-                  onClick={() => populateDraftForChannel("dev", "changelog")}
-                />
-              </SidePanelFilterBar>
-
-              {editorDocType === "post" && (
-                <UniversalGroup
-                  title={t("metadata", "Metadata")}
-                  icon={t("icon_tune", "tune")}
-                >
-                  <div className="flex flex-col gap-4 w-full">
-                    <div className="flex flex-col gap-1.5 w-full">
-                      <label className="text-[9px] font-black text-[var(--subtext)] opacity-70 uppercase tracking-widest ml-1">
-                        {t("post_title", "Post Title")}
-                      </label>
-                      <input
-                        value={draftTitle}
-                        onChange={(e) => {
-                          setDraftTitle(e.target.value);
-                          setIsDirty(true);
-                        }}
-                        placeholder={t("post_title", "Title")}
-                        className="w-full glass-surface rounded-xl px-4 py-2.5 text-[var(--text)] text-sm font-bold focus:outline-none focus:theme-border-accent transition-all"
-                      />
-                    </div>
-
-                    <div className="flex flex-col gap-1.5 w-full">
-                      <div className="flex justify-between items-center ml-1">
-                        <label className="text-[9px] font-black text-[var(--subtext)] opacity-70 uppercase tracking-widest">
-                          {t("post_description", "Description")}
-                        </label>
-                        <span
-                          className={`text-[9px] font-black ${
-                            draftSummary.length >= 250
-                              ? "text-[var(--warning)]"
-                              : "text-[var(--subtext)] opacity-60"
-                          }`}
-                        >
-                          {draftSummary.length} / 250
-                        </span>
-                      </div>
-                      <input
-                        maxLength={250}
-                        value={draftSummary}
-                        onChange={(e) => {
-                          setDraftSummary(e.target.value);
-                          setIsDirty(true);
-                        }}
-                        placeholder={t(
-                          "post_description_ph",
-                          "Short summary shown on the Release Card..."
-                        )}
-                        className="w-full glass-surface rounded-xl px-4 py-2.5 text-[var(--text)] text-xs font-medium focus:outline-none focus:theme-border-accent transition-all"
-                      />
-                    </div>
-
-                    {/* Release Info Fields (Release Date / Version Number / Platform) */}
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-3.5 w-full">
-                      <div className="flex flex-col gap-1.5 flex-1">
-                        <label className="text-[9px] font-black text-[var(--subtext)] opacity-70 uppercase tracking-widest ml-1">
-                          {t("release_notes_meta_release_date", "Release Date")}
-                        </label>
-                        <input
-                          value={draftReleaseDate}
-                          onChange={(e) => {
-                            setDraftReleaseDate(e.target.value);
-                            setIsDirty(true);
-                          }}
-                          className="w-full glass-surface rounded-xl px-4 py-2.5 text-[var(--text)] text-xs font-bold focus:outline-none focus:theme-border-accent transition-all"
-                        />
-                      </div>
-                      <div className="flex flex-col gap-1.5 flex-1">
-                        <label className="text-[9px] font-black text-[var(--subtext)] opacity-70 uppercase tracking-widest ml-1">
-                          {t("release_notes_meta_version", "Version Number")}
-                        </label>
-                        <input
-                          value={draftVersion}
-                          onChange={(e) => {
-                            setDraftVersion(e.target.value);
-                            setIsDirty(true);
-                          }}
-                          className="w-full glass-surface rounded-xl px-4 py-2.5 text-[var(--accent)] font-mono text-xs font-bold focus:outline-none focus:theme-border-accent transition-all"
-                        />
-                      </div>
-                      <div className="flex flex-col gap-1.5 flex-1">
-                        <label className="text-[9px] font-black text-[var(--subtext)] opacity-70 uppercase tracking-widest ml-1">
-                          {t("release_notes_meta_platform", "Platform")}
-                        </label>
-                        <input
-                          value={draftPlatform}
-                          onChange={(e) => {
-                            setDraftPlatform(e.target.value);
-                            setIsDirty(true);
-                          }}
-                          className="w-full glass-surface rounded-xl px-4 py-2.5 text-[var(--text)] text-xs font-bold focus:outline-none focus:theme-border-accent transition-all"
-                        />
-                      </div>
-                    </div>
-                  </div>
-                </UniversalGroup>
-              )}
-
-              {/* Unified 3-Mode Post Editor (Visual UI / Rich Text / Markdown) */}
-              <UnifiedPostBodyEditor
-                mode={editorMode}
-                onModeChange={setEditorMode}
-                content={draftBody}
-                onContentChange={(val) => {
-                  setDraftBody(val);
-                  setIsDirty(true);
-                }}
-                editor={editor}
-                placeholder={t("post_content", "{Dispatch} Body...")}
-              />
-
-              {editorDocType === "post" && (
-                <PostAttachmentsManager
-                  content={draftBody}
-                  onContentChange={(val) => {
-                    setDraftBody(val);
-                    setIsDirty(true);
-                  }}
-                  editor={editor}
-                  onOpenAssetLinker={() => setIsAssetPanelOpen(true)}
-                  imageUrl={draftImageUrl}
-                  onImageUrlChange={(val) => {
-                    setDraftImageUrl(val);
-                    setIsDirty(true);
-                  }}
-                  showCodeInput={showCodeInput}
-                  onToggleCodeInput={setShowCodeInput}
-                  codeSnippet={draftCodeSnippet}
-                  onCodeSnippetChange={(val) => {
-                    setDraftCodeSnippet(val);
-                    setIsDirty(true);
-                  }}
-                  pollData={draftPollData}
-                  onPollDataChange={(val) => {
-                    setDraftPollData(val);
-                    setIsDirty(true);
-                  }}
-                />
-              )}
-            </div>
-          </SidePanel>
-
-          <LinkAssetSidePanel
-            isOpen={isAssetPanelOpen}
-            onClose={() => setIsAssetPanelOpen(false)}
-            onAssetSelect={handleLinkAsset}
-            widthClass="w-[800px]"
-            backdropZ="z-[60002]"
-            panelZ="z-[60003]"
+            conflictServerInfo={conflictServerInfo}
+            setConflictServerInfo={setConflictServerInfo}
+            pendingPublishRef={pendingPublishRef}
+            handleImportLocalReleaseMd={handleImportLocalReleaseMd}
+            handleSaveKeepersPost={handleSaveKeepersPost}
+            handleLoadLatestReleaseFromHub={handleLoadLatestReleaseFromHub}
+            handleLinkAsset={handleLinkAsset}
           />
-        </>
+        </React.Suspense>
       )}
     </div>
   );

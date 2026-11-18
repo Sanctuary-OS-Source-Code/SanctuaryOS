@@ -12,6 +12,7 @@ import { useStore } from "./store";
 import { useShallow } from "zustand/react/shallow";
 import { useVirtualWindow } from "./hooks/useVirtualWindow";
 import ConflictCard, { RadarPairPreviewBanner } from "./ConflictCard";
+import { parseConflictPairNames } from "./hooks/playset/conflictPrecomputer";
 import { openSanctuaryContextMenu, SanctuaryContextMenuItem } from "./ContextMenu";
 import ConflictResolutionSidebar from "./side-panels/ConflictResolutionSidebar";
 import UndoWinnersPanel from "./side-panels/UndoWinnersPanel";
@@ -231,7 +232,7 @@ export const ArtifactScout = () => {
         if (!targetCleanName) return;
         const schemaTiers = activeGameSchema?.load_order?.priority_tiers || [];
         const knownFoldersLower = new Set(
-            ["sanctuary", "sanctuary2", "sanctuary3", ...schemaTiers.map((pt: any) => (pt.folder || "").toLowerCase())].filter(Boolean)
+            schemaTiers.map((pt: any) => (pt.folder || "").toLowerCase()).filter(Boolean)
         );
         const cleanTargetLow = (targetCleanName.split(/[\\/]/).pop() || targetCleanName).toLowerCase();
 
@@ -643,9 +644,8 @@ export const ArtifactScout = () => {
             const rawSoft: any[] = [];
 
             report.conflicts.forEach((c: any) => {
-                const parts = c.mod_pair.split(/\s+(?:⚔️|ΓÜö∩╕Å|vs|VS|Vs|vS)\s+/);
-                const modA = parts[0];
-                const modB = parts.length > 1 ? parts[1] : "Unknown Overlap";
+                const [modA, modBRaw] = parseConflictPairNames(c);
+                const modB = modBRaw || t("unknown_overlap", "Unknown Overlap");
                 const enrichedConflict = { ...c, modA, modB };
 
                 if (isCloneConflict(modA, modB)) { rawClone.push(enrichedConflict); }
@@ -844,7 +844,7 @@ export const ArtifactScout = () => {
 
     const priorityFoldersSet = useMemo(() => {
         const tiers = activeGameSchema?.load_order?.priority_tiers || [];
-        const folders = ["sanctuary", "sanctuary2", "sanctuary3", ...tiers.map((pt: any) => (pt.folder || "").toLowerCase())].filter(Boolean);
+        const folders = tiers.map((pt: any) => (pt.folder || "").toLowerCase()).filter(Boolean);
         return new Set<string>(folders);
     }, [activeGameSchema]);
 
@@ -975,9 +975,7 @@ export const ArtifactScout = () => {
             .map((m: any) => typeof m === "string" ? m : (m.name || m.path || ""));
 
         const resolvedOverrides = ignoredPairs.map((pair: string) => {
-            const parts = pair.split(/\s+(?:⚔️|ΓÜö∩╕Å|vs|VS|Vs|vS)\s+/);
-            const left = parts[0] || pair;
-            const right = parts[1];
+            const [left, right] = parseConflictPairNames(pair);
             if (!right) return null;
 
             const leftClean = stripPriorityPrefix(left).toLowerCase();
@@ -2330,9 +2328,8 @@ export const ArtifactScout = () => {
 
                                                     <div className="grid grid-cols-[repeat(auto-fill,minmax(280px,1fr))] gap-6">
                                                         {trueIgnoredPairs.map((pair: string, i: number) => {
-                                                            const parts = pair.split(/\s+(?:⚔️|ΓÜö∩╕Å|vs|VS|Vs|vS)\s+/);
-                                                            const left = parts[0] || pair;
-                                                            const right = parts[1] || t("unknown_file", "Unknown File");
+                                                            const [left, rightRaw] = parseConflictPairNames(pair);
+                                                            const right = rightRaw || t("unknown_file", "Unknown File");
                                                             const leftName = left.split(/[/\\]/).pop() || "";
                                                             const rightName = right.split(/[/\\]/).pop() || "";
                                                             const leftDisplay = stripKnownModExt(
@@ -3525,7 +3522,7 @@ export const ArtifactScout = () => {
                         ? pendingTierFolder
                         : selectedItem?.tierFolder ||
                           compiledOrder.priorityTiers.find((pt) => !!pt.folder)?.folder ||
-                          "Sanctuary";
+                          "";
                 const activeReorderTierIdx = compiledOrder.priorityTiers.findIndex(
                     (pt) => (pt.folder || "").toLowerCase() === activeReorderTierFolder.toLowerCase()
                 );
@@ -4049,7 +4046,7 @@ export const ArtifactScout = () => {
                                                             const targetFolder =
                                                                 pendingTierFolder !== null
                                                                     ? pendingTierFolder
-                                                                    : compiledOrder.priorityTiers[1]?.folder || "Sanctuary";
+                                                                    : compiledOrder.priorityTiers[1]?.folder || "";
                                                             setModPriorityTier(scanScope, it.cleanName, targetFolder);
                                                             setSelectedLoadOrderMod(it.cleanName);
                                                             setPendingTierFolder(null);

@@ -65,6 +65,9 @@ export default function CoreTab() {
   const [shareMalwareReports, setShareMalwareReports] = useState(
     () => localStorage.getItem("sanctuary_share_malware_reports") === "true"
   );
+  const [companionSyncEnabled, setCompanionSyncEnabled] = useState(
+    () => localStorage.getItem("sanctuary_cloud_companion_sync") === "true"
+  );
   const useInternalBrowser = useModalStore((state) => state.useInternalBrowser);
   const setUseInternalBrowser = useModalStore((state) => state.setUseInternalBrowser);
   const [isBanned, setIsBanned] = useState(false);
@@ -924,16 +927,49 @@ export default function CoreTab() {
                   "ON: Sends anonymous, metadata-only quarantine hashes to Sanctuary security.\nOFF: Keeps malware detections strictly local."
                 )}
                 icon={t("icon_security", "security")}
-                isActive={Boolean(shareMalwareReports && session && !isBanned)}
+                isActive={Boolean(shareMalwareReports && !isBanned && !localOnly)}
                 onClick={() => {
-                  if (!session || isBanned) return;
+                  if (isBanned || localOnly) return;
                   const val = !shareMalwareReports;
                   setShareMalwareReports(val);
                   localStorage.setItem("sanctuary_share_malware_reports", val.toString());
                 }}
                 actions={
-                  <div className={`${!session || isBanned ? "opacity-40 grayscale cursor-not-allowed" : ""}`}>
-                    <SettingsToggle checked={shareMalwareReports} />
+                  <div className={`${isBanned || localOnly ? "opacity-40 grayscale cursor-not-allowed" : ""}`}>
+                    <SettingsToggle checked={Boolean(shareMalwareReports && !localOnly)} />
+                  </div>
+                }
+              />
+              {isBanned && (
+                <HoverTooltip
+                  title={t("access_denied", "Access Denied")}
+                  subtitle={`Communications Ban: ${banReason}`}
+                  variant="danger"
+                  className="group-hover/malware:flex group-hover/malware:opacity-100"
+                />
+              )}
+            </div>
+
+            <div className="relative group/companion flex">
+              <UniversalCard
+                headerStyle="inline"
+                className="w-full"
+                title={t("companion_sync_title", "Mobile Companion Cloud Sync")}
+                subtitle={t(
+                  "companion_sync_on_off_desc",
+                  "ON: Uploads encrypted {Vault} & {Blueprint} status snapshots for your paired mobile companion.\nOFF: Keeps all {Vault} and {Blueprint} activity strictly local."
+                )}
+                icon={t("icon_devices", "devices")}
+                isActive={Boolean(companionSyncEnabled && session && !isBanned && !localOnly)}
+                onClick={() => {
+                  if (!session || isBanned || localOnly) return;
+                  const val = !companionSyncEnabled;
+                  setCompanionSyncEnabled(val);
+                  localStorage.setItem("sanctuary_cloud_companion_sync", val.toString());
+                }}
+                actions={
+                  <div className={`${!session || isBanned || localOnly ? "opacity-40 grayscale cursor-not-allowed" : ""}`}>
+                    <SettingsToggle checked={Boolean(companionSyncEnabled && session && !localOnly)} />
                   </div>
                 }
               />
@@ -942,7 +978,7 @@ export default function CoreTab() {
                   title={t("access_denied", "Access Denied")}
                   subtitle={isBanned ? `Communications Ban: ${banReason}` : t("auto_guest_mode_active_45", "Guest Mode Active")}
                   variant="danger"
-                  className="group-hover/malware:flex group-hover/malware:opacity-100"
+                  className="group-hover/companion:flex group-hover/companion:opacity-100"
                 />
               )}
             </div>

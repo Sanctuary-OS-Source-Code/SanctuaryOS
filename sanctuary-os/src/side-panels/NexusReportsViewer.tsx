@@ -326,7 +326,7 @@ export function NexusReportsViewer({ onOpenDossier, setStatus, hubRole }: any) {
             title: col?.name || t("collections", "Collections"),
             description: r.reason || t("no_reason", "No reason provided"),
             created_at: r.created_at,
-            reporter_name: r.reporter_id || t("anonymous", "Anonymous"),
+            reporter_name: r.reporter_name || t("anonymous", "Anonymous"),
             target_id: r.content_id,
             metadata: {
               original_status: r.status,
@@ -360,7 +360,7 @@ export function NexusReportsViewer({ onOpenDossier, setStatus, hubRole }: any) {
           title: post?.title || `COMM-LINK: ${(r.content_type || '').toUpperCase()}`,
           description: r.reason || t("no_reason", "No reason provided"),
           created_at: r.created_at,
-          reporter_name: r.reporter_id || t("anonymous", "Anonymous"),
+          reporter_name: r.reporter_name || t("anonymous", "Anonymous"),
           target_id: r.content_id,
           metadata: {
             original_status: r.status,

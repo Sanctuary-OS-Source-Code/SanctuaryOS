@@ -24,8 +24,8 @@ import { SidePanelPillToggle } from '../components/layouts/ElevatedHubLayout';
 import {
   StructuredReleaseNotesView,
   LegalDocVersionInfoBlock,
-  cleanPostBodyForViewer,
-} from '../components/ReleaseNotesShowcase';
+} from '../components/release-notes/ReleaseMarkdownViewer';
+import { cleanPostBodyForViewer } from '../components/release-notes/releaseMarkdownParser';
 
 interface LandingApplicationDrawersProps {
   // Partner Spoke Application Drawer

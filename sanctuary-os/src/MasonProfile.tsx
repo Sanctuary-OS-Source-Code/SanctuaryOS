@@ -93,6 +93,7 @@ export default function MasonProfile({
   const { t, importLexicon, registry } = useLexicon();
   const { importTheme, CORE_THEMES, customThemes } = useTheme();
   const activeGameSchema = useStore((state) => state.activeGameSchema);
+  const modCategories = useStore((state) => state.modCategories);
 
   const [installedTemplates, setInstalledTemplates] = useState<Record<string, string>>({});
   const vaultPath = useStore((state) => state.vaultPath);
@@ -711,21 +712,23 @@ export default function MasonProfile({
 
   const handlePostClick = async (post: any) => {
     setSelectedPost(post);
-    const session = useStore.getState().session;
-    if (userId && session?.access_token) {
-      try {
-        await supabase.rpc("secure_upsert_cloud_file", {
-          p_target: "mason_post_views",
-          p_payload: { post_id: post.id, user_id: userId },
-          p_token: session.access_token,
-        });
-      } catch (e) {
-        console.warn("Failed to record view", e);
+    if (localStorage.getItem("sanctuary_local_only") === "true") return;
+    let shouldIncrement = true;
+    try {
+      const seenRaw = sessionStorage.getItem("sanctuary_viewed_posts");
+      const seenArr: string[] = seenRaw ? JSON.parse(seenRaw) : [];
+      if (seenArr.includes(String(post.id))) {
+        shouldIncrement = false;
+      } else {
+        seenArr.push(String(post.id));
+        sessionStorage.setItem("sanctuary_viewed_posts", JSON.stringify(seenArr.slice(-200)));
       }
-    }
+    } catch {}
+    if (!shouldIncrement) return;
+    supabase.rpc("increment_mason_post_view", { p_post_id: post.id }).then(() => {}, () => {});
     setPosts((prev) =>
       prev.map((p) =>
-        p.id === post.id ? { ...p, views: [{ count: (p.views?.[0]?.count || 0) + 1 }] } : p
+        p.id === post.id ? { ...p, view_count: (Number(p.view_count) || 0) + 1 } : p
       )
     );
   };
@@ -770,10 +773,10 @@ export default function MasonProfile({
                           label: t("all_classes", "All Classes"),
                           icon: t("icon_folder", "folder"),
                         },
-                        ...(activeGameSchema?.mod_categories?.map((cat: any) => ({
+                        ...(modCategories.map((cat: any) => ({
                           id: cat.id,
-                          label: t(cat.lexicon_key, cat.id) || cat.id,
-                          icon: t(cat.icon_key, "folder") || t("icon_folder", "folder"),
+                          label: t(cat.lexicon_key || "", cat.label || cat.id) || cat.id,
+                          icon: t(cat.icon_key || (cat.icon ? `icon_${cat.icon}` : "icon_folder"), "folder") || t("icon_folder", "folder"),
                         })) || []),
                       ];
                     } else if (activeView === "LEXICONS") {

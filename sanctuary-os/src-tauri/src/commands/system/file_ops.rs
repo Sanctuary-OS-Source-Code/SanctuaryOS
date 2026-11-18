@@ -78,6 +78,16 @@ pub fn delete_local_file(
             if let Some(fname) = p.file_name().and_then(|n| n.to_str()) {
                 deleted_file_names.push(fname.to_string());
             }
+            for companion in crate::utils::collect_companion_sibling_paths(p, &active_schema) {
+                if !crate::utils::is_protected_save_or_airgap_path(&companion, &saved_coords, &active_schema)
+                    && crate::utils::ensure_strict_descendant_of_roots(&companion, &allowed_roots).is_ok()
+                {
+                    if let Some(cf) = companion.file_name().and_then(|n| n.to_str()) {
+                        deleted_file_names.push(cf.to_string());
+                    }
+                    let _ = std::fs::remove_file(&companion);
+                }
+            }
             std::fs::remove_file(p).map_err(|e| e.to_string())?;
         }
 

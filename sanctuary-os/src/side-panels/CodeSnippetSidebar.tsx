@@ -1,5 +1,4 @@
 import { useState, useMemo, useRef, useEffect } from "react";
-import Editor from "@monaco-editor/react";
 import { useLexicon } from "../LexiconContext";
 import { useTheme } from "../ThemeContext";
 import {
@@ -9,6 +8,7 @@ import {
 } from "../shared";
 import { VAULT_CHIP_CLASS } from "../Cards";
 import {
+  SanctuaryMonacoEditor,
   defineSanctuaryMonacoThemes,
   useSanctuaryMonacoTheme,
   isThemeLight,
@@ -329,7 +329,7 @@ export default function CodeSnippetSidebar({
 
       <div className="monaco-wrapper flex-1 min-h-0 relative w-full">
         <div className="absolute inset-0">
-          <Editor
+          <SanctuaryMonacoEditor
             height="100%"
             width="100%"
             language={detectedLanguage}
@@ -504,7 +504,7 @@ export default function CodeSnippetSidebar({
                   </div>
                   <div className="monaco-wrapper flex-1 min-h-0 relative w-full">
                     <div className="absolute inset-0">
-                      <Editor
+                      <SanctuaryMonacoEditor
                         height="100%"
                         width="100%"
                         language="json"

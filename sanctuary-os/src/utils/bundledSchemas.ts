@@ -106,10 +106,6 @@ export const BUNDLED_DEFAULT_SCHEMA: Record<string, any> =
       document_header: null,
       prefix_separator: null,
     },
-    mod_categories: [],
-    taxonomy: {
-      categories: [],
-    },
     lab_verification: {
       require_focus: true,
       save_extensions: [],
@@ -160,6 +156,8 @@ export function getCachedOrBundledDefaultSchema(): Record<string, any> {
         ) {
           delete parsed.dlc_catalog;
           delete parsed.exception_rules;
+          delete parsed.mod_categories;
+          delete parsed.taxonomy;
           return parsed;
         }
         localStorage.removeItem(DEFAULT_SCHEMA_CACHE_KEY);

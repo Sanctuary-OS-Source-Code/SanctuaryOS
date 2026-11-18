@@ -1,8 +1,11 @@
 import React, { useRef, useState } from 'react';
-import Editor from '@monaco-editor/react';
 import { useTheme } from '../ThemeContext';
 import { useLexicon } from '../LexiconContext';
-import { defineSanctuaryMonacoThemes, useSanctuaryMonacoTheme } from '../utils/monacoTheme';
+import {
+  SanctuaryMonacoEditor,
+  defineSanctuaryMonacoThemes,
+  useSanctuaryMonacoTheme,
+} from '../utils/monacoTheme';
 import { VAULT_CHIP_CLASS, HoverTooltip } from '../shared';
 
 interface WorkbenchRawEditorProps {
@@ -113,7 +116,7 @@ export const WorkbenchRawEditor: React.FC<WorkbenchRawEditorProps> = ({
          </div>
 
          <div className="flex-1 min-h-0 relative w-full">
-            <Editor
+            <SanctuaryMonacoEditor
                height="100%"
                language={language}
                theme={isLight ? "sanctuary-glass-light" : "sanctuary-glass-dark"}

@@ -18,12 +18,12 @@ import {
   VAULT_CHIP_CLASS,
 } from "../shared";
 import { SidePanelHeroCard } from "../components/universal/UniversalLayout";
+import { cleanPostBodyForViewer } from "../components/release-notes/releaseMarkdownParser";
 import {
-  cleanPostBodyForViewer,
   LegalDocVersionInfoBlock,
   StructuredReleaseNotesView,
   useStableReleaseMeta,
-} from "../components/ReleaseNotesShowcase";
+} from "../components/release-notes/ReleaseMarkdownViewer";
 
 type UserLegalCategory = Exclude<LegalDocCategory, "PartnersAgreement">;
 

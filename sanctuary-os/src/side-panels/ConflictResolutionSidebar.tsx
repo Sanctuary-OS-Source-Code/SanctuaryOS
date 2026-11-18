@@ -118,15 +118,12 @@ export default function ConflictResolutionSidebar({
   const [selectedMod, setSelectedMod] = useState<string | null>(null);
 
   const overrideTiers = (
-    activeGameSchema?.load_order?.priority_tiers || [
-      { id: "tier_1", label: t("lo_role_tier1", "Late Load (Tier 1)"), folder: "Sanctuary", priority: 1000 },
-      { id: "tier_2", label: t("lo_role_tier2", "High Priority (Tier 2)"), folder: "Sanctuary2", priority: 1500 },
-      { id: "tier_3", label: t("lo_role_tier3", "Final Override (Tier 3)"), folder: "Sanctuary3", priority: 2000 },
-    ]
+    Array.isArray(activeGameSchema?.load_order?.priority_tiers)
+      ? activeGameSchema.load_order.priority_tiers
+      : []
   ).filter((pt: any) => pt.folder && pt.folder.length > 0);
 
-  const defaultOverrideFolder =
-    overrideTiers[0]?.folder || "Sanctuary";
+  const defaultOverrideFolder = overrideTiers[0]?.folder || "";
 
   useEffect(() => {
     if (!conflict) return;

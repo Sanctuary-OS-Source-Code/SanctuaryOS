@@ -24,12 +24,7 @@ export function compileLoadOrder(
   const priorityTiers: { id: string; label: string; folder: string; priority: number }[] =
     Array.isArray(loadOrderCfg.priority_tiers) && loadOrderCfg.priority_tiers.length > 0
       ? [...loadOrderCfg.priority_tiers].sort((a, b) => (a.priority || 0) - (b.priority || 0))
-      : [
-        { id: "default", label: "Base Tier", folder: "", priority: 500 },
-        { id: "tier_1", label: "Priority Tier 1", folder: "Sanctuary", priority: 1000 },
-        { id: "tier_2", label: "Priority Tier 2", folder: "Sanctuary2", priority: 2000 },
-        { id: "tier_3", label: "Priority Tier 3", folder: "Sanctuary3", priority: 3000 },
-      ];
+      : [];
 
   const folderToTierIndex = new Map<string, number>();
   priorityTiers.forEach((tier, idx) => {
@@ -492,12 +487,7 @@ export function unpackBlueprintLoadOrder(
   const schemaTiers = Array.isArray(schema?.load_order?.priority_tiers)
     ? schema.load_order.priority_tiers
     : [];
-  const knownTierMap = new Map<string, string>([
-    ["sanctuary", "Sanctuary"],
-    ["sanctuary2", "Sanctuary2"],
-    ["sanctuary3", "Sanctuary3"],
-    ["4_overrides", "Sanctuary"],
-  ]);
+  const knownTierMap = new Map<string, string>();
   schemaTiers.forEach((pt: any) => {
     if (pt?.folder) {
       knownTierMap.set(String(pt.folder).toLowerCase(), String(pt.folder));

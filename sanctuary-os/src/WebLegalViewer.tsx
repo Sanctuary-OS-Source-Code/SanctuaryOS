@@ -18,9 +18,9 @@ import {
 import {
   StructuredReleaseNotesView,
   LegalDocVersionInfoBlock,
-  cleanPostBodyForViewer,
   useStableReleaseMeta,
-} from "./components/ReleaseNotesShowcase";
+} from "./components/release-notes/ReleaseMarkdownViewer";
+import { cleanPostBodyForViewer } from "./components/release-notes/releaseMarkdownParser";
 
 export default function WebLegalViewer() {
   const { t } = useLexicon();

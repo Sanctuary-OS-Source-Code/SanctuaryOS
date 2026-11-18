@@ -73,6 +73,7 @@ export function MasonSandbox({
 }) {
   const { t } = useLexicon();
   const activeGameSchema = useStore((s) => s.activeGameSchema);
+  const modCategories = useStore((s) => s.modCategories);
   const requireMasonLabTest = activeGameSchema?.lab_verification?.require_for_mason_publish !== false;
 
   const [activeMod, setActiveMod] = useState<any>(initialSandboxMod || null);
@@ -1181,7 +1182,10 @@ export function MasonSandbox({
         if (activeCategory !== "ALL") {
           const modCat = mod.category_override || "Script";
           if (modCat !== activeCategory) return false;
-          if (activeCategory === "CAS" && activeSubType !== "ALL") {
+          const activeCatObj = modCategories.find(
+            (c) => String(c.id).toLowerCase() === activeCategory.toLowerCase()
+          );
+          if (activeCatObj && (activeCatObj.subcategories?.length || 0) > 0 && activeSubType !== "ALL") {
             if ((mod.sub_type || "").toLowerCase() !== activeSubType.toLowerCase()) return false;
           }
         }
@@ -1205,7 +1209,7 @@ export function MasonSandbox({
           _openTickets: tickets,
         };
       });
-  }, [existingMods, cloudRelRows, openTicketMap, groupFamilies, statusFilter, activeCategory, activeSubType, searchTerm]);
+  }, [existingMods, cloudRelRows, openTicketMap, groupFamilies, statusFilter, activeCategory, activeSubType, modCategories, searchTerm]);
 
   // Flagged Mods (unstable, corrupted, under_review, or open citizen bug/flag reports)
   const flaggedMods = useMemo(() => {
@@ -1452,10 +1456,10 @@ export function MasonSandbox({
                     }}
                     options={[
                       { id: "ALL", label: t("filter_all", "All") },
-                      ...(useStore.getState().activeGameSchema?.mod_categories || []).map((c: any) => ({
+                      ...(modCategories.map((c: any) => ({
                         id: c.id,
-                        label: t(c.lexicon_key, c.id),
-                      })),
+                        label: t(c.lexicon_key || "", c.label || c.id),
+                      }))),
                     ]}
                   />
                 </div>

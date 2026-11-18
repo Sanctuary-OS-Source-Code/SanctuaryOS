@@ -7,8 +7,6 @@ const isSchemaDynamicDictionary = (path: string, isLexicon: boolean): boolean =>
       path.startsWith('extensions.parsers.') ||
       path === 'extensions.magic_bytes' ||
       path.startsWith('extensions.magic_bytes.') ||
-      path === 'taxonomy' ||
-      path.startsWith('taxonomy.') ||
       path === 'save_game_rules.magic_bytes' ||
       path.startsWith('save_game_rules.magic_bytes.')
    );
@@ -20,6 +18,7 @@ const isSchemaIgnoredRootKey = (k: string, currentPath: string, isLexicon: boole
    return (
       k === 'name' ||
       k === 'mod_categories' ||
+      k === 'taxonomy' ||
       k === 'lab_verification' ||
       k === 'external_tools'
    );

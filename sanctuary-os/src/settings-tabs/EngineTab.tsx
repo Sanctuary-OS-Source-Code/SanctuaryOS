@@ -114,7 +114,13 @@ export default function EngineTab({
     setDetectingPaths(true);
     try {
       const activeGameSchema = useStore.getState().activeGameSchema;
-      const detected: any = await invoke('auto_detect_paths', { gameSchema: activeGameSchema });
+      if (activeGameSchema) {
+        await invoke('update_active_game_schema', { schema: activeGameSchema }).catch(() => {});
+      }
+      const detected: any = await invoke(
+        'auto_detect_paths',
+        config?.live_path && !config?.mods_path ? { livePathHint: config.live_path } : {}
+      );
       const patch: Record<string, string> = {};
       if (detected?.live_path) patch.live_path = detected.live_path;
       if (detected?.mods_path) patch.mods_path = detected.mods_path;

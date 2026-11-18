@@ -7,11 +7,14 @@ import {
   HoverTooltip,
   VAULT_CHIP_CLASS,
 } from "../shared";
-import Editor from "@monaco-editor/react";
 import VersionTimeline from "../VersionTimeline";
 import { invoke } from "@tauri-apps/api/core";
 import { useTheme } from "../ThemeContext";
-import { defineSanctuaryMonacoThemes, useSanctuaryMonacoTheme } from "../utils/monacoTheme";
+import {
+  SanctuaryMonacoEditor,
+  defineSanctuaryMonacoThemes,
+  useSanctuaryMonacoTheme,
+} from "../utils/monacoTheme";
 import LexiconVisualStudio from "./LexiconVisualStudio";
 import SchemaVisualStudio from "./SchemaVisualStudio";
 import KeepersTitleAreaStudio from "./KeepersTitleAreaStudio";
@@ -357,7 +360,7 @@ export default function MasonEditorPanel({
         </div>
         <div className="monaco-wrapper flex-1 min-h-0 relative w-full">
           <div className="absolute inset-0">
-            <Editor
+            <SanctuaryMonacoEditor
               height="100%"
               width="100%"
               language={resolveEditorLanguage(activeFile.name, activeFile.content)}
@@ -640,7 +643,7 @@ export default function MasonEditorPanel({
                           </div>
                           <div className="monaco-wrapper flex-1 min-h-0 relative w-full">
                             <div className="absolute inset-0">
-                              <Editor
+                              <SanctuaryMonacoEditor
                                 height="100%"
                                 width="100%"
                                 language="json"

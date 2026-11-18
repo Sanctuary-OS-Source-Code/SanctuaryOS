@@ -960,7 +960,7 @@ export default function Nexus({ ownedHashes, onSetStatus, onOpenMasonProfile, on
           {
             content_type: "collection",
             content_id: normalizedAssetId,
-            reporter_id: session.user.id,
+            reporter_id: null,
             reason: reportState.reason.trim(),
             status: "pending",
           },
@@ -986,8 +986,8 @@ export default function Nexus({ ownedHashes, onSetStatus, onOpenMasonProfile, on
       } else if (reportState.assetType === 'blueprint') {
         const { error } = await supabase.from('blueprint_reports').insert([{
           blueprint_id: normalizedAssetId,
-          reporter_name: session?.user?.user_metadata?.username || 'Anonymous',
-          reporter_id: session?.user?.id,
+          reporter_name: 'Anonymous',
+          reporter_id: null,
           reason: reportState.reason.trim(),
           status: 'pending'
         }]);
@@ -997,8 +997,8 @@ export default function Nexus({ ownedHashes, onSetStatus, onOpenMasonProfile, on
       } else {
         const { error } = await supabase.from('nexus_reports').insert([{
           asset_id: normalizedAssetId,
-          reporter_name: session?.user?.user_metadata?.username || 'Anonymous',
-          reporter_id: session?.user?.id,
+          reporter_name: 'Anonymous',
+          reporter_id: null,
           reason: reportState.reason.trim(),
           status: 'pending'
         }]);

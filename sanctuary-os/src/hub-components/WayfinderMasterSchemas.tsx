@@ -58,9 +58,9 @@ import MarkdownRenderer from "../MarkdownRenderer";
 import {
   StructuredReleaseNotesView,
   LegalDocVersionInfoBlock,
-  cleanPostBodyForViewer,
   useStableReleaseMeta,
-} from "../components/ReleaseNotesShowcase";
+} from "../components/release-notes/ReleaseMarkdownViewer";
+import { cleanPostBodyForViewer } from "../components/release-notes/releaseMarkdownParser";
 import { AuditLogViewer } from "../side-panels/SAAuditLogViewer";
 import { isCoreOnlyAuditRow, logArchitectAction } from "../lib/audit";
 import WayfinderKeeperTickets from "../WayfinderKeeperTickets";

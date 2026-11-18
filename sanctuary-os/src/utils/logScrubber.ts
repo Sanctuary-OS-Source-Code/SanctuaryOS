@@ -2,7 +2,7 @@ import {
   matchExceptionRules,
   normalizeRuleSeverity,
   SchemaExceptionRule,
-} from "../components/KnownExceptionRules";
+} from "../components/exception-rules/ruleStoreAndMatcher";
 import { getExtensionRegex } from "../shared-components/modUtils";
 import { useStore } from "../store";
 

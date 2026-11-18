@@ -163,11 +163,21 @@ export default function MasonFeed({
 
   const handlePostClick = async (post: any) => {
     setSelectedPost(post);
-    const session = useStore.getState().session;
-    if (userId && session?.access_token) {
-      try { await supabase.rpc('secure_upsert_cloud_file', { p_target: 'mason_post_views', p_payload: { post_id: post.id, user_id: userId }, p_token: session.access_token }); } catch(e) { console.warn("Failed to record view", e); }
-    }
-    setPosts(prev => prev.map(p => p.id === post.id ? { ...p, views: [{ count: (p.views?.[0]?.count || 0) + 1 }] } : p));
+    if (localStorage.getItem('sanctuary_local_only') === 'true') return;
+    let shouldIncrement = true;
+    try {
+      const seenRaw = sessionStorage.getItem('sanctuary_viewed_posts');
+      const seenArr: string[] = seenRaw ? JSON.parse(seenRaw) : [];
+      if (seenArr.includes(String(post.id))) {
+        shouldIncrement = false;
+      } else {
+        seenArr.push(String(post.id));
+        sessionStorage.setItem('sanctuary_viewed_posts', JSON.stringify(seenArr.slice(-200)));
+      }
+    } catch {}
+    if (!shouldIncrement) return;
+    supabase.rpc('increment_mason_post_view', { p_post_id: post.id }).then(() => {}, () => {});
+    setPosts(prev => prev.map(p => p.id === post.id ? { ...p, view_count: (Number(p.view_count) || 0) + 1 } : p));
   };
 
   const visiblePosts =

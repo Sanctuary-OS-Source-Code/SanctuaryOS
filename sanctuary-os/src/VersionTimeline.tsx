@@ -1,11 +1,14 @@
 import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { invoke } from '@tauri-apps/api/core';
 import { listen } from '@tauri-apps/api/event';
-import { DiffEditor } from '@monaco-editor/react';
 import { useLexicon } from './LexiconContext';
 import { SidePanel, SidePanelHeroCard, DashboardStatTile, SidePanelFilterBar, ActionPill, HoverTooltip, PanelHeaderGroup, PanelHeaderButton, VAULT_CHIP_CLASS, EmptyState } from './shared';
 import { useTheme } from './ThemeContext';
-import { defineSanctuaryMonacoThemes, useSanctuaryMonacoTheme } from './utils/monacoTheme';
+import {
+  SanctuaryMonacoDiffEditor,
+  defineSanctuaryMonacoThemes,
+  useSanctuaryMonacoTheme,
+} from './utils/monacoTheme';
 import { parseConfigContent } from './workbench/hooks/useWorkbenchEditor';
 import { humanizeConfigLabel } from './workbench/WorkbenchVisualEditor';
 
@@ -1509,7 +1512,7 @@ export default function VersionTimeline({
           {/* RAW CODE DIFF MODE */}
           {diffViewMode === 'raw' && (
             <div className="monaco-wrapper flex-1 min-h-0 w-full rounded-2xl glass-panel border border-[color-mix(in_srgb,var(--text)_10%,transparent)]">
-              <DiffEditor
+              <SanctuaryMonacoDiffEditor
                 height="100%"
                 language={detectedLanguage}
                 theme={isLight ? 'sanctuary-glass-light' : 'sanctuary-glass-dark'}

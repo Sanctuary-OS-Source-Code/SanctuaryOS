@@ -2620,14 +2620,12 @@ export default function ModDossier({
         suggested_version:
           metaInputs.version || deriveHumanReadableVersion(mod.name, cleanHash),
         suggested_sub_type:
-          getFileLabel(mod.name || "", activeGameSchema) === "PACKAGE"
-            ? "Package"
-            : getFileLabel(mod.name || "", activeGameSchema) === "SCRIPT"
-              ? "Script"
-              : null,
+          getFileLabel(mod.name || "", activeGameSchema) === "SCRIPT"
+            ? "Script"
+            : "Module",
         suggested_game_versions:
           localCompatibleVersions.length > 0 ? localCompatibleVersions : null,
-        submitter_id: session.user.id,
+        submitter_id: null,
         description: metaInputs.desc || null,
         image_url: metaInputs.image || null,
         compliance_tier: 0,

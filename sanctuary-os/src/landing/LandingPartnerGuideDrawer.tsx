@@ -5,7 +5,7 @@ import {
   PanelHeaderButton,
   SidePanelHeroCard,
 } from '../shared';
-import { LegalDocVersionInfoBlock } from '../components/ReleaseNotesShowcase';
+import { LegalDocVersionInfoBlock } from '../components/release-notes/ReleaseMarkdownViewer';
 
 export type PartnerGuideStageId = 'what' | 'setup' | 'connect' | 'maintain';
 

@@ -2,6 +2,20 @@ import { invoke } from "@tauri-apps/api/core";
 import { useStore } from "../../store";
 import { getExtensionRegex } from "../../shared";
 
+export function parseConflictPairNames(conflict: any): [string, string] {
+  if (conflict && typeof conflict === "object") {
+    const a = String(conflict.mod_a || conflict.modA || "").trim();
+    const b = String(conflict.mod_b || conflict.modB || "").trim();
+    if (a && b) return [a, b];
+  }
+  const rawPair = typeof conflict === "string" ? conflict : String(conflict?.mod_pair || "");
+  const parts = rawPair
+    .split(/\s*(?:⚡|⚔️?|\u2694\uFE0F?|::|\bvs\b)\s*/i)
+    .map((p) => p.trim())
+    .filter(Boolean);
+  return [parts[0] || rawPair.trim(), parts[1] || ""];
+}
+
 export async function precomputeBlueprintConflicts(
   scopeName: string,
   targetMods?: any[],
@@ -62,9 +76,8 @@ export async function precomputeBlueprintConflicts(
     let actionableClashes = 0;
 
     (report?.conflicts || []).forEach((c: any) => {
-      const parts = String(c.mod_pair || "").split(/\s+(?:⚔️|ΓÜö∩╕Å|vs|VS|Vs|vS)\s+/);
-      const modA = parts[0];
-      const modB = parts.length > 1 ? parts[1] : "Unknown Overlap";
+      const [modA, modBRaw] = parseConflictPairNames(c);
+      const modB = modBRaw || "Unknown Overlap";
       const enrichedConflict = { ...c, modA, modB };
 
       if (isClone(modA, modB)) {

@@ -4307,3 +4307,121 @@ SELECT
         ) THEN (public.mint_spoke_gateway_token('Initial Spoke Bootstrap', 0))->>'token'
         ELSE '[ACTIVE TOKEN ALREADY EXISTS - RUN SELECT public.mint_spoke_gateway_token() IF NEEDED]'
     END AS initial_spoke_gateway_token;
+
+-- Idempotent Taxonomy Backfill & Schema Stripping (Moves mod_categories -> public.taxonomy)
+DO $$
+DECLARE
+    schema_row RECORD;
+    cat_elem JSONB;
+    cat_idx INT;
+    cat_id TEXT;
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM public.taxonomy LIMIT 1) THEN
+        FOR schema_row IN
+            SELECT id, schema_data
+            FROM public.sanctuary_schemas
+            WHERE jsonb_typeof(schema_data->'mod_categories') = 'array'
+               OR jsonb_typeof(schema_data->'taxonomy'->'categories') = 'array'
+        LOOP
+            cat_idx := 0;
+            FOR cat_elem IN
+                SELECT value FROM jsonb_array_elements(
+                    COALESCE(
+                        CASE WHEN jsonb_typeof(schema_row.schema_data->'mod_categories') = 'array'
+                             THEN schema_row.schema_data->'mod_categories'
+                             ELSE NULL END,
+                        schema_row.schema_data->'taxonomy'->'categories',
+                        '[]'::jsonb
+                    )
+                )
+            LOOP
+                cat_id := NULLIF(BTRIM(COALESCE(cat_elem->>'id', cat_elem->>'category', cat_elem->>'label', '')), '');
+                IF cat_id IS NOT NULL AND NOT EXISTS (
+                    SELECT 1 FROM public.taxonomy WHERE LOWER(category) = LOWER(cat_id)
+                ) THEN
+                    INSERT INTO public.taxonomy (category, type, taxonomy_attributes)
+                    VALUES (
+                        cat_id,
+                        NULLIF(BTRIM(COALESCE(cat_elem->>'label', cat_id)), ''),
+                        jsonb_build_object(
+                            'sort_order', COALESCE((cat_elem->>'sort_order')::int, cat_idx),
+                            'icon', COALESCE(NULLIF(cat_elem->>'icon', ''), 'category'),
+                            'icon_key', NULLIF(cat_elem->>'icon_key', ''),
+                            'lexicon_key', NULLIF(cat_elem->>'lexicon_key', ''),
+                            'subcategories', COALESCE(cat_elem->'subcategories', '[]'::jsonb)
+                        )
+                    );
+                END IF;
+                cat_idx := cat_idx + 1;
+            END LOOP;
+        END LOOP;
+    END IF;
+
+    UPDATE public.sanctuary_schemas
+    SET schema_data = (schema_data - 'mod_categories' - 'taxonomy')
+    WHERE schema_data ? 'mod_categories' OR schema_data ? 'taxonomy';
+END $$;
+
+-- Anonymous Post View Counter (Zero User ID Tracking)
+ALTER TABLE IF EXISTS public.mason_posts
+    ADD COLUMN IF NOT EXISTS view_count BIGINT NOT NULL DEFAULT 0;
+
+DO $$
+BEGIN
+    IF to_regclass('public.mason_posts') IS NOT NULL AND to_regclass('public.mason_post_views') IS NOT NULL THEN
+        UPDATE public.mason_posts mp
+        SET view_count = GREATEST(
+            COALESCE(mp.view_count, 0),
+            COALESCE((SELECT COUNT(*) FROM public.mason_post_views v WHERE v.post_id = mp.id), 0)
+        );
+        TRUNCATE TABLE public.mason_post_views;
+    END IF;
+END $$;
+
+CREATE OR REPLACE FUNCTION public.increment_mason_post_view(p_post_id UUID)
+RETURNS VOID
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+BEGIN
+    UPDATE public.mason_posts
+    SET view_count = COALESCE(view_count, 0) + 1
+    WHERE id = p_post_id;
+END;
+$$;
+
+GRANT EXECUTE ON FUNCTION public.increment_mason_post_view(UUID) TO anon, authenticated;
+
+-- Zero-Identity Content Reports, Scout Suggestions & Anonymous Tickets
+DO $$
+BEGIN
+    IF to_regclass('public.content_flags') IS NOT NULL THEN
+        ALTER TABLE public.content_flags ALTER COLUMN reporter_id DROP NOT NULL;
+    END IF;
+    IF to_regclass('public.sanctuary_tickets') IS NOT NULL THEN
+        ALTER TABLE public.sanctuary_tickets ALTER COLUMN author_id DROP NOT NULL;
+    END IF;
+    IF EXISTS (
+        SELECT 1 FROM information_schema.columns
+        WHERE table_schema = 'public' AND table_name = 'scout_suggestions' AND column_name = 'submitter_id'
+    ) THEN
+        ALTER TABLE public.scout_suggestions ALTER COLUMN submitter_id DROP NOT NULL;
+    END IF;
+END $$;
+
+DROP POLICY IF EXISTS "spoke_content_flags_insert" ON public.content_flags;
+CREATE POLICY "spoke_content_flags_insert" ON public.content_flags
+    FOR INSERT
+    WITH CHECK (
+        (SELECT sanctuary_internal.is_verified_hub_gateway())
+        OR ((SELECT auth.uid()) IS NOT NULL AND (reporter_id IS NULL OR reporter_id = (SELECT auth.uid())))
+    );
+
+DROP POLICY IF EXISTS "spoke_sanctuary_tickets_insert" ON public.sanctuary_tickets;
+CREATE POLICY "spoke_sanctuary_tickets_insert" ON public.sanctuary_tickets
+    FOR INSERT
+    WITH CHECK (
+        (SELECT sanctuary_internal.is_verified_hub_gateway())
+        OR ((SELECT auth.uid()) IS NOT NULL AND (author_id IS NULL OR author_id = (SELECT auth.uid())))
+    );

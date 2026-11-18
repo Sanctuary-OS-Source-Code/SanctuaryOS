@@ -1,5 +1,4 @@
 import React, { useState, useEffect } from 'react';
-import Editor from '@monaco-editor/react';
 import { useLexicon } from '../LexiconContext';
 import { useStore } from '../store';
 import { SidePanel, CustomDropdown, ActionPill, PanelHeaderGroup, PanelHeaderButton, HoverTooltip, VAULT_CHIP_CLASS } from '../shared';
@@ -9,7 +8,11 @@ import { WorkbenchEmptyVisualState } from './WorkbenchEmptyVisualState';
 import { WorkbenchTemplateTools } from './WorkbenchTemplateTools';
 import { WorkbenchTemplateBuilder } from './WorkbenchTemplateBuilder';
 import { useTheme } from '../ThemeContext';
-import { defineSanctuaryMonacoThemes, useSanctuaryMonacoTheme } from '../utils/monacoTheme';
+import {
+  SanctuaryMonacoEditor,
+  defineSanctuaryMonacoThemes,
+  useSanctuaryMonacoTheme,
+} from '../utils/monacoTheme';
 import { isSanctuaryTemplateFile, detectMonacoLanguage, writeDataPathValue } from './workbenchFormatUtils';
 import { useVerifiedMasonOrStaff } from '../utils/hubCommandCache';
 
@@ -1004,7 +1007,7 @@ export function WorkbenchSidePanel({
                                     )
                                  ) : (
                                     <div className="monaco-wrapper h-full w-full glass-panel rounded-2xl border border-[color-mix(in_srgb,var(--text)_10%,transparent)]">
-                                       <Editor
+                                       <SanctuaryMonacoEditor
                                           height="100%"
                                           language={detectMonacoLanguage(templatePreviewObject?.target_file, editorState.targetFileContent)}
                                           theme={layoutState.isLight ? "sanctuary-glass-light" : "sanctuary-glass-dark"}

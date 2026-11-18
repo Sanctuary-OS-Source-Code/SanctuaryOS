@@ -14,6 +14,8 @@ import {
   PanelHeaderButton,
   VAULT_CHIP_CLASS,
 } from "../shared";
+import { CustomClassificationDropdown } from "../shared-components/dropdown-controls/PickersAndCompliance";
+export { CustomClassificationDropdown };
 import { ArtifactCard } from "../Cards";
 import { CustomMasonDropdown, CustomStatusDropdown } from "../ArchitectHub";
 import { logArchitectAction, computeAuditDiff } from "../lib/audit";
@@ -769,7 +771,7 @@ export function ArchitectRegistry({
                 statusFilter !== "ALL" ||
                 exclusiveSlotFilter !== "ALL",
               content: (() => {
-                const schemaCategories = activeGameSchema?.mod_categories || [];
+                const schemaCategories = useStore.getState().modCategories || [];
                 const activeSchemaCategory = schemaCategories.find(
                   (c: any) => String(c.id).toLowerCase() === activeCategory.toLowerCase()
                 );
@@ -1271,41 +1273,5 @@ export function ArchitectRegistry({
         </div>
       </SidePanel>
     </>
-  );
-}
-
-export function CustomClassificationDropdown({ value, onChange }: any) {
-  const { t } = useLexicon();
-  const activeGameSchema = useStore((state: any) => state.activeGameSchema);
-  const schemaCats = activeGameSchema?.mod_categories || [];
-  const hasUnknown = schemaCats.some(
-    (c: any) => String(c.id).toLowerCase() === "unknown"
-  );
-  const options = [
-    ...(!hasUnknown
-      ? [{ id: "Unknown", label: t("unknown", "Unknown"), icon: t("icon_help", "help") }]
-      : []),
-    ...schemaCats.map((c: any) => {
-      const fallbackLabel = c.label || c.name || c.id;
-      const resolvedIcon = c.icon
-        ? t(`icon_${c.icon}`, c.icon)
-        : c.icon_key
-          ? t(c.icon_key, "")
-          : undefined;
-      return {
-        id: c.id,
-        label: c.lexicon_key ? t(c.lexicon_key, fallbackLabel) : fallbackLabel,
-        icon: resolvedIcon || undefined,
-      };
-    }),
-  ];
-  return (
-    <CustomDropdown
-      disableTint={true}
-      value={value}
-      options={options}
-      onChange={(v: string[]) => onChange(v[0])}
-      placeholder={t("category", "Category")}
-    />
   );
 }

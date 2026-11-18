@@ -2488,109 +2488,9 @@ pub fn sync_vault_mod_versions_for_game(
     let mut cache = load_cache(vault_path);
     let mut cache_dirty = false;
 
-    // Consolidate duplicate binary filenames across subfolders in <Vault>/Mods so two versions of the same file never coexist in <Vault>/Mods
-    let mut keys_by_filename: std::collections::HashMap<String, Vec<String>> =
-        std::collections::HashMap::new();
-    for k in index.keys() {
-        let f_name = Path::new(k)
-            .file_name()
-            .unwrap_or_default()
-            .to_string_lossy()
-            .to_lowercase();
-        let ext = Path::new(&f_name)
-            .extension()
-            .unwrap_or_default()
-            .to_string_lossy()
-            .to_lowercase();
-        if !f_name.is_empty() && !ext.is_empty() && !is_plain_text_config_extension(&ext) {
-            keys_by_filename.entry(f_name).or_default().push(k.clone());
-        }
-    }
-
-    for (_f_name, mut key_list) in keys_by_filename {
-        if key_list.len() <= 1 {
-            continue;
-        }
-        // Prefer the path that currently exists on disk, has metadata (compatible_versions), or is the shorter/cleaner path
-        key_list.sort_by(|a, b| {
-            let a_full = mods_lane.join(a.replace('/', std::path::MAIN_SEPARATOR_STR));
-            let b_full = mods_lane.join(b.replace('/', std::path::MAIN_SEPARATOR_STR));
-            let a_exists = a_full.exists();
-            let b_exists = b_full.exists();
-            let a_has_meta = index
-                .get(a)
-                .map(|v| v.iter().any(|e| !e.compatible_versions.is_empty()))
-                .unwrap_or(false);
-            let b_has_meta = index
-                .get(b)
-                .map(|v| v.iter().any(|e| !e.compatible_versions.is_empty()))
-                .unwrap_or(false);
-            b_exists
-                .cmp(&a_exists)
-                .then_with(|| b_has_meta.cmp(&a_has_meta))
-                .then_with(|| a.len().cmp(&b.len()))
-        });
-
-        let primary_key = key_list[0].clone();
-        let primary_rel = index
-            .get(&primary_key)
-            .and_then(|v| v.first())
-            .map(|e| e.rel_path.clone())
-            .unwrap_or_else(|| primary_key.clone());
-
-        for dup_key in key_list.into_iter().skip(1) {
-            if let Some(dup_entries) = index.remove(&dup_key) {
-                if let Some(first_dup) = dup_entries.first() {
-                    let dup_full = mods_lane
-                        .join(first_dup.rel_path.replace('/', std::path::MAIN_SEPARATOR_STR));
-                    if dup_full.exists() {
-                        let _ = std::fs::remove_file(&dup_full);
-                        let dup_full_str = dup_full.to_string_lossy().to_string();
-                        if cache.remove(&dup_full_str).is_some() {
-                            cache_dirty = true;
-                        }
-                        let mut cur_dir = dup_full.parent().map(|p| p.to_path_buf());
-                        while let Some(d) = cur_dir {
-                            if d == mods_lane || !d.starts_with(&mods_lane) {
-                                break;
-                            }
-                            if std::fs::remove_dir(&d).is_err() {
-                                break;
-                            }
-                            cur_dir = d.parent().map(|p| p.to_path_buf());
-                        }
-                    }
-                }
-                let primary_vec = index.entry(primary_key.clone()).or_default();
-                for mut de in dup_entries {
-                    de.rel_path = primary_rel.clone();
-                    if let Some(existing) = primary_vec
-                        .iter_mut()
-                        .find(|pe| pe.dna_hash.eq_ignore_ascii_case(&de.dna_hash))
-                    {
-                        if existing.mod_version.is_empty() && !de.mod_version.is_empty() {
-                            existing.mod_version = de.mod_version;
-                        }
-                        for cv in de.compatible_versions {
-                            if !existing
-                                .compatible_versions
-                                .iter()
-                                .any(|c| c.eq_ignore_ascii_case(&cv))
-                            {
-                                existing.compatible_versions.push(cv);
-                            }
-                        }
-                        if de.recorded_at > existing.recorded_at {
-                            existing.recorded_at = de.recorded_at;
-                        }
-                    } else {
-                        primary_vec.push(de);
-                    }
-                }
-                index_dirty = true;
-            }
-        }
-    }
+    // Index keys are normalized full relative paths (preserving folder boundaries).
+    // Never delete files in other subfolders purely because they share a generic leaf filename
+    // (e.g. manifest.json, modinfo.json, config.ini, Data.pak).
 
     let clean_target = target_game_version
         .trim()
@@ -2732,6 +2632,47 @@ pub fn sync_vault_mod_versions_for_game(
     }
 
     swapped
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn sync_vault_mod_versions_preserves_same_filename_in_other_mod_folder() {
+        let root = std::env::temp_dir().join("sanctuary_fs_ops_sibling_unit_test");
+        let _ = std::fs::remove_dir_all(&root);
+        let mods_dir = root.join("Mods");
+        let mod_a_dir = mods_dir.join("ModA");
+        let mod_b_dir = mods_dir.join("ModB");
+        let backup_a_dir = root.join("Backups").join("Mods").join("ModA");
+        std::fs::create_dir_all(&mod_a_dir).unwrap();
+        std::fs::create_dir_all(&mod_b_dir).unwrap();
+        std::fs::create_dir_all(&backup_a_dir).unwrap();
+
+        let file_a = mod_a_dir.join("manifest.json");
+        let file_b = mod_b_dir.join("manifest.json");
+        let backup_a = backup_a_dir.join("manifest.json");
+        std::fs::write(&file_a, b"old-a").unwrap();
+        std::fs::write(&file_b, b"keep-b").unwrap();
+        std::fs::write(&backup_a, b"new-a").unwrap();
+
+        let vault_str = root.to_string_lossy().to_string();
+        let meta = vec![ArchivedModVersion {
+            rel_path: "ModA/manifest.json".into(),
+            dna_hash: "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa".into(),
+            backup_rel_path: "ModA/manifest.json".into(),
+            mod_version: "2.0.0".into(),
+            compatible_versions: vec!["1.6.15".into()],
+            recorded_at: 100,
+        }];
+        let _ = sync_vault_mod_versions_for_game(&vault_str, "1.6.15", &meta);
+
+        assert!(file_b.exists(), "ModB/manifest.json must NEVER be deleted when updating ModA/manifest.json");
+        assert_eq!(std::fs::read(&file_b).unwrap(), b"keep-b");
+
+        let _ = std::fs::remove_dir_all(&root);
+    }
 }
 
 

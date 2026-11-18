@@ -3,6 +3,8 @@ export const GAME_ARCHITECTURE_PRESETS: Record<string, Record<string, any>> = {
     id: "sims4",
     game_id: "sims4",
     steam_app_id: "1222670",
+    ea_content_ids: ["The Sims 4", "OFB-EAST:109552299"],
+    install_folder_names: ["The Sims 4"],
     display_name: "The Sims 4",
     default_lexicon: "en-sims",
     schema_version: 12,
@@ -138,6 +140,7 @@ export const GAME_ARCHITECTURE_PRESETS: Record<string, Record<string, any>> = {
     load_order: {
       strategy: "folder_priority",
       direction: "higher_wins",
+      asset_overwrite_order: "higher_wins",
       manifest_file: "Resource.cfg",
       prefix_format: "{index:03}_",
       line_template: "{file}",
@@ -258,6 +261,9 @@ export const GAME_ARCHITECTURE_PRESETS: Record<string, Record<string, any>> = {
     id: "gtav",
     game_id: "gtav",
     steam_app_id: "271590",
+    epic_app_names: ["9d2d0eb64d5c44529cece33d2a467c4b", "Heather"],
+    install_folder_names: ["Grand Theft Auto V", "Grand Theft Auto V Legacy", "Grand Theft Auto V Enhanced"],
+    wine_dll_overrides: { dinput8: "n,b" },
     display_name: "Grand Theft Auto V",
     default_lexicon: "en-default",
     schema_version: 2,
@@ -321,6 +327,7 @@ export const GAME_ARCHITECTURE_PRESETS: Record<string, Record<string, any>> = {
     load_order: {
       strategy: "folder_priority",
       direction: "higher_wins",
+      asset_overwrite_order: "higher_wins",
       manifest_file: "",
       prefix_format: "{index:03}_",
       line_template: "<Item>dlcpacks:/{file}/</Item>",
@@ -376,6 +383,14 @@ export const GAME_ARCHITECTURE_PRESETS: Record<string, Record<string, any>> = {
         scratch_activity_subdirs: [],
       },
     },
+    conflict_analyzers: [
+      {
+        id: "gtav_meta_selectors",
+        type: "selector_path",
+        extensions: [".meta", ".xml"],
+        selector_path: "modelName,Name,id",
+      },
+    ],
     exception_logs: [
       { exact: "ScriptHookV.log" },
       { starts_with: "ScriptHookVDotNet", ends_with: ".log" },
@@ -431,6 +446,7 @@ export const GAME_ARCHITECTURE_PRESETS: Record<string, Record<string, any>> = {
     id: "wwe2k",
     game_id: "wwe2k",
     steam_app_id: "2315690",
+    install_folder_names: ["WWE 2K24", "WWE 2K25", "WWE 2K23"],
     display_name: "WWE 2K Series",
     default_lexicon: "en-default",
     schema_version: 2,
@@ -493,6 +509,7 @@ export const GAME_ARCHITECTURE_PRESETS: Record<string, Record<string, any>> = {
     load_order: {
       strategy: "numeric_prefix",
       direction: "higher_wins",
+      asset_overwrite_order: "higher_wins",
       manifest_file: "",
       prefix_format: "bakedfile{index:02}_",
       line_template: "{file}",
@@ -587,6 +604,10 @@ export const GAME_ARCHITECTURE_PRESETS: Record<string, Record<string, any>> = {
     id: "skyrim",
     game_id: "skyrim",
     steam_app_id: "489830",
+    gog_app_ids: ["1711230643"],
+    epic_app_names: ["ac82db5035584c7f8a2c548d98c86b2c"],
+    install_folder_names: ["Skyrim Special Edition", "Skyrim Anniversary Edition"],
+    wine_dll_overrides: { d3dx9_42: "n,b", version: "n,b", winhttp: "n,b", binkw64: "n,b" },
     display_name: "Skyrim Special Edition",
     default_lexicon: "en-default",
     schema_version: 2,
@@ -649,13 +670,26 @@ export const GAME_ARCHITECTURE_PRESETS: Record<string, Record<string, any>> = {
     load_order: {
       strategy: "manifest_list",
       direction: "higher_wins",
+      asset_overwrite_order: "higher_wins",
       manifest_file: "plugins.txt",
       prefix_format: "{index:03}_",
       line_template: "*{file}",
+      manifest_targets: [
+        {
+          id: "plugins_txt",
+          root_source: "mods_path",
+          relative_path: "plugins.txt",
+          format: "plugins_asterisk",
+        },
+      ],
       priority_tiers: [
         { id: "default", label: "Standard (Data/)", priority: 500, folder: "" },
         { id: "tier_1", label: "Late Loaders / Patches", priority: 1000, folder: "Sanctuary" },
       ],
+    },
+    mod_metadata_extractor: {
+      manifest_files: [],
+      binary_master_header: "tes4",
     },
     install_routes: [
       {
@@ -695,6 +729,19 @@ export const GAME_ARCHITECTURE_PRESETS: Record<string, Record<string, any>> = {
         scratch_activity_subdirs: ["Saves"],
       },
     },
+    conflict_analyzers: [
+      {
+        id: "tes_records",
+        type: "chunked_record_stream",
+        extensions: [".esp", ".esm", ".esl"],
+        magic_bytes: "54455334",
+      },
+      {
+        id: "bethesda_archives",
+        type: "container_toc",
+        extensions: [".bsa", ".ba2"],
+      },
+    ],
     exception_logs: [
       { starts_with: "crash-", ends_with: ".log" },
       { exact: "skse64.log" },
@@ -737,6 +784,10 @@ export const GAME_ARCHITECTURE_PRESETS: Record<string, Record<string, any>> = {
     id: "cyberpunk2077",
     game_id: "cyberpunk2077",
     steam_app_id: "1091500",
+    gog_app_ids: ["1423049311"],
+    epic_app_names: ["Ginger", "77f2b98e2cef40c8a7437518bfac20e7"],
+    install_folder_names: ["Cyberpunk 2077"],
+    wine_dll_overrides: { version: "n,b", winmm: "n,b" },
     display_name: "Cyberpunk 2077",
     default_lexicon: "en-sanctuary",
     schema_version: 2,
@@ -799,9 +850,19 @@ export const GAME_ARCHITECTURE_PRESETS: Record<string, Record<string, any>> = {
     load_order: {
       strategy: "manifest_list",
       direction: "lower_wins",
+      asset_overwrite_order: "lower_wins",
       manifest_file: "modlist.txt",
       prefix_format: "{index:03}_",
       line_template: "{file}",
+      manifest_targets: [
+        {
+          id: "modlist_txt",
+          root_source: "mods_path",
+          relative_path: "modlist.txt",
+          format: "plain_lines",
+          template: "{name}",
+        },
+      ],
       priority_tiers: [
         { id: "default", label: "Standard (archive/pc/mod)", priority: 500, folder: "" },
         { id: "tier_1", label: "High Priority Overrides", priority: 100, folder: "!Sanctuary" },
@@ -872,6 +933,14 @@ export const GAME_ARCHITECTURE_PRESETS: Record<string, Record<string, any>> = {
         scratch_activity_subdirs: [],
       },
     },
+    conflict_analyzers: [
+      {
+        id: "tweakxl_selectors",
+        type: "selector_path",
+        extensions: [".yaml", ".yml", ".json"],
+        selector_path: "id,name",
+      },
+    ],
     exception_logs: [
       { exact: "redscript_rCURRENT.log" },
       { exact: "cyber_engine_tweaks.log" },
@@ -905,6 +974,9 @@ export const GAME_ARCHITECTURE_PRESETS: Record<string, Record<string, any>> = {
     id: "bg3",
     game_id: "bg3",
     steam_app_id: "1086940",
+    gog_app_ids: ["1456460669"],
+    install_folder_names: ["Baldurs Gate 3", "Baldur's Gate 3"],
+    wine_dll_overrides: { DWrite: "n,b" },
     display_name: "Baldur's Gate 3",
     default_lexicon: "en-default",
     schema_version: 2,
@@ -967,6 +1039,7 @@ export const GAME_ARCHITECTURE_PRESETS: Record<string, Record<string, any>> = {
     load_order: {
       strategy: "manifest_list",
       direction: "higher_wins",
+      asset_overwrite_order: "higher_wins",
       manifest_file: "modsettings.lsx",
       prefix_format: "{index:03}_",
       document_header:
@@ -975,10 +1048,26 @@ export const GAME_ARCHITECTURE_PRESETS: Record<string, Record<string, any>> = {
         '            <node id="Module"><attribute id="UUID" value="{uuid}" type="FixedString" /></node>\n            <node id="ModuleShortDesc"><attribute id="Folder" value="{folder}" type="LSString" /><attribute id="MD5" value="{md5}" type="LSString" /><attribute id="Name" value="{name}" type="LSString" /><attribute id="PublishHandle" value="0" type="uint64" /><attribute id="UUID" value="{uuid}" type="guid" /><attribute id="Version64" value="{version64}" type="int64" /></node>',
       document_footer:
         '          </children>\n        </node>\n      </children>\n    </node>\n  </region>\n</save>\n',
+      manifest_targets: [
+        {
+          id: "bg3_modsettings",
+          root_source: "docs_path",
+          relative_path: "PlayerProfiles/Public/modsettings.lsx",
+          format: "bg3_modsettings_lsx",
+        },
+      ],
       priority_tiers: [
         { id: "default", label: "Standard (Mods/)", priority: 500, folder: "" },
         { id: "tier_1", label: "Late Override Tier", priority: 1000, folder: "Sanctuary" },
       ],
+    },
+    mod_metadata_extractor: {
+      manifest_files: ["meta.lsx", "info.json"],
+      id_key: "Folder",
+      name_key: "Name",
+      uuid_key: "UUID",
+      version_key: "Version64",
+      author_key: "Author",
     },
     install_routes: [
       {
@@ -1009,6 +1098,19 @@ export const GAME_ARCHITECTURE_PRESETS: Record<string, Record<string, any>> = {
         scratch_activity_subdirs: ["PlayerProfiles/Public/Savegames/Story"],
       },
     },
+    conflict_analyzers: [
+      {
+        id: "lspk_pak_toc",
+        type: "container_toc",
+        extensions: [".pak"],
+      },
+      {
+        id: "lsx_meta_selectors",
+        type: "selector_path",
+        extensions: [".lsx", ".xml"],
+        selector_path: "UUID,id",
+      },
+    ],
     exception_logs: [
       { starts_with: "network_log", ends_with: ".txt" },
       { starts_with: " gold", ends_with: ".log" },
@@ -1036,6 +1138,8 @@ export const GAME_ARCHITECTURE_PRESETS: Record<string, Record<string, any>> = {
     id: "stardew",
     game_id: "stardew",
     steam_app_id: "413150",
+    gog_app_ids: ["1453375253"],
+    install_folder_names: ["Stardew Valley"],
     display_name: "Stardew Valley",
     default_lexicon: "en-default",
     schema_version: 2,
@@ -1105,6 +1209,7 @@ export const GAME_ARCHITECTURE_PRESETS: Record<string, Record<string, any>> = {
     load_order: {
       strategy: "folder_priority",
       direction: "higher_wins",
+      asset_overwrite_order: "higher_wins",
       manifest_file: "",
       prefix_format: "{index:03}_",
       line_template: "{file}",
@@ -1131,6 +1236,22 @@ export const GAME_ARCHITECTURE_PRESETS: Record<string, Record<string, any>> = {
         scratch_activity_subdirs: ["Saves"],
       },
     },
+    mod_metadata_extractor: {
+      manifest_files: ["manifest.json"],
+      id_key: "UniqueID",
+      name_key: "Name",
+      version_key: "Version",
+      author_key: "Author",
+      dependencies_key: "Dependencies",
+    },
+    conflict_analyzers: [
+      {
+        id: "content_patcher_json",
+        type: "selector_path",
+        extensions: [".json"],
+        selector_path: "Changes,UniqueID,id",
+      },
+    ],
     exception_logs: [{ exact: "SMAPI-latest.txt" }, { exact: "SMAPI-crash.txt" }],
     time_capsule: {
       world_state_targets: [{ name: "Saves", path: "Saves" }],
@@ -1178,9 +1299,12 @@ export const GAME_ARCHITECTURE_PRESETS: Record<string, Record<string, any>> = {
       ignore_unidentified: [],
       config_extensions: [".ini", ".cfg", ".json", ".jsonc", ".toml", ".yaml", ".yml", ".xml"],
       archive_containers: [".zip", ".7z", ".rar"],
+      twin_extensions: [],
       cache_files: [],
       labels: {},
     },
+    mod_unit_mode: "auto",
+    mod_unit_markers: ["manifest.json", "meta.lsx", "modinfo.json", "About/About.xml", "info.json"],
     constraints: {
       max_folder_depth: 8,
       requires_script_unzipping: false,
@@ -1201,6 +1325,7 @@ export const GAME_ARCHITECTURE_PRESETS: Record<string, Record<string, any>> = {
     load_order: {
       strategy: "folder_priority",
       direction: "higher_wins",
+      asset_overwrite_order: "higher_wins",
       manifest_file: "",
       prefix_format: "{index:03}_",
       line_template: "{file}",

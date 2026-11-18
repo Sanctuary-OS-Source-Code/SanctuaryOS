@@ -868,7 +868,7 @@ export async function syncDesktopCompanionRadarSnapshot(
 ): Promise<boolean> {
   if (!isDesktop() || !session?.user?.id) return false;
   if (localStorage.getItem("sanctuary_local_only") === "true") return false;
-  if (localStorage.getItem("sanctuary_cloud_companion_sync") === "false") return false;
+  if (localStorage.getItem("sanctuary_cloud_companion_sync") !== "true") return false;
 
   const storePlaySets = useStore.getState()?.playSets;
   const candidatePlaySets = Array.isArray(exactDesktopSummary?.playSets)

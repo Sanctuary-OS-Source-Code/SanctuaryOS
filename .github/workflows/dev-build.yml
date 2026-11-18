@@ -58,7 +58,7 @@ jobs:
       - name: setup node
         uses: actions/setup-node@v4
         with:
-          node-version: 24
+          node-version: 22
 
       - name: setup rust
         uses: dtolnay/rust-toolchain@stable
@@ -128,6 +128,7 @@ jobs:
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
           VITE_SANCTUARY_BUILD_CHANNEL: "dev"
           NO_STRIP: true
+          NODE_OPTIONS: "--max-old-space-size=4096"
         with:
           projectPath: ./sanctuary-os
           tagName: ${{ github.event.inputs.dev_version_label || github.ref_name }}

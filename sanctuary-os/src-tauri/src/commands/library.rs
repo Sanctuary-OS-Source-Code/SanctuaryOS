@@ -971,20 +971,31 @@ pub async fn ingest_dropped_file(
 
         let supported = crate::game_logic::get_supported_extensions(&game_schema);
         let archive_exts = crate::game_logic::get_archive_extensions(&game_schema);
+        let twin_exts: Vec<String> = game_schema
+            .as_ref()
+            .and_then(|s| s.extensions.twin_extensions.as_ref())
+            .map(|groups| {
+                groups
+                    .iter()
+                    .flat_map(|g| g.iter())
+                    .map(|e| e.trim_start_matches('.').to_lowercase())
+                    .filter(|e| !e.is_empty())
+                    .collect()
+            })
+            .unwrap_or_default();
         let fname_lower = source
             .file_name()
             .unwrap_or_default()
             .to_string_lossy()
             .to_lowercase();
         let is_edge_sidecar = is_edge_sidecar_filename(&fname_lower);
-        let is_archive_ext = ext == "zip"
-            || ext == "rar"
-            || ext == "7z"
-            || archive_exts.contains(&ext);
+        let is_archive_ext =
+            archive_exts.contains(&ext) || (!supported.contains(&ext) && matches!(ext.as_str(), "zip" | "7z" | "rar"));
 
         if !source.is_dir()
             && !is_archive_ext
             && !supported.contains(&ext)
+            && !twin_exts.contains(&ext)
             && !is_edge_sidecar
         {
             return Err("UNSUPPORTED_ARTIFACT_TYPE".into());
@@ -1386,8 +1397,8 @@ pub async fn ingest_dropped_file(
             );
         }
 
-        // Branch 2: Pure-Rust Bounded `.zip` / `.jar` Extraction into Staging First
-        if ext == "zip" || ext == "jar" {
+        // Branch 2: Pure-Rust Bounded Archive Extraction into Staging First (respects native .zip/.jar mods)
+        if is_archive_ext && (ext == "zip" || ext == "jar") {
             let zip_stem = source
                 .file_stem()
                 .unwrap_or_default()
@@ -1547,7 +1558,8 @@ pub async fn ingest_dropped_file(
                     .and_then(|e| e.to_str())
                     .unwrap_or("")
                     .to_lowercase();
-                let is_primary_mod_binary = supported.contains(&zf_ext);
+                let is_primary_mod_binary =
+                    supported.contains(&zf_ext) || twin_exts.contains(&zf_ext);
                 let zf_ext_with_dot = format!(".{}", zf_ext);
                 let is_setting_file = game_schema
                     .as_ref()
@@ -1587,13 +1599,27 @@ pub async fn ingest_dropped_file(
                 let mut resolution_existing_name = final_path.to_string_lossy().to_string();
                 let mut found_existing = false;
 
+                let default_rel_norm = default_dest
+                    .strip_prefix(&vault_mods_lane)
+                    .map(|p| p.to_string_lossy().replace('\\', "/").to_lowercase())
+                    .unwrap_or_default();
+                let is_flat_root_dest = default_dest.parent() == Some(vault_mods_lane.as_path());
+
                 for (k, v) in cache.iter() {
                     if v.quarantined || k.contains(".sanctuary_quarantine") {
                         continue;
                     }
-                    if Path::new(k).file_name() == Some(zf_file_name) && Path::new(k).exists() {
+                    let k_path = Path::new(k);
+                    let same_scoped_target = k_path
+                        .strip_prefix(&vault_mods_lane)
+                        .map(|p| p.to_string_lossy().replace('\\', "/").to_lowercase() == default_rel_norm)
+                        .unwrap_or(false)
+                        || (is_flat_root_dest
+                            && k_path.parent() == Some(vault_mods_lane.as_path())
+                            && k_path.file_name() == Some(zf_file_name));
+                    if same_scoped_target && k_path.exists() {
                         if crate::utils::ensure_strict_descendant_of_roots(
-                            Path::new(k),
+                            k_path,
                             &[vault_mods_lane.clone()],
                         )
                         .is_ok()
@@ -2474,18 +2500,44 @@ pub async fn get_workbench_catalog(
             docs_path.as_deref(),
             &active_schema,
         );
+        let vault_mods_lane = crate::utils::get_vault_mods_lane(&vault_path);
+        let mods_root_opt = mods_path.as_deref().map(str::trim).filter(|s| !s.is_empty()).map(PathBuf::from);
+        let docs_root_opt = docs_path.as_deref().map(str::trim).filter(|s| !s.is_empty()).map(PathBuf::from);
+        let mut leaf_counts: std::collections::HashMap<String, usize> = std::collections::HashMap::new();
+        for (p, src) in &items {
+            if src != "templates" && !is_sanctuary_template_json_file(p) {
+                if let Some(leaf) = p.file_name().and_then(|n| n.to_str()) {
+                    *leaf_counts.entry(leaf.to_lowercase()).or_insert(0) += 1;
+                }
+            }
+        }
         let files = items
             .into_iter()
             .map(|(p, source)| {
-                let name = p
+                let leaf = p
                     .file_name()
                     .and_then(|n| n.to_str())
                     .unwrap_or("")
                     .to_string();
                 let is_template = source == "templates"
                     || is_sanctuary_template_json_file(&p);
+                let display_name = if !is_template
+                    && leaf_counts.get(&leaf.to_lowercase()).copied().unwrap_or(0) > 1
+                {
+                    let rel_opt = p
+                        .strip_prefix(&vault_mods_lane)
+                        .ok()
+                        .or_else(|| mods_root_opt.as_ref().and_then(|r| p.strip_prefix(r).ok()))
+                        .or_else(|| docs_root_opt.as_ref().and_then(|r| p.strip_prefix(r).ok()));
+                    rel_opt
+                        .map(|r| r.to_string_lossy().replace('\\', "/"))
+                        .filter(|s| !s.is_empty())
+                        .unwrap_or_else(|| leaf.clone())
+                } else {
+                    leaf
+                };
                 WorkbenchCatalogFile {
-                    name,
+                    name: display_name,
                     path: p.to_string_lossy().to_string(),
                     is_template,
                     source,
@@ -2545,6 +2597,7 @@ pub async fn resolve_workbench_target_config(
             eff_docs.as_deref(),
             &active_schema,
         );
+        let requested_norm = file_name.trim().replace('\\', "/").trim_matches('/').to_lowercase();
         let clean_lower = clean_target.to_lowercase();
         for (p, source) in candidate_files {
             if source == "templates" {
@@ -2553,7 +2606,10 @@ pub async fn resolve_workbench_target_config(
             let Some(name) = p.file_name().and_then(|n| n.to_str()) else {
                 continue;
             };
-            if name.to_lowercase() == clean_lower {
+            let full_norm = p.to_string_lossy().replace('\\', "/").to_lowercase();
+            let matches_rel = !requested_norm.is_empty() && requested_norm.contains('/')
+                && (full_norm.ends_with(&format!("/{}", requested_norm)) || full_norm == requested_norm);
+            if matches_rel || (!requested_norm.contains('/') && name.to_lowercase() == clean_lower) {
                 if let Ok(meta) = fs::metadata(&p) {
                     if meta.len() > 16 * 1024 * 1024 {
                         return Err("Target configuration file exceeds 16 MiB safety limit.".into());

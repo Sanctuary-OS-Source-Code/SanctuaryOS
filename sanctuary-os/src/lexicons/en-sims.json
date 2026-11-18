@@ -660,7 +660,6 @@
   "schema_studio_linux_mod_dir": "Default Linux / Steam Deck {Mods} Folder",
   "schema_studio_ph_manifest_content": "Optional manifest header or load-order template...",
   "schema_studio_ph_world_name": "Player Saves",
-  "schema_studio_seed_defaults": "Fill Missing Defaults",
   "schema_studio_steam_app_id": "Steam AppID (Steam Deck / Proton)",
   "schema_studio_user_data_linux": "Linux / Steam Deck Saves & User Folder",
   "scout_btn_apply_consensus": "Apply Top Match",

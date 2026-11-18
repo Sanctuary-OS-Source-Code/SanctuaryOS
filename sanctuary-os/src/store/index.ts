@@ -11,6 +11,13 @@ import {
   getCachedOrBundledDefaultSchema,
 } from '../utils/bundledSchemas';
 import { postDevCoreAssetSync } from '../utils/devAssetSync';
+import {
+  ModCategoryDescriptor,
+  loadCachedModCategories,
+  normalizeLegacyCategoryList,
+  loadModCategories,
+  registerCategoryStoreAccessor,
+} from '../utils/categoryRegistry';
 import { scrubLogUserData } from '../utils/logScrubber';
 import {
   healAndMatchLocalWorkspaces,
@@ -151,40 +158,8 @@ export const getSafeSchema = (raw: any, fallbackId: string) => {
       priority_tiers: [...(preset.load_order?.priority_tiers || [])],
     };
   }
-  const presetCategories: any[] = Array.isArray(preset.mod_categories)
-    ? preset.mod_categories
-    : Array.isArray(preset.taxonomy?.categories)
-      ? preset.taxonomy.categories
-      : [];
-  const rawSchemaCategories: any[] =
-    Array.isArray(safe.mod_categories) && safe.mod_categories.length > 0
-      ? safe.mod_categories
-      : Array.isArray(safe.taxonomy?.categories) && safe.taxonomy.categories.length > 0
-        ? safe.taxonomy.categories
-        : [];
-  if (rawSchemaCategories.length === 0) {
-    safe.mod_categories = presetCategories.map((c: any) => ({
-      ...c,
-      subcategories: Array.isArray(c.subcategories) ? [...c.subcategories] : undefined,
-    }));
-  } else {
-    safe.mod_categories = rawSchemaCategories.map((cat: any) => {
-      const match = presetCategories.find(
-        (p: any) => String(p.id || "").toLowerCase() === String(cat?.id || "").toLowerCase()
-      );
-      return {
-        ...match,
-        ...cat,
-        label: cat?.label || match?.label || cat?.id || "Category",
-        icon: cat?.icon || match?.icon || "category",
-      };
-    });
-  }
-  safe.taxonomy = {
-    ...(preset.taxonomy || {}),
-    ...(safe.taxonomy || {}),
-    categories: safe.mod_categories,
-  };
+  delete safe.mod_categories;
+  delete safe.taxonomy;
 
   // Coerce numeric fields so Rust's GameSchema (u32 / u64 / i32) never rejects stringified numbers (e.g. "5")
   const toOptU32 = (v: any, fallback?: number): number | undefined => {
@@ -1053,6 +1028,8 @@ interface GlobalState {
   setKeepersActiveTab: (tab: string) => void;
   activeGameSchema: any;
   setActiveGameSchema: (schema: any) => void;
+  modCategories: ModCategoryDescriptor[];
+  setModCategories: (categories: ModCategoryDescriptor[]) => void;
   hydrateWorkspaceState: (wsId: string) => void;
   isMobileMenuOpen: boolean;
   setIsMobileMenuOpen: (isOpen: boolean) => void;
@@ -1082,12 +1059,19 @@ export const useStore = create<GlobalState>((set) => ({
           )
         : activeGameSchema,
     }),
+  modCategories: (() => {
+    const bootSchema = loadActiveGameSchema();
+    return loadCachedModCategories(bootSchema?.game_id || bootSchema?.id || "default");
+  })(),
+  setModCategories: (modCategories) => set({ modCategories }),
   isMobileMenuOpen: false,
   setIsMobileMenuOpen: (isMobileMenuOpen) => set({ isMobileMenuOpen }),
   isGameDatabasesSynced: false,
   hydrateWorkspaceState: (wsId) => {
     const cachedSets = loadPlaySets(wsId);
     const savedActiveSetName = loadActiveSet(wsId);
+    const curSchema = useStore.getState().activeGameSchema;
+    const cachedTax = loadCachedModCategories(curSchema?.game_id || curSchema?.id || wsId);
     let resolvedSetIdx = 0;
     let resolvedSetName = savedActiveSetName;
     if (savedActiveSetName && cachedSets.length > 0) {
@@ -1108,6 +1092,7 @@ export const useStore = create<GlobalState>((set) => ({
       masonCommentDrafts: loadMasonCommentDrafts(wsId),
       masonHubDrafts: loadMasonHubDrafts(wsId),
       playSets: cachedSets,
+      modCategories: cachedTax,
       playsetsLoaded: cachedSets.length > 0,
       activeSetName: resolvedSetName,
       activePlaySetIndex: resolvedSetIdx,
@@ -1725,6 +1710,7 @@ export const syncMasterSchemas = async (initialSchemaId: string = 'default') => 
 
     if (!navigator.onLine || localStorage.getItem('sanctuary_local_only') === 'true') {
       useStore.getState().setActiveGameSchema(resolveOfflineOrFallbackSchema(schemaId));
+      loadModCategories(undefined, schemaId).catch(() => {});
       return;
     }
 
@@ -1811,24 +1797,40 @@ export const syncMasterSchemas = async (initialSchemaId: string = 'default') => 
       .maybeSingle();
 
     if (!error && data && data.schema_data) {
+      const rawLegacyCats = Array.isArray(data.schema_data.mod_categories)
+        ? data.schema_data.mod_categories
+        : Array.isArray(data.schema_data.taxonomy?.categories)
+          ? data.schema_data.taxonomy.categories
+          : [];
       const safeSchema = getSafeSchema(data.schema_data, schemaId);
       safeLocalStorageSetItem(`sanctuary_master_schema_${schemaId}`, JSON.stringify(safeSchema));
       safeLocalStorageSetItem(`sanctuary_master_schema_${normSchemaId}`, JSON.stringify(safeSchema));
       useStore.getState().setActiveGameSchema(safeSchema);
+      const cats = await loadModCategories(supabase, schemaId).catch(() => []);
+      if ((!cats || cats.length === 0) && rawLegacyCats.length > 0) {
+        useStore.getState().setModCategories(normalizeLegacyCategoryList(rawLegacyCats));
+      }
       if (import.meta.env.DEV) {
         await postDevCoreAssetSync({
           kind: 'spoke_schema_snapshot',
           id: normSchemaId,
-          content: data.schema_data,
+          content: safeSchema,
         });
       }
     } else {
       useStore.getState().setActiveGameSchema(resolveOfflineOrFallbackSchema(schemaId));
+      loadModCategories(supabase, schemaId).catch(() => {});
     }
   } catch (err) {
     console.error('Failed to sync master schemas', err);
   }
 };
+
+registerCategoryStoreAccessor({
+  getCategories: () => useStore.getState().modCategories,
+  setCategories: (cats) => useStore.getState().setModCategories(cats),
+  getActiveSchema: () => useStore.getState().activeGameSchema,
+});
 
 export const syncGameDatabases = async (preloadedLocalWorkspaces?: any[]) => {
   const isKeeperAtStart = useStore.getState().osRole === 'keeper';

@@ -49,6 +49,50 @@ pub fn is_macos_or_os_metadata_path(path: &Path) -> bool {
     false
 }
 
+pub fn collect_companion_sibling_paths(
+    primary_path: &Path,
+    game_schema: &Option<crate::schema::GameSchema>,
+) -> Vec<PathBuf> {
+    let mut out = Vec::new();
+    let Some(s) = game_schema else {
+        return out;
+    };
+    let Some(twin_groups) = &s.extensions.twin_extensions else {
+        return out;
+    };
+    let Some(parent) = primary_path.parent() else {
+        return out;
+    };
+    let Some(stem) = primary_path.file_stem().and_then(|st| st.to_str()) else {
+        return out;
+    };
+    let primary_ext = primary_path
+        .extension()
+        .and_then(|e| e.to_str())
+        .unwrap_or_default()
+        .to_lowercase();
+    for group in twin_groups {
+        let cleaned_group: Vec<String> = group
+            .iter()
+            .map(|e| e.trim_start_matches('.').to_lowercase())
+            .filter(|e| !e.is_empty())
+            .collect();
+        if !cleaned_group.is_empty() && !cleaned_group.iter().any(|e| e == &primary_ext) {
+            continue;
+        }
+        for ext in cleaned_group {
+            if ext == primary_ext {
+                continue;
+            }
+            let candidate = parent.join(format!("{}.{}", stem, ext));
+            if candidate.is_file() && !out.contains(&candidate) {
+                out.push(candidate);
+            }
+        }
+    }
+    out
+}
+
 pub fn walk_packages(
     game_schema: &Option<crate::schema::GameSchema>,
     dir: &Path,
@@ -58,11 +102,23 @@ pub fn walk_packages(
     if exts.is_empty() {
         return;
     }
+    let twin_exts: Vec<String> = game_schema
+        .as_ref()
+        .and_then(|s| s.extensions.twin_extensions.as_ref())
+        .map(|groups| {
+            groups
+                .iter()
+                .flat_map(|g| g.iter())
+                .map(|e| e.trim_start_matches('.').to_lowercase())
+                .filter(|e| !e.is_empty())
+                .collect()
+        })
+        .unwrap_or_default();
     let manifest_name_lower = crate::game_logic::resolve_manifest_leaf_lower(game_schema);
 
     if let Ok(entries) = fs::read_dir(dir) {
-        for entry in entries.flatten() {
-            let p = entry.path();
+        let dir_entries: Vec<PathBuf> = entries.flatten().map(|e| e.path()).collect();
+        for p in dir_entries {
             if is_macos_or_os_metadata_path(&p) {
                 continue;
             }
@@ -90,6 +146,20 @@ pub fn walk_packages(
                     || (!manifest_name_lower.is_empty() && fname_lower == manifest_name_lower)
                 {
                     continue;
+                }
+                // Collapse secondary twin companion files (.utoc/.ucas) under their primary sibling (.pak)
+                if twin_exts.contains(&ext_lower) {
+                    if let (Some(parent), Some(stem)) =
+                        (p.parent(), p.file_stem().and_then(|st| st.to_str()))
+                    {
+                        let has_primary_sibling = exts.iter().any(|primary_ext| {
+                            !twin_exts.contains(primary_ext)
+                                && parent.join(format!("{}.{}", stem, primary_ext)).is_file()
+                        });
+                        if has_primary_sibling {
+                            continue;
+                        }
+                    }
                 }
                 if !exts.contains(&ext_lower) {
                     continue;
@@ -132,7 +202,9 @@ pub fn is_protected_save_or_airgap_path(
                 if let Some(targets) = &tc.save_airgap_targets {
                     for t in targets {
                         let trimmed = t.trim();
-                        if !trimmed.is_empty() {
+                        if trimmed.is_empty() || trimmed == "." {
+                            save_rels.push(".".to_string());
+                        } else {
                             save_rels.push(trimmed.to_string());
                         }
                     }

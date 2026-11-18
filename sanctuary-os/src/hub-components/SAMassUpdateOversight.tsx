@@ -29,7 +29,7 @@ const normalizeModStatusKey = (rawStatus: any): string => {
 
 export function MassUpdateOversight() {
   const { t } = useLexicon();
-  const activeGameSchema = useStore((s: any) => s.activeGameSchema);
+  const modCategories = useStore((s: any) => s.modCategories);
   const [mods, setMods] = useState<any[]>([]);
   const [modRelationships, setModRelationships] = useState<any[]>([]);
   const [masonsList, setMasonsList] = useState<any[]>([]);
@@ -1118,9 +1118,9 @@ export function MassUpdateOversight() {
                 onChange={(v: string[]) => setFilterCategory(v[0])}
                 options={[
                   { id: "", label: t("filter_all", "All Categories") },
-                  ...(activeGameSchema?.mod_categories?.map((cat: any) => ({
+                  ...(modCategories.map((cat: any) => ({
                     id: cat.id,
-                    label: t(cat.lexicon_key, cat.id)
+                    label: t(cat.lexicon_key || "", cat.label || cat.id)
                   })) || [])
                 ]}
               />
@@ -1388,9 +1388,9 @@ export function MassUpdateOversight() {
                   onChange={(v: string[]) => setMassCategory(v[0])}
                   options={[
                     { id: "", label: t("no_change", "No Change") },
-                    ...(activeGameSchema?.mod_categories?.map((cat: any) => ({
+                    ...(modCategories.map((cat: any) => ({
                       id: cat.id,
-                      label: t(cat.lexicon_key, cat.id) || cat.id
+                      label: t(cat.lexicon_key || "", cat.label || cat.id) || cat.id
                     })) || [])
                   ]}
                 />

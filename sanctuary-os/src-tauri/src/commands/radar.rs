@@ -384,6 +384,7 @@ struct PairCollisionAccumulator {
     conflict_types: BTreeSet<String>,
     analyzer_ids: BTreeSet<String>,
     has_binary_collision: bool,
+    has_fatal_collision: bool,
 }
 
 fn record_resource_collisions(
@@ -391,12 +392,20 @@ fn record_resource_collisions(
     conflict_type: &str,
     analyzer_id: &str,
     is_binary: bool,
+    is_fatal: bool,
+    fatal_exts: &HashSet<String>,
     pair_map: &mut BTreeMap<(String, String), PairCollisionAccumulator>,
 ) {
     for (resource_key, owners) in resource_owners {
         if owners.len() < 2 {
             continue;
         }
+        let res_ext = Path::new(resource_key.split('#').next().unwrap_or(resource_key))
+            .extension()
+            .and_then(|e| e.to_str())
+            .map(|e| e.to_lowercase())
+            .unwrap_or_default();
+        let entry_is_fatal = is_fatal || (!res_ext.is_empty() && fatal_exts.contains(&res_ext));
         let owner_vec: Vec<&String> = owners.iter().collect();
         for i in 0..owner_vec.len() {
             for j in (i + 1)..owner_vec.len() {
@@ -408,6 +417,9 @@ fn record_resource_collisions(
                 entry.analyzer_ids.insert(analyzer_id.to_string());
                 if is_binary {
                     entry.has_binary_collision = true;
+                }
+                if entry_is_fatal {
+                    entry.has_fatal_collision = true;
                 }
             }
         }
@@ -427,14 +439,13 @@ pub async fn run_conflict_radar(
         .clone();
 
     tauri::async_runtime::spawn_blocking(move || {
+        let saved_coords = crate::commands::state_ops::get_saved_coordinates();
         let mods_dir = Path::new(&mods_path);
-        if !mods_dir.exists() {
-            return Ok(serde_json::json!({
-                "total_packages": 0,
-                "installed_mods": Vec::<String>::new(),
-                "conflicts": Vec::<Conflict>::new()
-            }));
-        }
+        let vault_mods_lane = if !saved_coords.vault_path.trim().is_empty() {
+            crate::utils::get_vault_mods_lane(&saved_coords.vault_path)
+        } else {
+            PathBuf::new()
+        };
 
         let tier_folders: Vec<String> = game_schema
             .as_ref()
@@ -462,71 +473,138 @@ pub async fn run_conflict_radar(
                 .map(|e| e.trim_start_matches('.').to_lowercase())
                 .collect();
 
+        let mut fatal_exts: HashSet<String> = ["dll", "asi", "so", "dylib", "exe"]
+            .into_iter()
+            .map(String::from)
+            .collect();
+        if let Some(script_exts) = game_schema
+            .as_ref()
+            .and_then(|s| s.extensions.script_extensions.as_ref())
+        {
+            for se in script_exts {
+                let clean = se.trim_start_matches('.').to_lowercase();
+                if !clean.is_empty() {
+                    fatal_exts.insert(clean);
+                }
+            }
+        }
+
         let target_filter: Option<HashSet<String>> = target_files.map(|list| {
             list.into_iter()
                 .map(|item| item.replace('\\', "/").trim_matches('/').to_string())
                 .collect()
         });
+        let target_filter_lower: Option<HashSet<String>> = target_filter.as_ref().map(|set| {
+            set.iter().map(|s| s.to_lowercase()).collect()
+        });
+        let target_leaf_lower: Option<HashSet<String>> = target_filter_lower.as_ref().map(|set| {
+            set.iter()
+                .filter_map(|s| s.rsplit('/').next().map(String::from))
+                .collect()
+        });
 
         let mut discovered_files: Vec<(PathBuf, PathBuf, String)> = Vec::new();
-        let mut visited_dirs: HashSet<PathBuf> = HashSet::new();
+        let mut seen_rel_norm: HashSet<String> = HashSet::new();
 
-        let walker = WalkDir::new(mods_dir)
-            .max_depth(8)
-            .follow_links(true)
-            .into_iter()
-            .filter_entry(|e| {
-                let name = e.file_name().to_string_lossy();
-                let lower = name.to_lowercase();
-                if e.depth() > 0 && (lower.starts_with(".sanctuary") || lower == ".git") {
-                    return false;
-                }
-                if e.file_type().is_dir() {
-                    if let Ok(canon) = std::fs::canonicalize(e.path()) {
-                        if !visited_dirs.insert(canon) {
-                            return false;
+        let scan_root_for_radar = |scan_root: &Path,
+                                   discovered: &mut Vec<(PathBuf, PathBuf, String)>,
+                                   seen_rel: &mut HashSet<String>| {
+            if !scan_root.exists() {
+                return;
+            }
+            let mut visited_dirs: HashSet<PathBuf> = HashSet::new();
+            let walker = WalkDir::new(scan_root)
+                .max_depth(8)
+                .follow_links(true)
+                .into_iter()
+                .filter_entry(|e| {
+                    let name = e.file_name().to_string_lossy();
+                    let lower = name.to_lowercase();
+                    if e.depth() > 0 && (lower.starts_with(".sanctuary") || lower == ".git") {
+                        return false;
+                    }
+                    if e.file_type().is_dir() {
+                        if let Ok(canon) = std::fs::canonicalize(e.path()) {
+                            if !visited_dirs.insert(canon) {
+                                return false;
+                            }
                         }
                     }
-                }
-                true
-            });
+                    true
+                });
 
-        for entry in walker.flatten() {
-            if discovered_files.len() >= MAX_RADAR_FILES {
-                break;
-            }
-            if !entry.file_type().is_file() {
-                continue;
-            }
-            let full_path = entry.path().to_path_buf();
-            let rel_path = match full_path.strip_prefix(mods_dir) {
-                Ok(r) => r.to_path_buf(),
-                Err(_) => continue,
-            };
-            let file_name_lower = entry.file_name().to_string_lossy().to_lowercase();
-            if is_non_conflicting_doc_or_meta_file(&file_name_lower, &manifest_lower) {
-                continue;
-            }
-
-            let rel_norm = rel_path.to_string_lossy().replace('\\', "/");
-            if let Some(targets) = &target_filter {
-                let (owner, _) =
-                    resolve_mod_owner_and_virtual_path(&rel_path, &tier_folders_lower);
-                let mut matched = targets.contains(&rel_norm) || targets.contains(&owner);
-                if !matched {
-                    for tf in &tier_folders {
-                        if targets.contains(&format!("{}/{}", tf, rel_norm)) {
-                            matched = true;
-                            break;
-                        }
-                    }
+            for entry in walker.flatten() {
+                if discovered.len() >= MAX_RADAR_FILES {
+                    break;
                 }
-                if !matched {
+                if !entry.file_type().is_file() {
                     continue;
                 }
-            }
+                let full_path = entry.path().to_path_buf();
+                let rel_path = match full_path.strip_prefix(scan_root) {
+                    Ok(r) => r.to_path_buf(),
+                    Err(_) => continue,
+                };
+                let file_name_lower = entry.file_name().to_string_lossy().to_lowercase();
+                if is_non_conflicting_doc_or_meta_file(&file_name_lower, &manifest_lower) {
+                    continue;
+                }
 
-            discovered_files.push((full_path, rel_path, rel_norm));
+                let rel_norm = rel_path.to_string_lossy().replace('\\', "/");
+                let rel_low = rel_norm.to_lowercase();
+                if let (Some(targets), Some(targets_low)) = (&target_filter, &target_filter_lower) {
+                    let (owner, _) =
+                        resolve_mod_owner_and_virtual_path(&rel_path, &tier_folders_lower);
+                    let owner_low = owner.to_lowercase();
+                    let mut matched = targets.contains(&rel_norm)
+                        || targets_low.contains(&rel_low)
+                        || targets.contains(&owner)
+                        || targets_low.contains(&owner_low)
+                        || target_leaf_lower
+                            .as_ref()
+                            .map_or(false, |leaves| leaves.contains(&file_name_lower));
+                    if !matched {
+                        for tf in &tier_folders {
+                            if targets.contains(&format!("{}/{}", tf, rel_norm))
+                                || targets_low.contains(&format!("{}/{}", tf.to_lowercase(), rel_low))
+                            {
+                                matched = true;
+                                break;
+                            }
+                        }
+                    }
+                    if !matched {
+                        continue;
+                    }
+                }
+
+                if seen_rel.insert(rel_low) {
+                    discovered.push((full_path, rel_path, rel_norm));
+                }
+            }
+        };
+
+        scan_root_for_radar(mods_dir, &mut discovered_files, &mut seen_rel_norm);
+
+        // Vault Blueprint Projection: when Blueprint targets aren't deployed in live mods_dir, project directly from <Vault>/Mods
+        if let Some(tf) = &target_filter {
+            if !tf.is_empty()
+                && vault_mods_lane.exists()
+                && vault_mods_lane != mods_dir
+                && discovered_files.len() < tf.len()
+            {
+                scan_root_for_radar(&vault_mods_lane, &mut discovered_files, &mut seen_rel_norm);
+            }
+        } else if discovered_files.is_empty() && vault_mods_lane.exists() && vault_mods_lane != mods_dir {
+            scan_root_for_radar(&vault_mods_lane, &mut discovered_files, &mut seen_rel_norm);
+        }
+
+        if discovered_files.is_empty() {
+            return Ok(serde_json::json!({
+                "total_packages": 0,
+                "installed_mods": Vec::<String>::new(),
+                "conflicts": Vec::<Conflict>::new()
+            }));
         }
 
         let installed_files: Vec<String> = discovered_files
@@ -576,14 +654,23 @@ pub async fn run_conflict_radar(
             }
         }
 
+        let install_routes = crate::game_logic::get_install_routes(&game_schema);
+        let live_root =
+            crate::game_logic::resolve_game_engine_root(&saved_coords.live_path, &game_schema);
+        let docs_root = PathBuf::from(crate::utils::resolve_effective_docs_path(
+            &saved_coords,
+            &game_schema,
+        ));
+
         let mut vfs_owners: BTreeMap<String, BTreeSet<String>> = BTreeMap::new();
+        let mut route_owners: BTreeMap<String, BTreeSet<String>> = BTreeMap::new();
         let mut archive_owners: BTreeMap<String, BTreeSet<String>> = BTreeMap::new();
         let mut binary_owners_by_analyzer: HashMap<String, BTreeMap<String, BTreeSet<String>>> =
             HashMap::new();
         let mut json_key_owners_by_analyzer: HashMap<String, BTreeMap<String, BTreeSet<String>>> =
             HashMap::new();
 
-        for (full_path, rel_path, _) in &discovered_files {
+        for (full_path, rel_path, rel_norm) in &discovered_files {
             let (mod_owner, opt_vpath) =
                 resolve_mod_owner_and_virtual_path(rel_path, &tier_folders_lower);
             if mod_owner.is_empty() {
@@ -595,6 +682,28 @@ pub async fn run_conflict_radar(
                 .and_then(|e| e.to_str())
                 .map(|e| e.to_lowercase())
                 .unwrap_or_default();
+
+            // 0. Routed install_routes destination collisions (native proxy DLLs / configs / script extenders)
+            if !install_routes.is_empty() {
+                if let Some((routed_dest, _, _, _)) =
+                    crate::commands::deployment::resolve_route_for_file(
+                        full_path,
+                        rel_norm,
+                        &install_routes,
+                        &live_root,
+                        &docs_root,
+                        mods_dir,
+                    )
+                {
+                    let routed_key = routed_dest.to_string_lossy().replace('\\', "/").to_lowercase();
+                    if !routed_key.is_empty() {
+                        route_owners
+                            .entry(routed_key)
+                            .or_default()
+                            .insert(mod_owner.clone());
+                    }
+                }
+            }
 
             // 1. Virtual FS relative path collisions across distinct mod owners
             if let Some(vpath) = opt_vpath {
@@ -648,6 +757,61 @@ pub async fn run_conflict_radar(
                             }
                         }
                     }
+                    "container_toc" => {
+                        let analyzer_id = if analyzer.id.trim().is_empty() {
+                            "container_toc".to_string()
+                        } else {
+                            analyzer.id.clone()
+                        };
+                        let keys = crate::commands::radar_containers::extract_container_toc_keys(
+                            full_path, analyzer,
+                        );
+                        if !keys.is_empty() {
+                            let bucket = binary_owners_by_analyzer
+                                .entry(analyzer_id)
+                                .or_default();
+                            for key in keys {
+                                bucket.entry(key).or_default().insert(mod_owner.clone());
+                            }
+                        }
+                    }
+                    "chunked_record_stream" => {
+                        let analyzer_id = if analyzer.id.trim().is_empty() {
+                            "chunked_record_stream".to_string()
+                        } else {
+                            analyzer.id.clone()
+                        };
+                        let keys =
+                            crate::commands::radar_containers::extract_chunked_record_keys(
+                                full_path, analyzer,
+                            );
+                        if !keys.is_empty() {
+                            let bucket = binary_owners_by_analyzer
+                                .entry(analyzer_id)
+                                .or_default();
+                            for key in keys {
+                                bucket.entry(key).or_default().insert(mod_owner.clone());
+                            }
+                        }
+                    }
+                    "selector_path" => {
+                        let analyzer_id = if analyzer.id.trim().is_empty() {
+                            "selector_path".to_string()
+                        } else {
+                            analyzer.id.clone()
+                        };
+                        let keys = crate::commands::radar_containers::extract_selector_path_keys(
+                            full_path, analyzer,
+                        );
+                        if !keys.is_empty() {
+                            let bucket = json_key_owners_by_analyzer
+                                .entry(analyzer_id)
+                                .or_default();
+                            for key in keys {
+                                bucket.entry(key).or_default().insert(mod_owner.clone());
+                            }
+                        }
+                    }
                     "json_xml_key" => {
                         let analyzer_id = if analyzer.id.trim().is_empty() {
                             "json_xml_key".to_string()
@@ -678,10 +842,21 @@ pub async fn run_conflict_radar(
 
         let mut pair_map: BTreeMap<(String, String), PairCollisionAccumulator> = BTreeMap::new();
         record_resource_collisions(
+            &route_owners,
+            "routed_destination_overwrite",
+            "install_routes",
+            true,
+            true,
+            &fatal_exts,
+            &mut pair_map,
+        );
+        record_resource_collisions(
             &vfs_owners,
             "virtual_fs_path",
             "virtual_fs_path",
             false,
+            false,
+            &fatal_exts,
             &mut pair_map,
         );
         record_resource_collisions(
@@ -689,6 +864,8 @@ pub async fn run_conflict_radar(
             "archive_member",
             "archive_member",
             false,
+            false,
+            &fatal_exts,
             &mut pair_map,
         );
         for (analyzer_id, bucket) in &binary_owners_by_analyzer {
@@ -697,6 +874,8 @@ pub async fn run_conflict_radar(
                 "binary_chunk_index",
                 analyzer_id,
                 true,
+                false,
+                &fatal_exts,
                 &mut pair_map,
             );
         }
@@ -706,6 +885,8 @@ pub async fn run_conflict_radar(
                 "json_xml_key",
                 analyzer_id,
                 false,
+                false,
+                &fatal_exts,
                 &mut pair_map,
             );
         }
@@ -714,7 +895,9 @@ pub async fn run_conflict_radar(
             .into_iter()
             .map(|((mod_a, mod_b), acc)| {
                 let shared_assets = acc.resources.len();
-                let severity_rank = if shared_assets >= 10
+                let severity_rank = if acc.has_fatal_collision {
+                    4
+                } else if shared_assets >= 10
                     || (acc.has_binary_collision && shared_assets >= 3)
                 {
                     3

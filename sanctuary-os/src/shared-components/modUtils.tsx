@@ -1,6 +1,7 @@
 import { useStore } from '../store';
 import { supabase } from '../supabase';
 import { cleanSearchName } from "./stringUtils";
+import { getActiveModCategories } from "../utils/categoryRegistry";
 let _cachedExtSchema: any = null;
 let _cachedExtRegex: RegExp | null = null;
 let _cachedOverridesRaw: string | null = null;
@@ -542,11 +543,15 @@ export const getModIcon = (mod: any, schema: any, t: any) => {
   const name = (mod.name || "").toLowerCase();
   const rawType = (mod.type || mod.category_override || mod.category || "").toLowerCase();
 
-  const categories: any[] = Array.isArray(schema?.mod_categories)
-    ? schema.mod_categories
-    : Array.isArray(schema?.taxonomy?.categories)
-      ? schema.taxonomy.categories
-      : [];
+  const registryCategories = getActiveModCategories();
+  const categories: any[] =
+    registryCategories.length > 0
+      ? registryCategories
+      : Array.isArray(schema?.mod_categories)
+        ? schema.mod_categories
+        : Array.isArray(schema?.taxonomy?.categories)
+          ? schema.taxonomy.categories
+          : [];
   const category = categories.find(
     (c: any) => String(c?.id || "").toLowerCase() === rawType,
   );
@@ -955,31 +960,20 @@ export const openModDossier = (target: any) => {
   );
 };
 
-const DEFAULT_PRIORITY_TIER_FOLDERS = new Set<string>([
-  "sanctuary",
-  "!sanctuary",
-  "sanctuary2",
-  "!sanctuary2",
-  "sanctuary3",
-  "!sanctuary3",
-  "override",
-  "4_overrides",
-]);
-
 export const stripPriorityTierPrefix = (
   modPath: string,
   activeGameSchema?: any
 ): string => {
   if (!modPath || typeof modPath !== "string") return "";
   const schemaTiers = activeGameSchema?.load_order?.priority_tiers;
-  let customFolders: Set<string> | null = null;
+  const customFolders = new Set<string>();
   if (Array.isArray(schemaTiers) && schemaTiers.length > 0) {
-    customFolders = new Set<string>();
     for (let i = 0; i < schemaTiers.length; i++) {
       const f = String(schemaTiers[i]?.folder || "").trim().toLowerCase();
       if (f) customFolders.add(f);
     }
   }
+  if (customFolders.size === 0) return modPath.trim();
 
   let current = modPath.trim();
   while (current.length > 0) {
@@ -991,10 +985,7 @@ export const stripPriorityTierPrefix = (
         : Math.max(slashIdx, backIdx);
     if (sepIdx <= 0) break;
     const firstSeg = current.slice(0, sepIdx).toLowerCase();
-    if (
-      DEFAULT_PRIORITY_TIER_FOLDERS.has(firstSeg) ||
-      (customFolders && customFolders.has(firstSeg))
-    ) {
+    if (customFolders.has(firstSeg)) {
       current = current.slice(sepIdx + 1);
     } else {
       break;
@@ -1027,21 +1018,12 @@ const getPriorityTierWeight = (rawStr: string, activeGameSchema?: any): number =
       : Math.max(slashIdx, backIdx);
   if (sepIdx <= 0) return 0;
   const firstSeg = rawStr.slice(0, sepIdx).toLowerCase();
-  if (firstSeg === "sanctuary3" || firstSeg === "!sanctuary3") return 3;
-  if (firstSeg === "sanctuary2" || firstSeg === "!sanctuary2") return 2;
-  if (
-    firstSeg === "sanctuary" ||
-    firstSeg === "!sanctuary" ||
-    firstSeg === "4_overrides"
-  ) {
-    return 1;
-  }
   const schemaTiers = activeGameSchema?.load_order?.priority_tiers;
   if (Array.isArray(schemaTiers)) {
     const foundIdx = schemaTiers.findIndex(
       (pt: any) => String(pt?.folder || "").toLowerCase() === firstSeg
     );
-    if (foundIdx > 0) return foundIdx;
+    if (foundIdx >= 0) return Number(schemaTiers[foundIdx]?.priority) || foundIdx + 1;
   }
   return 0;
 };

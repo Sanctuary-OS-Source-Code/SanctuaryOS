@@ -530,8 +530,8 @@ export function CustomClassificationDropdown({
   flat?: boolean;
 }) {
   const { t } = useLexicon();
-  const activeGameSchema = useStore((state: any) => state.activeGameSchema);
-  const schemaCats = activeGameSchema?.mod_categories || [];
+  const modCategories = useStore((state: any) => state.modCategories);
+  const schemaCats = Array.isArray(modCategories) ? modCategories : [];
   const hasUnknown = schemaCats.some(
     (c: any) => String(c.id).toLowerCase() === "unknown"
   );

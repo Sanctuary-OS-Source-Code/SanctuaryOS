@@ -305,7 +305,10 @@ export async function verifyKnownTier0CloudHashes(dnaHashes: string[]): Promise<
   };
 }
 
-export async function recordVerifiedCertificate(cert: LabVerificationCertificate) {
+export async function recordVerifiedCertificate(
+  cert: LabVerificationCertificate,
+  uploadToCloud = false
+) {
   try {
     const spokeKey = resolveSpokeLabKey();
     const map = getCachedCertificatesMap();
@@ -332,10 +335,12 @@ export async function recordVerifiedCertificate(cert: LabVerificationCertificate
       }
     }
 
-    // Record PASS_VERIFIED_4STAGE receipt in Supabase homestead_lab_logs ONLY for:
-    // 1. Tier 0 mod_versions (including newly submitted Mason Queue items awaiting Architect review), OR
-    // 2. Tier 0 pending scout_suggestions uploads (so Architects can verify the passing test).
-    // Never write Tier 1-5 or unsubmitted local unknown hashes to cloud logs!
+    // Only upload verification receipts to cloud when explicitly opted in.
+    // Citizens verifying local mods in Homestead remain 100% offline/local.
+    if (!uploadToCloud) {
+      return;
+    }
+
     const { data: verData } = await supabase
       .from("mod_versions")
       .select("id, mod_id, mods(compliance_tier, status)")

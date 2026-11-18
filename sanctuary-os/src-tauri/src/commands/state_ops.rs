@@ -371,6 +371,17 @@ pub fn save_coordinates(mut config: SolderConfig) -> Result<String, String> {
     if let Ok(mut guard) = global_config_cache().write() {
         *guard = None;
     }
+    for ws in &config.workspaces {
+        for raw_dir in [ws.mods_path.trim(), ws.vault_path.trim()] {
+            if raw_dir.is_empty() || raw_dir.eq_ignore_ascii_case("web") {
+                continue;
+            }
+            let p = std::path::Path::new(raw_dir);
+            if !p.exists() && p.parent().map_or(false, |par| par.is_dir()) {
+                let _ = fs::create_dir_all(p);
+            }
+        }
+    }
     crate::utils::atomic_write_bytes(&config_path, json.as_bytes())?;
     let new_mtime = fs::metadata(&config_path).ok().and_then(|m| m.modified().ok());
     if let Ok(mut guard) = global_config_cache().write() {
@@ -391,7 +402,10 @@ pub fn save_coordinates(mut config: SolderConfig) -> Result<String, String> {
 }
 
 #[tauri::command]
-pub async fn auto_detect_paths(state: tauri::State<'_, AppState>) -> Result<serde_json::Value, String> {
+pub async fn auto_detect_paths(
+    state: tauri::State<'_, AppState>,
+    live_path_hint: Option<String>,
+) -> Result<serde_json::Value, String> {
     let game_schema = state
         .active_schema
         .lock()
@@ -403,6 +417,58 @@ pub async fn auto_detect_paths(state: tauri::State<'_, AppState>) -> Result<serd
         let mut mods_path = String::new();
         let mut docs_path = String::new();
         let mut vault_path = String::new();
+        let mut detected_source = String::new();
+        let mut mods_will_create = false;
+
+        let hint_clean = live_path_hint
+            .as_deref()
+            .map(str::trim)
+            .filter(|s| !s.is_empty())
+            .map(str::to_string);
+
+        let steam_resolution =
+            crate::game_logic::resolve_steam_app_and_proton_prefix(&game_schema, hint_clean.as_deref());
+        let mut discovered_proton_user = steam_resolution
+            .as_ref()
+            .and_then(|r| r.compatdata_pfx_user_dir.clone());
+        let mut discovered_app_id = steam_resolution.as_ref().map(|r| r.app_id.clone());
+
+        if let Some(ref hint) = hint_clean {
+            let hint_path = std::path::Path::new(hint);
+            if hint_path.exists() {
+                let engine_root = crate::game_logic::resolve_game_engine_root(hint, &game_schema);
+                live_path = if engine_root.is_dir() {
+                    engine_root.to_string_lossy().to_string()
+                } else {
+                    hint.clone()
+                };
+                detected_source = "manual_anchor".to_string();
+                if discovered_proton_user.is_none() {
+                    discovered_proton_user =
+                        crate::game_logic::extract_proton_user_dir_from_path(&live_path);
+                }
+            }
+        }
+
+        if live_path.is_empty() {
+            if let Some(hit) = crate::storefront_discovery::discover_game_install(&game_schema) {
+                let raw_hit = hit.install_dir.to_string_lossy().to_string();
+                let engine_root =
+                    crate::game_logic::resolve_game_engine_root(&raw_hit, &game_schema);
+                live_path = if engine_root.is_dir() {
+                    engine_root.to_string_lossy().to_string()
+                } else {
+                    raw_hit
+                };
+                detected_source = hit.source;
+                if discovered_proton_user.is_none() {
+                    discovered_proton_user = hit.proton_user_dir;
+                }
+                if discovered_app_id.is_none() {
+                    discovered_app_id = hit.app_id;
+                }
+            }
+        }
 
         let mut search_paths = if let Some(schema) = &game_schema {
             if cfg!(target_os = "linux") {
@@ -428,9 +494,6 @@ pub async fn auto_detect_paths(state: tauri::State<'_, AppState>) -> Result<serd
             vec![]
         };
 
-        // Resolve Steam libraryfolders.vdf & Proton compatdata prefix across Windows, macOS, Linux & SteamOS
-        let steam_resolution =
-            crate::game_logic::resolve_steam_app_and_proton_prefix(&game_schema, None);
         if let Some(ref res) = steam_resolution {
             if let Some(ref install_dir) = res.install_dir {
                 let install_str = install_dir.to_string_lossy().to_string();
@@ -489,29 +552,40 @@ pub async fn auto_detect_paths(state: tauri::State<'_, AppState>) -> Result<serd
             }
         }
 
-        for raw_p in search_paths {
-            let expanded_p =
-                crate::game_logic::expand_schema_path_for_os(&raw_p, &game_schema, None);
-            let p_path = std::path::Path::new(&expanded_p);
-            if p_path.exists() {
-                let has_exe = game_schema
-                    .as_ref()
-                    .map(|s| {
-                        s.executable_names.is_empty()
-                            || crate::game_logic::resolve_executable_path(&expanded_p, &game_schema)
-                                .is_some()
-                    })
-                    .unwrap_or(true);
-                if has_exe {
-                    live_path = expanded_p;
-                    break;
+        if live_path.is_empty() {
+            for raw_p in search_paths {
+                let expanded_p =
+                    crate::game_logic::expand_schema_path_for_os(&raw_p, &game_schema, None);
+                let p_path = std::path::Path::new(&expanded_p);
+                if p_path.exists() {
+                    let has_exe = game_schema
+                        .as_ref()
+                        .map(|s| {
+                            s.executable_names.is_empty()
+                                || crate::game_logic::resolve_executable_path(&expanded_p, &game_schema)
+                                    .is_some()
+                        })
+                        .unwrap_or(true);
+                    if has_exe {
+                        let engine_root =
+                            crate::game_logic::resolve_game_engine_root(&expanded_p, &game_schema);
+                        live_path = if engine_root.is_dir() {
+                            engine_root.to_string_lossy().to_string()
+                        } else {
+                            expanded_p
+                        };
+                        detected_source = "schema_scan".to_string();
+                        break;
+                    }
                 }
             }
         }
 
-        if let Some(default_mods) = crate::game_logic::get_default_mods_folder(&game_schema) {
-            if default_mods.exists() {
-                mods_path = default_mods.to_string_lossy().to_string();
+        if hint_clean.is_none() {
+            if let Some(default_mods) = crate::game_logic::get_default_mods_folder(&game_schema) {
+                if default_mods.exists() {
+                    mods_path = default_mods.to_string_lossy().to_string();
+                }
             }
         }
 
@@ -531,34 +605,89 @@ pub async fn auto_detect_paths(state: tauri::State<'_, AppState>) -> Result<serd
                     Some(&live_path)
                 },
             );
-            let exp_path = std::path::Path::new(&expanded_mod);
-            if exp_path.is_absolute() && exp_path.exists() {
-                mods_path = exp_path.to_string_lossy().to_string();
-            } else if cfg!(target_os = "linux") {
-                if let Some(ref res) = steam_resolution {
-                    if let Some(ref pfx_user) = res.compatdata_pfx_user_dir {
-                        let rel_mod = default_mod_raw
-                            .replace('\\', "/")
-                            .trim_start_matches('/')
-                            .to_string();
-                        let candidate = if rel_mod.to_lowercase().starts_with("documents/") {
-                            pfx_user.join(&rel_mod)
-                        } else {
-                            pfx_user.join("Documents").join(&rel_mod)
-                        };
-                        if candidate.exists() || std::fs::create_dir_all(&candidate).is_ok() {
-                            mods_path = candidate.to_string_lossy().to_string();
+
+            // If live_path is anchored (Steam/GOG/Epic/Manual) and default_mod_dir points under a game install folder,
+            // derive mods_path relative to the discovered engine_root even if Mods/ does not exist yet!
+            if !live_path.is_empty() {
+                let engine_root =
+                    crate::game_logic::resolve_game_engine_root(&live_path, &game_schema);
+                let norm_raw = default_mod_raw.replace('\\', "/");
+                if norm_raw == "." {
+                    mods_path = engine_root.to_string_lossy().to_string();
+                } else if !norm_raw.contains('%') && !norm_raw.starts_with("~/") {
+                    if let Some(idx) = norm_raw.to_lowercase().find("steamapps/common/") {
+                        let after_common = &norm_raw[idx + "steamapps/common/".len()..];
+                        if let Some(slash_idx) = after_common.find('/') {
+                            let rel_under_game = &after_common[slash_idx + 1..];
+                            let derived = engine_root.join(rel_under_game);
+                            if derived.exists() || engine_root.is_dir() {
+                                mods_will_create = !derived.exists();
+                                mods_path = derived.to_string_lossy().to_string();
+                            }
+                        }
+                    } else if let Some(ref s) = game_schema {
+                        let folder_match = s
+                            .install_folder_names
+                            .as_ref()
+                            .and_then(|v| v.iter().find_map(|f| {
+                                let pat = format!("/{}/", f.to_lowercase());
+                                norm_raw.to_lowercase().find(&pat).map(|pos| pos + pat.len())
+                            }));
+                        if let Some(start_idx) = folder_match {
+                            let rel_under_game = &norm_raw[start_idx..];
+                            if !rel_under_game.is_empty() {
+                                let derived = engine_root.join(rel_under_game);
+                                if derived.exists() || engine_root.is_dir() {
+                                    mods_will_create = !derived.exists();
+                                    mods_path = derived.to_string_lossy().to_string();
+                                }
+                            }
                         }
                     }
                 }
             }
+
+            let exp_path = std::path::Path::new(&expanded_mod);
+            if mods_path.is_empty() && exp_path.is_absolute() && exp_path.exists() {
+                mods_path = exp_path.to_string_lossy().to_string();
+            } else if mods_path.is_empty() && cfg!(target_os = "linux") {
+                if let Some(ref pfx_user) = discovered_proton_user {
+                    let norm_mod = default_mod_raw.replace('\\', "/");
+                    let rel_mod = if let Some(idx) = norm_mod.to_lowercase().find("documents/") {
+                        norm_mod[idx..].to_string()
+                    } else if norm_mod.to_lowercase().contains("%localappdata%/") {
+                        let tail = norm_mod
+                            .split('/')
+                            .skip_while(|seg| !seg.to_lowercase().contains("%localappdata%"))
+                            .skip(1)
+                            .collect::<Vec<_>>()
+                            .join("/");
+                        format!("AppData/Local/{}", tail)
+                    } else {
+                        format!("Documents/{}", norm_mod.trim_start_matches('/'))
+                    };
+                    let candidate = pfx_user.join(&rel_mod);
+                    if candidate.exists() || candidate.parent().map_or(false, |p| p.is_dir()) {
+                        mods_will_create = !candidate.exists();
+                        mods_path = candidate.to_string_lossy().to_string();
+                    }
+                }
+            }
             if mods_path.is_empty() {
-                if let Ok(profile) =
+                if exp_path.is_absolute()
+                    && exp_path.parent().map_or(false, |par| par.is_dir())
+                {
+                    mods_will_create = !exp_path.exists();
+                    mods_path = exp_path.to_string_lossy().to_string();
+                } else if let Ok(profile) =
                     std::env::var("USERPROFILE").or_else(|_| std::env::var("HOME"))
                 {
                     let docs = std::path::Path::new(&profile);
                     let user_mods = docs.join(&expanded_mod);
-                    if user_mods.exists() {
+                    if user_mods.exists()
+                        || user_mods.parent().map_or(false, |par| par.is_dir())
+                    {
+                        mods_will_create = !user_mods.exists();
                         mods_path = user_mods.to_string_lossy().to_string();
                     }
                 }
@@ -566,13 +695,12 @@ pub async fn auto_detect_paths(state: tauri::State<'_, AppState>) -> Result<serd
             if mods_path.is_empty() && !live_path.is_empty() {
                 let engine_root =
                     crate::game_logic::resolve_game_engine_root(&live_path, &game_schema);
-                if default_mod_raw == "." {
-                    mods_path = engine_root.to_string_lossy().to_string();
-                } else {
-                    let engine_mods = engine_root.join(&expanded_mod);
-                    if engine_mods.exists() {
-                        mods_path = engine_mods.to_string_lossy().to_string();
-                    }
+                let engine_mods = engine_root.join(&expanded_mod);
+                if engine_mods.exists()
+                    || engine_mods.parent().map_or(false, |par| par.is_dir())
+                {
+                    mods_will_create = !engine_mods.exists();
+                    mods_path = engine_mods.to_string_lossy().to_string();
                 }
             }
         }
@@ -603,6 +731,16 @@ pub async fn auto_detect_paths(state: tauri::State<'_, AppState>) -> Result<serd
                 }
                 if ud_path.exists() {
                     docs_path = ud_path.to_string_lossy().to_string();
+                } else if cfg!(target_os = "linux") {
+                    if let Some(ref pfx_user) = discovered_proton_user {
+                        let norm_ud = raw_user_data.replace('\\', "/");
+                        if let Some(idx) = norm_ud.to_lowercase().find("documents/") {
+                            let cand = pfx_user.join(&norm_ud[idx..]);
+                            if cand.exists() {
+                                docs_path = cand.to_string_lossy().to_string();
+                            }
+                        }
+                    }
                 }
             }
         }
@@ -653,13 +791,10 @@ pub async fn auto_detect_paths(state: tauri::State<'_, AppState>) -> Result<serd
             vault_path = crate::commands::system::recommended_safe_vault_root();
         }
 
-        let steam_app_id = steam_resolution
-            .as_ref()
-            .map(|r| r.app_id.clone())
+        let steam_app_id = discovered_app_id
             .or_else(|| crate::game_logic::default_steam_app_id(&game_schema))
             .unwrap_or_default();
-        let proton_prefix = steam_resolution
-            .and_then(|r| r.compatdata_pfx_user_dir)
+        let proton_prefix = discovered_proton_user
             .map(|p| p.to_string_lossy().to_string())
             .unwrap_or_default();
 
@@ -670,7 +805,9 @@ pub async fn auto_detect_paths(state: tauri::State<'_, AppState>) -> Result<serd
             "vault_path": vault_path,
             "master_vault_path": vault_path,
             "steam_app_id": steam_app_id,
-            "proton_prefix": proton_prefix
+            "proton_prefix": proton_prefix,
+            "detected_source": detected_source,
+            "mods_will_create": mods_will_create
         }))
     })
     .await

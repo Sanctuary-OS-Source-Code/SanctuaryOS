@@ -1,7 +1,10 @@
 import { useState, useEffect } from "react";
 import { useLexicon } from "../../LexiconContext";
 import { useStore } from "../../store";
-import { SidePanel, CustomDropdown, PanelHeaderGroup, PanelHeaderButton, VAULT_CHIP_CLASS, ActionButton } from "../../shared";
+import { SidePanel, PanelHeaderGroup } from "../../shared-components/layout";
+import { CustomDropdown } from "../../shared-components/dropdowns";
+import { PanelHeaderButton, ActionButton } from "../../shared-components/buttons";
+import { VAULT_CHIP_CLASS } from "../../shared-components/constants";
 import { SidePanelHeroCard, SidePanelTitleInput } from "../layouts/ElevatedHubLayout";
 import { CommandScreenSectionHeading } from "../../hub-components/SharedCommandScreenLayout";
 import { UniversalGroup, StatBox } from "../universal/UniversalLayout";

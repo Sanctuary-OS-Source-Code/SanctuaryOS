@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo } from "react";
 import { useLexicon } from "../../LexiconContext";
-import { StatBox, HoverTooltip } from "../../shared";
+import { StatBox } from "../universal/UniversalLayout";
+import { HoverTooltip } from "../../shared-components/alerts";
 import { getKeepersPipelineConfig, DEFAULT_KEEPERS_PIPELINE_CONFIG, KeepersPipelineConfig } from "../../utils/supporterManager";
 import packageJson from "../../../package.json";
 import bundledCommunityBlog from "../../../../Release Notes (Community Blog).md?raw";

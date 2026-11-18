@@ -1199,7 +1199,7 @@ export async function computeSha256Hex(bytes: Uint8Array): Promise<string> {
     .padStart(8, "0")}`;
 }
 
-function guessImageMime(filename: string): string {
+export function guessImageMime(filename: string): string {
   const lower = filename.toLowerCase();
   if (lower.endsWith(".png")) return "image/png";
   if (lower.endsWith(".jpg") || lower.endsWith(".jpeg")) return "image/jpeg";

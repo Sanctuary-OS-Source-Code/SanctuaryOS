@@ -2650,6 +2650,59 @@ pub fn deploy_single_mod_to_live_sync(
         }
     }
 
+    // Activate load-order manifests & timestamps for Homestead Lab sessions as well
+    let mut lab_entries: Vec<crate::load_order_engine::OrderedDeployEntry> = Vec::new();
+    for dp_str in &deployed_links {
+        let dp = Path::new(dp_str);
+        if !dp.is_file() {
+            continue;
+        }
+        let ext_l = dp
+            .extension()
+            .and_then(|e| e.to_str())
+            .unwrap_or_default()
+            .to_lowercase();
+        if !supported_exts_lower.is_empty() && !supported_exts_lower.contains(&ext_l) {
+            continue;
+        }
+        let rel = dp
+            .strip_prefix(&mods_dir)
+            .map(|r| r.to_string_lossy().replace('\\', "/"))
+            .unwrap_or_default();
+        if rel.is_empty() {
+            continue;
+        }
+        let fname = dp.file_name().and_then(|n| n.to_str()).unwrap_or_default().to_string();
+        let stem = dp.file_stem().and_then(|s| s.to_str()).unwrap_or(&fname).to_string();
+        let metadata = crate::load_order_engine::extract_metadata_for_path(dp, game_schema);
+        lab_entries.push(crate::load_order_engine::OrderedDeployEntry {
+            rel_path: rel,
+            file_name: fname,
+            stem,
+            metadata,
+            tier_folder: None,
+            tier_priority: 0,
+            deployed_path: Some(dp.to_path_buf()),
+        });
+    }
+    if !lab_entries.is_empty() {
+        let written = crate::load_order_engine::apply_load_order_outputs(
+            game_schema,
+            &mods_dir,
+            &docs_root,
+            &live_root,
+            &lab_entries,
+        );
+        for wp in written {
+            if wp.starts_with(&mods_dir) {
+                let s = wp.to_string_lossy().to_string();
+                if !deployed_links.contains(&s) {
+                    deployed_links.push(s);
+                }
+            }
+        }
+    }
+
     if !deployed_links.is_empty() {
         if let Ok(json) = serde_json::to_string_pretty(&deployed_links) {
             let _ = crate::utils::atomic_write_bytes(

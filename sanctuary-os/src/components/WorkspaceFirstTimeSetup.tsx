@@ -164,6 +164,9 @@ export default function WorkspaceFirstTimeSetup({
   const [masterVaultInput, setMasterVaultInput] = useState('');
   const [hasExistingMasterVault, setHasExistingMasterVault] = useState(false);
   const [isEditingMasterVault, setIsEditingMasterVault] = useState(false);
+  const [detectedSource, setDetectedSource] = useState('');
+  const [modsWillCreate, setModsWillCreate] = useState(false);
+  const [showAdvancedPaths, setShowAdvancedPaths] = useState(false);
 
   const [fetchedSpokeThemes, setFetchedSpokeThemes] = useState<Record<string, any>>({});
   const [fetchedSpokeLexicons, setFetchedSpokeLexicons] = useState<
@@ -192,31 +195,40 @@ export default function WorkspaceFirstTimeSetup({
   }, [stopThemePreview, stopLexiconPreview]);
 
   const runSchemaAutoDetect = useCallback(
-    async (silent = false) => {
-      if (isAutoDetecting) return;
+    async (silent = false, liveHint?: string) => {
+      if (isAutoDetecting && !liveHint) return;
       setIsAutoDetecting(true);
       try {
         const currentSchema = useStore.getState().activeGameSchema;
         if (currentSchema) {
           await invoke('update_active_game_schema', { schema: currentSchema }).catch(() => {});
         }
-        const detected: any = await invoke('auto_detect_paths').catch(() => null);
+        const detected: any = await invoke(
+          'auto_detect_paths',
+          liveHint ? { livePathHint: liveHint } : {}
+        ).catch(() => null);
         let applied = false;
         if (detected?.live_path) {
-          setLivePathInput((prev) => prev || String(detected.live_path));
+          setLivePathInput((prev) => (liveHint ? String(detected.live_path) : prev || String(detected.live_path)));
           applied = true;
         }
         if (detected?.mods_path) {
-          setModsPathInput((prev) => prev || String(detected.mods_path));
+          setModsPathInput((prev) => (liveHint ? String(detected.mods_path) : prev || String(detected.mods_path)));
           applied = true;
+        } else if (liveHint && detected?.live_path) {
+          setShowAdvancedPaths(true);
         }
         const detectedDocs = detected?.docs_path || detected?.user_data_path;
         if (detectedDocs) {
-          setDocsPathInput((prev) => prev || String(detectedDocs));
+          setDocsPathInput((prev) => (liveHint && !prev ? String(detectedDocs) : prev || String(detectedDocs)));
         }
         if (!hasExistingMasterVault && detected?.vault_path) {
           setMasterVaultInput((prev) => prev || String(detected.vault_path));
         }
+        if (detected?.detected_source) {
+          setDetectedSource(String(detected.detected_source));
+        }
+        setModsWillCreate(Boolean(detected?.mods_will_create));
         if (!silent) {
           pushToast(
             applied
@@ -303,7 +315,10 @@ export default function WorkspaceFirstTimeSetup({
 
         // Run schema-driven auto-detection once on mount if either required folder is blank
         if (!seedLive || !seedMods) {
-          const detected: any = await invoke('auto_detect_paths').catch(() => null);
+          const detected: any = await invoke(
+            'auto_detect_paths',
+            seedLive ? { livePathHint: seedLive } : {}
+          ).catch(() => null);
           if (!cancelled && detected) {
             if (!seedLive && detected.live_path) setLivePathInput(String(detected.live_path));
             if (!seedMods && detected.mods_path) setModsPathInput(String(detected.mods_path));
@@ -311,6 +326,13 @@ export default function WorkspaceFirstTimeSetup({
             if (!seedDocs && detDocs) setDocsPathInput(String(detDocs));
             if (!existingMaster && detected.vault_path) {
               setMasterVaultInput(String(detected.vault_path));
+            }
+            if (detected.detected_source) {
+              setDetectedSource(String(detected.detected_source));
+            }
+            setModsWillCreate(Boolean(detected.mods_will_create));
+            if ((seedLive || detected.live_path) && !seedMods && !detected.mods_path) {
+              setShowAdvancedPaths(true);
             }
           }
         }
@@ -970,12 +992,26 @@ export default function WorkspaceFirstTimeSetup({
     value: string,
     setValue: (val: string) => void,
     isComplete: boolean,
-    hint?: string
+    hint?: string,
+    extraBadge?: string,
+    onDirectoryPicked?: (val: string) => void
   ) => (
     <UniversalGroup
       title={t(titleKey, titleFallback)}
       icon={iconName}
-      headerAction={renderStatusBadge(isComplete)}
+      headerAction={
+        <div className="flex items-center gap-2 ml-auto">
+          {extraBadge && (
+            <span className={VAULT_CHIP_CLASS}>
+              <span className="material-symbols-outlined !text-[12px] text-[var(--accent)]">
+                {t('icon_radar', 'radar')}
+              </span>
+              <span>{extraBadge}</span>
+            </span>
+          )}
+          {renderStatusBadge(isComplete)}
+        </div>
+      }
     >
       <p className="text-[11px] font-medium text-[var(--subtext)] opacity-85 m-0 leading-relaxed">
         {t(descKey, descFallback)}
@@ -1003,7 +1039,12 @@ export default function WorkspaceFirstTimeSetup({
           variant="glass"
           icon={t('icon_folder_open', 'folder_open')}
           label={t('btn_browse', 'Browse')}
-          onClick={() => pickDirectory(titleKey, titleFallback, value, setValue)}
+          onClick={() =>
+            pickDirectory(titleKey, titleFallback, value, (picked) => {
+              setValue(picked);
+              if (onDirectoryPicked) onDirectoryPicked(picked);
+            })
+          }
         />
       </div>
     </UniversalGroup>
@@ -1092,24 +1133,49 @@ export default function WorkspaceFirstTimeSetup({
     </div>
   );
 
+  const sourceBadgeLabel = useMemo(() => {
+    switch (detectedSource) {
+      case 'steam':
+        return t('cartographer_src_steam', 'Steam Detected');
+      case 'gog':
+        return t('cartographer_src_gog', 'GOG Galaxy');
+      case 'epic':
+        return t('cartographer_src_epic', 'Epic Games');
+      case 'heroic':
+        return t('cartographer_src_heroic', 'Heroic Launcher');
+      case 'lutris':
+        return t('cartographer_src_lutris', 'Lutris');
+      case 'ea_app':
+        return t('cartographer_src_ea', 'EA App');
+      case 'macos_app':
+        return t('cartographer_src_macos', 'Applications');
+      case 'manual_anchor':
+        return t('cartographer_src_anchor', 'Anchored');
+      case 'schema_scan':
+        return t('cartographer_src_scan', 'Detected');
+      default:
+        return '';
+    }
+  }, [detectedSource, t]);
+
   return (
     <SidePanel
       isOpen={isOpen}
       onClose={handleCancelSetup}
-      title={t('ws_setup_title', 'Workspace Setup')}
+      title={t('cartographer_title', 'The Cartographer')}
       subtitle={targetGameName}
-      icon={t('icon_rocket_launch', 'rocket_launch')}
+      icon={t('icon_explore', 'explore')}
       iconColorClass="text-[var(--accent)]"
       widthClass="w-full md:w-[760px]"
     >
       <div className="flex flex-col gap-4 mt-2 relative z-10 w-full pb-8">
         <SidePanelHeroCard
-          icon={t('icon_rocket_launch', 'rocket_launch')}
-          overline={t('ws_setup_title', 'Workspace Setup')}
+          icon={t('icon_explore', 'explore')}
+          overline={t('cartographer_title', 'The Cartographer')}
           title={targetGameName}
           description={t(
             'ws_setup_subtitle',
-            'Configure folders and preview {chameleon} & {lexicon} options before mounting.'
+            'Anchor your game installation and {Vault} once—derived {mods} and save paths populate automatically.'
           )}
           badge={`${folderCompletedCount}/${folderTotalCount}`}
           badgeIcon={
@@ -1183,25 +1249,18 @@ export default function WorkspaceFirstTimeSetup({
           <div className="flex flex-col gap-4 w-full">
             {folderPickerGroup(
               'ws_setup_game_folder_title',
-              'Game Folder Path',
+              'Game Installation Folder',
               'ws_setup_game_folder_desc',
-              'Select the root or binary installation folder containing your game executable.',
+              'Select your game root folder—Sanctuary derives {mods} and save directories automatically.',
               t('icon_sports_esports', 'sports_esports'),
               livePathInput,
               setLivePathInput,
               hasLive,
-              resolvedExpectedExecutables || undefined
-            )}
-
-            {folderPickerGroup(
-              'ws_setup_mods_folder_title',
-              '{Mods} Folder Path',
-              'ws_setup_mods_folder_desc',
-              'Select the game folder where active {mod} files are deployed at runtime.',
-              t('icon_extension', 'extension'),
-              modsPathInput,
-              setModsPathInput,
-              hasMods
+              resolvedExpectedExecutables || undefined,
+              sourceBadgeLabel || undefined,
+              (picked) => {
+                void runSchemaAutoDetect(true, picked);
+              }
             )}
 
             {hasExistingMasterVault && !isEditingMasterVault ? (
@@ -1235,6 +1294,67 @@ export default function WorkspaceFirstTimeSetup({
                 hasVault
               )
             )}
+
+            <div className="glass-surface rounded-2xl p-3.5 border border-[color-mix(in_srgb,var(--text)_10%,transparent)] flex flex-col gap-3">
+              <button
+                type="button"
+                onClick={() => setShowAdvancedPaths((v) => !v)}
+                className="flex items-center justify-between gap-2 w-full text-left cursor-pointer"
+              >
+                <div className="flex items-center gap-2 min-w-0">
+                  <span className="material-symbols-outlined !text-[16px] text-[var(--subtext)]">
+                    {showAdvancedPaths
+                      ? t('icon_expand_less', 'expand_less')
+                      : t('icon_expand_more', 'expand_more')}
+                  </span>
+                  <span className="text-[11px] font-black uppercase tracking-widest text-[var(--text)]">
+                    {t('cartographer_advanced_paths', 'Advanced Path Overrides')}
+                  </span>
+                </div>
+                <div className="flex items-center gap-2 ml-auto">
+                  {modsWillCreate && hasMods && (
+                    <span className={VAULT_CHIP_CLASS}>
+                      <span className="material-symbols-outlined !text-[12px] text-[var(--accent)]">
+                        {t('icon_create_new_folder', 'create_new_folder')}
+                      </span>
+                      <span className="text-[var(--accent)]">
+                        {t('cartographer_will_create_mods', 'Will create folder')}
+                      </span>
+                    </span>
+                  )}
+                  {renderStatusBadge(hasMods)}
+                </div>
+              </button>
+
+              {(showAdvancedPaths || (hasLive && !hasMods)) && (
+                <div className="flex flex-col gap-3 pt-2 border-t border-[color-mix(in_srgb,var(--text)_8%,transparent)]">
+                  {folderPickerGroup(
+                    'ws_setup_mods_folder_title',
+                    '{Mods} Folder Path',
+                    'ws_setup_mods_folder_desc',
+                    'Derived game directory where active {mod} files deploy at runtime.',
+                    t('icon_extension', 'extension'),
+                    modsPathInput,
+                    (v) => {
+                      setModsPathInput(v);
+                      setModsWillCreate(false);
+                    },
+                    hasMods
+                  )}
+
+                  {folderPickerGroup(
+                    'ws_setup_docs_folder_title',
+                    'Saves & User Data Folder',
+                    'ws_setup_docs_folder_desc',
+                    'Optional game saves and configuration folder for {Backups} and {Lab} airgapping.',
+                    t('icon_save', 'save'),
+                    docsPathInput,
+                    setDocsPathInput,
+                    docsPathInput.trim().length > 0
+                  )}
+                </div>
+              )}
+            </div>
 
             {isDesktop() && unconsentedSetupFindings.length > 0 && (
               <UniversalGroup

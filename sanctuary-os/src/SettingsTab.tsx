@@ -518,8 +518,27 @@ export default function Settings({ anarchyRules, setAnarchyRules }: any) {
         multiple: false,
         title: `${t('select_path', 'Select Directory for')} ${label}`,
       });
-      if (selected) {
-        await updateConfig(rustKey, selected);
+      if (selected && typeof selected === 'string') {
+        if (rustKey === 'live_path') {
+          const patch: Record<string, string> = { live_path: selected };
+          try {
+            const schema = useStore.getState().activeGameSchema;
+            if (schema) {
+              await invoke('update_active_game_schema', { schema }).catch(() => {});
+            }
+            const derived: any = await invoke('auto_detect_paths', { livePathHint: selected }).catch(() => null);
+            if (!config.mods_path && derived?.mods_path) {
+              patch.mods_path = String(derived.mods_path);
+            }
+            const detDocs = derived?.docs_path || derived?.user_data_path;
+            if (!config.docs_path && detDocs) {
+              patch.docs_path = String(detDocs);
+            }
+          } catch {}
+          await updateConfig(patch);
+        } else {
+          await updateConfig(rustKey, selected);
+        }
       }
     } catch (err) {
       useStore.getState().pushStatus(String(err), 'error');

@@ -19,10 +19,8 @@ import {
   StatBox,
   handleOpenUrl,
 } from "../shared";
-import {
-  StructuredReleaseNotesView,
-  cleanPostBodyForViewer,
-} from "../components/ReleaseNotesShowcase";
+import { StructuredReleaseNotesView } from "../components/release-notes/ReleaseMarkdownViewer";
+import { cleanPostBodyForViewer } from "../components/release-notes/releaseMarkdownParser";
 import { extractLinkedAssetsFromMarkdown } from "../components/universal/UnifiedPostEditor";
 import FlagContentSidePanel from "./FlagContentSidePanel";
 import { VAULT_CHIP_CLASS } from "../Cards";

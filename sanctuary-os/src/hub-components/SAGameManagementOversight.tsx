@@ -11,23 +11,44 @@ import { UniversalCard } from "../components/universal/UniversalCard";
 import { LiquidGlassAlertCard } from "../components/BlueprintPatchReadiness";
 import { openSanctuaryContextMenu } from "../ContextMenu";
 import { logArchitectAction } from "../lib/audit";
+import { resolvePresetForGameId } from "../utils/gameArchitecturePresets";
+import {
+  ModCategoryDescriptor,
+  normalizeTaxonomyRows,
+  loadModCategories,
+} from "../utils/categoryRegistry";
 
 export function GameManagementOversight() {
   const { t } = useLexicon();
-  const [activeTab, setActiveTab] = useState<'overview' | 'versions' | 'dlc'>('overview');
+  const activeGameSchema = useStore((s) => s.activeGameSchema);
+  const [activeTab, setActiveTab] = useState<'overview' | 'versions' | 'dlc' | 'categories'>('overview');
 
   const [versions, setVersions] = useState<any[]>([]);
   const [versionSearch, setVersionSearch] = useState("");
   const [dlcs, setDlcs] = useState<any[]>([]);
   const [dlcSearch, setDlcSearch] = useState("");
   const [dlcTypeFilter, setDlcTypeFilter] = useState("ALL");
+  const [categories, setCategories] = useState<ModCategoryDescriptor[]>([]);
+  const [categorySearch, setCategorySearch] = useState("");
 
-  const [sidePanelMode, setSidePanelMode] = useState<"add_version" | "edit_version" | "delete_version" | "add_dlc" | "edit_dlc" | "delete_dlc" | null>(null);
+  const [sidePanelMode, setSidePanelMode] = useState<
+    | "add_version"
+    | "edit_version"
+    | "delete_version"
+    | "add_dlc"
+    | "edit_dlc"
+    | "delete_dlc"
+    | "add_category"
+    | "edit_category"
+    | null
+  >(null);
   const [panelTarget, setPanelTarget] = useState<any>(null);
   const [panelInput1, setPanelInput1] = useState("");
   const [panelInput2, setPanelInput2] = useState("");
   const [panelInput3, setPanelInput3] = useState("EP");
   const [panelInput4, setPanelInput4] = useState("");
+  const [panelLexKey, setPanelLexKey] = useState("");
+  const [panelSubcatsText, setPanelSubcatsText] = useState("");
   const [panelReason, setPanelReason] = useState("");
   const [isPanelSubmitting, setIsPanelSubmitting] = useState(false);
 
@@ -41,9 +62,18 @@ export function GameManagementOversight() {
     if (data) setDlcs(data);
   };
 
+  const fetchCategories = async () => {
+    const { data } = await supabase.from('taxonomy').select('*').order('category', { ascending: true });
+    if (data) {
+      setCategories(normalizeTaxonomyRows(data));
+      loadModCategories(supabase).catch(() => {});
+    }
+  };
+
   useEffect(() => {
     fetchVersions();
     fetchDlcs();
+    fetchCategories();
   }, []);
 
   const openPanel = (mode: string, target: any = null) => {
@@ -62,6 +92,73 @@ export function GameManagementOversight() {
       setPanelInput1(target.id);
       setPanelInput2(target.name);
       setPanelInput3(target.type || "EP");
+    } else if (mode === 'add_category') {
+      setPanelInput1("");
+      setPanelInput2("");
+      setPanelInput3("category");
+      setPanelInput4(String(categories.length));
+      setPanelLexKey("");
+      setPanelSubcatsText("");
+    } else if (mode === 'edit_category' && target) {
+      setPanelInput1(target.id || "");
+      setPanelInput2(target.label || target.id || "");
+      setPanelInput3(target.icon || "category");
+      setPanelInput4(String(target.sort_order ?? 0));
+      setPanelLexKey(target.lexicon_key || "");
+      const subText = Array.isArray(target.subcategories)
+        ? target.subcategories
+            .map((s: any) => s?.label || s?.id || "")
+            .filter(Boolean)
+            .join(", ")
+        : "";
+      setPanelSubcatsText(subText);
+    }
+  };
+
+  const handleSeedStarterCategories = async () => {
+    setIsPanelSubmitting(true);
+    try {
+      const schemaKey = activeGameSchema?.game_id || activeGameSchema?.id || "universal";
+      const preset = resolvePresetForGameId(schemaKey);
+      const starter = Array.isArray(preset?.mod_categories) ? preset.mod_categories : [];
+      if (starter.length === 0) {
+        useStore
+          .getState()
+          .pushStatus(t("no_starter_categories", "No starter category preset defined for this game."), "info");
+        return;
+      }
+      const rows = starter.map((cat: any, idx: number) => ({
+        category: String(cat.id || cat.label || `Category${idx + 1}`).trim(),
+        type: String(cat.label || cat.id || `Category${idx + 1}`).trim(),
+        taxonomy_attributes: {
+          label: String(cat.label || cat.id || `Category${idx + 1}`).trim(),
+          icon: String(cat.icon || "category").trim(),
+          icon_key: cat.icon_key || null,
+          lexicon_key: cat.lexicon_key || null,
+          sort_order: typeof cat.sort_order === "number" ? cat.sort_order : idx,
+          subcategories: Array.isArray(cat.subcategories) ? cat.subcategories : [],
+        },
+      }));
+      await supabase.rpc('secure_upsert_cloud_file', {
+        p_token: useStore.getState().session?.access_token || '',
+        p_target: 'taxonomy',
+        p_payload: rows,
+      });
+      await logArchitectAction(
+        `Seeded ${rows.length} starter categories`,
+        'taxonomy',
+        schemaKey,
+        'Seeded starter category preset',
+        'Oversight Game Management',
+        false,
+        { count: { from: 0, to: rows.length } }
+      );
+      useStore
+        .getState()
+        .pushStatus(t("categories_seeded", "Starter categories synced to database."), "success");
+      await fetchCategories();
+    } finally {
+      setIsPanelSubmitting(false);
     }
   };
 
@@ -97,6 +194,19 @@ export function GameManagementOversight() {
         );
         useStore.getState().pushStatus(`Deleted DLC Pack ${panelTarget.id}`, "success");
         fetchDlcs();
+      } else if (sidePanelMode === 'edit_category' && panelTarget?._db_id) {
+        await supabase.rpc('secure_delete_cloud_file', { p_token: useStore.getState().session?.access_token || '', p_target: 'taxonomy', p_id: panelTarget._db_id });
+        await logArchitectAction(
+          `Deleted Category ${panelTarget.id}`,
+          'taxonomy',
+          String(panelTarget.id),
+          panelReason,
+          'Oversight Game Management',
+          false,
+          { category: { from: panelTarget.id, to: null } }
+        );
+        useStore.getState().pushStatus(`${t("deleted_category", "Deleted Category")}: ${panelTarget.id}`, "success");
+        await fetchCategories();
       }
     } else {
       if (sidePanelMode === 'add_version') {
@@ -157,6 +267,69 @@ export function GameManagementOversight() {
         );
         useStore.getState().pushStatus(`Edited DLC Pack [${panelTarget.id}]`, "success");
         fetchDlcs();
+      } else if (sidePanelMode === 'add_category' || sidePanelMode === 'edit_category') {
+        const cleanCatId = panelInput1.trim();
+        const cleanLabel = panelInput2.trim() || cleanCatId;
+        const slug = cleanCatId.toLowerCase().replace(/[^a-z0-9]/g, "_");
+        const cleanIcon = panelInput3.trim() || "category";
+        const parsedOrder = Number.isFinite(Number(panelInput4)) ? Math.max(0, Math.round(Number(panelInput4))) : 0;
+        const resolvedLexKey = panelLexKey.trim() || `class_dd_${slug}`;
+        const parsedSubs = panelSubcatsText
+          .split(",")
+          .map((s) => s.trim())
+          .filter(Boolean)
+          .map((labelOrId) => {
+            const existingSub = Array.isArray(panelTarget?.subcategories)
+              ? panelTarget.subcategories.find(
+                  (es: any) =>
+                    String(es?.label || "").toLowerCase() === labelOrId.toLowerCase() ||
+                    String(es?.id || "").toLowerCase() === labelOrId.toLowerCase()
+                )
+              : null;
+            if (existingSub) return existingSub;
+            const subId = labelOrId.replace(/\s+/g, "");
+            const subSlug = labelOrId.toLowerCase().replace(/[^a-z0-9]+/g, "_").replace(/^_+|_+$/g, "");
+            return {
+              id: subId || labelOrId,
+              label: labelOrId,
+              icon: cleanIcon,
+              icon_key: `ui_icon_${subSlug}`,
+              lexicon_key: `vault_sub_${subSlug}`,
+            };
+          });
+        const taxonomyPayload: Record<string, any> = {
+          ...(sidePanelMode === 'edit_category' && panelTarget?._db_id ? { id: panelTarget._db_id } : {}),
+          category: cleanCatId,
+          type: cleanLabel,
+          taxonomy_attributes: {
+            label: cleanLabel,
+            icon: cleanIcon,
+            icon_key: panelTarget?.icon_key || `ui_icon_${slug}`,
+            lexicon_key: resolvedLexKey,
+            sort_order: parsedOrder,
+            subcategories: parsedSubs,
+          },
+        };
+        await supabase.rpc('secure_upsert_cloud_file', {
+          p_token: useStore.getState().session?.access_token || '',
+          p_target: 'taxonomy',
+          p_payload: taxonomyPayload,
+        });
+        await logArchitectAction(
+          `${sidePanelMode === 'add_category' ? 'Added' : 'Edited'} Category ${cleanCatId}`,
+          'taxonomy',
+          cleanCatId,
+          panelReason,
+          'Oversight Game Management',
+          false,
+          {
+            category: { from: panelTarget?.id || null, to: cleanCatId },
+            label: { from: panelTarget?.label || null, to: cleanLabel },
+            sort_order: { from: panelTarget?.sort_order ?? null, to: parsedOrder },
+          }
+        );
+        useStore.getState().pushStatus(`${t("saved", "Saved")}: ${cleanLabel}`, "success");
+        await fetchCategories();
       }
     }
 
@@ -175,11 +348,18 @@ export function GameManagementOversight() {
     !versionSearch || v.version.toLowerCase().includes(versionSearch.toLowerCase())
   );
 
+  const filteredCategories = categories.filter(c =>
+    !categorySearch ||
+    c.id.toLowerCase().includes(categorySearch.toLowerCase()) ||
+    c.label.toLowerCase().includes(categorySearch.toLowerCase())
+  );
+
   const isCommitDisabled =
     isPanelSubmitting ||
     !panelReason.trim() ||
     ((sidePanelMode === 'add_version' || sidePanelMode === 'edit_version') && !panelInput1.trim()) ||
-    ((sidePanelMode === 'add_dlc' || sidePanelMode === 'edit_dlc') && (!panelInput1.trim() || !panelInput2.trim()));
+    ((sidePanelMode === 'add_dlc' || sidePanelMode === 'edit_dlc') && (!panelInput1.trim() || !panelInput2.trim())) ||
+    ((sidePanelMode === 'add_category' || sidePanelMode === 'edit_category') && !panelInput1.trim());
 
   const renderVersionLeadCard = () => (
     <LiquidGlassAlertCard
@@ -222,6 +402,106 @@ export function GameManagementOversight() {
       actionVariant="glass"
       onAction={() => openPanel("add_dlc")}
       onClick={() => openPanel("add_dlc")}
+    />
+  );
+
+  const renderCategoryLeadCard = () => (
+    <LiquidGlassAlertCard
+      isAlertCard={false}
+      icon={t("icon_add_circle", "add_circle")}
+      accentVar="var(--accent)"
+      iconColorClass="text-[var(--accent)]"
+      badgeIcon={t("icon_category", "category")}
+      badgeLabel={t("categories", "Categories")}
+      overline={t("categories", "Categories")}
+      title={t("btn_add_category", "Register Category")}
+      description={t(
+        "category_lead_card_desc",
+        "Create a database-backed {Mod} classification and optional subcategories for this game."
+      )}
+      actionLabel={t("btn_add_category", "Register Category")}
+      actionIcon={t("icon_add", "add")}
+      actionVariant="glass"
+      onAction={() => openPanel("add_category")}
+      onClick={() => openPanel("add_category")}
+    />
+  );
+
+  const renderSeedCategoriesCard = () => (
+    <LiquidGlassAlertCard
+      isAlertCard={false}
+      icon={t("icon_auto_fix_high", "auto_fix_high")}
+      accentVar="var(--warning)"
+      iconColorClass="text-[var(--warning)]"
+      badgeIcon={t("icon_category", "category")}
+      badgeLabel={t("categories", "Categories")}
+      overline={t("categories", "Categories")}
+      title={t("seed_starter_categories", "Seed Starter Categories")}
+      description={t(
+        "seed_starter_categories_desc",
+        "Populate public taxonomy with the starter category catalog for this game preset."
+      )}
+      actionLabel={t("seed_starter_categories", "Seed Starter Categories")}
+      actionIcon={t("icon_auto_fix_high", "auto_fix_high")}
+      actionVariant="glass"
+      onAction={handleSeedStarterCategories}
+      onClick={handleSeedStarterCategories}
+    />
+  );
+
+  const renderCategoryCard = (cat: ModCategoryDescriptor) => (
+    <UniversalCard
+      key={cat.id}
+      onClick={() => openPanel("edit_category", cat)}
+      onContextMenu={(e) => {
+        openSanctuaryContextMenu(e, [
+          {
+            label: t("edit", "Edit"),
+            icon: t("icon_edit", "edit"),
+            onClick: () => openPanel("edit_category", cat),
+          },
+          {
+            divider: true,
+            label: t("copy_title", "Copy ID"),
+            icon: t("icon_content_copy", "content_copy"),
+            onClick: () => navigator.clipboard?.writeText(cat.id || ""),
+          },
+        ]);
+      }}
+      layout="vertical"
+      icon={cat.icon ? t(`icon_${cat.icon}`, cat.icon) : t("icon_category", "category")}
+      title={cat.lexicon_key ? t(cat.lexicon_key, cat.label || cat.id) : cat.label || cat.id}
+      subtitle={cat.id}
+      imageOverlay={
+        <div className="absolute top-3 left-3 flex flex-wrap gap-1.5 max-w-[75%] z-30 pointer-events-none">
+          <div className={VAULT_CHIP_CLASS}>
+            <span className="material-symbols-outlined !text-[12px] text-[var(--accent)]">
+              {t("icon_sort", "sort")}
+            </span>
+            <span>#{cat.sort_order ?? 0}</span>
+          </div>
+        </div>
+      }
+      badges={
+        <div className={VAULT_CHIP_CLASS}>
+          <span className="material-symbols-outlined !text-[12px] text-[var(--subtext)]">
+            {t("icon_account_tree", "account_tree")}
+          </span>
+          <span>
+            {cat.subcategories?.length || 0} {t("subcategories", "Subcategories")}
+          </span>
+        </div>
+      }
+      footer={
+        <div className="flex justify-between items-center w-full">
+          <span className="text-[10px] font-black text-[var(--subtext)] opacity-75 uppercase tracking-widest flex items-center gap-1.5 truncate pr-2">
+            {cat.lexicon_key || cat.id}
+          </span>
+          <span className="text-[10px] font-black text-[var(--text)] group-hover:text-[var(--accent)] uppercase tracking-widest transition-all flex items-center gap-1 opacity-0 group-hover:opacity-100 translate-x-2 group-hover:translate-x-0 shrink-0">
+            {t("btn_view", "View")} <span className="text-base leading-none">&rarr;</span>
+          </span>
+        </div>
+      }
     />
   );
 
@@ -342,14 +622,21 @@ export function GameManagementOversight() {
       headerSubtitle={t("game_management_subtitle", "Manage patches, versions, and DLCs")}
       headerIcon={t("icon_settings", "settings")}
       headerIconColorClass="theme-text-accent"
-      search={activeTab === 'versions' ? versionSearch : dlcSearch}
-      onSearchChange={(e: string) => activeTab === 'versions' ? setVersionSearch(e) : setDlcSearch(e)}
-      searchPlaceholder={activeTab === 'versions' ? t("search_ph", "Search {mods}...") : t("search_ph", "Search {mods}...")}
+      search={activeTab === 'versions' ? versionSearch : activeTab === 'categories' ? categorySearch : dlcSearch}
+      onSearchChange={(e: string) =>
+        activeTab === 'versions'
+          ? setVersionSearch(e)
+          : activeTab === 'categories'
+            ? setCategorySearch(e)
+            : setDlcSearch(e)
+      }
+      searchPlaceholder={t("search_ph", "Search {mods}...")}
       hideSearch={activeTab === 'overview'}
       tabs={[
-        { id: 'overview', label: t("overview", "Overview"), icon: t("icon_dashboard", "dashboard"), number: (versions.length + dlcs.length).toString() },
+        { id: 'overview', label: t("overview", "Overview"), icon: t("icon_dashboard", "dashboard"), number: (versions.length + dlcs.length + categories.length).toString() },
         { id: 'versions', label: t("sa_game_versions", "Game Versions"), icon: t("icon_gamepad", "gamepad"), number: versions.length.toString() },
-        { id: 'dlc', label: t("dlc_registry", "DLC Registry"), icon: t("icon_extension", "extension"), number: dlcs.length.toString() }
+        { id: 'dlc', label: t("dlc_registry", "DLC Registry"), icon: t("icon_extension", "extension"), number: dlcs.length.toString() },
+        { id: 'categories', label: t("categories", "Categories"), icon: t("icon_category", "category"), number: categories.length.toString() }
       ]}
       activeTab={activeTab}
       onTabChange={setActiveTab as any}
@@ -397,6 +684,16 @@ export function GameManagementOversight() {
               {renderDlcLeadCard()}
               {dlcs.slice(0, 3).map(renderDlcCard)}
             </HubOverviewSection>
+            <HubOverviewSection
+              icon={t("icon_category", "category")}
+              iconColorClass="text-[var(--accent)]"
+              title={t("categories", "Categories")}
+              isEmpty={false}
+            >
+              {renderCategoryLeadCard()}
+              {categories.length === 0 && renderSeedCategoriesCard()}
+              {categories.slice(0, 3).map(renderCategoryCard)}
+            </HubOverviewSection>
           </HubOverviewLanding>
         )}
 
@@ -422,6 +719,18 @@ export function GameManagementOversight() {
           )
         )}
 
+        {activeTab === 'categories' && (
+          !categorySearch.trim() || filteredCategories.length > 0 ? (
+            <div className="grid grid-cols-[repeat(auto-fill,minmax(280px,1fr))] gap-6 w-full">
+              {!categorySearch.trim() && renderCategoryLeadCard()}
+              {!categorySearch.trim() && categories.length === 0 && renderSeedCategoriesCard()}
+              {filteredCategories.map(renderCategoryCard)}
+            </div>
+          ) : (
+            <EmptyState icon={t("icon_category", "category")} title={t("no_categories", "No Categories")} className="col-span-full py-16" />
+          )
+        )}
+
       </div>
 
       <SidePanel
@@ -431,15 +740,29 @@ export function GameManagementOversight() {
           sidePanelMode === 'add_version' ? t("btn_register_patch_naked", "Register Patch") :
             sidePanelMode === 'edit_version' ? t("panel_edit_patch", "Edit Patch") :
               sidePanelMode === 'edit_dlc' ? t("panel_edit_dlc", "Edit DLC Pack") :
-                t("panel_add_dlc", "Register DLC")
+                sidePanelMode === 'add_category' ? t("btn_add_category", "Register Category") :
+                  sidePanelMode === 'edit_category' ? t("panel_edit_category", "Edit Category") :
+                    t("panel_add_dlc", "Register DLC")
         }
-        subtitle={sidePanelMode?.includes('version') ? t("panel_sub_version", "Game Version Registry") : t("dlc_registry", "DLC Registry")}
-        icon={sidePanelMode?.includes('version') ? t("icon_gamepad", "gamepad") : t("icon_extension", "extension")}
+        subtitle={
+          sidePanelMode?.includes('version')
+            ? t("panel_sub_version", "Game Version Registry")
+            : sidePanelMode?.includes('category')
+              ? t("categories", "Categories")
+              : t("dlc_registry", "DLC Registry")
+        }
+        icon={
+          sidePanelMode?.includes('version')
+            ? t("icon_gamepad", "gamepad")
+            : sidePanelMode?.includes('category')
+              ? t("icon_category", "category")
+              : t("icon_extension", "extension")
+        }
         iconColorClass="text-[var(--accent)]"
         widthClass="w-[90vw] md:w-[680px]"
         headerActions={
           <PanelHeaderGroup>
-            {(sidePanelMode === 'edit_version' || sidePanelMode === 'edit_dlc') && (
+            {(sidePanelMode === 'edit_version' || sidePanelMode === 'edit_dlc' || sidePanelMode === 'edit_category') && (
               <PanelHeaderButton
                 icon={t("icon_delete", "delete")}
                 variant="danger"
@@ -460,14 +783,28 @@ export function GameManagementOversight() {
       >
         <div className="flex flex-col gap-4 mt-2 relative z-10 w-full pb-8">
           <SidePanelHeroCard
-            icon={sidePanelMode?.includes('version') ? t("icon_gamepad", "gamepad") : t("icon_extension", "extension")}
-            overline={sidePanelMode?.includes('version') ? t("sa_game_versions", "Game Versions") : t("dlc_registry", "DLC Registry")}
+            icon={
+              sidePanelMode?.includes('version')
+                ? t("icon_gamepad", "gamepad")
+                : sidePanelMode?.includes('category')
+                  ? t("icon_category", "category")
+                  : t("icon_extension", "extension")
+            }
+            overline={
+              sidePanelMode?.includes('version')
+                ? t("sa_game_versions", "Game Versions")
+                : sidePanelMode?.includes('category')
+                  ? t("categories", "Categories")
+                  : t("dlc_registry", "DLC Registry")
+            }
             title={
-              (sidePanelMode === 'edit_version' || sidePanelMode === 'edit_dlc') && panelTarget
-                ? (panelTarget?.name || panelTarget)
+              (sidePanelMode === 'edit_version' || sidePanelMode === 'edit_dlc' || sidePanelMode === 'edit_category') && panelTarget
+                ? (panelTarget?.label || panelTarget?.name || panelTarget)
                 : sidePanelMode === 'add_version'
                   ? t("btn_register_patch_naked", "Register Patch")
-                  : t("panel_add_dlc", "Register DLC")
+                  : sidePanelMode === 'add_category'
+                    ? t("btn_add_category", "Register Category")
+                    : t("panel_add_dlc", "Register DLC")
             }
             description={t("game_management_subtitle", "Manage patches, versions, and DLCs")}
             badge={sidePanelMode?.includes('edit') ? t("ql_targeting", "Editing") : t("ql_add", "New Entry")}
@@ -546,6 +883,80 @@ export function GameManagementOversight() {
                     className="w-full glass-surface rounded-xl pl-10 pr-4 py-3 text-[var(--text)] text-sm font-bold border border-[color-mix(in_srgb,var(--text)_12%,transparent)] focus:outline-none focus:border-[var(--accent)] transition-all"
                   />
                 </div>
+              </div>
+            </UniversalGroup>
+          )}
+
+          {(sidePanelMode === 'add_category' || sidePanelMode === 'edit_category') && (
+            <UniversalGroup title={t("categories", "Category Configuration")} icon={t("icon_category", "category")}>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-[10px] font-black text-[var(--subtext)] opacity-75 uppercase tracking-widest px-1">
+                    {t("schema_studio_cat_id", "Category ID")}
+                  </label>
+                  <input
+                    value={panelInput1}
+                    onChange={(e) => setPanelInput1(e.target.value)}
+                    placeholder={t("ph_cat_id", "e.g. Gameplay")}
+                    className="w-full glass-surface rounded-xl px-4 py-3 text-[var(--text)] text-sm font-mono font-bold border border-[color-mix(in_srgb,var(--text)_12%,transparent)] focus:outline-none focus:border-[var(--accent)]"
+                  />
+                </div>
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-[10px] font-black text-[var(--subtext)] opacity-75 uppercase tracking-widest px-1">
+                    {t("schema_studio_cat_label", "Display Label")}
+                  </label>
+                  <input
+                    value={panelInput2}
+                    onChange={(e) => setPanelInput2(e.target.value)}
+                    placeholder={t("ph_cat_label", "e.g. Gameplay Systems")}
+                    className="w-full glass-surface rounded-xl px-4 py-3 text-[var(--text)] text-sm font-bold border border-[color-mix(in_srgb,var(--text)_12%,transparent)] focus:outline-none focus:border-[var(--accent)]"
+                  />
+                </div>
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-[10px] font-black text-[var(--subtext)] opacity-75 uppercase tracking-widest px-1">
+                    {t("schema_studio_cat_icon", "Icon Glyph")}
+                  </label>
+                  <input
+                    value={panelInput3}
+                    onChange={(e) => setPanelInput3(e.target.value)}
+                    placeholder={t("ph_cat_icon", "e.g. memory / tune / category")}
+                    className="w-full glass-surface rounded-xl px-4 py-3 text-[var(--text)] text-sm font-mono font-bold border border-[color-mix(in_srgb,var(--text)_12%,transparent)] focus:outline-none focus:border-[var(--accent)]"
+                  />
+                </div>
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-[10px] font-black text-[var(--subtext)] opacity-75 uppercase tracking-widest px-1">
+                    {t("sort_order", "Sort Order")}
+                  </label>
+                  <input
+                    type="number"
+                    min={0}
+                    value={panelInput4}
+                    onChange={(e) => setPanelInput4(e.target.value)}
+                    className="w-full glass-surface rounded-xl px-4 py-3 text-[var(--text)] text-sm font-mono font-bold border border-[color-mix(in_srgb,var(--text)_12%,transparent)] focus:outline-none focus:border-[var(--accent)]"
+                  />
+                </div>
+              </div>
+              <div className="flex flex-col gap-1.5">
+                <label className="text-[10px] font-black text-[var(--subtext)] opacity-75 uppercase tracking-widest px-1">
+                  {t("schema_studio_cat_lex_key", "{Lexicon} Key")}
+                </label>
+                <input
+                  value={panelLexKey}
+                  onChange={(e) => setPanelLexKey(e.target.value)}
+                  placeholder={t("ph_cat_lex_key", "Optional class_dd_* key")}
+                  className="w-full glass-surface rounded-xl px-4 py-3 text-[var(--text)] text-xs font-mono font-bold border border-[color-mix(in_srgb,var(--text)_12%,transparent)] focus:outline-none focus:border-[var(--accent)]"
+                />
+              </div>
+              <div className="flex flex-col gap-1.5">
+                <label className="text-[10px] font-black text-[var(--subtext)] opacity-75 uppercase tracking-widest px-1">
+                  {t("subcategories_csv", "Subcategories (comma-separated)")}
+                </label>
+                <input
+                  value={panelSubcatsText}
+                  onChange={(e) => setPanelSubcatsText(e.target.value)}
+                  placeholder={t("ph_subcategories_csv", "e.g. Lighting, Audio, Presets")}
+                  className="w-full glass-surface rounded-xl px-4 py-3 text-[var(--text)] text-xs font-bold border border-[color-mix(in_srgb,var(--text)_12%,transparent)] focus:outline-none focus:border-[var(--accent)]"
+                />
               </div>
             </UniversalGroup>
           )}

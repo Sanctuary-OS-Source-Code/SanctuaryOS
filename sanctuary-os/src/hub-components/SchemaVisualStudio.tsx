@@ -855,23 +855,6 @@ export default function SchemaVisualStudio({
     });
   };
 
-  const updateModCategoriesAndTaxonomy = (nextCats: any[]) => {
-    const curTax =
-      parsedSchema.taxonomy &&
-      typeof parsedSchema.taxonomy === "object" &&
-      !Array.isArray(parsedSchema.taxonomy)
-        ? parsedSchema.taxonomy
-        : {};
-    commitSchema({
-      ...parsedSchema,
-      mod_categories: nextCats,
-      taxonomy: {
-        ...curTax,
-        categories: nextCats,
-      },
-    });
-  };
-
   const handleSeedDefaults = () => {
     const baseline = getCachedOrBundledDefaultSchema();
     if (isDefaultTemplateFile) {
@@ -887,6 +870,8 @@ export default function SchemaVisualStudio({
       );
       delete mergedDefault.name;
       delete mergedDefault.archive_containers;
+      delete mergedDefault.mod_categories;
+      delete mergedDefault.taxonomy;
       commitSchema(mergedDefault);
       return;
     }
@@ -894,6 +879,8 @@ export default function SchemaVisualStudio({
     const seeded = getSafeSchema(parsedSchema, fallbackId);
     delete seeded.name;
     delete seeded.archive_containers;
+    delete seeded.mod_categories;
+    delete seeded.taxonomy;
     const aligned = deepAddMissing(baseline, seeded, false);
     commitSchema(aligned);
   };
@@ -923,18 +910,8 @@ export default function SchemaVisualStudio({
     delete next.archive_containers;
     delete next.dlc_catalog;
     delete next.exception_rules;
-    if (Array.isArray(parsedSchema.mod_categories) && parsedSchema.mod_categories.length > 0) {
-      next.mod_categories = parsedSchema.mod_categories;
-    }
-    if (
-      parsedSchema.taxonomy &&
-      Array.isArray(parsedSchema.taxonomy.categories) &&
-      parsedSchema.taxonomy.categories.length > 0
-    ) {
-      next.taxonomy = parsedSchema.taxonomy;
-    } else if (Array.isArray(next.mod_categories)) {
-      next.taxonomy = { categories: JSON.parse(JSON.stringify(next.mod_categories)) };
-    }
+    delete next.mod_categories;
+    delete next.taxonomy;
     const aligned = deepAddMissing(baseline, next, false);
     commitSchema(aligned);
   };
@@ -968,12 +945,6 @@ export default function SchemaVisualStudio({
   const routesArr: any[] = Array.isArray(parsedSchema.install_routes)
     ? parsedSchema.install_routes
     : [];
-  const modCategoriesArr: any[] =
-    Array.isArray(parsedSchema.mod_categories) && parsedSchema.mod_categories.length > 0
-      ? parsedSchema.mod_categories
-      : Array.isArray(parsedSchema.taxonomy?.categories)
-        ? parsedSchema.taxonomy.categories
-        : [];
   const loadOrderObj = parsedSchema.load_order || {};
   const priorityTiers: any[] = Array.isArray(loadOrderObj.priority_tiers)
     ? loadOrderObj.priority_tiers
@@ -1114,7 +1085,7 @@ export default function SchemaVisualStudio({
             value={`${(extObj.supported || []).length} ${t(
               "extensions",
               "Extensions"
-            )} • ${modCategoriesArr.length} ${t("schema_studio_tile_cats", "Categories")}`}
+            )} • ${routesArr.length} ${t("schema_studio_tile_routes", "Routes")}`}
             isActive={activeTab === "routing_ext"}
             onClick={() => setActiveTab("routing_ext")}
           />
@@ -1244,6 +1215,86 @@ export default function SchemaVisualStudio({
                   value={parsedSchema.min_scout_submissions ?? 3}
                   min={1}
                   onChange={(val) => updateField("min_scout_submissions", val)}
+                />
+              </div>
+
+              <div className="glass-surface rounded-2xl p-3.5 border border-[color-mix(in_srgb,var(--text)_10%,transparent)] flex flex-col gap-2 min-w-0 @[780px]:col-span-2">
+                <label className="text-[10px] font-black uppercase tracking-widest text-[var(--subtext)]">
+                  {t("schema_studio_install_folders", "Storefront Install Folder Names")}
+                </label>
+                <StringListBuilder
+                  items={
+                    Array.isArray(parsedSchema.install_folder_names)
+                      ? parsedSchema.install_folder_names
+                      : []
+                  }
+                  onChange={(next) => updateField("install_folder_names", next)}
+                  placeholder={t("schema_studio_ph_install_folders", "e.g. Game Title Directory")}
+                  addButtonLabel={t("add", "Add")}
+                />
+              </div>
+
+              <div className="glass-surface rounded-2xl p-3.5 border border-[color-mix(in_srgb,var(--text)_10%,transparent)] flex flex-col gap-2 min-w-0">
+                <label className="text-[10px] font-black uppercase tracking-widest text-[var(--subtext)]">
+                  {t("schema_studio_gog_app_ids", "GOG Galaxy App IDs")}
+                </label>
+                <StringListBuilder
+                  items={
+                    Array.isArray(parsedSchema.gog_app_ids)
+                      ? parsedSchema.gog_app_ids
+                      : []
+                  }
+                  onChange={(next) => updateField("gog_app_ids", next)}
+                  placeholder={t("schema_studio_ph_gog_app_ids", "e.g. 1456460669")}
+                  addButtonLabel={t("add", "Add")}
+                />
+              </div>
+
+              <div className="glass-surface rounded-2xl p-3.5 border border-[color-mix(in_srgb,var(--text)_10%,transparent)] flex flex-col gap-2 min-w-0">
+                <label className="text-[10px] font-black uppercase tracking-widest text-[var(--subtext)]">
+                  {t("schema_studio_epic_app_names", "Epic / Heroic App Names")}
+                </label>
+                <StringListBuilder
+                  items={
+                    Array.isArray(parsedSchema.epic_app_names)
+                      ? parsedSchema.epic_app_names
+                      : []
+                  }
+                  onChange={(next) => updateField("epic_app_names", next)}
+                  placeholder={t("schema_studio_ph_epic_app_names", "e.g. AppName or CatalogItemId")}
+                  addButtonLabel={t("add", "Add")}
+                />
+              </div>
+
+              <div className="glass-surface rounded-2xl p-3.5 border border-[color-mix(in_srgb,var(--text)_10%,transparent)] flex flex-col gap-2 min-w-0">
+                <label className="text-[10px] font-black uppercase tracking-widest text-[var(--subtext)]">
+                  {t("schema_studio_ea_content_ids", "EA App Content IDs")}
+                </label>
+                <StringListBuilder
+                  items={
+                    Array.isArray(parsedSchema.ea_content_ids)
+                      ? parsedSchema.ea_content_ids
+                      : []
+                  }
+                  onChange={(next) => updateField("ea_content_ids", next)}
+                  placeholder={t("schema_studio_ph_ea_content_ids", "e.g. OFB-EAST:109552299")}
+                  addButtonLabel={t("add", "Add")}
+                />
+              </div>
+
+              <div className="glass-surface rounded-2xl p-3.5 border border-[color-mix(in_srgb,var(--text)_10%,transparent)] flex flex-col gap-2 min-w-0">
+                <label className="text-[10px] font-black uppercase tracking-widest text-[var(--subtext)]">
+                  {t("schema_studio_xbox_store_ids", "Xbox / MS Store IDs")}
+                </label>
+                <StringListBuilder
+                  items={
+                    Array.isArray(parsedSchema.xbox_store_ids)
+                      ? parsedSchema.xbox_store_ids
+                      : []
+                  }
+                  onChange={(next) => updateField("xbox_store_ids", next)}
+                  placeholder={t("schema_studio_ph_xbox_store_ids", "e.g. 9N...StoreId")}
+                  addButtonLabel={t("add", "Add")}
                 />
               </div>
             </div>
@@ -2387,257 +2438,6 @@ export default function SchemaVisualStudio({
                   />
                 </div>
               ))}
-            </div>
-          </UniversalGroup>
-
-          <UniversalGroup
-            title={`${t(
-              "schema_studio_sec_categories",
-              "Game {Mod} Categories & Subcategories"
-            )} (${modCategoriesArr.length})`}
-            icon={t("icon_category", "category")}
-            headerAction={
-              <div className="flex items-center gap-2">
-                <ActionButton
-                  variant="glass"
-                  icon={t("icon_auto_fix_high", "auto_fix_high")}
-                  onClick={() => {
-                    const preset =
-                      GAME_ARCHITECTURE_PRESETS[selectedPresetId] ||
-                      resolvePresetForGameId(parsedSchema.game_id || parsedSchema.id || fileStem);
-                    if (Array.isArray(preset?.mod_categories)) {
-                      updateModCategoriesAndTaxonomy(
-                        JSON.parse(JSON.stringify(preset.mod_categories))
-                      );
-                    }
-                  }}
-                  className="!px-3.5 !py-1.5 !text-[10px] !rounded-xl"
-                >
-                  {t("schema_studio_seed_defaults", "Seed Missing Defaults")}
-                </ActionButton>
-                <ActionButton
-                  variant="accent"
-                  icon={t("icon_add", "add")}
-                  onClick={() => {
-                    const nextNum = modCategoriesArr.length + 1;
-                    const nextId = `Category${nextNum}`;
-                    const nextCat = {
-                      id: nextId,
-                      label: `${t("schema_studio_default_cat_label", "Custom Category")} ${nextNum}`,
-                      icon: "category",
-                      icon_key: `ui_icon_custom_${nextNum}`,
-                      lexicon_key: `class_dd_custom_${nextNum}`,
-                      subcategories: [],
-                    };
-                    updateModCategoriesAndTaxonomy([...modCategoriesArr, nextCat]);
-                  }}
-                  className="!px-3.5 !py-1.5 !text-[10px] !rounded-xl"
-                >
-                  {t("schema_studio_cat_add", "Add {Mod} Category")}
-                </ActionButton>
-              </div>
-            }
-          >
-            <div className="flex flex-col gap-3.5 w-full">
-              <p className="text-xs font-medium text-[var(--subtext)] opacity-85 leading-relaxed">
-                {t(
-                  "schema_studio_sec_categories_desc",
-                  "Define game-specific {Mod} categories, icons, and subcategories directly in this game's schema so core OS {Lexicon} files stay 100% game-agnostic."
-                )}
-              </p>
-
-              <div className="grid grid-cols-1 xl:grid-cols-2 gap-4 w-full">
-                {modCategoriesArr.map((cat, idx) => {
-                  const subList: string[] = Array.isArray(cat.subcategories)
-                    ? cat.subcategories
-                        .map((s: any) =>
-                          typeof s === "string" ? s : String(s?.label || s?.id || "")
-                        )
-                        .filter(Boolean)
-                    : [];
-                  return (
-                    <div
-                      key={`${cat.id || idx}-${idx}`}
-                      className="glass-surface rounded-2xl p-4 border border-[color-mix(in_srgb,var(--text)_10%,transparent)] flex flex-col gap-3 min-w-0"
-                    >
-                      <div className="flex items-center justify-between gap-2">
-                        <div className="flex items-center gap-2.5 min-w-0">
-                          <div className="w-8 h-8 rounded-xl glass-panel border border-[var(--glass-card-icon-border,rgba(255,255,255,0.22))] bg-[var(--glass-card-icon-bg,rgba(255,255,255,0.08))] flex items-center justify-center text-[var(--accent)] shrink-0">
-                            <span className="material-symbols-outlined !text-[16px]">
-                              {cat.icon
-                                ? t(`icon_${cat.icon}`, cat.icon)
-                                : t("icon_category", "category")}
-                            </span>
-                          </div>
-                          <div className="flex flex-col min-w-0">
-                            <span className="text-xs font-black text-[var(--text)] truncate">
-                              {cat.label || cat.id || t("category", "Category")}
-                            </span>
-                            <span className="text-[10px] font-mono text-[var(--subtext)] opacity-75 truncate">
-                              {`${cat.id || "id"} • ${
-                                cat.lexicon_key ||
-                                `class_dd_${String(cat.id || "").toLowerCase()}`
-                              }`}
-                            </span>
-                          </div>
-                        </div>
-                        <button
-                          type="button"
-                          onClick={() =>
-                            updateModCategoriesAndTaxonomy(
-                              modCategoriesArr.filter((_, i) => i !== idx)
-                            )
-                          }
-                          className="w-7 h-7 rounded-lg flex items-center justify-center text-[var(--subtext)] hover:text-[var(--danger)] transition-colors cursor-pointer shrink-0"
-                        >
-                          <span className="material-symbols-outlined !text-[16px]">
-                            {t("icon_delete", "delete")}
-                          </span>
-                          <HoverTooltip title={t("delete", "Delete")} />
-                        </button>
-                      </div>
-
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-                        <div className="flex flex-col gap-1 min-w-0">
-                          <label className="text-[9px] font-black uppercase tracking-widest text-[var(--subtext)]">
-                            {t("schema_studio_cat_id", "Category ID")}
-                          </label>
-                          <input
-                            type="text"
-                            value={cat.id ?? ""}
-                            onChange={(e) => {
-                              const next = [...modCategoriesArr];
-                              const nextId = e.target.value;
-                              const slug = nextId.toLowerCase().replace(/[^a-z0-9]/g, "_");
-                              next[idx] = {
-                                ...cat,
-                                id: nextId,
-                                lexicon_key: cat.lexicon_key || `class_dd_${slug}`,
-                                icon_key: cat.icon_key || `ui_icon_${slug}`,
-                              };
-                              updateModCategoriesAndTaxonomy(next);
-                            }}
-                            placeholder="e.g. Core / Gameplay / Visuals"
-                            className="h-9 min-w-0 glass-panel rounded-xl px-3 text-xs font-mono font-bold text-[var(--text)] border border-[color-mix(in_srgb,var(--text)_12%,transparent)]"
-                          />
-                        </div>
-
-                        <div className="flex flex-col gap-1 min-w-0">
-                          <label className="text-[9px] font-black uppercase tracking-widest text-[var(--subtext)]">
-                            {t("schema_studio_cat_label", "Display Label")}
-                          </label>
-                          <input
-                            type="text"
-                            value={cat.label ?? ""}
-                            onChange={(e) => {
-                              const next = [...modCategoriesArr];
-                              next[idx] = { ...cat, label: e.target.value };
-                              updateModCategoriesAndTaxonomy(next);
-                            }}
-                            placeholder="e.g. Gameplay Systems"
-                            className="h-9 min-w-0 glass-panel rounded-xl px-3 text-xs font-bold text-[var(--text)] border border-[color-mix(in_srgb,var(--text)_12%,transparent)]"
-                          />
-                        </div>
-
-                        <div className="flex flex-col gap-1 min-w-0">
-                          <label className="text-[9px] font-black uppercase tracking-widest text-[var(--subtext)]">
-                            {t("schema_studio_cat_icon", "Icon Glyph")}
-                          </label>
-                          <input
-                            type="text"
-                            value={cat.icon ?? ""}
-                            onChange={(e) => {
-                              const next = [...modCategoriesArr];
-                              next[idx] = { ...cat, icon: e.target.value };
-                              updateModCategoriesAndTaxonomy(next);
-                            }}
-                            placeholder="e.g. memory / tune / shield"
-                            className="h-9 min-w-0 glass-panel rounded-xl px-3 text-xs font-mono font-bold text-[var(--text)] border border-[color-mix(in_srgb,var(--text)_12%,transparent)]"
-                          />
-                        </div>
-
-                        <div className="flex flex-col gap-1 min-w-0">
-                          <label className="text-[9px] font-black uppercase tracking-widest text-[var(--subtext)]">
-                            {t("schema_studio_cat_lex_key", "{Lexicon} Key")}
-                          </label>
-                          <input
-                            type="text"
-                            value={cat.lexicon_key ?? ""}
-                            onChange={(e) => {
-                              const next = [...modCategoriesArr];
-                              next[idx] = { ...cat, lexicon_key: e.target.value };
-                              updateModCategoriesAndTaxonomy(next);
-                            }}
-                            placeholder="class_dd_..."
-                            className="h-9 min-w-0 glass-panel rounded-xl px-3 text-xs font-mono font-bold text-[var(--accent)] border border-[color-mix(in_srgb,var(--text)_12%,transparent)]"
-                          />
-                        </div>
-
-                        <div className="flex flex-col gap-1 min-w-0 sm:col-span-2">
-                          <label className="text-[9px] font-black uppercase tracking-widest text-[var(--subtext)]">
-                            {t("schema_studio_cat_icon_key", "Theme Icon Override Key (Optional)")}
-                          </label>
-                          <input
-                            type="text"
-                            value={cat.icon_key ?? ""}
-                            onChange={(e) => {
-                              const next = [...modCategoriesArr];
-                              next[idx] = { ...cat, icon_key: e.target.value };
-                              updateModCategoriesAndTaxonomy(next);
-                            }}
-                            placeholder="ui_icon_..."
-                            className="h-9 min-w-0 glass-panel rounded-xl px-3 text-xs font-mono font-bold text-[var(--subtext)] border border-[color-mix(in_srgb,var(--text)_12%,transparent)]"
-                          />
-                        </div>
-                      </div>
-
-                      <div className="flex flex-col gap-1.5 min-w-0 pt-1">
-                        <label className="text-[9px] font-black uppercase tracking-widest text-[var(--subtext)]">
-                          {t("schema_studio_cat_subcats", "Subcategories")}
-                        </label>
-                        <StringListBuilder
-                          mono={false}
-                          items={subList}
-                          onChange={(nextSubs) => {
-                            const next = [...modCategoriesArr];
-                            const existingSubs: any[] = Array.isArray(cat.subcategories)
-                              ? cat.subcategories
-                              : [];
-                            const mappedSubs = nextSubs.map((labelOrId) => {
-                              const found = existingSubs.find(
-                                (s: any) =>
-                                  String(s?.label || "").toLowerCase() ===
-                                    labelOrId.toLowerCase() ||
-                                  String(s?.id || "").toLowerCase() === labelOrId.toLowerCase()
-                              );
-                              if (found && typeof found === "object") return found;
-                              const cleanId = labelOrId.replace(/\s+/g, "");
-                              const slug = labelOrId
-                                .toLowerCase()
-                                .replace(/[^a-z0-9]+/g, "_")
-                                .replace(/^_+|_+$/g, "");
-                              return {
-                                id: cleanId || labelOrId,
-                                label: labelOrId,
-                                icon: cat.icon || "category",
-                                icon_key: `ui_icon_${slug}`,
-                                lexicon_key: `vault_sub_${slug}`,
-                              };
-                            });
-                            next[idx] = { ...cat, subcategories: mappedSubs };
-                            updateModCategoriesAndTaxonomy(next);
-                          }}
-                          placeholder={t(
-                            "schema_studio_ph_subcat",
-                            "Add subcategory (e.g. Lighting, Audio, Presets)..."
-                          )}
-                          addButtonLabel={t("add", "Add")}
-                        />
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
             </div>
           </UniversalGroup>
         </div>

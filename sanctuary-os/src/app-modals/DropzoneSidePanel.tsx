@@ -61,9 +61,9 @@ export function DropzoneSidePanel({
             <span className="text-[var(--text)]">
               {secondaryExtLabel}
             </span>
-            {t("awaiting_desc3", ", or ")}
+            {t("awaiting_desc3", ", ")}
             <span className="text-[var(--text)]">{t("auto_zip", ".zip")}</span>
-            {t("awaiting_desc4", "archives directly into this zone to ingest them into the secure {Vault}.")}
+            {t("awaiting_desc_json", ", {Blueprints}, {Chameleons}, {Lexicons}, or templates directly into this zone to install them.")}
           </>
         ) : (
           <>
@@ -110,8 +110,8 @@ export function DropzoneSidePanel({
           description={
             dropzoneState === "awaiting"
               ? t(
-                  "modal_drop_files",
-                  "Drag and drop mod packages, scripts, or compressed archives directly into this window."
+                  "modal_drop_files_universal",
+                  "Drag and drop {Mod} archives, {Blueprints}, {Chameleons}, {Lexicons}, or templates directly into this window."
                 )
               : `${safeFiles.length}${t("secured_desc_suffix", " files ready for security scan and Vault injection.")}`
           }

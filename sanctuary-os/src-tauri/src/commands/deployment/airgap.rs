@@ -466,24 +466,38 @@ pub(super) fn resolve_save_airgap_targets(game_schema: &Option<crate::schema::Ga
     if let Some(s) = game_schema {
         if let Some(tc) = &s.time_capsule {
             if let Some(targets) = &tc.save_airgap_targets {
-                let non_empty: Vec<String> = targets
-                    .iter()
-                    .map(|t| t.trim().to_string())
-                    .filter(|t| !t.is_empty())
-                    .collect();
-                if !non_empty.is_empty() {
-                    return non_empty;
+                if !targets.is_empty() {
+                    let normalized: Vec<String> = targets
+                        .iter()
+                        .map(|t| {
+                            let tr = t.trim();
+                            if tr.is_empty() || tr == "." {
+                                ".".to_string()
+                            } else {
+                                tr.to_string()
+                            }
+                        })
+                        .collect();
+                    if !normalized.is_empty() {
+                        return normalized;
+                    }
                 }
             }
             let save_targets: Vec<String> = tc
                 .world_state_targets
                 .iter()
                 .filter(|t| {
-                    !t.path.trim().is_empty()
-                        && (t.path.to_lowercase().contains("save")
-                            || t.name.to_lowercase().contains("save"))
+                    t.path.to_lowercase().contains("save")
+                        || t.name.to_lowercase().contains("save")
                 })
-                .map(|t| t.path.trim().to_string())
+                .map(|t| {
+                    let tr = t.path.trim();
+                    if tr.is_empty() || tr == "." {
+                        ".".to_string()
+                    } else {
+                        tr.to_string()
+                    }
+                })
                 .collect();
             if !save_targets.is_empty() {
                 return save_targets;

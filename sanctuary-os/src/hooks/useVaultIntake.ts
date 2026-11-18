@@ -3,26 +3,49 @@ import { useShallow } from "zustand/react/shallow";
 import { useStore } from "../store";
 import { useModalStore } from "../store/modalStore";
 import { useLexicon } from "../LexiconContext";
+import { useTheme } from "../ThemeContext";
+import { installDroppedJsonAssets } from "../utils/jsonAssetDropInstaller";
 import { invoke } from "@tauri-apps/api/core";
 
 export function useVaultIntake(runRadarSweep: (silent?: boolean, forceDetect?: boolean) => void) {
   const [isDropzoneOpen, setIsDropzoneOpen] = useState(false);
   const [dropzoneState, setDropzoneState] = useState<"awaiting" | "received" | "ingesting">("awaiting");
-  const { setStatus, activeGameSchema } = useStore(
+  const { setStatus, pushStatus, activeGameSchema } = useStore(
     useShallow((s) => ({
       setStatus: s.setStatus,
+      pushStatus: s.pushStatus,
       activeGameSchema: s.activeGameSchema,
     }))
   );
   const setIngestProgress = useModalStore((s) => s.setIngestProgress);
-  const { t } = useLexicon();
+  const { t, importLexicon } = useLexicon();
+  const { importTheme } = useTheme();
   const [isDragging] = useState(false);
   const [droppedFiles, setDroppedFiles] = useState<string[]>([]);
   const [dnaMatchQueue, setDnaMatchQueue] = useState<any[]>([]);
   const [edgeOverrideQueue, setEdgeOverrideQueue] = useState<any[]>([]);
   const ignoredHashesRef = useRef<Set<string>>(new Set());
 
-  const handleDroppedFiles = async (paths: string[]): Promise<boolean> => {
+  const handleDroppedFiles = async (rawPaths: string[]): Promise<boolean> => {
+    const jsonResult = await installDroppedJsonAssets(rawPaths, {
+      importTheme,
+      importLexicon,
+      t,
+    });
+    const paths = jsonResult.remainingPaths;
+
+    if (paths.length === 0) {
+      if (jsonResult.handledCount > 0) {
+        const msg = `${t("status_os_assets_installed", "Installed:")} ${jsonResult.summaryLabels.join(", ")}`;
+        setStatus(msg);
+        pushStatus(msg, "success");
+      }
+      setIngestProgress({ active: false, current: 0, total: 0 });
+      setDropzoneState("awaiting");
+      setIsDropzoneOpen(false);
+      return false;
+    }
+
     const schemaFeatures = activeGameSchema?.features || { has_cc: true };
     if (!schemaFeatures.has_cc) {
       setStatus(t("status_not_supported", "Active game does not support custom content intake."));
@@ -102,8 +125,10 @@ export function useVaultIntake(runRadarSweep: (silent?: boolean, forceDetect?: b
         setStatus(`${t("status_link_failed", "Link Failed:")}${lastError}`);
       } else if (dnaMatchCount > 0) {
         setStatus(""); 
+      } else if (jsonResult.handledCount > 0) {
+        setStatus(`${t("status_os_assets_installed", "Installed:")} ${jsonResult.summaryLabels.join(", ")}`);
       } else {
-        setStatus("No files were ingested."); 
+        setStatus(t("status_no_files_ingested", "No files were ingested.")); 
       }
 
       if (needsSweep) {

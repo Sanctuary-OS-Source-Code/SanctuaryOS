@@ -704,8 +704,11 @@ pub async fn backup_universe(
             if let Some(time_capsule) = &schema.time_capsule {
                 for target in &time_capsule.world_state_targets {
                     let resolved = crate::game_logic::expand_env_vars(&target.path);
-                    if !resolved.trim().is_empty() {
-                        targets.push((target.name.clone(), game_docs_path.join(&resolved)));
+                    let trimmed = resolved.trim();
+                    if trimmed.is_empty() || trimmed == "." {
+                        targets.push((target.name.clone(), game_docs_path.clone()));
+                    } else {
+                        targets.push((target.name.clone(), game_docs_path.join(trimmed)));
                     }
                 }
             }

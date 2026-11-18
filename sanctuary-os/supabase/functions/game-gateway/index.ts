@@ -262,6 +262,102 @@ serve(async (req) => {
       )
     }
 
+    // Unauthenticated zero-PII public Spoke actions
+    if (action === 'increment_mason_post_view') {
+      const postId = String(payload?.post_id || payload?.p_post_id || '').trim()
+      if (!game_id || !UUID_REGEX.test(postId)) {
+        throw new Error('Invalid game_id or post_id')
+      }
+      const { game, gameServiceKey } = await resolveGameWithServiceKey(supabaseAdmin, game_id)
+      if (!gameServiceKey) {
+        throw new Error('Game DB gateway credential not configured')
+      }
+      const gameDb = createSpokeClient(game.supabase_url, game.supabase_anon_key || '', gameServiceKey)
+      const { error: rpcErr } = await gameDb.rpc('increment_mason_post_view', { p_post_id: postId })
+      if (rpcErr) {
+        const { data: postRow } = await gameDb
+          .from('mason_posts')
+          .select('view_count')
+          .eq('id', postId)
+          .maybeSingle()
+        if (postRow && typeof postRow.view_count === 'number') {
+          await gameDb
+            .from('mason_posts')
+            .update({ view_count: postRow.view_count + 1 })
+            .eq('id', postId)
+        }
+      }
+      return new Response(JSON.stringify({ success: true }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        status: 200,
+      })
+    }
+
+    if (action === 'submit_anonymous_malware_manifest') {
+      if (!game_id) {
+        throw new Error('Missing game_id')
+      }
+      const detectedHash = String(payload?.detected_hash || '').trim().toLowerCase()
+      if (!/^[0-9a-f]{64}$/.test(detectedHash)) {
+        throw new Error('Invalid SHA-256 detected_hash')
+      }
+      const rawName = String(payload?.artifact_name || 'Unknown').trim()
+      const leafName =
+        rawName
+          .split(/[\\/]/)
+          .pop()
+          ?.replace(/[^\x20-\x7E]/g, '')
+          .slice(0, 200)
+          .trim() || 'Unknown'
+      const cleanSig = String(payload?.signature || 'Known Malware Hash Match').trim().slice(0, 200)
+      const { game, gameServiceKey } = await resolveGameWithServiceKey(supabaseAdmin, game_id)
+      if (!gameServiceKey) {
+        throw new Error('Game DB gateway credential not configured')
+      }
+      const gameDb = createSpokeClient(game.supabase_url, game.supabase_anon_key || '', gameServiceKey)
+      const rawStatus = String(payload?.status || 'pending').trim().toLowerCase()
+      const normalizedStatus =
+        rawStatus === 'resolved' || rawStatus === 'dismissed'
+          ? rawStatus
+          : rawStatus === 'confirmed'
+            ? 'confirmed'
+            : 'pending'
+      const baseRow: Record<string, any> = {
+        artifact_name: leafName,
+        detected_hash: detectedHash,
+        signature: cleanSig,
+        original_hash_at_import:
+          typeof payload?.original_hash_at_import === 'string' && /^[0-9a-f]{64}$/i.test(payload.original_hash_at_import)
+            ? payload.original_hash_at_import.toLowerCase()
+            : detectedHash,
+        original_exists: Boolean(payload?.original_exists),
+        original_shredded: Boolean(payload?.original_shredded),
+        quarantined_file_shredded: Boolean(payload?.quarantined_file_shredded),
+        detected_at: typeof payload?.detected_at === 'string' ? payload.detected_at : new Date().toISOString(),
+        status: normalizedStatus,
+      }
+      const extendedRow: Record<string, any> = {
+        ...baseRow,
+        source_moved: Boolean(payload?.source_moved),
+        ingest_mode: typeof payload?.ingest_mode === 'string' ? payload.ingest_mode.slice(0, 64) : null,
+        file_size_bytes: typeof payload?.file_size_bytes === 'number' ? payload.file_size_bytes : null,
+        file_extension: typeof payload?.file_extension === 'string' ? payload.file_extension.slice(0, 24) : null,
+        matched_entry: typeof payload?.matched_entry === 'string' ? payload.matched_entry.slice(0, 200) : null,
+        detection_type: typeof payload?.detection_type === 'string' ? payload.detection_type.slice(0, 64) : null,
+        detection_source: typeof payload?.detection_source === 'string' ? payload.detection_source.slice(0, 64) : null,
+        os_platform: typeof payload?.os_platform === 'string' ? payload.os_platform.slice(0, 32) : null,
+      }
+      let ins = await gameDb.from('malware_reports').insert(extendedRow).select().maybeSingle()
+      if (ins.error) {
+        ins = await gameDb.from('malware_reports').insert(baseRow).select().maybeSingle()
+      }
+      if (ins.error) throw ins.error
+      return new Response(JSON.stringify({ success: true, data: ins.data }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        status: 200,
+      })
+    }
+
     // All remaining actions require an authenticated OS user
     if (authError || !user) {
       throw new Error('Unauthorized on OS DB: ' + (authError?.message || 'No user'))
@@ -1684,7 +1780,7 @@ serve(async (req) => {
                 }
               }
             } else if (cleanTable === 'sanctuary_tickets') {
-              row.author_id = v_user_id
+              row.author_id = (row.author_id === null || row.metadata?.is_anonymous === true) ? null : v_user_id
               delete row.assigned_to
               if (row.id) {
                 const { data: ex } = await gameDb
@@ -1692,7 +1788,7 @@ serve(async (req) => {
                   .select('author_id')
                   .eq('id', row.id)
                   .maybeSingle()
-                if (ex && ex.author_id !== v_user_id) {
+                if (ex && ex.author_id && ex.author_id !== v_user_id) {
                   throw new Error('Forbidden: Cannot modify another citizen ticket')
                 }
               }
@@ -1701,7 +1797,10 @@ serve(async (req) => {
               cleanTable === 'nexus_reports' ||
               cleanTable === 'blueprint_reports'
             ) {
-              row.reporter_id = v_user_id
+              row.reporter_id = null
+              if ('reporter_name' in row || cleanTable !== 'content_flags') {
+                row.reporter_name = 'Anonymous'
+              }
               delete row.resolved_by
               delete row.resolution_note
               if (row.id) {
@@ -1715,7 +1814,7 @@ serve(async (req) => {
                 }
               }
             } else if (cleanTable === 'scout_suggestions') {
-              row.submitter_id = v_user_id
+              row.submitter_id = null
               if (row.id) {
                 const { data: ex } = await gameDb
                   .from('scout_suggestions')
@@ -2439,7 +2538,7 @@ serve(async (req) => {
             action: `Flagged Artifact for Compliance (Tier ${requestedTier})`,
             target_table: 'mods',
             target_name: updatedMod?.name || rawModName || modId,
-            actor_id: v_user_id,
+            actor_id: isCallerStaff ? v_user_id : null,
             reason: taggedReason,
           })
         } catch (auditErr) {
@@ -2637,7 +2736,9 @@ serve(async (req) => {
                   if (meta.mason_id && ownedMasons.has(String(meta.mason_id))) return true
                   if (meta.target_mod_id && ownedModIds.has(String(meta.target_mod_id))) return true
                   return false
-                })
+                }).map((t: any) => (
+                  t.author_id === v_user_id ? t : { ...t, author_id: null }
+                ))
                 const finalData =
                   selectOpts?.head
                     ? null
@@ -2979,18 +3080,21 @@ serve(async (req) => {
                   row.author_id = v_user_id
                   delete row.is_community_default
                 } else if (cleanTable === 'sanctuary_tickets') {
-                  row.author_id = v_user_id
+                  row.author_id = (row.author_id === null || row.metadata?.is_anonymous === true) ? null : v_user_id
                   delete row.assigned_to
                 } else if (
                   cleanTable === 'content_flags' ||
                   cleanTable === 'nexus_reports' ||
                   cleanTable === 'blueprint_reports'
                 ) {
-                  row.reporter_id = v_user_id
+                  row.reporter_id = null
+                  if ('reporter_name' in row || cleanTable !== 'content_flags') {
+                    row.reporter_name = 'Anonymous'
+                  }
                   delete row.resolved_by
                   delete row.resolution_note
                 } else if (cleanTable === 'scout_suggestions') {
-                  row.submitter_id = v_user_id
+                  row.submitter_id = null
                 } else if (cleanTable === 'notifications') {
                   if (row.user_id && String(row.user_id) !== v_user_id) {
                     throw new Error('Forbidden: Cannot create notification for another citizen')

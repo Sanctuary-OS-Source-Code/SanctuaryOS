@@ -1,9 +1,9 @@
 import { useState, useRef, useMemo, useEffect, useLayoutEffect } from "react";
 import { EditorContent, Editor } from "@tiptap/react";
-import MonacoEditor from "@monaco-editor/react";
 import { useLexicon } from "../../LexiconContext";
 import { useTheme } from "../../ThemeContext";
 import {
+  SanctuaryMonacoEditor,
   defineSanctuaryMonacoThemes,
   useSanctuaryMonacoTheme,
   isThemeLight,
@@ -20,7 +20,7 @@ import {
   parseMarkdownIntoReleaseSections,
   ParsedReleaseSection,
   ParsedReleaseCard,
-} from "../ReleaseNotesShowcase";
+} from "../release-notes/releaseMarkdownParser";
 import { DispatchPollBuilder, DispatchPollData } from "./DispatchPollAndMeta";
 
 export function AutoResizeTextarea({
@@ -2039,7 +2039,7 @@ export function UnifiedPostBodyEditor({
           </div>
           <div className="monaco-wrapper flex-1 min-h-[480px] h-[max(480px,calc(100dvh-290px))] relative w-full">
             <div className="absolute inset-0">
-              <MonacoEditor
+              <SanctuaryMonacoEditor
                 height="100%"
                 width="100%"
                 language="markdown"

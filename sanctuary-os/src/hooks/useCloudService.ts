@@ -4,7 +4,6 @@ import { useShallow } from "zustand/react/shallow";
 import { useStore } from "../store";
 import { useModalStore } from "../store/modalStore";
 import { useLexicon } from "../LexiconContext";
-import { logUserAction } from "../lib/audit";
 import { packageBlueprintLoadOrder, unpackBlueprintLoadOrder } from "./usePlaySetLogic";
 import { buildExportableModMetadata, mergeImportedModWithClientPriority } from "../utils/blueprintOverrideUtils";
 
@@ -257,22 +256,6 @@ export function useCloudService(activeMasonProfileId: string | null, tier2Hashes
 
         return updatedSets;
       });
-
-      await logUserAction(
-        `Uploaded Blueprint: ${targetSet.name}`,
-        'blueprints',
-        code,
-        `Visibility: ${isPublic ? 'Public' : 'Private'}, Nexus: ${effectiveMarketListed ? 'Listed' : 'Unlisted'}`,
-        undefined,
-        {
-          name: { to: targetSet.name },
-          code: { to: code },
-          is_public: { to: isPublic },
-          is_locked: { to: false },
-          is_market_listed: { to: effectiveMarketListed },
-          game_version: { to: selectedVersion },
-        }
-      );
 
       setStatus(`${t("status_blueprint_uplinked", "{Blueprint} Synced! Code:")} ${code}`);
       setSyncCode(code);

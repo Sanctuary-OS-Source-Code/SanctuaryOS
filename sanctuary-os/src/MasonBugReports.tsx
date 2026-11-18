@@ -90,6 +90,7 @@ export default function MasonBugReports({ masonId, onEditMetadata }: { masonId?:
                 }
                 return {
                     ...t,
+                    author_id: undefined,
                     target_mod_name: t.metadata?.target_mod_id ? (modNamesMap[t.metadata.target_mod_id] || localName) : undefined
                 };
             });
@@ -200,6 +201,7 @@ export default function MasonBugReports({ masonId, onEditMetadata }: { masonId?:
                     }
                     return {
                         ...t,
+                        author_id: undefined,
                         target_mod_name: t.metadata?.target_mod_id ? (modNamesMap[t.metadata.target_mod_id] || localName) : undefined
                     };
                 });

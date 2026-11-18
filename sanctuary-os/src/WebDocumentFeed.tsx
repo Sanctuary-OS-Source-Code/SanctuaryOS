@@ -19,7 +19,7 @@ import { extractDispatchMetadata } from "./components/universal/DispatchPollAndM
 import {
   StructuredReleaseNotesView,
   renderCleanInlineText,
-} from "./components/ReleaseNotesShowcase";
+} from "./components/release-notes/ReleaseMarkdownViewer";
 import {
   InteractiveForkingGuideView,
   BalancedCardColumns,

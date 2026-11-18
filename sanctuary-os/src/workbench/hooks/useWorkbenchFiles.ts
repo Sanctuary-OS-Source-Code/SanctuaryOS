@@ -128,6 +128,12 @@ export function useWorkbenchFiles({ mainTab, mainSearchQuery }: UseWorkbenchFile
    }, [pushStatus, t]);
 
    useEffect(() => {
+      const onTemplatesUpdated = () => setRefreshTrigger((prev) => prev + 1);
+      window.addEventListener("sanctuary-workbench-templates-updated", onTemplatesUpdated);
+      return () => window.removeEventListener("sanctuary-workbench-templates-updated", onTemplatesUpdated);
+   }, []);
+
+   useEffect(() => {
       if (selectedFile && files.length > 0) {
          const loadMatchingTemplates = async () => {
             const matches: any[] = [];

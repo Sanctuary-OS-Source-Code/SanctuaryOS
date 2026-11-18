@@ -6,6 +6,93 @@ use super::airgap::*;
 use super::lab_session::*;
 use super::playset_deploy::*;
 
+fn apply_wine_dll_overrides(
+    cmd: &mut std::process::Command,
+    schema: &Option<crate::schema::GameSchema>,
+    mods_dir: &Path,
+    live_root: &Path,
+) {
+    let mut dll_stems: Vec<String> = Vec::new();
+    if let Some(s) = schema.as_ref() {
+        if let Some(overrides) = &s.wine_dll_overrides {
+            for raw in overrides {
+                let stem = raw
+                    .trim()
+                    .trim_end_matches(".dll")
+                    .trim_end_matches(".DLL")
+                    .trim()
+                    .to_lowercase();
+                if !stem.is_empty() && !dll_stems.contains(&stem) {
+                    dll_stems.push(stem);
+                }
+            }
+        }
+        if let Some(routes) = &s.install_routes {
+            for route in routes {
+                if route.apply_wine_dll_override == Some(true) {
+                    let check_dir = if route.target_subdir.trim().is_empty() {
+                        live_root.to_path_buf()
+                    } else {
+                        crate::utils::resolve_case_insensitive_path(live_root, &route.target_subdir)
+                    };
+                    if let Some(names) = &route.file_names {
+                        for n in names {
+                            let stem = Path::new(n)
+                                .file_stem()
+                                .and_then(|st| st.to_str())
+                                .unwrap_or_default()
+                                .to_lowercase();
+                            if !stem.is_empty()
+                                && (check_dir.join(n).exists() || mods_dir.join(n).exists())
+                                && !dll_stems.contains(&stem)
+                            {
+                                dll_stems.push(stem);
+                            }
+                        }
+                    }
+                    if check_dir.is_dir() {
+                        if let Ok(entries) = std::fs::read_dir(&check_dir) {
+                            for entry in entries.flatten() {
+                                let p = entry.path();
+                                if p.extension()
+                                    .and_then(|e| e.to_str())
+                                    .map_or(false, |e| e.eq_ignore_ascii_case("dll"))
+                                {
+                                    if let Some(st) = p.file_stem().and_then(|s| s.to_str()) {
+                                        let sl = st.to_lowercase();
+                                        if !sl.is_empty() && !dll_stems.contains(&sl) {
+                                            dll_stems.push(sl);
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+    if dll_stems.is_empty() {
+        return;
+    }
+    let mut parts: Vec<String> = std::env::var("WINEDLLOVERRIDES")
+        .unwrap_or_default()
+        .split(';')
+        .map(str::trim)
+        .filter(|s| !s.is_empty())
+        .map(String::from)
+        .collect();
+    for stem in dll_stems {
+        let token = format!("{}=n,b", stem);
+        if !parts.iter().any(|p| p.to_lowercase().starts_with(&format!("{}=", stem))) {
+            parts.push(token);
+        }
+    }
+    if !parts.is_empty() {
+        cmd.env("WINEDLLOVERRIDES", parts.join(";"));
+    }
+}
+
 pub(super) static SANCTUARY_RUNTIME_INSTANCE_ID: std::sync::OnceLock<String> = std::sync::OnceLock::new();
 
 pub(super) fn get_runtime_instance_id() -> &'static str {
@@ -563,6 +650,7 @@ pub fn launch_game(
             } else {
                 let mut wine_cmd = std::process::Command::new("wine");
                 sanitize_game_spawn_env(&mut wine_cmd);
+                apply_wine_dll_overrides(&mut wine_cmd, &game_schema, Path::new(&mods_path), &live_root);
                 wine_cmd.arg(&exe_path).args(&launch_args).current_dir(&parent_dir);
                 if let Some(pfx_user) = resolved_steam
                     .and_then(|r| r.compatdata_pfx_user_dir)
@@ -677,6 +765,8 @@ pub fn launch_external_tool(
     if cfg!(target_os = "linux") && ext_lower == "exe" {
         let mut wine_cmd = std::process::Command::new("wine");
         sanitize_game_spawn_env(&mut wine_cmd);
+        let live_hint = PathBuf::from(crate::commands::state_ops::get_saved_coordinates().live_path);
+        apply_wine_dll_overrides(&mut wine_cmd, &game_schema, &parent_dir, &live_hint);
         wine_cmd.arg(&exe_path).current_dir(&parent_dir);
         if let Some(pfx_user) = crate::game_logic::resolve_steam_app_and_proton_prefix(
             &game_schema,

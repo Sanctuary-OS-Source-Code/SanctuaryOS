@@ -1,5 +1,6 @@
 import React from 'react';
 import { ActionPill, resolveModHighlanderSlot } from "../../shared";
+import { useStore } from "../../store";
 
 function FilterSection({ title, options, value, onChange, t }: any) {
   if (!options || options.length === 0) return null;
@@ -59,8 +60,9 @@ export const VaultFilters = React.memo(function VaultFilters({
   onOpenVersionPool,
   setSelectedMods
 }: any) {
+  const modCategories = useStore((s) => s.modCategories);
   const FilterContent = React.useMemo(() => {
-    const activeSchemaCategory = activeGameSchema?.mod_categories?.find((c: any) => c.id === activeCategory);
+    const activeSchemaCategory = modCategories.find((c: any) => c.id === activeCategory);
     const subcats = activeSchemaCategory?.subcategories || [];
     const slotMap = new Map<string, string>();
     const list = Array.isArray(displayModList) ? displayModList : [];
@@ -92,9 +94,9 @@ export const VaultFilters = React.memo(function VaultFilters({
           onChange={(val: string) => { setActiveCategory(val); setActiveSubType("ALL"); }}
           options={[
             { id: "ALL", label: t("filter_all", "All") },
-            ...(activeGameSchema?.mod_categories?.map((cat: any) => ({
+            ...(modCategories.map((cat: any) => ({
               id: cat.id,
-              label: t(cat.lexicon_key, cat.id)
+              label: t(cat.lexicon_key || "", cat.label || cat.id)
             })) || []),
             { id: "LOCAL_FOLDERS", label: t("filter_local", "Local Folders") }
           ]}
@@ -148,7 +150,7 @@ export const VaultFilters = React.memo(function VaultFilters({
         )}
       </div>
     );
-  }, [activeCategory, activeSubType, activeGameSchema, filterStatus, exclusiveSlotFilter, displayModList, setActiveCategory, setActiveSubType, setFilterStatus, setExclusiveSlotFilter, t]);
+  }, [activeCategory, activeSubType, activeGameSchema, modCategories, filterStatus, exclusiveSlotFilter, displayModList, setActiveCategory, setActiveSubType, setFilterStatus, setExclusiveSlotFilter, t]);
 
   const actions = React.useMemo(() => {
     const list: any[] = [

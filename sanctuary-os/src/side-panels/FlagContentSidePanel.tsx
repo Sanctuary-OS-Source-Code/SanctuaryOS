@@ -43,7 +43,7 @@ export default function FlagContentSidePanel({
     const { error } = await supabase.from("content_flags").insert({
       content_type: targetType,
       content_id: targetId,
-      reporter_id: userId,
+      reporter_id: null,
       reason: reason.trim(),
       status: "pending",
     });

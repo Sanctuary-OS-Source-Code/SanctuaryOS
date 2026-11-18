@@ -265,7 +265,7 @@ export default function LexiconVisualStudio({
   const { t, registry, lexiconMeta } = useLexicon();
   const osRole = useStore((state) => state.osRole);
   const pushStatus = useStore((state) => state.pushStatus);
-  const activeGameSchema = useStore((state) => state.activeGameSchema);
+  const modCategories = useStore((state) => state.modCategories);
   const canEditKeeperKeys = Boolean(isKeepers || osRole === "keeper");
 
   const [activeTab, setActiveTab] = useState<StudioMainTab>("glossary");
@@ -372,9 +372,7 @@ export default function LexiconVisualStudio({
     const baseRef =
       referenceData && Object.keys(referenceData).length > 50 ? referenceData : enDefault;
     const merged: Record<string, any> = { ...baseRef };
-    const cats = Array.isArray(activeGameSchema?.mod_categories)
-      ? activeGameSchema.mod_categories
-      : [];
+    const cats = Array.isArray(modCategories) ? modCategories : [];
     for (const c of cats) {
       if (!c || typeof c !== "object") continue;
       const cid = String(c.id || "").trim();
@@ -404,7 +402,7 @@ export default function LexiconVisualStudio({
       }
     }
     return merged;
-  }, [referenceData, activeGameSchema]);
+  }, [referenceData, modCategories]);
 
   const emptyOrDeprecatedBloatCount = useMemo(() => {
     if (isBuiltinFullLexicon) return 0;

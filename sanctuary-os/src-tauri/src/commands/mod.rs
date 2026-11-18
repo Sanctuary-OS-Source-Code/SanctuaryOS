@@ -3,6 +3,7 @@ pub mod library;
 pub mod deployment;
 pub mod backups;
 pub mod radar;
+pub mod radar_containers;
 pub mod shelter;
 pub mod config;
 pub mod system;

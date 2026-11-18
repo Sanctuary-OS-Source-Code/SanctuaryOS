@@ -104,6 +104,8 @@ async function main() {
     };
     delete defaultData.dlc_catalog;
     delete defaultData.exception_rules;
+    delete defaultData.mod_categories;
+    delete defaultData.taxonomy;
     const c1 = writeJsonIfChanged(path.resolve(schemasDir, 'default.json'), defaultData);
     const c2 = writeJsonIfChanged(rootSchemaPath, defaultData);
     if (c1 || c2) {
@@ -153,6 +155,8 @@ async function main() {
       };
       delete cleanSchema.dlc_catalog;
       delete cleanSchema.exception_rules;
+      delete cleanSchema.mod_categories;
+      delete cleanSchema.taxonomy;
       const targetPath = path.resolve(schemasDir, `${rawId}.json`);
       if (writeJsonIfChanged(targetPath, cleanSchema)) {
         syncedSpokes++;
