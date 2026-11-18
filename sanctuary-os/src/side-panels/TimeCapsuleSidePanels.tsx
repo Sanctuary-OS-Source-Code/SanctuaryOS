@@ -1,6 +1,5 @@
 import { useState, useEffect, useMemo } from "react";
 import { invoke } from "@tauri-apps/api/core";
-import { openPath } from "@tauri-apps/plugin-opener";
 import { useLexicon } from "../LexiconContext";
 import {
   SidePanel,
@@ -2124,7 +2123,7 @@ export function TimeCapsuleSidePanel({
   const handleOpenFolder = async () => {
     if (!location) return;
     try {
-      await openPath(location);
+      await invoke("open_folder", { path: location });
     } catch (e) {
       console.error(e);
     }

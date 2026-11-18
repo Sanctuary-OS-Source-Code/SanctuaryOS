@@ -17,9 +17,9 @@ import { useStore } from "./store";
 import { useModalStore } from "./store/modalStore";
 import { MarketUploadPanel, MarketReportPanel, MarketBlueprintPanel, auditBlueprintsTier0Compliance } from './side-panels/NexusSidePanels';
 import { useTheme } from "./ThemeContext";
-import { readDir, readTextFile, writeTextFile, exists, mkdir } from '@tauri-apps/plugin-fs';
 import { invoke } from '@tauri-apps/api/core';
 import { isDesktop } from "./utils/envUtils";
+import { loadInstalledTemplatesVersionMap, writeLocalTemplateFile } from "./utils/localTemplateInspector";
 import BlueprintMatrix from "./BlueprintMatrix";
 import { CommandScreenLayout, CommandScreenSectionHeading, CommandScreenBody, CommandScreenMain, CommandScreenSidebar, DashboardStatTile, CommandScreenQuickLink, StatTileCarousel } from "./hub-components/SharedCommandScreenLayout";
 import AssetPreviewSidebar from "./AssetPreviewSidebar";
@@ -636,30 +636,8 @@ export default function Nexus({ ownedHashes, onSetStatus, onOpenMasonProfile, on
       if (!isDesktop()) return;
       try {
         const config: any = await invoke('get_saved_coordinates');
-        const vaultPath = config.vault_path;
-        if (!vaultPath) return;
-        const templatesDir = `${vaultPath}\\Templates`;
-        if (await exists(templatesDir)) {
-          const files = await readDir(templatesDir);
-          const map: Record<string, string> = {};
-          for (const file of files) {
-            if (file.name?.endsWith('.json')) {
-              try {
-                const content = await readTextFile(`${templatesDir}\\${file.name}`);
-                const parsed = JSON.parse(content);
-                const data = Array.isArray(parsed) ? parsed[0] : parsed;
-                if (data.name) {
-                  const currentVersion = map[data.name] || '0.0.0';
-                  const parsedVersion = data.template_version || data.version || '1.0.0';
-                  if (compareVersions(parsedVersion, currentVersion) >= 0) {
-                    map[data.name] = parsedVersion;
-                  }
-                }
-              } catch { }
-            }
-          }
-          setInstalledTemplates(map);
-        }
+        const map = await loadInstalledTemplatesVersionMap(config?.vault_path);
+        setInstalledTemplates(map);
       } catch { }
     };
     fetchLocalTemplates();
@@ -1091,12 +1069,7 @@ export default function Nexus({ ownedHashes, onSetStatus, onOpenMasonProfile, on
       const displayData = Array.isArray(parsed) ? parsed[0] : parsed;
       const templateId = displayData?.template_id || "vlocal";
 
-      const templatesDir = `${vaultPath}\\Templates`;
-      if (!(await exists(templatesDir))) {
-        await mkdir(templatesDir, { recursive: true });
-      }
-
-      await writeTextFile(`${templatesDir}\\${templateId}_template.json`, JSON.stringify(parsed, null, 2));
+      await writeLocalTemplateFile(vaultPath, `${templateId}_template.json`, parsed);
     } catch (err) {
       console.error("Failed to install template", err);
       throw err;
@@ -2331,7 +2304,7 @@ export default function Nexus({ ownedHashes, onSetStatus, onOpenMasonProfile, on
                                                     {flavorIsScript ? t("icon_terminal", "terminal") : t("icon_deployed_code", "deployed_code")}
                                                   </span>
                                                   <span className="text-[var(--subtext)]">
-                                                    {flavorIsScript ? t("type_script", "Script") : t("type_package", "Package")}
+                                                    {flavorIsScript ? t("type_script", "Script") : t("type_package", "Module")}
                                                   </span>
                                                 </div>
                                               </div>
@@ -2783,7 +2756,7 @@ export default function Nexus({ ownedHashes, onSetStatus, onOpenMasonProfile, on
                                                   {flavorIsScript ? t("icon_terminal", "terminal") : t("icon_deployed_code", "deployed_code")}
                                                 </span>
                                                 <span className="text-[var(--subtext)]">
-                                                  {flavorIsScript ? t("type_script", "Script") : t("type_package", "Package")}
+                                                  {flavorIsScript ? t("type_script", "Script") : t("type_package", "Module")}
                                                 </span>
                                               </div>
                                             </div>

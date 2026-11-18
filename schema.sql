@@ -1168,6 +1168,48 @@ $$;
 REVOKE ALL ON FUNCTION sanctuary_internal.is_verified_hub_gateway() FROM PUBLIC;
 GRANT EXECUTE ON FUNCTION sanctuary_internal.is_verified_hub_gateway() TO anon, authenticated, service_role;
 
+CREATE OR REPLACE FUNCTION sanctuary_internal.current_staging_owner_tag()
+RETURNS TEXT
+LANGUAGE plpgsql
+STABLE
+SECURITY DEFINER
+SET search_path = public, extensions, sanctuary_internal
+AS $$
+DECLARE
+    v_uid UUID := (SELECT auth.uid());
+    v_key TEXT;
+BEGIN
+    IF v_uid IS NULL THEN
+        RETURN NULL;
+    END IF;
+    v_key := COALESCE(
+        NULLIF(sanctuary_internal.read_runtime_secret('staging_owner_hmac_key'), ''),
+        'sanctuary_staging_owner_v1'
+    );
+    RETURN encode(
+        extensions.hmac(convert_to(v_uid::text, 'UTF8'), convert_to(v_key, 'UTF8'), 'sha256'),
+        'hex'
+    );
+END;
+$$;
+
+REVOKE ALL ON FUNCTION sanctuary_internal.current_staging_owner_tag() FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION sanctuary_internal.current_staging_owner_tag() TO anon, authenticated, service_role;
+
+CREATE OR REPLACE FUNCTION sanctuary_internal.stamp_staging_owner_tag()
+RETURNS TRIGGER
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public, sanctuary_internal
+AS $$
+BEGIN
+    IF NOT sanctuary_internal.is_verified_hub_gateway() AND (SELECT auth.uid()) IS NOT NULL THEN
+        NEW.owner_tag := sanctuary_internal.current_staging_owner_tag();
+    END IF;
+    RETURN NEW;
+END;
+$$;
+
 CREATE OR REPLACE FUNCTION sanctuary_internal.guard_mason_privileged_columns()
 RETURNS TRIGGER
 LANGUAGE plpgsql
@@ -2211,7 +2253,7 @@ AS $$
     INNER JOIN public.mods m ON m.id = mv.mod_id
     WHERE LOWER(mv.dna_hash) = ANY(SELECT LOWER(unnest(COALESCE(p_hashes, ARRAY[]::TEXT[]))))
       AND COALESCE(m.compliance_tier, 0) BETWEEN 1 AND 5
-      AND LOWER(COALESCE(m.status, '')) <> 'rejected'
+      AND LOWER(COALESCE(m.status, '')) NOT IN ('rejected', 'pending', 'under_review', 'unverified')
     GROUP BY LOWER(mv.dna_hash);
 $$;
 
@@ -2349,27 +2391,43 @@ GRANT EXECUTE ON FUNCTION public.flag_mod_for_compliance(UUID, TEXT, TEXT, INTEG
 
 CREATE OR REPLACE FUNCTION public.increment_asset_downloads(asset_id UUID)
 RETURNS VOID
-LANGUAGE sql
+LANGUAGE plpgsql
 SECURITY DEFINER
-SET search_path = public
+SET search_path = public, sanctuary_internal
 AS $$
+BEGIN
+    IF (SELECT auth.uid()) IS NULL AND NOT (SELECT sanctuary_internal.is_verified_hub_gateway()) THEN
+        RAISE EXCEPTION 'Authentication required';
+    END IF;
+
     UPDATE public.nexus_assets
     SET downloads = COALESCE(downloads, 0) + 1
     WHERE id = asset_id;
+END;
 $$;
+
+REVOKE ALL ON FUNCTION public.increment_asset_downloads(UUID) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION public.increment_asset_downloads(UUID) TO anon, authenticated, service_role;
 
 CREATE OR REPLACE FUNCTION public.increment_blueprint_downloads(blueprint_id BIGINT)
 RETURNS VOID
 LANGUAGE plpgsql
 SECURITY DEFINER
-SET search_path = public
+SET search_path = public, sanctuary_internal
 AS $$
 BEGIN
+    IF (SELECT auth.uid()) IS NULL AND NOT (SELECT sanctuary_internal.is_verified_hub_gateway()) THEN
+        RAISE EXCEPTION 'Authentication required';
+    END IF;
+
     UPDATE public.blueprints
     SET downloads = COALESCE(downloads, 0) + 1
     WHERE id = blueprint_id;
 END;
 $$;
+
+REVOKE ALL ON FUNCTION public.increment_blueprint_downloads(BIGINT) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION public.increment_blueprint_downloads(BIGINT) TO anon, authenticated, service_role;
 
 CREATE OR REPLACE FUNCTION public.hide_mason_comment(p_comment_id UUID)
 RETURNS VOID
@@ -3051,7 +3109,9 @@ DECLARE
     v_existing_uid UUID;
     v_spokes TEXT[];
 BEGIN
-    IF v_endpoint NOT LIKE 'https://%' OR length(v_p256dh) < 16 OR length(v_auth) < 8 THEN
+    IF v_endpoint !~* '^https://([a-z0-9-]+\.)*(fcm\.googleapis\.com|android\.googleapis\.com|push\.services\.mozilla\.com|notify\.windows\.com|push\.apple\.com|push\.opera\.com)/'
+       OR length(v_p256dh) < 16
+       OR length(v_auth) < 8 THEN
         RAISE EXCEPTION 'Invalid Web Push subscription payload';
     END IF;
 
@@ -3387,8 +3447,7 @@ BEGIN
     END IF;
 
     RETURN jsonb_build_object(
-        'is_blinded_account', (v_matched_blind AND NOT v_matched_plain),
-        'has_plain_email', v_matched_plain
+        'is_blinded_account', (v_matched_blind AND NOT v_matched_plain)
     );
 END;
 $$;
@@ -3965,7 +4024,7 @@ CREATE POLICY "spoke_notifications_select" ON public.notifications
 DROP POLICY IF EXISTS "spoke_notifications_insert" ON public.notifications;
 CREATE POLICY "spoke_notifications_insert" ON public.notifications
     FOR INSERT TO anon, authenticated
-    WITH CHECK ((SELECT sanctuary_internal.is_verified_hub_gateway()) OR actor_id = (SELECT auth.uid()) OR sanctuary_internal.is_spoke_staff());
+    WITH CHECK ((SELECT sanctuary_internal.is_verified_hub_gateway()) OR (actor_id = (SELECT auth.uid()) AND user_id = (SELECT auth.uid())) OR sanctuary_internal.is_spoke_staff());
 DROP POLICY IF EXISTS "spoke_notifications_update" ON public.notifications;
 CREATE POLICY "spoke_notifications_update" ON public.notifications
     FOR UPDATE TO anon, authenticated
@@ -3989,20 +4048,86 @@ CREATE POLICY "spoke_dispatch_poll_votes_delete" ON public.dispatch_poll_votes
     USING ((SELECT sanctuary_internal.is_verified_hub_gateway()) OR user_id = (SELECT auth.uid()));
 
 -- Ephemeral Encrypted Staging Queue & PWA Push Subscriptions
+DO $$
+BEGIN
+    IF sanctuary_internal.read_runtime_secret('staging_owner_hmac_key') IS NULL THEN
+        PERFORM sanctuary_internal.write_runtime_secret(
+            'staging_owner_hmac_key',
+            encode(extensions.gen_random_bytes(32), 'hex')
+        );
+    END IF;
+END $$;
+
+ALTER TABLE public.citizen_staging_queue ADD COLUMN IF NOT EXISTS owner_tag TEXT;
+CREATE INDEX IF NOT EXISTS idx_spoke_staging_queue_owner_tag ON public.citizen_staging_queue(owner_tag);
+
+DROP TRIGGER IF EXISTS trg_stamp_staging_owner_tag ON public.citizen_staging_queue;
+CREATE TRIGGER trg_stamp_staging_owner_tag
+    BEFORE INSERT OR UPDATE ON public.citizen_staging_queue
+    FOR EACH ROW EXECUTE FUNCTION sanctuary_internal.stamp_staging_owner_tag();
+
 DROP POLICY IF EXISTS "spoke_staging_queue_select" ON public.citizen_staging_queue;
 CREATE POLICY "spoke_staging_queue_select" ON public.citizen_staging_queue
-    FOR SELECT TO public USING (expires_at IS NULL OR expires_at > NOW());
+    FOR SELECT TO anon, authenticated
+    USING (
+        (SELECT sanctuary_internal.is_verified_hub_gateway())
+        OR (
+            (SELECT auth.uid()) IS NOT NULL
+            AND (expires_at IS NULL OR expires_at > NOW())
+            AND (owner_tag IS NULL OR owner_tag = (SELECT sanctuary_internal.current_staging_owner_tag()))
+        )
+    );
 DROP POLICY IF EXISTS "spoke_staging_queue_insert" ON public.citizen_staging_queue;
 CREATE POLICY "spoke_staging_queue_insert" ON public.citizen_staging_queue
-    FOR INSERT TO public WITH CHECK (length(user_token) >= 16 AND length(encrypted_payload) <= 10485760);
+    FOR INSERT TO anon, authenticated
+    WITH CHECK (
+        length(user_token) >= 16
+        AND length(encrypted_payload) <= 10485760
+        AND (
+            (SELECT sanctuary_internal.is_verified_hub_gateway())
+            OR (
+                (SELECT auth.uid()) IS NOT NULL
+                AND owner_tag = (SELECT sanctuary_internal.current_staging_owner_tag())
+            )
+        )
+    );
 DROP POLICY IF EXISTS "spoke_staging_queue_update" ON public.citizen_staging_queue;
 CREATE POLICY "spoke_staging_queue_update" ON public.citizen_staging_queue
-    FOR UPDATE TO public
-    USING (length(user_token) >= 16)
-    WITH CHECK (length(user_token) >= 16 AND length(encrypted_payload) <= 10485760);
+    FOR UPDATE TO anon, authenticated
+    USING (
+        length(user_token) >= 16
+        AND (
+            (SELECT sanctuary_internal.is_verified_hub_gateway())
+            OR (
+                (SELECT auth.uid()) IS NOT NULL
+                AND (owner_tag IS NULL OR owner_tag = (SELECT sanctuary_internal.current_staging_owner_tag()))
+            )
+        )
+    )
+    WITH CHECK (
+        length(user_token) >= 16
+        AND length(encrypted_payload) <= 10485760
+        AND (
+            (SELECT sanctuary_internal.is_verified_hub_gateway())
+            OR (
+                (SELECT auth.uid()) IS NOT NULL
+                AND owner_tag = (SELECT sanctuary_internal.current_staging_owner_tag())
+            )
+        )
+    );
 DROP POLICY IF EXISTS "spoke_staging_queue_delete" ON public.citizen_staging_queue;
 CREATE POLICY "spoke_staging_queue_delete" ON public.citizen_staging_queue
-    FOR DELETE TO public USING (length(user_token) >= 16);
+    FOR DELETE TO anon, authenticated
+    USING (
+        length(user_token) >= 16
+        AND (
+            (SELECT sanctuary_internal.is_verified_hub_gateway())
+            OR (
+                (SELECT auth.uid()) IS NOT NULL
+                AND (owner_tag IS NULL OR owner_tag = (SELECT sanctuary_internal.current_staging_owner_tag()))
+            )
+        )
+    );
 
 DROP POLICY IF EXISTS "spoke_pwa_push_subscriptions_select" ON public.pwa_push_subscriptions;
 CREATE POLICY "spoke_pwa_push_subscriptions_select" ON public.pwa_push_subscriptions
@@ -4012,7 +4137,7 @@ DROP POLICY IF EXISTS "spoke_pwa_push_subscriptions_insert" ON public.pwa_push_s
 CREATE POLICY "spoke_pwa_push_subscriptions_insert" ON public.pwa_push_subscriptions
     FOR INSERT TO anon, authenticated
     WITH CHECK (
-        endpoint LIKE 'https://%'
+        endpoint ~* '^https://([a-z0-9-]+\.)*(fcm\.googleapis\.com|android\.googleapis\.com|push\.services\.mozilla\.com|notify\.windows\.com|push\.apple\.com|push\.opera\.com)/'
         AND length(p256dh) >= 16
         AND length(auth) >= 8
         AND (user_id IS NULL OR user_id = (SELECT auth.uid()) OR (SELECT sanctuary_internal.is_verified_hub_gateway()))
@@ -4022,7 +4147,7 @@ CREATE POLICY "spoke_pwa_push_subscriptions_update" ON public.pwa_push_subscript
     FOR UPDATE TO anon, authenticated
     USING ((SELECT sanctuary_internal.is_verified_hub_gateway()) OR user_id = (SELECT auth.uid()) OR user_id IS NULL)
     WITH CHECK (
-        endpoint LIKE 'https://%'
+        endpoint ~* '^https://([a-z0-9-]+\.)*(fcm\.googleapis\.com|android\.googleapis\.com|push\.services\.mozilla\.com|notify\.windows\.com|push\.apple\.com|push\.opera\.com)/'
         AND length(p256dh) >= 16
         AND length(auth) >= 8
         AND (user_id = (SELECT auth.uid()) OR (SELECT sanctuary_internal.is_verified_hub_gateway()))

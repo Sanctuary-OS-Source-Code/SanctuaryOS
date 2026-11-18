@@ -1,5 +1,6 @@
 import { createClient, SupabaseClient } from "@supabase/supabase-js";
 import { useStore } from "./store";
+import { fnv1aHashHex } from "./lib/cryptoUtils";
 
 // ============================================================================
 // SANCTUARY OS — FORK & NETWORK CONFIGURATION (EDIT ONLY THIS BLOCK TO FORK)
@@ -193,7 +194,7 @@ export function hasActiveGameDatabase(): boolean {
     return getActiveGameClient() !== null;
 }
 
-export function getStandaloneWorkspaceRow() {
+function getStandaloneWorkspaceRow() {
     const ws = RESOLVED_SANCTUARY_CONFIG.standaloneWorkspace;
     return {
         id: ws.id,
@@ -722,6 +723,7 @@ const RESTRICTED_SPOKE_SELECT_TABLES = new Set([
     'malware_reports',
     'notifications',
     'pwa_push_subscriptions',
+    'citizen_staging_queue',
 ]);
 
 interface PendingSpokeSelectItem {
@@ -1215,7 +1217,9 @@ export const supabase = new Proxy({} as SupabaseClient, {
                     'bulk_ingest_vault_mods',
                     'dispatch_follower_notifications',
                     'dispatch_broadcast_notifications',
-                    'flag_mod_for_compliance'
+                    'flag_mod_for_compliance',
+                    'increment_asset_downloads',
+                    'increment_blueprint_downloads'
                 ].includes(fnName);
 
                 if (isStandaloneFork && isInterceptedRpc) {
@@ -1280,11 +1284,17 @@ export const supabase = new Proxy({} as SupabaseClient, {
                         'bulk_ingest_vault_mods': 'bulk_ingest_vault_mods',
                         'dispatch_follower_notifications': 'dispatch_broadcast_notifications',
                         'dispatch_broadcast_notifications': 'dispatch_broadcast_notifications',
-                        'flag_mod_for_compliance': 'flag_mod_for_compliance'
+                        'flag_mod_for_compliance': 'flag_mod_for_compliance',
+                        'increment_asset_downloads': 'increment_spoke_counter',
+                        'increment_blueprint_downloads': 'increment_spoke_counter'
                     };
 
                     let payload: any = {};
-                    if (fnName === 'secure_sync_spoke_profile') {
+                    if (fnName === 'increment_asset_downloads') {
+                        payload = { kind: 'asset', id: args?.asset_id };
+                    } else if (fnName === 'increment_blueprint_downloads') {
+                        payload = { kind: 'blueprint', id: args?.blueprint_id };
+                    } else if (fnName === 'secure_sync_spoke_profile') {
                         payload = {
                             relink_commitment_hash: args?.p_relink_commitment_hash || undefined,
                         };
@@ -1528,9 +1538,17 @@ export async function submitThreatManifestToSpoke(
             return { data: null, error: null, skipped: true };
         }
         const detectedHash = String(item?.detected_hash || item?.hash || 'unknown-hash').trim();
-        const artifactName = String(
+        const rawArtifactLabel = String(
             item?.artifact_name || item?.displayName || item?.name || item?.filename || 'Unknown'
         ).trim();
+        // Strip directories & scrub any OS user path fragments before sending telemetry to Spoke
+        const artifactName =
+            rawArtifactLabel
+                .split(/[\\/]/)
+                .pop()
+                ?.replace(/[A-Za-z]:\\[Uu]sers\\[^\\\s]+/g, '[REDACTED]')
+                .replace(/\/(?:home|Users)\/[^/\s]+/g, '[REDACTED]')
+                .trim() || 'Unknown';
         const rawSig = String(item?.matched_signature || item?.signature || '').trim();
         const cleanSig =
             rawSig && rawSig.toUpperCase() !== 'NO SIGNATURE MATCH'
@@ -1538,10 +1556,10 @@ export async function submitThreatManifestToSpoke(
                 : options?.defaultSignature || 'Known Malware Hash Match';
         const detectedAt = item?.detected_at || new Date().toISOString();
 
-        // Deduplicate automatic background sweeps per local incident so the same unshredded file
-        // does not re-insert on every radar sweep, while still allowing new incidents or manual uploads
-        // even if the hash was previously reported on the Spoke.
-        const incidentId = `${wsId}::${detectedHash}::${item?.detected_at || item?.quarantine_path || item?.path || artifactName}`;
+        // Deduplicate automatic background sweeps per local incident (hashed so local paths never hit localStorage)
+        const incidentId = `inc_${fnv1aHashHex(
+            `${wsId}::${detectedHash}::${item?.detected_at || item?.quarantine_path || item?.path || artifactName}`
+        )}`;
         if (options?.isAuto && typeof localStorage !== 'undefined') {
             try {
                 const seenMap = JSON.parse(localStorage.getItem('sanctuary_submitted_malware_manifests') || '{}');
@@ -1703,6 +1721,14 @@ export async function updateThreatManifestShredStatus(
     }
 ): Promise<void> {
     if (!detectedHash) return;
+    if (typeof localStorage !== 'undefined') {
+        if (
+            localStorage.getItem('sanctuary_local_only') === 'true' ||
+            localStorage.getItem('sanctuary_share_malware_reports') !== 'true'
+        ) {
+            return;
+        }
+    }
     try {
         const spokeClient = await resolveFallbackSpokeClient();
         if (spokeClient) {

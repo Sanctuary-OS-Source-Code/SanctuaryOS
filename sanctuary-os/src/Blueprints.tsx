@@ -459,6 +459,70 @@ export default function Blueprints({
     radarCacheTick,
   ]);
 
+  const localVaultHashesSet = useMemo(() => {
+    const hashes = new Set<string>();
+    (modList || []).forEach((m: any) => {
+      if (m?.hash) hashes.add(m.hash);
+      if (Array.isArray(m?.flavors)) {
+        m.flavors.forEach((fl: any) => {
+          if (fl?.hash) hashes.add(fl.hash);
+        });
+      }
+    });
+    return hashes;
+  }, [modList]);
+
+  const groupedUplinkFamilies = useMemo(() => {
+    if (!selectedUplinkBlueprint) return [];
+    return groupBlueprintArtifactsByFamily(
+      selectedUplinkBlueprint.artifacts || [],
+      {
+        modList,
+        activeGameSchema,
+        localVaultHashes: localVaultHashesSet,
+      }
+    );
+  }, [selectedUplinkBlueprint, modList, activeGameSchema, localVaultHashesSet]);
+
+  const filteredUplinkArtifacts = useMemo(() => {
+    const q = uplinkArtifactSearch.trim().toLowerCase();
+    if (!q) return groupedUplinkFamilies;
+    return groupedUplinkFamilies.filter((f: any) => {
+      if (String(f._groupedTitle || f.name || "").toLowerCase().includes(q)) return true;
+      if (String(f.author || "").toLowerCase().includes(q)) return true;
+      if (Array.isArray(f._groupedMods)) {
+        return f._groupedMods.some(
+          (gm: any) =>
+            String(gm._cleanModuleTitle || "").toLowerCase().includes(q) ||
+            String(gm._cleanFilePart || gm.name || "").toLowerCase().includes(q) ||
+            String(gm.author || "").toLowerCase().includes(q)
+        );
+      }
+      return false;
+    });
+  }, [groupedUplinkFamilies, uplinkArtifactSearch]);
+
+  const filteredCloudBlueprints = useMemo(() => {
+    const codeSet = new Set<string>();
+    const nameSet = new Set<string>();
+    for (const set of playSets || []) {
+      if (set?.code) codeSet.add(String(set.code).toUpperCase());
+      if (set?.name) nameSet.add(String(set.name).toLowerCase());
+    }
+    const q = cloudSearchQuery.trim().toLowerCase();
+    const res: { bp: any; inVault: boolean }[] = [];
+    for (const bp of myCloudBlueprints || []) {
+      const codeUp = String(bp?.code || "").toUpperCase();
+      const nameLow = String(bp?.name || "").toLowerCase();
+      const inVault = (codeUp ? codeSet.has(codeUp) : false) || (nameLow ? nameSet.has(nameLow) : false);
+      const matchesSearch = !q || nameLow.includes(q) || codeUp.toLowerCase().includes(q);
+      if ((cloudFilterTab === "all" || !inVault) && matchesSearch) {
+        res.push({ bp, inVault: codeUp ? codeSet.has(codeUp) : false });
+      }
+    }
+    return res;
+  }, [myCloudBlueprints, playSets, cloudSearchQuery, cloudFilterTab]);
+
   const [isMatrixOpen, setIsMatrixOpen] = useState(false);
   const [matrixPlaySet, setMatrixPlaySet] = useState<any>(null);
   const [editingSetName, setEditingSetName] = useState<string | null>(null);
@@ -1912,39 +1976,14 @@ export default function Blueprints({
                 title={t("no_cloud_blueprints", "No Cloud {Blueprints}")}
                 className="col-span-full py-16"
               />
-            ) : myCloudBlueprints.filter((bp) => {
-              const inVault = playSets.some(
-                (set: any) =>
-                  (set.code && set.code.toUpperCase() === bp.code.toUpperCase()) ||
-                  set.name.toLowerCase() === bp.name.toLowerCase()
-              );
-              const matchesSearch =
-                !cloudSearchQuery ||
-                bp.name.toLowerCase().includes(cloudSearchQuery.toLowerCase()) ||
-                bp.code.toLowerCase().includes(cloudSearchQuery.toLowerCase());
-              return (cloudFilterTab === "all" ? true : !inVault) && matchesSearch;
-            }).length === 0 ? (
+            ) : filteredCloudBlueprints.length === 0 ? (
               <EmptyState
                 icon={t("icon_task_alt", "task_alt")}
                 title={t("no_cloud_blueprints", "No Cloud {Blueprints}")}
                 className="col-span-full py-16"
               />
             ) : (
-              myCloudBlueprints
-                .filter((bp) => {
-                  const inVault = playSets.some(
-                    (set: any) => set.code && set.code.toUpperCase() === bp.code.toUpperCase()
-                  );
-                  const matchesSearch =
-                    !cloudSearchQuery ||
-                    bp.name.toLowerCase().includes(cloudSearchQuery.toLowerCase()) ||
-                    bp.code.toLowerCase().includes(cloudSearchQuery.toLowerCase());
-                  return (cloudFilterTab === "all" ? true : !inVault) && matchesSearch;
-                })
-                .map((bp) => {
-                  const inVault = playSets.some(
-                    (set: any) => set.code && set.code.toUpperCase() === bp.code.toUpperCase()
-                  );
+              filteredCloudBlueprints.map(({ bp, inVault }) => {
                   const bpModCount = bp.artifacts
                     ? countBlueprintArtifacts(bp.artifacts, activeGameSchema)
                     : 0;
@@ -2217,40 +2256,7 @@ export default function Blueprints({
 
       {(() => {
         if (!selectedUplinkBlueprint) return null;
-        const localVaultHashes = new Set<string>();
-        (modList || []).forEach((m: any) => {
-          if (m?.hash) localVaultHashes.add(m.hash);
-          if (Array.isArray(m?.flavors)) {
-            m.flavors.forEach((fl: any) => {
-              if (fl?.hash) localVaultHashes.add(fl.hash);
-            });
-          }
-        });
-
-        const groupedUplinkFamilies = groupBlueprintArtifactsByFamily(
-          selectedUplinkBlueprint?.artifacts || [],
-          {
-            modList,
-            activeGameSchema,
-            localVaultHashes,
-          }
-        );
-
-        const filteredArtifacts = groupedUplinkFamilies.filter((f: any) => {
-          if (!uplinkArtifactSearch.trim()) return true;
-          const q = uplinkArtifactSearch.trim().toLowerCase();
-          if (String(f._groupedTitle || f.name || "").toLowerCase().includes(q)) return true;
-          if (String(f.author || "").toLowerCase().includes(q)) return true;
-          if (Array.isArray(f._groupedMods)) {
-            return f._groupedMods.some(
-              (gm: any) =>
-                String(gm._cleanModuleTitle || "").toLowerCase().includes(q) ||
-                String(gm._cleanFilePart || gm.name || "").toLowerCase().includes(q) ||
-                String(gm.author || "").toLowerCase().includes(q)
-            );
-          }
-          return false;
-        });
+        const filteredArtifacts = filteredUplinkArtifacts;
 
         return (
           <SidePanel

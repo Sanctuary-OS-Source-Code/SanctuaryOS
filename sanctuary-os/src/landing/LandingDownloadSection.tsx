@@ -1,5 +1,5 @@
 import { useLexicon } from '../LexiconContext';
-import { EmptyState } from '../shared';
+import { EmptyState, sanitizeExternalHttpsUrl } from '../shared';
 import { KeepersPipelineConfig } from '../utils/supporterManager';
 import { isDesktop } from '../utils/envUtils';
 import { isMobileDevice } from '../utils/pwaManager';
@@ -131,9 +131,12 @@ export function LandingDownloadSection({
               {showWinCards && (
               <a
                 href={
-                  keepersConfig.stable_exe_url ||
-                  `https://github.com/Sanctuary-OS-Source-Code/SanctuaryOS/releases/download/v${stableVersion}/Sanctuary.OS_${stableVersion}_x64-setup.exe`
+                  sanitizeExternalHttpsUrl(
+                    keepersConfig.stable_exe_url ||
+                      `https://github.com/Sanctuary-OS-Source-Code/SanctuaryOS/releases/download/v${stableVersion}/Sanctuary.OS_${stableVersion}_x64-setup.exe`
+                  ) || '#'
                 }
+                rel="noopener noreferrer"
                 className="block group"
               >
                 <UniversalCard
@@ -181,9 +184,12 @@ export function LandingDownloadSection({
               {showMacCards && (
               <a
                 href={
-                  keepersConfig.stable_dmg_url ||
-                  `https://github.com/Sanctuary-OS-Source-Code/SanctuaryOS/releases/download/v${stableVersion}/Sanctuary.OS_${stableVersion}_aarch64.dmg`
+                  sanitizeExternalHttpsUrl(
+                    keepersConfig.stable_dmg_url ||
+                      `https://github.com/Sanctuary-OS-Source-Code/SanctuaryOS/releases/download/v${stableVersion}/Sanctuary.OS_${stableVersion}_aarch64.dmg`
+                  ) || '#'
                 }
+                rel="noopener noreferrer"
                 className="block group"
               >
                 <UniversalCard
@@ -234,9 +240,12 @@ export function LandingDownloadSection({
               {showLinuxCards && (
               <a
                 href={
-                  keepersConfig.stable_linux_url ||
-                  `https://github.com/Sanctuary-OS-Source-Code/SanctuaryOS/releases/download/v${stableVersion}/Sanctuary.OS_${stableVersion}_amd64.AppImage`
+                  sanitizeExternalHttpsUrl(
+                    keepersConfig.stable_linux_url ||
+                      `https://github.com/Sanctuary-OS-Source-Code/SanctuaryOS/releases/download/v${stableVersion}/Sanctuary.OS_${stableVersion}_amd64.AppImage`
+                  ) || '#'
                 }
+                rel="noopener noreferrer"
                 className="block group"
               >
                 <UniversalCard
@@ -289,8 +298,10 @@ export function LandingDownloadSection({
                   {showWinCards && (
                   <a
                     href={
-                      keepersConfig.dev_build_download_url ||
-                      'https://github.com/Sanctuary-OS-Source-Code/SanctuaryOS/releases/tag/dev-latest'
+                      sanitizeExternalHttpsUrl(
+                        keepersConfig.dev_build_download_url ||
+                          'https://github.com/Sanctuary-OS-Source-Code/SanctuaryOS/releases/tag/dev-latest'
+                      ) || '#'
                     }
                     target="_blank"
                     rel="noopener noreferrer"
@@ -351,9 +362,11 @@ export function LandingDownloadSection({
                   {showMacCards && (
                   <a
                     href={
-                      keepersConfig.dev_build_dmg_url ||
-                      keepersConfig.dev_release_url ||
-                      'https://github.com/Sanctuary-OS-Source-Code/SanctuaryOS/releases/tag/dev-latest'
+                      sanitizeExternalHttpsUrl(
+                        keepersConfig.dev_build_dmg_url ||
+                          keepersConfig.dev_release_url ||
+                          'https://github.com/Sanctuary-OS-Source-Code/SanctuaryOS/releases/tag/dev-latest'
+                      ) || '#'
                     }
                     target="_blank"
                     rel="noopener noreferrer"
@@ -414,9 +427,11 @@ export function LandingDownloadSection({
                   {showLinuxCards && (
                   <a
                     href={
-                      keepersConfig.dev_build_linux_url ||
-                      keepersConfig.dev_release_url ||
-                      'https://github.com/Sanctuary-OS-Source-Code/SanctuaryOS/releases/tag/dev-latest'
+                      sanitizeExternalHttpsUrl(
+                        keepersConfig.dev_build_linux_url ||
+                          keepersConfig.dev_release_url ||
+                          'https://github.com/Sanctuary-OS-Source-Code/SanctuaryOS/releases/tag/dev-latest'
+                      ) || '#'
                     }
                     target="_blank"
                     rel="noopener noreferrer"

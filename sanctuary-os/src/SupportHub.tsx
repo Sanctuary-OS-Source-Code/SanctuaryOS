@@ -218,10 +218,20 @@ export default function SupportHub() {
     setMaxReachedIndex(prev => Math.max(prev, activeCardIndex));
   }, [activeCardIndex]);
 
-  // Load Draft Logic
+  // Load Draft Logic (stored in volatile sessionStorage; migrate/clear any legacy localStorage draft)
   useEffect(() => {
     if (!isOpen) return;
-    const draft = localStorage.getItem('support_draft');
+    let draft = sessionStorage.getItem('support_draft');
+    if (!draft) {
+      const legacy = localStorage.getItem('support_draft');
+      if (legacy) {
+        draft = legacy;
+        try {
+          sessionStorage.setItem('support_draft', legacy);
+        } catch {}
+        localStorage.removeItem('support_draft');
+      }
+    }
     if (draft) {
       try {
         const parsed = JSON.parse(draft);
@@ -233,24 +243,31 @@ export default function SupportHub() {
     }
   }, [isOpen]);
 
-  // Save Draft Logic
+  // Save Draft Logic (scrub PII/paths and keep only in volatile sessionStorage)
   useEffect(() => {
     if (!isOpen || showDraftPrompt) return;
+    const scrubbedCustomFields: Record<string, any> = {};
+    for (const [k, v] of Object.entries(customFieldsData || {})) {
+      scrubbedCustomFields[k] = typeof v === "string" ? scrubLogUserData(v) : v;
+    }
     const data = {
       supportStream,
       osPlatform,
       activeTab,
       activeCardIndex,
       maxReachedIndex,
-      title,
-      description,
+      title: scrubLogUserData(title || ""),
+      description: scrubLogUserData(description || ""),
       targetModId,
       targetUserId,
-      logs,
-      customFieldsData,
+      logs: scrubLogUserData(logs || ""),
+      customFieldsData: scrubbedCustomFields,
       optedOutSources
     };
-    localStorage.setItem('support_draft', JSON.stringify(data));
+    try {
+      sessionStorage.setItem('support_draft', JSON.stringify(data));
+      localStorage.removeItem('support_draft');
+    } catch {}
   }, [isOpen, showDraftPrompt, supportStream, osPlatform, activeTab, activeCardIndex, maxReachedIndex, title, description, targetModId, targetUserId, logs, customFieldsData, optedOutSources]);
 
   const loadDraft = () => {
@@ -262,8 +279,8 @@ export default function SupportHub() {
       setActiveTab(draftData.activeTab || "BUG_MOD");
       setActiveCardIndex(draftData.activeCardIndex || 0);
       setMaxReachedIndex(draftData.maxReachedIndex || 0);
-      setTitle(draftData.title || "");
-      setDescription(draftData.description || "");
+      setTitle(scrubLogUserData(draftData.title || ""));
+      setDescription(scrubLogUserData(draftData.description || ""));
       setTargetModId(draftData.targetModId || "");
       setTargetUserId(draftData.targetUserId || "");
       setLogs(scrubLogUserData(draftData.logs || ""));
@@ -274,6 +291,7 @@ export default function SupportHub() {
   };
 
   const clearDraft = () => {
+    sessionStorage.removeItem('support_draft');
     localStorage.removeItem('support_draft');
     setDraftData(null);
     setShowDraftPrompt(false);
@@ -579,18 +597,11 @@ export default function SupportHub() {
             })
             .join("\n");
           bundle += `\n--- TELEMETRY: System Log History ---\n${systemLogHistory || "No system logs available."}\n`;
-        } else if (supportStream === "community" && modsPath && source.search_path && source.file_pattern) {
-          const docDirMatch = modsPath.match(/(.*)[\\/]+(?:mods|data|_mods)[\\/]*$/i);
-          const docDir = docDirMatch
-            ? docDirMatch[1]
-            : modsPath.replace(/[\\/]+[^\\/]+[\\/]*$/, "") || modsPath;
-          const searchPath = source.search_path
-            .replace("%MODS_DIR%", modsPath)
-            .replace("%DOC_DIR%", docDir);
-          let fullPath = searchPath;
-          if (!fullPath.endsWith("\\") && !fullPath.endsWith("/")) fullPath += "/";
-          fullPath += source.file_pattern;
-          const text = await readTextFile(fullPath);
+        } else if (supportStream === "community" && isDesktop() && modsPath && source.search_path && source.file_pattern) {
+          const text = await invoke<string | null>("read_workspace_telemetry_log", {
+            sourceRoot: source.search_path,
+            relativePattern: source.file_pattern,
+          });
           if (text) {
             bundle += `\n--- TELEMETRY: ${source.label} ---\n${scrubLogUserData(text.substring(0, 20000))}\n`;
           }
@@ -688,6 +699,7 @@ export default function SupportHub() {
 
         window.dispatchEvent(new CustomEvent("sanctuary-tickets-updated"));
         useStore.getState().pushStatus(t("ss_support_success", "Ticket sent successfully"), "success");
+        sessionStorage.removeItem("support_draft");
         localStorage.removeItem("support_draft");
         setTitle("");
         setDescription("");
@@ -866,20 +878,16 @@ export default function SupportHub() {
             } catch {
               // Optional OS probe unavailable
             }
-          } else if (modsPath && source.search_path && source.file_pattern) {
+          } else if (isDesktop() && modsPath && source.search_path && source.file_pattern) {
             let text = "";
             try {
-              const docDirMatch = modsPath.match(/(.*)[\\/]+(?:mods|data|_mods)[\\/]*$/i);
-              const docDir = docDirMatch
-                ? docDirMatch[1]
-                : modsPath.replace(/[\\/]+[^\\/]+[\\/]*$/, "") || modsPath;
-              const searchPath = source.search_path.replace('%MODS_DIR%', modsPath).replace('%DOC_DIR%', docDir);
-              let fullPath = searchPath;
-              if (!fullPath.endsWith('\\') && !fullPath.endsWith('/')) fullPath += '/';
-              fullPath += source.file_pattern;
-              text = await readTextFile(fullPath);
+              const fetched = await invoke<string | null>("read_workspace_telemetry_log", {
+                sourceRoot: source.search_path,
+                relativePattern: source.file_pattern,
+              });
+              if (fetched) text = fetched;
             } catch {
-              // Optional log file absent on disk
+              // Optional log file absent or blocked on disk
             }
             if (text) {
               const dirtyTraces = findDirtyLogTraces(text, storeState.modList, storeState.activeGameSchema);
@@ -1013,6 +1021,7 @@ export default function SupportHub() {
 
       window.dispatchEvent(new CustomEvent("sanctuary-tickets-updated"));
       useStore.getState().pushStatus(t("ss_support_success", "Ticket sent successfully"), "success");
+      sessionStorage.removeItem("support_draft");
       localStorage.removeItem("support_draft");
 
       setTitle("");

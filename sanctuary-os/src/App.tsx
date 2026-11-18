@@ -10,7 +10,7 @@ import { AppModals } from "./AppModals";
 import { useModalStore } from "./store/modalStore";
 import { useAppActions } from "./hooks/useAppActions";
 import { readTextFile, writeTextFile, exists, mkdir } from '@tauri-apps/plugin-fs';
-import { appDataDir } from "@tauri-apps/api/path";
+import { appDataDir, join } from "@tauri-apps/api/path";
 import { useModFiltering } from "./hooks/useModFiltering";
 import { useBackupLogic } from "./hooks/useBackupLogic";
 import { useDefconRadar } from "./hooks/useDefconRadar";
@@ -937,24 +937,57 @@ function App() {
           if (!(await exists(filePath))) {
             await mkdir(filePath, { recursive: true });
           }
-          const fullPath = `${filePath}\\sanctuary_${activeWorkspaceId}_playsets.json`;
+          const fullPath = await join(filePath, `sanctuary_${activeWorkspaceId}_playsets.json`);
+          const legacySepPath = `${filePath}\\sanctuary_${activeWorkspaceId}_playsets.json`;
+          const storageKey = `sanctuary_${activeWorkspaceId}_playsets`;
 
           if (await exists(fullPath)) {
             const contents = await readTextFile(fullPath);
             loadedSets = JSON.parse(contents);
-            try {
-              localStorage.removeItem(`sanctuary_${activeWorkspaceId}_playsets`);
-            } catch {}
+          } else if (fullPath !== legacySepPath && (await exists(legacySepPath))) {
+            const contents = await readTextFile(legacySepPath);
+            loadedSets = JSON.parse(contents);
+            await writeTextFile(fullPath, JSON.stringify(loadedSets));
           } else {
-            const cached = localStorage.getItem(`sanctuary_${activeWorkspaceId}_playsets`);
+            const cached = localStorage.getItem(storageKey);
             if (cached) {
               loadedSets = JSON.parse(cached);
               await writeTextFile(fullPath, JSON.stringify(loadedSets));
-              try {
-                localStorage.removeItem(`sanctuary_${activeWorkspaceId}_playsets`);
-              } catch {}
             }
           }
+
+          try {
+            const rawLocal = localStorage.getItem(storageKey);
+            const localArr = rawLocal ? JSON.parse(rawLocal) : [];
+            const isLocalFolderEntry = (s: any) =>
+              s &&
+              s.id &&
+              (String(s.id).startsWith("f_") || String(s.id).startsWith("local_")) &&
+              Array.isArray(s.items) &&
+              !Array.isArray(s.mods) &&
+              !s.isCollection;
+            const localFoldersFromLs = Array.isArray(localArr) ? localArr.filter(isLocalFolderEntry) : [];
+            const fsFolderIds = new Set(
+              (Array.isArray(loadedSets) ? loadedSets : [])
+                .filter(isLocalFolderEntry)
+                .map((s: any) => String(s.id))
+            );
+            const mergedFolders = [
+              ...(Array.isArray(loadedSets) ? loadedSets : []).filter(isLocalFolderEntry),
+              ...localFoldersFromLs.filter((lf: any) => !fsFolderIds.has(String(lf.id))),
+            ];
+            if (localFoldersFromLs.some((lf: any) => !fsFolderIds.has(String(lf.id)))) {
+              loadedSets = [
+                ...(Array.isArray(loadedSets) ? loadedSets : []),
+                ...localFoldersFromLs.filter((lf: any) => !fsFolderIds.has(String(lf.id))),
+              ];
+            }
+            if (mergedFolders.length > 0) {
+              localStorage.setItem(storageKey, JSON.stringify(mergedFolders));
+            } else {
+              localStorage.removeItem(storageKey);
+            }
+          } catch {}
         } else {
           const cached = localStorage.getItem(`sanctuary_${activeWorkspaceId}_playsets`);
           if (cached) {
@@ -997,7 +1030,7 @@ function App() {
           if (!(await exists(filePath))) {
             await mkdir(filePath, { recursive: true });
           }
-          const fullPath = `${filePath}\\sanctuary_${activeWorkspaceId}_playsets.json`;
+          const fullPath = await join(filePath, `sanctuary_${activeWorkspaceId}_playsets.json`);
           await writeTextFile(fullPath, JSON.stringify(playSets));
         } else {
           try {

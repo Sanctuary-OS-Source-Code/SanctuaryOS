@@ -1,7 +1,8 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { useStore } from '../../store';
 import { useLexicon } from '../../LexiconContext';
-import { readDir, readTextFile, exists } from '@tauri-apps/plugin-fs';
+import { readTextFile, exists } from '@tauri-apps/plugin-fs';
+import { invoke } from '@tauri-apps/api/core';
 import { listen } from '@tauri-apps/api/event';
 import {
    isSanctuaryTemplateFile,
@@ -356,40 +357,21 @@ export function useWorkbenchEditor() {
          if (isTemplateMode && selectedFile && parsedData?.target_file) {
             try {
                const targetName = parsedData.target_file;
-               let targetPath = "";
-               const candidateRoots = [modsPath, vaultPath].filter((p): p is string => Boolean(p && p.trim()));
-
-               for (const rootDir of candidateRoots) {
-                  if (!(await exists(rootDir))) continue;
-                  const sep = rootDir.includes('\\') ? '\\' : '/';
-                  const trimmedRoot = rootDir.endsWith(sep) ? rootDir.slice(0, -1) : rootDir;
-                  const directCandidate = `${trimmedRoot}${sep}${targetName}`;
-                  if (await exists(directCandidate)) {
-                     targetPath = directCandidate;
-                     break;
-                  }
-                  const entries = await readDir(trimmedRoot);
-                  for (const entry of entries) {
-                     if (entry.isDirectory) {
-                        const subCandidate = `${trimmedRoot}${sep}${entry.name}${sep}${targetName}`;
-                        if (await exists(subCandidate)) {
-                           targetPath = subCandidate;
-                           break;
-                        }
-                     }
-                  }
-                  if (targetPath) break;
+               const resolved: any = await invoke("resolve_workbench_target_config", {
+                  fileName: targetName,
+                  vaultPath: vaultPath || undefined,
+                  modsPath: modsPath || undefined,
+                  docsPath: useStore.getState().docsPath || undefined,
+               });
+               if (resolved?.content !== undefined) {
+                  setTargetFileContent(String(resolved.content));
+                  return;
                }
-
-               if (!targetPath) {
-                  const sep = selectedFile.path.includes('\\') ? '\\' : '/';
-                  const dir = selectedFile.path.substring(0, selectedFile.path.lastIndexOf(sep));
-                  const fallbackPath = `${dir}${sep}${targetName}`;
-                  if (await exists(fallbackPath)) targetPath = fallbackPath;
-               }
-
-               if (targetPath) {
-                  const content = await readTextFile(targetPath);
+               const sep = selectedFile.path.includes('\\') ? '\\' : '/';
+               const dir = selectedFile.path.substring(0, selectedFile.path.lastIndexOf(sep));
+               const fallbackPath = dir ? `${dir}${sep}${targetName}` : targetName;
+               if (await exists(fallbackPath)) {
+                  const content = await readTextFile(fallbackPath);
                   setTargetFileContent(content);
                } else {
                   setTargetFileContent(`// Target file not found locally.\n// You can use this space as a scratchpad.`);

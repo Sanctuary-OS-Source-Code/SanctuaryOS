@@ -2,7 +2,8 @@ import { createContext, useContext, useState, useEffect, useMemo, useCallback } 
 import { invoke } from '@tauri-apps/api/core';
 import { isDesktop } from './utils/envUtils';
 import { isRootDomain } from './utils/routingUtils';
-import { mkdir, writeTextFile, readDir, readTextFile, remove, exists } from '@tauri-apps/plugin-fs';
+import { mkdir, writeTextFile, remove, exists } from '@tauri-apps/plugin-fs';
+import { joinLocalPath } from './utils/localTemplateInspector';
 import enDefault from './lexicons/en-default.json';
 import { supabase, supabaseAuth, isStandaloneFork, getBrandConfig } from './supabase';
 import { useStore } from './store';
@@ -166,7 +167,6 @@ export interface GlossaryTermDefinition {
   defaults: {
     'en-default': string;
     'en-sanctuary': string;
-    'en-sims': string;
   };
 }
 
@@ -176,147 +176,147 @@ export const CORE_GLOSSARY_TERMS: GlossaryTermDefinition[] = [
     token: 'Mod',
     labelKey: 'term_mod_label',
     icon: 'extension',
-    defaults: { 'en-default': 'Mod', 'en-sanctuary': 'Artifact', 'en-sims': 'Mod' },
+    defaults: { 'en-default': 'Mod', 'en-sanctuary': 'Artifact' },
   },
   {
     key: 'term_mods',
     token: 'Mods',
     labelKey: 'term_mods_label',
     icon: 'widgets',
-    defaults: { 'en-default': 'Mods', 'en-sanctuary': 'Artifacts', 'en-sims': 'Mods' },
+    defaults: { 'en-default': 'Mods', 'en-sanctuary': 'Artifacts' },
   },
   {
     key: 'term_vault',
     token: 'Vault',
     labelKey: 'term_vault_label',
     icon: 'inventory_2',
-    defaults: { 'en-default': 'Library', 'en-sanctuary': 'Vault', 'en-sims': 'Library' },
+    defaults: { 'en-default': 'Library', 'en-sanctuary': 'Vault' },
   },
   {
     key: 'term_blueprint',
     token: 'Blueprint',
     labelKey: 'term_blueprint_label',
     icon: 'map',
-    defaults: { 'en-default': 'Play Set', 'en-sanctuary': 'Blueprint', 'en-sims': 'Modpack' },
+    defaults: { 'en-default': 'Play Set', 'en-sanctuary': 'Blueprint' },
   },
   {
     key: 'term_blueprints',
     token: 'Blueprints',
     labelKey: 'term_blueprints_label',
     icon: 'collections_bookmark',
-    defaults: { 'en-default': 'Play Sets', 'en-sanctuary': 'Blueprints', 'en-sims': 'Modpacks' },
+    defaults: { 'en-default': 'Play Sets', 'en-sanctuary': 'Blueprints' },
   },
   {
     key: 'term_mason',
     token: 'Mason',
     labelKey: 'term_mason_label',
     icon: 'construction',
-    defaults: { 'en-default': 'Creator', 'en-sanctuary': 'Mason', 'en-sims': 'Creator' },
+    defaults: { 'en-default': 'Creator', 'en-sanctuary': 'Mason' },
   },
   {
     key: 'term_masons',
     token: 'Masons',
     labelKey: 'term_masons_label',
     icon: 'engineering',
-    defaults: { 'en-default': 'Creators', 'en-sanctuary': 'Masons', 'en-sims': 'Creators' },
+    defaults: { 'en-default': 'Creators', 'en-sanctuary': 'Masons' },
   },
   {
     key: 'term_citizen',
     token: 'Citizen',
     labelKey: 'term_citizen_label',
     icon: 'person',
-    defaults: { 'en-default': 'User', 'en-sanctuary': 'Citizen', 'en-sims': 'Simmer' },
+    defaults: { 'en-default': 'User', 'en-sanctuary': 'Citizen' },
   },
   {
     key: 'term_citizens',
     token: 'Citizens',
     labelKey: 'term_citizens_label',
     icon: 'group',
-    defaults: { 'en-default': 'Users', 'en-sanctuary': 'Citizens', 'en-sims': 'Simmers' },
+    defaults: { 'en-default': 'Users', 'en-sanctuary': 'Citizens' },
   },
   {
     key: 'term_backups',
     token: 'Backups',
     labelKey: 'term_backups_label',
     icon: 'history',
-    defaults: { 'en-default': 'Backups', 'en-sanctuary': 'Time Capsule', 'en-sims': 'Backups' },
+    defaults: { 'en-default': 'Backups', 'en-sanctuary': 'Time Capsule' },
   },
   {
     key: 'term_lab',
     token: 'Lab',
     labelKey: 'term_lab_label',
     icon: 'science',
-    defaults: { 'en-default': 'Testing Lab', 'en-sanctuary': 'Homestead', 'en-sims': 'Testing Lab' },
+    defaults: { 'en-default': 'Testing Lab', 'en-sanctuary': 'Homestead' },
   },
   {
     key: 'term_settings',
     token: 'Settings',
     labelKey: 'term_settings_label',
     icon: 'settings',
-    defaults: { 'en-default': 'Settings', 'en-sanctuary': 'System Preferences', 'en-sims': 'Settings' },
+    defaults: { 'en-default': 'Settings', 'en-sanctuary': 'System Preferences' },
   },
   {
     key: 'term_nexus',
     token: 'Nexus',
     labelKey: 'term_nexus_label',
     icon: 'hub',
-    defaults: { 'en-default': 'Marketplace', 'en-sanctuary': 'Nexus', 'en-sims': 'The Gallery' },
+    defaults: { 'en-default': 'Marketplace', 'en-sanctuary': 'Nexus' },
   },
   {
     key: 'term_chameleon',
     token: 'Chameleon',
     labelKey: 'term_chameleon_label',
     icon: 'palette',
-    defaults: { 'en-default': 'Theme', 'en-sanctuary': 'Chameleon', 'en-sims': 'Theme' },
+    defaults: { 'en-default': 'Theme', 'en-sanctuary': 'Chameleon' },
   },
   {
     key: 'term_chameleons',
     token: 'Chameleons',
     labelKey: 'term_chameleons_label',
     icon: 'style',
-    defaults: { 'en-default': 'Themes', 'en-sanctuary': 'Chameleons', 'en-sims': 'Themes' },
+    defaults: { 'en-default': 'Themes', 'en-sanctuary': 'Chameleons' },
   },
   {
     key: 'term_lexicon',
     token: 'Lexicon',
     labelKey: 'term_lexicon_label',
     icon: 'translate',
-    defaults: { 'en-default': 'Language', 'en-sanctuary': 'Lexicon', 'en-sims': 'Language' },
+    defaults: { 'en-default': 'Language', 'en-sanctuary': 'Lexicon' },
   },
   {
     key: 'term_lexicons',
     token: 'Lexicons',
     labelKey: 'term_lexicons_label',
     icon: 'g_translate',
-    defaults: { 'en-default': 'Languages', 'en-sanctuary': 'Lexicons', 'en-sims': 'Languages' },
+    defaults: { 'en-default': 'Languages', 'en-sanctuary': 'Lexicons' },
   },
   {
     key: 'term_dispatch',
     token: 'Dispatch',
     labelKey: 'term_dispatch_label',
     icon: 'podcasts',
-    defaults: { 'en-default': 'Post', 'en-sanctuary': 'Transmission', 'en-sims': 'Post' },
+    defaults: { 'en-default': 'Post', 'en-sanctuary': 'Transmission' },
   },
   {
     key: 'term_dispatches',
     token: 'Dispatches',
     labelKey: 'term_dispatches_label',
     icon: 'cell_tower',
-    defaults: { 'en-default': 'Posts', 'en-sanctuary': 'Transmissions', 'en-sims': 'Posts' },
+    defaults: { 'en-default': 'Posts', 'en-sanctuary': 'Transmissions' },
   },
   {
     key: 'term_delete',
     token: 'Delete',
     labelKey: 'term_delete_label',
     icon: 'delete_forever',
-    defaults: { 'en-default': 'Delete', 'en-sanctuary': 'Purge', 'en-sims': 'Delete' },
+    defaults: { 'en-default': 'Delete', 'en-sanctuary': 'Purge' },
   },
   {
     key: 'term_remove',
     token: 'Remove',
     labelKey: 'term_remove_label',
     icon: 'eject',
-    defaults: { 'en-default': 'Remove', 'en-sanctuary': 'Yeet', 'en-sims': 'Remove' },
+    defaults: { 'en-default': 'Remove', 'en-sanctuary': 'Yeet' },
   },
 ];
 
@@ -344,7 +344,7 @@ const PRESERVED_ACRONYMS = new Set([
   'MSI', 'EXE', 'DMG', 'PKG', 'DEB', 'RPM', 'APPIMAGE', 'ZIP', 'RAR', '7Z', 'CFG', 'INI',
   'AV', 'GB', 'MB', 'KB', 'TB', 'PB', 'B', 'MS', 'FPS', 'HZ', 'GHZ', 'MHZ',
   'CPU', 'GPU', 'RAM', 'VRAM', 'SSD', 'NVME', 'HDD', 'IO', 'I/O', 'LAN', 'WAN', 'VPN', 'DNS', 'IP', 'TCP', 'UDP', 'HTTP', 'HTTPS', 'SSL', 'TLS', 'SSH', 'FTP',
-  'CI', 'CD', 'CI/CD', 'PR', 'SDK', 'CLI', 'GUI', 'HUD', 'RNG', 'RPG', 'MMO', 'NPC', 'CAS', 'BB', 'TS4', 'WW', 'MCCC',
+  'CI', 'CD', 'CI/CD', 'PR', 'SDK', 'CLI', 'GUI', 'HUD', 'RNG', 'RPG', 'MMO', 'NPC',
   'PDF', 'PNG', 'JPG', 'JPEG', 'WEBP', 'SVG', 'GIF', 'MP4', 'WEBM', 'MP3', 'WAV', 'OGG',
   'UTC', 'GMT', 'EST', 'PST', 'CST', 'MST', 'EDT', 'PDT', 'MM', 'DD', 'YY', 'YYYY', 'US', 'UK', 'EU', 'ISO', 'AI', 'ML', 'LLM', 'WEBGL', 'GLSL', 'RBAC', 'ACL', 'CORS', 'CSRF', 'XSS', 'DDOS', 'P2P', 'CDN', 'OTA', 'EOF', 'EOL', 'NULL', 'NAN', 'OK', 'FAQ', 'TOS', 'EULA', 'DMCA', 'GDPR', 'CCPA',
 ]);
@@ -422,11 +422,9 @@ export function interpolateGlossaryTokens(
       return null;
     }
     const langBucket =
-      activeLang === 'en-default'
-        ? 'en-default'
-        : activeLang === 'en-sims' || activeLang === 'Simlish'
-          ? 'en-sims'
-          : 'en-sanctuary';
+      activeLang === 'en-sanctuary'
+        ? 'en-sanctuary'
+        : 'en-default';
     const rawDictVal = dict?.[entry.def.key];
     const validDictVal =
       typeof rawDictVal === 'string' && rawDictVal.trim() !== '' && !rawDictVal.includes('{')
@@ -1116,30 +1114,31 @@ export const LexiconProvider = ({ children }: any) => {
         if (!isDesktop()) return;
         const { masterVault, spokeVault } = await resolveVaultLexiconRoots();
         if (!masterVault) return;
-        const lexiconsDir = `${masterVault}\\Data\\Lexicons`;
-        const legacySpokeLexiconsDir =
-          spokeVault && spokeVault.toLowerCase() !== masterVault.toLowerCase()
-            ? `${spokeVault}\\Data\\Lexicons`
-            : '';
+        const lexiconsDir = joinLocalPath(masterVault, 'Data', 'Lexicons');
+        const candidateBases = [
+          masterVault,
+          spokeVault && spokeVault.toLowerCase() !== masterVault.toLowerCase() ? spokeVault : null,
+        ].filter((v): v is string => Boolean(v));
 
         let localUpdates: any = {};
         let hasLocalUpdates = false;
 
-        for (const candidateDir of [lexiconsDir, legacySpokeLexiconsDir].filter(Boolean)) {
-          if (!(await exists(candidateDir))) continue;
-          const entries = await readDir(candidateDir);
+        for (const candidateBase of candidateBases) {
+          const entries = await invoke<Array<{ file_name: string; path: string; content: string }>>(
+            'scan_vault_lexicons',
+            { vaultPath: candidateBase }
+          ).catch(() => []);
           for (const entry of entries) {
-            if (entry.name && entry.name.endsWith('.json')) {
-              const langCode = entry.name.replace('.json', '');
-              const content = await readTextFile(`${candidateDir}\\${entry.name}`);
-              const parsed = JSON.parse(content);
+            try {
+              const langCode = entry.file_name.replace(/\.json$/i, '');
+              const parsed = JSON.parse(entry.content);
               localUpdates[langCode] = parsed;
               hasLocalUpdates = true;
-              if (candidateDir !== lexiconsDir) {
+              if (candidateBase !== masterVault) {
                 await mkdir(lexiconsDir, { recursive: true }).catch(() => { });
-                await writeTextFile(`${lexiconsDir}\\${entry.name}`, JSON.stringify(parsed, null, 2)).catch(() => { });
+                await writeTextFile(joinLocalPath(lexiconsDir, entry.file_name), JSON.stringify(parsed, null, 2)).catch(() => { });
               }
-            }
+            } catch {}
           }
         }
 
@@ -1537,9 +1536,9 @@ export const LexiconProvider = ({ children }: any) => {
         if (!isDesktop()) return;
         const { masterVault } = await resolveVaultLexiconRoots();
         if (masterVault) {
-          const lexiconsDir = `${masterVault}\\Data\\Lexicons`;
+          const lexiconsDir = joinLocalPath(masterVault, 'Data', 'Lexicons');
           await mkdir(lexiconsDir, { recursive: true });
-          await writeTextFile(`${lexiconsDir}\\${langCode}.json`, JSON.stringify(json, null, 2));
+          await writeTextFile(joinLocalPath(lexiconsDir, `${langCode}.json`), JSON.stringify(json, null, 2));
         }
       } catch (err) { console.error("Failed to save lexicon to vault:", err); }
     })();
@@ -1558,7 +1557,7 @@ export const LexiconProvider = ({ children }: any) => {
         if (!isDesktop()) return;
         const { masterVault, spokeVault } = await resolveVaultLexiconRoots();
         for (const base of [masterVault, spokeVault].filter(Boolean)) {
-          const filePath = `${base}\\Data\\Lexicons\\${langCode}.json`;
+          const filePath = joinLocalPath(base, 'Data', 'Lexicons', `${langCode}.json`);
           if (await exists(filePath)) await remove(filePath);
         }
       } catch (err) { console.error("Failed to delete lexicon from vault:", err); }

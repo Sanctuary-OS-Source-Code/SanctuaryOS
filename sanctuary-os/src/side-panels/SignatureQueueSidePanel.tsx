@@ -1,6 +1,6 @@
 import { useEffect, useState, useMemo, useCallback, useRef } from "react";
 import { createPortal } from "react-dom";
-import { writeTextFile, mkdir, exists } from "@tauri-apps/plugin-fs";
+import { writeLocalTemplateFile } from "../utils/localTemplateInspector";
 import { supabase } from "../supabase";
 import { useShallow } from "zustand/react/shallow";
 import { useStore } from "../store";
@@ -636,14 +636,7 @@ export function SignatureQueueSidePanel({
           } else if (row.asset_type === "workbench_template" && vaultPath) {
             const displayData = Array.isArray(parsedData) ? parsedData[0] : parsedData;
             const templateId = displayData?.template_id || "vlocal";
-            const templatesDir = `${vaultPath}\\Templates`;
-            if (!(await exists(templatesDir))) {
-              await mkdir(templatesDir, { recursive: true });
-            }
-            await writeTextFile(
-              `${templatesDir}\\${templateId}_template.json`,
-              JSON.stringify(parsedData, null, 2)
-            );
+            await writeLocalTemplateFile(vaultPath, `${templateId}_template.json`, parsedData);
             installedCount++;
           }
           try {

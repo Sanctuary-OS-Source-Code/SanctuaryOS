@@ -3,6 +3,50 @@ import { supabase } from '../supabase';
 import { cleanSearchName } from "./stringUtils";
 let _cachedExtSchema: any = null;
 let _cachedExtRegex: RegExp | null = null;
+let _cachedOverridesRaw: string | null = null;
+let _cachedOverridesObj: Record<string, any> = {};
+const _modListLookupCache = new WeakMap<
+  any[],
+  { schema: any; byHash: Map<string, any>; byCleanName: Map<string, any> }
+>();
+
+function getLocalOverridesMap(): Record<string, any> {
+  try {
+    const raw = localStorage.getItem("sanctuary_local_overrides") || "{}";
+    if (raw === _cachedOverridesRaw) return _cachedOverridesObj;
+    const parsed = JSON.parse(raw);
+    _cachedOverridesRaw = raw;
+    _cachedOverridesObj = parsed && typeof parsed === "object" ? parsed : {};
+    return _cachedOverridesObj;
+  } catch {
+    return {};
+  }
+}
+
+function findRegistryMod(modHash: string | undefined, modName: string | undefined, activeGameSchema: any): any | undefined {
+  const modList = useStore.getState().modList;
+  if (!Array.isArray(modList) || modList.length === 0) return undefined;
+  let idx = _modListLookupCache.get(modList);
+  if (!idx || idx.schema !== activeGameSchema) {
+    const byHash = new Map<string, any>();
+    const byCleanName = new Map<string, any>();
+    for (const m of modList) {
+      if (!m) continue;
+      if (m.hash && !byHash.has(m.hash)) byHash.set(m.hash, m);
+      if (activeGameSchema && m.name) {
+        const cn = cleanSearchName(m.name, activeGameSchema);
+        if (cn && !byCleanName.has(cn)) byCleanName.set(cn, m);
+      }
+    }
+    idx = { schema: activeGameSchema, byHash, byCleanName };
+    _modListLookupCache.set(modList, idx);
+  }
+  if (modHash) return idx.byHash.get(modHash);
+  if (modName) {
+    return idx.byCleanName.get(cleanSearchName(modName, activeGameSchema));
+  }
+  return undefined;
+}
 
 export interface ModData {
   name: string;
@@ -70,26 +114,13 @@ export const getModFallbackUrl = (
   activeGameSchema: any,
   blueprintMeta?: any,
 ): string => {
-  let localOverrides: any = {};
-  try {
-    localOverrides = JSON.parse(
-      localStorage.getItem("sanctuary_local_overrides") || "{}",
-    );
-  } catch (e) {}
+  const localOverrides = getLocalOverridesMap();
 
   if (modHash && localOverrides[modHash]?.url)
     return localOverrides[modHash].url;
   if (blueprintMeta?.url) return blueprintMeta.url;
 
-  const registryMod = useStore
-    .getState()
-    .modList.find(
-      (m: any) =>
-        (modHash && m.hash === modHash) ||
-        (!modHash &&
-          cleanSearchName(m.name || "", activeGameSchema) ===
-            cleanSearchName(modName, activeGameSchema)),
-    );
+  const registryMod = findRegistryMod(modHash, modName, activeGameSchema);
   if (registryMod && registryMod.url)
     return registryMod.url.startsWith("http")
       ? registryMod.url
@@ -103,27 +134,14 @@ export const getModFallbackAuthor = (
   modName?: string,
   activeGameSchema?: any,
 ): string | null => {
-  let localOverrides: any = {};
-  try {
-    localOverrides = JSON.parse(
-      localStorage.getItem("sanctuary_local_overrides") || "{}",
-    );
-  } catch (e) {}
+  const localOverrides = getLocalOverridesMap();
 
   if (modHash && localOverrides[modHash]?.author)
     return localOverrides[modHash].author;
   if (blueprintMeta?.author) return blueprintMeta.author;
 
   if (modName && activeGameSchema) {
-    const registryMod = useStore
-      .getState()
-      .modList.find(
-        (m: any) =>
-          (modHash && m.hash === modHash) ||
-          (!modHash &&
-            cleanSearchName(m.name || "", activeGameSchema) ===
-              cleanSearchName(modName, activeGameSchema)),
-      );
+    const registryMod = findRegistryMod(modHash, modName, activeGameSchema);
     if (registryMod && registryMod.author) return registryMod.author;
   }
 

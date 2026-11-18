@@ -20,7 +20,10 @@ import { useTheme } from "./ThemeContext";
 import { useStore } from "./store";
 import { useModalStore } from "./store/modalStore";
 import { isDesktop } from "./utils/envUtils";
-import { readTextFile, writeTextFile, mkdir, exists, readDir } from "@tauri-apps/plugin-fs";
+import {
+  loadInstalledTemplatesVersionMap,
+  writeLocalTemplateFile,
+} from "./utils/localTemplateInspector";
 import {
   DynamicThemePreviewBanner,
   DynamicLexiconPreviewBanner,
@@ -81,30 +84,13 @@ export default function AssetPreviewSidebar({
   const stageBlueprintToDraft = useModalStore((state) => state.stageBlueprintToDraft);
 
   useEffect(() => {
-    const fetchLocalTemplates = async () => {
-      try {
-        if (!vaultPath) return;
-        const templatesDir = `${vaultPath}\\Templates`;
-        if (await exists(templatesDir)) {
-          const files = await readDir(templatesDir);
-          const map: Record<string, string> = {};
-          for (const file of files) {
-            if (file.name?.endsWith("_template.json")) {
-              try {
-                const content = await readTextFile(`${templatesDir}\\${file.name}`);
-                const parsed = JSON.parse(content);
-                const d = Array.isArray(parsed) ? parsed[0] : parsed;
-                if (d.name) {
-                  map[d.name] = d.version || "1.0.0";
-                }
-              } catch {}
-            }
-          }
-          setInstalledTemplates(map);
-        }
-      } catch {}
+    let active = true;
+    loadInstalledTemplatesVersionMap(vaultPath).then((map) => {
+      if (active) setInstalledTemplates(map);
+    });
+    return () => {
+      active = false;
     };
-    fetchLocalTemplates();
   }, [vaultPath]);
 
   const isInstalled = (asset: any) => {
@@ -482,13 +468,10 @@ export default function AssetPreviewSidebar({
                     : data.json_data;
                 const displayData = Array.isArray(parsed) ? parsed[0] : parsed;
                 const templateId = displayData?.template_id || "vlocal";
-                const templatesDir = `${vaultPath}\\Templates`;
-                if (!(await exists(templatesDir))) {
-                  await mkdir(templatesDir, { recursive: true });
-                }
-                await writeTextFile(
-                  `${templatesDir}\\${templateId}_template.json`,
-                  JSON.stringify(parsed, null, 2)
+                await writeLocalTemplateFile(
+                  vaultPath,
+                  `${templateId}_template.json`,
+                  parsed
                 );
                 setInstalledTemplates((prev) => ({
                   ...prev,

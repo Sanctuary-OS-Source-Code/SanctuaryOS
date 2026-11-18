@@ -3,6 +3,7 @@ import { invoke } from "@tauri-apps/api/core";
 import { useStore } from "../store";
 import { useModalStore } from "../store/modalStore";
 import { isDesktop } from "./envUtils";
+import { fnv1aHashHex } from "../lib/cryptoUtils";
 
 export interface CloudSyncInspectInput {
   master_vault_path?: string | null;
@@ -66,6 +67,7 @@ export interface CloudSyncConsentRecord {
   role: string;
   provider: string;
   resolved_path: string;
+  path_hash?: string;
   consented_at: number;
   workspace_id?: string | null;
 }
@@ -131,7 +133,7 @@ export function buildCloudConsentKey(finding: Pick<CloudSyncPathFinding, "role" 
   const role = String(finding.role || "").trim().toLowerCase();
   const provider = String(finding.provider || "").trim().toLowerCase();
   const normPath = normalizeCloudPathKey(finding.resolved_path || finding.configured_path);
-  return `${role}::${provider}::${normPath}`;
+  return `${role}::${provider}::${fnv1aHashHex(normPath)}`;
 }
 
 export function getCloudSyncConsents(): Record<string, CloudSyncConsentRecord> {
@@ -163,12 +165,14 @@ export function isCloudSyncFindingConsented(
   if (key in map) return true;
   // Also match resolved path even if a path was inspected under a secondary role on the same folder
   const normResolved = normalizeCloudPathKey(finding.resolved_path || finding.configured_path);
+  const resolvedHash = fnv1aHashHex(normResolved);
   const provLower = String(finding.provider || "").trim().toLowerCase();
+  const roleLower = String(finding.role || "").trim().toLowerCase();
   return Object.values(map).some(
     (entry) =>
-      normalizeCloudPathKey(entry.resolved_path) === normResolved &&
+      (entry.path_hash ? entry.path_hash === resolvedHash : normalizeCloudPathKey(entry.resolved_path) === normResolved) &&
       String(entry.provider || "").trim().toLowerCase() === provLower &&
-      String(entry.role || "").trim().toLowerCase() === String(finding.role || "").trim().toLowerCase()
+      String(entry.role || "").trim().toLowerCase() === roleLower
   );
 }
 
@@ -182,11 +186,14 @@ export function grantCloudSyncConsent(
   const now = Date.now();
   for (const finding of list) {
     const key = buildCloudConsentKey(finding);
+    const rawResolved = finding.resolved_path || finding.configured_path;
+    const normResolved = normalizeCloudPathKey(rawResolved);
     map[key] = {
       key,
       role: finding.role,
       provider: finding.provider,
-      resolved_path: finding.resolved_path || finding.configured_path,
+      resolved_path: obfuscateCloudPath(rawResolved),
+      path_hash: fnv1aHashHex(normResolved),
       consented_at: now,
       workspace_id: workspaceId || useStore.getState().activeWorkspaceId || null,
     };
@@ -199,8 +206,20 @@ export function revokeCloudSyncConsent(
 ) {
   const map = getCloudSyncConsents();
   const key = buildCloudConsentKey(finding);
+  const role = String(finding.role || "").trim().toLowerCase();
+  const provider = String(finding.provider || "").trim().toLowerCase();
+  const normResolved = normalizeCloudPathKey(finding.resolved_path || finding.configured_path);
+  const legacyKey = `${role}::${provider}::${normResolved}`;
+  let changed = false;
   if (key in map) {
     delete map[key];
+    changed = true;
+  }
+  if (legacyKey in map) {
+    delete map[legacyKey];
+    changed = true;
+  }
+  if (changed) {
     saveCloudSyncConsents(map);
   }
 }

@@ -4,7 +4,8 @@ import { useStore } from './store';
 import { useLexicon } from './LexiconContext';
 import { useTheme } from './ThemeContext';
 import { invoke } from '@tauri-apps/api/core';
-import { exists, readDir, readTextFile } from '@tauri-apps/plugin-fs';
+import { isDesktop } from './utils/envUtils';
+import { loadInstalledTemplatesVersionMap } from './utils/localTemplateInspector';
 import { compareVersions } from './shared';
 
 export function NexusUpdatesChecker() {
@@ -24,32 +25,12 @@ export function NexusUpdatesChecker() {
         if (error || !assets) return;
 
         let templatesMap: Record<string, string> = {};
-        try {
-          const config: any = await invoke('get_saved_coordinates');
-          const vaultPath = config.vault_path;
-          if (vaultPath) {
-            const templatesDir = `${vaultPath}\\Templates`;
-            if (await exists(templatesDir)) {
-              const files = await readDir(templatesDir);
-              for (const file of files) {
-                if (file.name?.endsWith('.json')) {
-                  try {
-                    const content = await readTextFile(`${templatesDir}\\${file.name}`);
-                    const parsed = JSON.parse(content);
-                    const data = Array.isArray(parsed) ? parsed[0] : parsed;
-                    if (data.name) {
-                      const currentVersion = templatesMap[data.name] || '0.0.0';
-                      const parsedVersion = data.template_version || data.version || '1.0.0';
-                      if (compareVersions(parsedVersion, currentVersion) >= 0) {
-                         templatesMap[data.name] = parsedVersion;
-                      }
-                    }
-                  } catch {}
-                }
-              }
-            }
-          }
-        } catch {}
+        if (isDesktop()) {
+          try {
+            const config: any = await invoke('get_saved_coordinates');
+            templatesMap = await loadInstalledTemplatesVersionMap(config?.vault_path);
+          } catch {}
+        }
 
         let updatesCount = 0;
         const updateTabs = new Set<string>();

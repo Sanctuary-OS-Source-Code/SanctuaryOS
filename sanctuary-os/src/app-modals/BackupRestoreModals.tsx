@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { createPortal } from "react-dom";
-import { openPath } from "@tauri-apps/plugin-opener";
+import { invoke } from "@tauri-apps/api/core";
 import { useStore } from "../store";
 import { useModalStore } from "../store/modalStore";
 import { useTooltipStore } from "../store/tooltipStore";
@@ -296,9 +296,9 @@ export function BackupRestoreModals({
     fallbackLatestBackup;
 
   const handleOpenActiveFolder = async () => {
-    if (!activeLocation) return;
+    if (!activeLocation || !isDesktop()) return;
     try {
-      await openPath(activeLocation);
+      await invoke("open_folder", { path: activeLocation });
     } catch (e) {
       console.error(e);
     }

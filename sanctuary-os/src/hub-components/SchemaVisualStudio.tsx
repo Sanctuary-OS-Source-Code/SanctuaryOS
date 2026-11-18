@@ -1776,6 +1776,18 @@ export default function SchemaVisualStudio({
                         id: "json_key",
                         label: t("schema_studio_ver_method_json", "JSON Property Key"),
                       },
+                      {
+                        id: "plain_text",
+                        label: t("schema_studio_ver_method_text", "Plain Text / Version File"),
+                      },
+                      {
+                        id: "xml_tag",
+                        label: t("schema_studio_ver_method_xml", "XML / Plist Tag"),
+                      },
+                      {
+                        id: "regex",
+                        label: t("schema_studio_ver_method_regex", "Regex Capture Pattern"),
+                      },
                     ]}
                   />
                 </div>
@@ -1805,7 +1817,7 @@ export default function SchemaVisualStudio({
                     onChange={(e) =>
                       updateNestedField("version_extraction", "line_prefix", e.target.value)
                     }
-                    placeholder="e.g. gameversion"
+                    placeholder={t("schema_studio_ph_ver_line_prefix", "e.g. gameversion")}
                     className="h-10 min-w-0 glass-panel rounded-xl px-3.5 text-xs font-mono font-bold text-[var(--text)] border border-[color-mix(in_srgb,var(--text)_12%,transparent)]"
                   />
                 </div>
@@ -1829,6 +1841,48 @@ export default function SchemaVisualStudio({
                   />
                 </div>
 
+                {versionExtObj.method === "xml_tag" && (
+                  <div className="glass-surface rounded-2xl p-3.5 border border-[color-mix(in_srgb,var(--text)_10%,transparent)] flex flex-col gap-2 min-w-0">
+                    <label className="text-[10px] font-black uppercase tracking-widest text-[var(--subtext)]">
+                      {t("schema_studio_ver_xml_tag", "XML / Plist Tag Name")}
+                    </label>
+                    <input
+                      type="text"
+                      value={versionExtObj.xml_tag ?? ""}
+                      onChange={(e) =>
+                        updateNestedField(
+                          "version_extraction",
+                          "xml_tag",
+                          e.target.value ? e.target.value : null
+                        )
+                      }
+                      placeholder={t("schema_studio_ph_ver_xml_tag", "e.g. AppVersion")}
+                      className="h-10 min-w-0 glass-panel rounded-xl px-3.5 text-xs font-mono font-bold text-[var(--text)] border border-[color-mix(in_srgb,var(--text)_12%,transparent)]"
+                    />
+                  </div>
+                )}
+
+                {versionExtObj.method === "regex" && (
+                  <div className="glass-surface rounded-2xl p-3.5 border border-[color-mix(in_srgb,var(--text)_10%,transparent)] flex flex-col gap-2 min-w-0">
+                    <label className="text-[10px] font-black uppercase tracking-widest text-[var(--subtext)]">
+                      {t("schema_studio_ver_regex", "Version Regex Pattern")}
+                    </label>
+                    <input
+                      type="text"
+                      value={versionExtObj.regex_pattern ?? ""}
+                      onChange={(e) =>
+                        updateNestedField(
+                          "version_extraction",
+                          "regex_pattern",
+                          e.target.value ? e.target.value : null
+                        )
+                      }
+                      placeholder={t("schema_studio_ph_ver_regex", "e.g. build\\s+([0-9.]+)")}
+                      className="h-10 min-w-0 glass-panel rounded-xl px-3.5 text-xs font-mono font-bold text-[var(--text)] border border-[color-mix(in_srgb,var(--text)_12%,transparent)]"
+                    />
+                  </div>
+                )}
+
                 <div className="glass-surface rounded-2xl p-3.5 border border-[color-mix(in_srgb,var(--text)_10%,transparent)] flex flex-col gap-2 min-w-0 lg:col-span-2">
                   <label className="text-[10px] font-black uppercase tracking-widest text-[var(--subtext)]">
                     {t("schema_studio_dlc_mask_tpl", "DLC Mask Launch Argument")}
@@ -1842,10 +1896,32 @@ export default function SchemaVisualStudio({
                         e.target.value ? e.target.value : null
                       )
                     }
-                    placeholder="e.g. -disablepacks:{packs}"
+                    placeholder={t("schema_studio_ph_dlc_mask", "e.g. -disablepacks:{packs}")}
                     className="h-10 min-w-0 glass-panel rounded-xl px-3.5 text-xs font-mono font-bold text-[var(--text)] border border-[color-mix(in_srgb,var(--text)_12%,transparent)]"
                   />
                 </div>
+              </div>
+
+              <div className="glass-surface rounded-2xl p-4 border border-[color-mix(in_srgb,var(--text)_10%,transparent)] flex flex-col gap-3 min-w-0">
+                <label className="text-[10px] font-black uppercase tracking-widest text-[var(--subtext)]">
+                  {t("schema_studio_ver_fallback_paths", "Fallback Version File Paths")}
+                </label>
+                <StringListBuilder
+                  items={
+                    Array.isArray(versionExtObj.fallback_paths)
+                      ? versionExtObj.fallback_paths
+                      : []
+                  }
+                  onChange={(next) =>
+                    updateNestedField("version_extraction", "fallback_paths", next)
+                  }
+                  placeholder={t(
+                    "schema_studio_ph_ver_fallback",
+                    "e.g. version.json or Build/Build.version"
+                  )}
+                  addButtonLabel={t("schema_studio_add_fallback_path", "Add Fallback Path")}
+                  layout="paths"
+                />
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-3 gap-3.5">

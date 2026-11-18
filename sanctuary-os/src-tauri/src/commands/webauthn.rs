@@ -117,11 +117,136 @@ pub(crate) mod local_passkey_vault {
         Ok(())
     }
 
+    #[cfg(target_os = "windows")]
+    const DPAPI_MAGIC_HEADER: &[u8] = b"DPAPI1\0\0";
+
+    #[cfg(target_os = "windows")]
+    #[repr(C)]
+    #[allow(non_snake_case)]
+    struct DpapiDataBlob {
+        cbData: u32,
+        pbData: *mut u8,
+    }
+
+    #[cfg(target_os = "windows")]
+    #[link(name = "crypt32")]
+    extern "system" {
+        fn CryptProtectData(
+            pDataIn: *const DpapiDataBlob,
+            szDataDescr: *const u16,
+            pOptionalEntropy: *const DpapiDataBlob,
+            pvReserved: *mut core::ffi::c_void,
+            pPromptStruct: *mut core::ffi::c_void,
+            dwFlags: u32,
+            pDataOut: *mut DpapiDataBlob,
+        ) -> i32;
+        fn CryptUnprotectData(
+            pDataIn: *const DpapiDataBlob,
+            ppszDataDescr: *mut *mut u16,
+            pOptionalEntropy: *const DpapiDataBlob,
+            pvReserved: *mut core::ffi::c_void,
+            pPromptStruct: *mut core::ffi::c_void,
+            dwFlags: u32,
+            pDataOut: *mut DpapiDataBlob,
+        ) -> i32;
+    }
+
+    #[cfg(target_os = "windows")]
+    #[link(name = "kernel32")]
+    extern "system" {
+        fn LocalFree(hMem: *mut core::ffi::c_void) -> *mut core::ffi::c_void;
+    }
+
+    #[cfg(target_os = "windows")]
+    fn dpapi_protect(plaintext: &[u8]) -> Result<Vec<u8>, String> {
+        const CRYPTPROTECT_UI_FORBIDDEN: u32 = 0x1;
+        let mut in_buf = plaintext.to_vec();
+        let data_in = DpapiDataBlob {
+            cbData: in_buf.len() as u32,
+            pbData: in_buf.as_mut_ptr(),
+        };
+        let mut data_out = DpapiDataBlob {
+            cbData: 0,
+            pbData: std::ptr::null_mut(),
+        };
+        let ok = unsafe {
+            CryptProtectData(
+                &data_in,
+                std::ptr::null(),
+                std::ptr::null(),
+                std::ptr::null_mut(),
+                std::ptr::null_mut(),
+                CRYPTPROTECT_UI_FORBIDDEN,
+                &mut data_out,
+            )
+        };
+        if ok == 0 || data_out.pbData.is_null() {
+            return Err("Windows DPAPI CryptProtectData failed for passkey master key.".into());
+        }
+        let sealed = unsafe {
+            std::slice::from_raw_parts(data_out.pbData, data_out.cbData as usize).to_vec()
+        };
+        unsafe {
+            LocalFree(data_out.pbData as *mut core::ffi::c_void);
+        }
+        let mut out = Vec::with_capacity(DPAPI_MAGIC_HEADER.len() + sealed.len());
+        out.extend_from_slice(DPAPI_MAGIC_HEADER);
+        out.extend_from_slice(&sealed);
+        Ok(out)
+    }
+
+    #[cfg(target_os = "windows")]
+    fn dpapi_unprotect(sealed: &[u8]) -> Result<Vec<u8>, String> {
+        const CRYPTPROTECT_UI_FORBIDDEN: u32 = 0x1;
+        let payload = sealed
+            .strip_prefix(DPAPI_MAGIC_HEADER)
+            .ok_or_else(|| "Missing DPAPI header.".to_string())?;
+        let mut in_buf = payload.to_vec();
+        let data_in = DpapiDataBlob {
+            cbData: in_buf.len() as u32,
+            pbData: in_buf.as_mut_ptr(),
+        };
+        let mut data_out = DpapiDataBlob {
+            cbData: 0,
+            pbData: std::ptr::null_mut(),
+        };
+        let ok = unsafe {
+            CryptUnprotectData(
+                &data_in,
+                std::ptr::null_mut(),
+                std::ptr::null(),
+                std::ptr::null_mut(),
+                std::ptr::null_mut(),
+                CRYPTPROTECT_UI_FORBIDDEN,
+                &mut data_out,
+            )
+        };
+        if ok == 0 || data_out.pbData.is_null() {
+            return Err("Windows DPAPI CryptUnprotectData failed for passkey master key.".into());
+        }
+        let plain = unsafe {
+            std::slice::from_raw_parts(data_out.pbData, data_out.cbData as usize).to_vec()
+        };
+        unsafe {
+            LocalFree(data_out.pbData as *mut core::ffi::c_void);
+        }
+        Ok(plain)
+    }
+
     pub fn load_or_create_master_key() -> Result<[u8; 32], String> {
         let key_path = secure_passkey_dir()?.join(".passkey_master_key.bin");
         if key_path.exists() {
             let raw = fs::read(&key_path)
                 .map_err(|e| format!("Failed reading local passkey master key: {}", e))?;
+            #[cfg(target_os = "windows")]
+            if raw.starts_with(DPAPI_MAGIC_HEADER) {
+                let plain = dpapi_unprotect(&raw)?;
+                if plain.len() == 32 {
+                    let mut key = [0u8; 32];
+                    key.copy_from_slice(&plain);
+                    return Ok(key);
+                }
+            }
             if raw.len() == 32 {
                 #[cfg(unix)]
                 {
@@ -130,6 +255,13 @@ pub(crate) mod local_passkey_vault {
                 }
                 let mut key = [0u8; 32];
                 key.copy_from_slice(&raw);
+                #[cfg(target_os = "windows")]
+                {
+                    // Transparently seal legacy plaintext master key with Windows user DPAPI
+                    if let Ok(sealed) = dpapi_protect(&key) {
+                        let _ = write_restricted_file(&key_path, &sealed);
+                    }
+                }
                 return Ok(key);
             }
         }
@@ -138,7 +270,15 @@ pub(crate) mod local_passkey_vault {
         let mut fresh_key = [0u8; 32];
         rng.fill(&mut fresh_key)
             .map_err(|_| "OS CSPRNG failed generating 256-bit passkey master secret.".to_string())?;
-        write_restricted_file(&key_path, &fresh_key)?;
+        #[cfg(target_os = "windows")]
+        {
+            let sealed = dpapi_protect(&fresh_key)?;
+            write_restricted_file(&key_path, &sealed)?;
+        }
+        #[cfg(not(target_os = "windows"))]
+        {
+            write_restricted_file(&key_path, &fresh_key)?;
+        }
         Ok(fresh_key)
     }
 

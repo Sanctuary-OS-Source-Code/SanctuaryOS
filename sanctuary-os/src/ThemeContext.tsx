@@ -1,6 +1,7 @@
 import { createContext, useContext, useState, useEffect, useLayoutEffect, useMemo, useCallback } from 'react';
 import { invoke } from '@tauri-apps/api/core';
-import { mkdir, writeTextFile, writeFile, readDir, readTextFile, readFile, remove, exists } from '@tauri-apps/plugin-fs';
+import { mkdir, writeFile, readFile, exists } from '@tauri-apps/plugin-fs';
+import { joinLocalPath } from './utils/localTemplateInspector';
 import { supabaseAuth } from './supabase';
 import { createClient } from '@supabase/supabase-js';
 import { isDesktop, isLinuxDesktop } from './utils/envUtils';
@@ -1364,16 +1365,10 @@ export const ThemeProvider = ({ children }: any) => {
         const { masterVault, spokeVault } = await resolveVaultThemeRoots();
         if (!masterVault) return;
 
-        const themesDir = `${masterVault}\\Data\\Themes`;
-        const devThemesDir = `${masterVault}\\Data\\Dev\\Themes`;
-        const legacySpokeThemesDir =
-          spokeVault && spokeVault.toLowerCase() !== masterVault.toLowerCase()
-            ? `${spokeVault}\\Data\\Themes`
-            : '';
-        const legacySpokeDevThemesDir =
-          spokeVault && spokeVault.toLowerCase() !== masterVault.toLowerCase()
-            ? `${spokeVault}\\Data\\Dev\\Themes`
-            : '';
+        const candidateRoots = [
+          masterVault,
+          spokeVault && spokeVault.toLowerCase() !== masterVault.toLowerCase() ? spokeVault : null,
+        ].filter((v): v is string => Boolean(v));
 
         let updatedCustoms = { ...customThemes };
         let updatedDevs = { ...devThemes };
@@ -1403,7 +1398,7 @@ export const ThemeProvider = ({ children }: any) => {
             !companionFile.includes('\\') &&
             !companionFile.includes('..')
           ) {
-            const candidatePath = `${dirPath}\\${companionFile}`;
+            const candidatePath = joinLocalPath(dirPath, companionFile);
             if (await exists(candidatePath)) {
               try {
                 const rawBytes = await readFile(candidatePath);
@@ -1435,48 +1430,58 @@ export const ThemeProvider = ({ children }: any) => {
           return !bg || bg.startsWith('https://');
         };
 
-        for (const candidateDir of [themesDir, legacySpokeThemesDir].filter(Boolean)) {
-          if (await exists(candidateDir)) {
-            const entries = await readDir(candidateDir);
-            for (const entry of entries) {
-              if (entry.name && entry.name.endsWith('.json')) {
-                const themeId = entry.name.replace('.json', '');
-                if ((!updatedCustoms[themeId] || needsDiskWallpaperHydration(updatedCustoms[themeId])) && !CORE_THEMES[themeId]) {
-                  const content = await readTextFile(`${candidateDir}\\${entry.name}`);
-                  const resolved = await resolveCompanionWallpaper(candidateDir, JSON.parse(content));
-                  updatedCustoms[themeId] = updatedCustoms[themeId]
-                    ? { ...updatedCustoms[themeId], ...resolved }
-                    : resolved;
-                  hasCustomUpdates = true;
-                  if (candidateDir !== themesDir) {
-                    await mkdir(themesDir, { recursive: true }).catch(() => {});
-                    await writeTextFile(`${themesDir}\\${entry.name}`, JSON.stringify(resolved, null, 2)).catch(() => {});
-                  }
+        for (const candidateRoot of candidateRoots) {
+          const entries = await invoke<Array<{ file_name: string; path: string; content: string }>>(
+            'scan_vault_themes',
+            { vaultPath: candidateRoot, isDev: false }
+          ).catch(() => []);
+          for (const entry of entries) {
+            const themeId = entry.file_name.replace(/\.json$/i, '');
+            if ((!updatedCustoms[themeId] || needsDiskWallpaperHydration(updatedCustoms[themeId])) && !CORE_THEMES[themeId]) {
+              try {
+                const entryDir = entry.path.replace(/[\\/][^\\/]+$/, '');
+                const resolved = await resolveCompanionWallpaper(entryDir, JSON.parse(entry.content));
+                updatedCustoms[themeId] = updatedCustoms[themeId]
+                  ? { ...updatedCustoms[themeId], ...resolved }
+                  : resolved;
+                hasCustomUpdates = true;
+                if (candidateRoot !== masterVault) {
+                  await invoke('save_vault_theme', {
+                    vaultPath: masterVault,
+                    fileName: entry.file_name,
+                    content: JSON.stringify(resolved, null, 2),
+                    isDev: false,
+                  }).catch(() => {});
                 }
-              }
+              } catch {}
             }
           }
         }
 
-        for (const candidateDevDir of [devThemesDir, legacySpokeDevThemesDir].filter(Boolean)) {
-          if (await exists(candidateDevDir)) {
-            const entries = await readDir(candidateDevDir);
-            for (const entry of entries) {
-              if (entry.name && entry.name.endsWith('.json')) {
-                const themeId = entry.name.replace('.json', '');
-                if (!updatedDevs[themeId] || needsDiskWallpaperHydration(updatedDevs[themeId])) {
-                  const content = await readTextFile(`${candidateDevDir}\\${entry.name}`);
-                  const resolved = await resolveCompanionWallpaper(candidateDevDir, JSON.parse(content));
-                  updatedDevs[themeId] = updatedDevs[themeId]
-                    ? { ...updatedDevs[themeId], ...resolved }
-                    : resolved;
-                  hasDevUpdates = true;
-                  if (candidateDevDir !== devThemesDir) {
-                    await mkdir(devThemesDir, { recursive: true }).catch(() => {});
-                    await writeTextFile(`${devThemesDir}\\${entry.name}`, JSON.stringify(resolved, null, 2)).catch(() => {});
-                  }
+        for (const candidateRoot of candidateRoots) {
+          const entries = await invoke<Array<{ file_name: string; path: string; content: string }>>(
+            'scan_vault_themes',
+            { vaultPath: candidateRoot, isDev: true }
+          ).catch(() => []);
+          for (const entry of entries) {
+            const themeId = entry.file_name.replace(/\.json$/i, '');
+            if (!updatedDevs[themeId] || needsDiskWallpaperHydration(updatedDevs[themeId])) {
+              try {
+                const entryDir = entry.path.replace(/[\\/][^\\/]+$/, '');
+                const resolved = await resolveCompanionWallpaper(entryDir, JSON.parse(entry.content));
+                updatedDevs[themeId] = updatedDevs[themeId]
+                  ? { ...updatedDevs[themeId], ...resolved }
+                  : resolved;
+                hasDevUpdates = true;
+                if (candidateRoot !== masterVault) {
+                  await invoke('save_vault_theme', {
+                    vaultPath: masterVault,
+                    fileName: entry.file_name,
+                    content: JSON.stringify(resolved, null, 2),
+                    isDev: true,
+                  }).catch(() => {});
                 }
-              }
+              } catch {}
             }
           }
         }
@@ -1575,7 +1580,9 @@ export const ThemeProvider = ({ children }: any) => {
         if (!safeId) return;
         const { masterVault } = await resolveVaultThemeRoots();
         if (!masterVault) return;
-        const dir = isDev ? `${masterVault}\\Data\\Dev\\Themes` : `${masterVault}\\Data\\Themes`;
+        const dir = isDev
+          ? joinLocalPath(masterVault, 'Data', 'Dev', 'Themes')
+          : joinLocalPath(masterVault, 'Data', 'Themes');
         await mkdir(dir, { recursive: true });
 
         const diskJson: Record<string, any> = { ...(json || {}) };
@@ -1593,10 +1600,15 @@ export const ThemeProvider = ({ children }: any) => {
               bytes[i] = binStr.charCodeAt(i);
             }
             const companionName = `${safeId}.${ext}`;
-            await writeFile(`${dir}\\${companionName}`, bytes);
+            await writeFile(joinLocalPath(dir, companionName), bytes);
             diskJson.bgImageFile = companionName;
             diskJson.bgImage = typeof diskJson.bgRemoteUrl === 'string' ? diskJson.bgRemoteUrl : '';
-            await writeTextFile(`${dir}\\${safeId}.json`, JSON.stringify(diskJson, null, 2));
+            await invoke('save_vault_theme', {
+              vaultPath: masterVault,
+              fileName: `${safeId}.json`,
+              content: JSON.stringify(diskJson, null, 2),
+              isDev,
+            });
 
             if (isDev) {
               setDevThemes((prev: Record<string, any>) => {
@@ -1617,7 +1629,12 @@ export const ThemeProvider = ({ children }: any) => {
           }
         } else if (rawBg.startsWith('https://')) {
           // Save metadata immediately first so offline or slow network never blocks persistence
-          await writeTextFile(`${dir}\\${safeId}.json`, JSON.stringify(diskJson, null, 2));
+          await invoke('save_vault_theme', {
+            vaultPath: masterVault,
+            fileName: `${safeId}.json`,
+            content: JSON.stringify(diskJson, null, 2),
+            isDev,
+          });
           const safeRemote = sanitizeThemeBgImageUrl(rawBg);
           if (safeRemote) {
             try {
@@ -1632,12 +1649,17 @@ export const ThemeProvider = ({ children }: any) => {
                   else if (ct.includes('jpeg') || ct.includes('jpg') || /\.jpe?g($|\?)/i.test(safeRemote)) ext = 'jpg';
                   const mime = ext === 'png' ? 'image/png' : ext === 'jpg' ? 'image/jpeg' : 'image/webp';
                   const companionName = `${safeId}.${ext}`;
-                  await writeFile(`${dir}\\${companionName}`, bytes);
+                  await writeFile(joinLocalPath(dir, companionName), bytes);
 
                   diskJson.bgImageFile = companionName;
                   diskJson.bgRemoteUrl = safeRemote;
                   diskJson.bgImage = safeRemote;
-                  await writeTextFile(`${dir}\\${safeId}.json`, JSON.stringify(diskJson, null, 2));
+                  await invoke('save_vault_theme', {
+                    vaultPath: masterVault,
+                    fileName: `${safeId}.json`,
+                    content: JSON.stringify(diskJson, null, 2),
+                    isDev,
+                  });
 
                   let binary = '';
                   const chunkSize = 0x8000;
@@ -1685,7 +1707,12 @@ export const ThemeProvider = ({ children }: any) => {
           return;
         }
 
-        await writeTextFile(`${dir}\\${safeId}.json`, JSON.stringify(diskJson, null, 2));
+        await invoke('save_vault_theme', {
+          vaultPath: masterVault,
+          fileName: `${safeId}.json`,
+          content: JSON.stringify(diskJson, null, 2),
+          isDev,
+        });
       } catch (err) {
         console.error("Failed to save theme to vault:", err);
       }
@@ -1808,11 +1835,11 @@ export const ThemeProvider = ({ children }: any) => {
         if (!isDesktop()) return;
         const { masterVault, spokeVault } = await resolveVaultThemeRoots();
         for (const base of [masterVault, spokeVault].filter(Boolean)) {
-          const dir = isDev ? `${base}\\Data\\Dev\\Themes` : `${base}\\Data\\Themes`;
-          for (const candidateName of [`${id}.json`, `${id}.webp`, `${id}.png`, `${id}.jpg`]) {
-            const filePath = `${dir}\\${candidateName}`;
-            if (await exists(filePath)) await remove(filePath);
-          }
+          await invoke('delete_vault_theme', {
+            vaultPath: base,
+            fileName: `${id}.json`,
+            isDev,
+          }).catch(() => {});
         }
       } catch (err) { console.error("Failed to delete theme from vault:", err); }
     })();

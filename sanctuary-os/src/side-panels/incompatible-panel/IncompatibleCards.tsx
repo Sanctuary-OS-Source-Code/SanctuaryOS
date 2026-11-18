@@ -1,0 +1,1369 @@
+import React, { useMemo, useState } from "react";
+import { SidePanel, formatDisplayName, getModIcon, EmptyState, PanelHeaderGroup, PanelHeaderButton, handleOpenUrl, getModFallbackUrl, HoverTooltip, ActionPill, InlineFilterGroup, SidePanelHeroCard, DashboardStatTile, SidePanelFilterBar, UniversalGroup, VAULT_CHIP_CLASS, isScriptExtension, openModDossier } from "../../shared";
+import { useShallow } from "zustand/react/shallow";
+import { useLexicon } from "../../LexiconContext";
+import { useStore } from "../../store";
+import { type MissingDepTarget, type StackedModIssue, cleanModIssueReason, formatVersionBadgeText, evaluateModIssues, extractValidCreator, groupBrokenMods, formatCleanModTitle, formatAddonModuleName } from "./issueEvaluator";
+
+export function IncompatibleModCard({
+  mod,
+  isIgnored,
+  isAmber,
+  setIgnoredBroken,
+  ignoredBroken,
+  toggleInActiveSet,
+  allow_write,
+  t,
+  activeGameSchema,
+}: any) {
+  const [isExpanded, setIsExpanded] = useState(false);
+  const showImages = useStore((state: any) => state.showImages);
+  const image =
+    showImages &&
+    (mod.image_url || mod.imageUrl) &&
+    String(mod.image_url || mod.imageUrl) !== "null" &&
+    String(mod.image_url || mod.imageUrl).trim() !== ""
+      ? mod.image_url || mod.imageUrl
+      : undefined;
+  const modIcon = getModIcon(mod, activeGameSchema, t);
+  const groupedMods: any[] =
+    Array.isArray(mod._groupedMods) && mod._groupedMods.length > 0 ? mod._groupedMods : [mod];
+  const allGroupIgnored =
+    ignoredBroken instanceof Set ? groupedMods.every((m) => ignoredBroken.has(m.name)) : false;
+  const effectiveIgnored = Boolean(isIgnored || allGroupIgnored);
+
+  const rawTitle = mod._groupedTitle || formatDisplayName(mod.displayName || mod.name);
+  const title = formatCleanModTitle(rawTitle) || rawTitle;
+
+  const hasRealVersion = Boolean(
+    mod.version &&
+      String(mod.version).trim() !== "" &&
+      String(mod.version).toLowerCase() !== "v.local" &&
+      String(mod.version).toLowerCase() !== "vlocal" &&
+      String(mod.version).toLowerCase() !== "local" &&
+      String(mod.version).toLowerCase() !== "unknown"
+  );
+  const cleanInstalledVer = hasRealVersion
+    ? String(mod.version).replace(/^v\.?/i, "").trim()
+    : null;
+
+  const validCreator = extractValidCreator(mod, ...groupedMods);
+  const hasScriptFile = groupedMods.some((gm) =>
+    isScriptExtension(String(gm?.name || gm?._originalSetName || ""), activeGameSchema)
+  );
+  const fallbackTypeLabel = hasScriptFile
+    ? t("type_script", "Script")
+    : t("type_package", "Module");
+
+  const hasUpdate = Boolean(mod.hasUpdate && mod.newVersion);
+  const cleanNewVer = mod.newVersion
+    ? String(mod.newVersion).replace(/^v\.?/i, "").trim()
+    : null;
+
+  const resolvedFallbackUrl = getModFallbackUrl(
+    title || mod.name || "",
+    mod.hash,
+    activeGameSchema,
+    { url: mod.download_url || mod.url }
+  );
+
+  const openModUpdate = (e?: React.MouseEvent) => {
+    if (e) {
+      e.preventDefault();
+      e.stopPropagation();
+    }
+    const targetUrl = mod.download_url || mod.url || resolvedFallbackUrl;
+    handleOpenUrl(targetUrl);
+  };
+
+  const selectedWorkspaceVersion = useStore((state: any) => state.selectedVersion);
+
+  const categories: StackedModIssue["category"][] =
+    Array.isArray(mod._categories) && mod._categories.length > 0
+      ? mod._categories
+      : [mod._alert_category || (isAmber ? "unstable" : "corrupted")];
+
+  const stackedIssues: StackedModIssue[] =
+    Array.isArray(mod._issues) && mod._issues.length > 0
+      ? mod._issues
+      : [
+          {
+            category: categories[0],
+            type: isAmber ? "amber" : "red",
+            icon: isAmber
+              ? t("icon_warning", "warning")
+              : t("icon_error", "error"),
+            title: isAmber
+              ? t("label_unstable", "Unstable")
+              : t("status_corrupted", "Corrupted"),
+            detail: cleanModIssueReason(mod.status_reason),
+          },
+        ];
+
+  const missingDepTargets: MissingDepTarget[] = [];
+  const seenDepNames = new Set<string>();
+  const missingDlcLabels: string[] = [];
+  let customStatusReason = "";
+
+  stackedIssues.forEach((iss) => {
+    if (iss.category === "missing_deps") {
+      const depName = iss.depTarget?.name || iss.detail || "";
+      const depKey = depName.toLowerCase().trim();
+      if (depKey && !seenDepNames.has(depKey)) {
+        seenDepNames.add(depKey);
+        missingDepTargets.push(
+          iss.depTarget || {
+            name: depName,
+            url: getModFallbackUrl(depName, undefined, activeGameSchema),
+          }
+        );
+      }
+    } else if (iss.category === "missing_dlc" && iss.detail) {
+      if (!missingDlcLabels.includes(iss.detail)) {
+        missingDlcLabels.push(iss.detail);
+      }
+    } else if (
+      (iss.category === "corrupted" || iss.category === "unstable") &&
+      iss.detail &&
+      !customStatusReason
+    ) {
+      customStatusReason = iss.detail;
+    }
+  });
+
+  const vaultDepsToEquip = missingDepTargets.filter((d) => Boolean(d.vaultModName));
+
+  const issueRows: {
+    icon: string;
+    issueLabel: string;
+    detailValue?: string;
+    tooltipLines: string[];
+    type: "red" | "amber";
+  }[] = stackedIssues.map((iss) => {
+    const hasCustomDetail = Boolean(
+      iss.detail &&
+        iss.detail.toLowerCase() !== rawTitle.toLowerCase() &&
+        iss.detail.toLowerCase() !== title.toLowerCase() &&
+        iss.detail.toLowerCase() !== iss.title.toLowerCase()
+    );
+
+    if (iss.category === "version_mismatch") {
+      const instLabel =
+        iss.installedVersion ||
+        formatVersionBadgeText(selectedWorkspaceVersion, t("unknown", "Unknown"));
+      const reqLabel =
+        iss.requiredVersion ||
+        (hasCustomDetail ? formatVersionBadgeText(iss.detail, t("unknown", "Unknown")) : t("unknown", "Unknown"));
+      return {
+        icon: t("icon_sports_esports", "sports_esports"),
+        issueLabel: t("modal_version_mismatch", "Version Mismatch"),
+        detailValue: reqLabel,
+        tooltipLines: [
+          `${t("installed", "Installed")}: ${instLabel}`,
+          `${t("tooltip_required", "Required:")} ${reqLabel}`,
+        ],
+        type: iss.type,
+      };
+    }
+    if (iss.category === "missing_deps") {
+      const depName = iss.depTarget?.name || iss.detail || t("unknown", "Unknown");
+      const whereHint =
+        iss.depTarget?.vaultModName && allow_write && toggleInActiveSet
+          ? t("dep_in_vault_equip_hint", "In {Vault} — Click + on card to equip")
+          : iss.depTarget?.sourceHost
+            ? `${t("source", "Source")}: ${iss.depTarget.sourceHost}`
+            : t("dep_click_download_hint", "Click download icon on card to get it");
+      return {
+        icon: iss.icon || t("icon_extension", "extension"),
+        issueLabel: t("badge_missing_dep", "Missing Dependency"),
+        detailValue: depName,
+        tooltipLines: [`${t("tooltip_required", "Required:")} ${depName}`, whereHint],
+        type: iss.type,
+      };
+    }
+    if (iss.category === "missing_dlc") {
+      return {
+        icon: iss.icon || t("icon_currency_exchange", "currency_exchange"),
+        issueLabel: t("missing_dlc", "Missing DLC"),
+        detailValue: hasCustomDetail ? iss.detail : undefined,
+        tooltipLines: [
+          `${t("tooltip_required", "Required:")} ${iss.detail || t("unknown", "Unknown")}`,
+        ],
+        type: iss.type,
+      };
+    }
+    if (iss.category === "corrupted") {
+      return {
+        icon: t("icon_gpp_bad", "gpp_bad"),
+        issueLabel: iss.title || t("status_corrupted", "Corrupted"),
+        detailValue: hasCustomDetail ? iss.detail : undefined,
+        tooltipLines: hasCustomDetail
+          ? [iss.detail]
+          : [
+              t(
+                "corrupted_default_tooltip",
+                "Flagged broken or incompatible. Open {Mod} Metadata to add or view issue details."
+              ),
+            ],
+        type: iss.type,
+      };
+    }
+    if (iss.category === "unstable") {
+      return {
+        icon: t("icon_warning_amber", "warning_amber"),
+        issueLabel: iss.title || t("label_unstable", "Unstable"),
+        detailValue: hasCustomDetail ? iss.detail : undefined,
+        tooltipLines: hasCustomDetail
+          ? [iss.detail]
+          : [
+              t(
+                "unstable_default_tooltip",
+                "Reported minor glitches or conditional issues. Open {Mod} Metadata to add or view issue details."
+              ),
+            ],
+        type: iss.type,
+      };
+    }
+    return {
+      icon: iss.icon || t("icon_error", "error"),
+      issueLabel: iss.title,
+      detailValue: hasCustomDetail ? iss.detail : undefined,
+      tooltipLines: hasCustomDetail ? [iss.detail] : [],
+      type: iss.type,
+    };
+  });
+
+  const primaryIssue = issueRows[0];
+  const extraIssues = issueRows.slice(1);
+
+  return (
+    <div
+      onClick={() =>
+        openModDossier(
+          groupedMods.length > 1
+            ? {
+                ...mod,
+                displayName: title || mod._groupedTitle || mod.displayName || mod.name,
+                isVirtual: true,
+                flavors: groupedMods,
+              }
+            : mod
+        )
+      }
+      className={`glass-panel rounded-2xl p-3.5 border border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_22%,transparent)] flex flex-col justify-between gap-2.5 transition-all duration-200 cursor-pointer relative ${
+        isExpanded && groupedMods.length > 1 ? "sm:col-span-2" : ""
+      } ${effectiveIgnored ? "opacity-50 grayscale-[40%]" : ""}`}
+    >
+      {/* Top Tier: Full-Width Icon Well + Clean Title/Creator Identity */}
+      <div className="flex items-start gap-3 min-w-0 w-full">
+        {image ? (
+          <div className="w-10 h-10 rounded-xl overflow-hidden shrink-0 border border-[color-mix(in_srgb,var(--text)_12%,transparent)]">
+            <img src={image} alt={title} className="w-full h-full object-cover" />
+          </div>
+        ) : (
+          <div
+            className={`w-10 h-10 rounded-xl glass-surface border border-[var(--glass-card-icon-border,rgba(255,255,255,0.22))] bg-[var(--glass-card-icon-bg,rgba(255,255,255,0.08))] shadow-[var(--glass-card-icon-shadow)] flex items-center justify-center shrink-0 transition-opacity ${
+              isAmber ? "text-[var(--warning)]" : "text-[var(--danger)]"
+            }`}
+          >
+            <span className="material-symbols-outlined !text-[20px]">{modIcon}</span>
+          </div>
+        )}
+
+        <div className="flex flex-col gap-0.5 min-w-0 flex-1">
+          <div className="relative group/modtitle flex items-center min-w-0 w-fit max-w-full">
+            <span className="text-sm font-black text-[var(--text)] tracking-tight leading-snug truncate">
+              {title}
+            </span>
+            <HoverTooltip
+              className="z-[100]"
+              onlyWhenTruncated={true}
+              title={title}
+              icon={modIcon}
+            />
+          </div>
+
+          <div className="flex items-center gap-1.5 text-[11px] font-semibold text-[var(--subtext)] min-w-0">
+            {validCreator ? (
+              <span className="truncate opacity-90">
+                {formatCleanModTitle(validCreator)}
+              </span>
+            ) : (
+              <span className="opacity-85 shrink-0">{fallbackTypeLabel}</span>
+            )}
+            {groupedMods.length > 1 && (
+              <>
+                <span className="opacity-40 shrink-0">•</span>
+                <span className="opacity-85 shrink-0">
+                  {groupedMods.length} {t("badge_modules_count", "Modules")}
+                </span>
+              </>
+            )}
+            {hasUpdate && cleanNewVer ? (
+              <>
+                <span className="opacity-40 shrink-0">•</span>
+                <span className="relative group/verinline font-mono text-[10px] font-bold text-[var(--accent)] shrink-0">
+                  ↑ v{cleanNewVer}
+                  <HoverTooltip
+                    className="z-[100]"
+                    title={
+                      cleanInstalledVer
+                        ? `v${cleanInstalledVer} → v${cleanNewVer}`
+                        : `v${cleanNewVer}`
+                    }
+                    icon={t("icon_update", "update")}
+                    variant="accent"
+                  />
+                </span>
+              </>
+            ) : cleanInstalledVer ? (
+              <>
+                <span className="opacity-40 shrink-0">•</span>
+                <span className="font-mono text-[10px] font-bold text-[var(--subtext)] opacity-85 shrink-0">
+                  v{cleanInstalledVer}
+                </span>
+              </>
+            ) : null}
+          </div>
+
+          {missingDepTargets.length > 0 ? (
+            <div className="relative group/depline flex items-center gap-1 text-[10.5px] font-semibold text-[var(--danger)] min-w-0 mt-0.5">
+              <span className="truncate">
+                {t("tooltip_required", "Required:")}{" "}
+                {missingDepTargets.map((d) => d.name).join(", ")}
+                {missingDepTargets[0].sourceHost
+                  ? ` (${missingDepTargets[0].sourceHost})`
+                  : ""}
+              </span>
+              <HoverTooltip
+                className="z-[100]"
+                title={t("badge_missing_dep", "Missing Dependency")}
+                subtitle={missingDepTargets
+                  .map((d) =>
+                    d.sourceHost ? `${d.name} • ${d.sourceHost}` : d.name
+                  )
+                  .join("\n")}
+                icon={t("icon_extension", "extension")}
+                variant="danger"
+              />
+            </div>
+          ) : missingDlcLabels.length > 0 ? (
+            <div className="relative group/dlcline flex items-center gap-1 text-[10.5px] font-semibold text-[var(--danger)] min-w-0 mt-0.5">
+              <span className="truncate">
+                {t("tooltip_required", "Required:")} {missingDlcLabels.join(", ")}
+              </span>
+              <HoverTooltip
+                className="z-[100]"
+                onlyWhenTruncated={true}
+                title={t("missing_dlc", "Missing DLC")}
+                subtitle={missingDlcLabels.join(", ")}
+                icon={t("icon_currency_exchange", "currency_exchange")}
+                variant="danger"
+              />
+            </div>
+          ) : customStatusReason ? (
+            <div className="relative group/reasonline flex items-center gap-1 text-[10.5px] font-medium text-[var(--subtext)] opacity-90 min-w-0 mt-0.5">
+              <span className="truncate">{customStatusReason}</span>
+              <HoverTooltip
+                className="z-[100]"
+                onlyWhenTruncated={true}
+                title={primaryIssue?.issueLabel || t("status", "Status")}
+                subtitle={customStatusReason}
+                icon={primaryIssue?.icon}
+                variant={isAmber ? "warning" : "danger"}
+              />
+            </div>
+          ) : null}
+        </div>
+      </div>
+
+      {/* Bottom Status & Action Bar: Single Status Badge on Left | Uniform Action Icon Buttons on Right */}
+      <div className="pt-2.5 border-t border-[color-mix(in_srgb,var(--text)_8%,transparent)] flex items-center justify-between gap-2">
+        <div className="flex items-center gap-1.5 min-w-0">
+          {primaryIssue && (
+            <span className={`relative group/statusbadge ${VAULT_CHIP_CLASS}`}>
+              <span
+                className={`material-symbols-outlined !text-[12px] shrink-0 ${
+                  primaryIssue.type === "amber"
+                    ? "text-[var(--warning)]"
+                    : "text-[var(--danger)]"
+                }`}
+              >
+                {primaryIssue.icon}
+              </span>
+              <span>{primaryIssue.issueLabel}</span>
+              {extraIssues.length > 0 && (
+                <span className="opacity-75">+{extraIssues.length}</span>
+              )}
+              <HoverTooltip
+                className="z-[100]"
+                title={primaryIssue.issueLabel}
+                icon={primaryIssue.icon}
+                variant={primaryIssue.type === "amber" ? "warning" : "danger"}
+                content={
+                  <div className="flex flex-col items-start gap-2 min-w-[175px]">
+                    {[primaryIssue, ...extraIssues].map((r, rIdx) => (
+                      <div
+                        key={rIdx}
+                        className="flex flex-col items-start gap-0.5 text-left w-full"
+                      >
+                        <div className="flex items-center gap-1.5 text-[11px] font-bold tracking-wide leading-snug text-[var(--text)]">
+                          <span
+                            className={`material-symbols-outlined !text-[14px] shrink-0 ${
+                              r.type === "amber"
+                                ? "text-[var(--warning)]"
+                                : "text-[var(--danger)]"
+                            }`}
+                          >
+                            {r.icon}
+                          </span>
+                          <span>{r.issueLabel}</span>
+                        </div>
+                        {r.tooltipLines.length > 0 && (
+                          <div className="flex flex-col gap-0.5 pl-5 text-[11px] font-medium text-[var(--subtext)] leading-relaxed">
+                            {r.tooltipLines.map((line, lIdx) => (
+                              <span key={lIdx} className="break-words">
+                                {line}
+                              </span>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                }
+              />
+            </span>
+          )}
+        </div>
+
+        {/* Bottom-Right Compact Action Buttons */}
+        <div className="flex items-center gap-1.5 shrink-0 ml-auto">
+          {groupedMods.length > 1 && (
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                setIsExpanded((prev) => !prev);
+              }}
+              className={`relative group/actionbtn w-7 h-7 rounded-lg glass-surface border flex items-center justify-center transition-all cursor-pointer shrink-0 ${
+                isExpanded
+                  ? "border-[color-mix(in_srgb,var(--text)_24%,transparent)] text-[var(--accent)]"
+                  : "border-[color-mix(in_srgb,var(--text)_12%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_24%,transparent)] text-[var(--subtext)] hover:text-[var(--accent)]"
+              }`}
+            >
+              <span className="material-symbols-outlined !text-[15px]">
+                {t("icon_account_tree", "account_tree")}
+              </span>
+              <HoverTooltip
+                className="z-[100] !right-0 !translate-x-0 !left-auto"
+                title={`${groupedMods.length} ${t("badge_modules_count", "Modules")}`}
+                icon={t("icon_account_tree", "account_tree")}
+              />
+            </button>
+          )}
+
+          {allow_write && toggleInActiveSet && vaultDepsToEquip.length > 0 && (
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                vaultDepsToEquip.forEach((d) => {
+                  if (d.vaultModName) {
+                    toggleInActiveSet(d.vaultModName, false, false, true);
+                  }
+                });
+              }}
+              className="relative group/actionbtn w-7 h-7 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_24%,transparent)] text-[var(--success)] flex items-center justify-center transition-all cursor-pointer shrink-0"
+            >
+              <span className="material-symbols-outlined !text-[15px]">
+                {t("icon_add_link", "add_link")}
+              </span>
+              <HoverTooltip
+                className="z-[100] !right-0 !translate-x-0 !left-auto"
+                title={`${t("equip", "Equip")}: ${vaultDepsToEquip
+                  .map((d) => d.name)
+                  .join(", ")}`}
+                subtitle={t(
+                  "dep_equip_from_vault_sub",
+                  "Already in {Vault} — equip into this {Blueprint}"
+                )}
+                icon={t("icon_add_link", "add_link")}
+                variant="accent"
+              />
+            </button>
+          )}
+
+          {missingDepTargets.length > 0 && (
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                const primaryDep = missingDepTargets[0];
+                if (primaryDep?.url) {
+                  handleOpenUrl(primaryDep.url);
+                }
+              }}
+              className="relative group/actionbtn w-7 h-7 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_24%,transparent)] text-[var(--accent)] flex items-center justify-center transition-all cursor-pointer shrink-0"
+            >
+              <span className="material-symbols-outlined !text-[15px]">
+                {missingDepTargets[0].sourceHost
+                  ? t("icon_download", "download")
+                  : t("icon_travel_explore", "travel_explore")}
+              </span>
+              <HoverTooltip
+                className="z-[100] !right-0 !translate-x-0 !left-auto"
+                title={`${t("btn_get_dependency", "Get Dependency")}: ${missingDepTargets
+                  .map((d) => d.name)
+                  .join(", ")}`}
+                subtitle={
+                  missingDepTargets[0].sourceHost
+                    ? `${t("source", "Source")}: ${missingDepTargets[0].sourceHost}`
+                    : t("search_for_dependency", "Find & download required {mod}")
+                }
+                icon={
+                  missingDepTargets[0].sourceHost
+                    ? t("icon_download", "download")
+                    : t("icon_travel_explore", "travel_explore")
+                }
+                variant="accent"
+              />
+            </button>
+          )}
+
+          {hasUpdate && cleanNewVer && (
+            <button
+              type="button"
+              onClick={openModUpdate}
+              className="relative group/actionbtn w-7 h-7 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_24%,transparent)] text-[var(--subtext)] hover:text-[var(--accent)] flex items-center justify-center transition-all cursor-pointer shrink-0"
+            >
+              <span className="material-symbols-outlined !text-[15px]">
+                {t("icon_update", "update")}
+              </span>
+              <HoverTooltip
+                className="z-[100] !right-0 !translate-x-0 !left-auto"
+                title={
+                  cleanInstalledVer
+                    ? `${t("btn_update", "Update")} (v${cleanInstalledVer} → v${cleanNewVer})`
+                    : `${t("btn_update", "Update")} (v${cleanNewVer})`
+                }
+                icon={t("icon_update", "update")}
+                variant="accent"
+              />
+            </button>
+          )}
+
+          {setIgnoredBroken && ignoredBroken instanceof Set && (
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                const next = new Set(ignoredBroken);
+                if (effectiveIgnored) {
+                  groupedMods.forEach((m) => next.delete(m.name));
+                } else {
+                  groupedMods.forEach((m) => next.add(m.name));
+                }
+                setIgnoredBroken(next);
+              }}
+              className="relative group/actionbtn w-7 h-7 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_28%,transparent)] text-[var(--subtext)] hover:text-[var(--text)] flex items-center justify-center transition-all cursor-pointer shrink-0"
+            >
+              <span className="material-symbols-outlined !text-[15px]">
+                {effectiveIgnored
+                  ? t("icon_visibility", "visibility")
+                  : t("icon_visibility_off", "visibility_off")}
+              </span>
+              <HoverTooltip
+                className="z-[100] !right-0 !translate-x-0 !left-auto"
+                title={
+                  effectiveIgnored
+                    ? t("bp_restore_alert", "Restore")
+                    : t("btn_ignore", "Ignore")
+                }
+                icon={
+                  effectiveIgnored
+                    ? t("icon_visibility", "visibility")
+                    : t("icon_visibility_off", "visibility_off")
+                }
+              />
+            </button>
+          )}
+
+          {allow_write && toggleInActiveSet && (
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                groupedMods.forEach((m) => {
+                  toggleInActiveSet(m._originalSetName || m.name, true, true);
+                });
+              }}
+              className="relative group/actionbtn h-7 px-2.5 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_24%,transparent)] text-[var(--subtext)] hover:text-[var(--danger)] flex items-center justify-center gap-1.5 text-[9.5px] font-black uppercase tracking-wider transition-all cursor-pointer shrink-0"
+            >
+              <span className="material-symbols-outlined !text-[14px]">
+                {t("icon_remove_circle_outline", "remove_circle_outline")}
+              </span>
+              <span>{t("btn_remove", "{Remove}")}</span>
+            </button>
+          )}
+        </div>
+      </div>
+
+      {/* Compact Recessed Linked Modules Drawer */}
+      {isExpanded && groupedMods.length > 1 && (
+        <div
+          onClick={(e) => e.stopPropagation()}
+          className="pt-2.5 border-t border-[color-mix(in_srgb,var(--text)_8%,transparent)] animate-in fade-in slide-in-from-top-1 duration-200"
+        >
+          <div className="max-h-[196px] overflow-y-auto custom-scrollbar pr-1">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5">
+            {groupedMods.map((gm: any, gIdx: number) => {
+              const gmName =
+                formatAddonModuleName(gm, activeGameSchema) ||
+                formatDisplayName(gm.displayName || gm.name);
+              const isScript = isScriptExtension(
+                String(gm?.name || gm?._originalSetName || ""),
+                activeGameSchema
+              );
+              const gmIgnored =
+                ignoredBroken instanceof Set ? ignoredBroken.has(gm.name) : false;
+
+              return (
+                <div
+                  key={`${gm.name || gIdx}-${gIdx}`}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    openModDossier(gm);
+                  }}
+                  className={`glass-surface rounded-lg px-3 py-2 border border-[color-mix(in_srgb,var(--text)_8%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_18%,transparent)] flex items-center justify-between gap-2 transition-all cursor-pointer ${
+                    gmIgnored ? "opacity-50 grayscale-[40%]" : ""
+                  }`}
+                >
+                  <div className="relative group/gmtitle flex items-center gap-2 min-w-0 flex-1">
+                    <span className="material-symbols-outlined !text-[14px] text-[var(--accent)] shrink-0">
+                      {isScript
+                        ? t("icon_terminal", "terminal")
+                        : t("icon_deployed_code", "deployed_code")}
+                    </span>
+                    <span className="text-xs font-bold text-[var(--text)] truncate">
+                      {gmName}
+                    </span>
+                    <HoverTooltip
+                      className="z-[100]"
+                      title={gmName}
+                      icon={
+                        isScript
+                          ? t("icon_terminal", "terminal")
+                          : t("icon_deployed_code", "deployed_code")
+                      }
+                    />
+                  </div>
+
+                  <div className="flex items-center gap-1.5 shrink-0">
+                    <span className="text-[10px] font-semibold text-[var(--subtext)] opacity-70">
+                      {isScript
+                        ? t("type_script", "Script")
+                        : t("type_package", "Module")}
+                    </span>
+
+                    {setIgnoredBroken && ignoredBroken instanceof Set && (
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          const next = new Set(ignoredBroken);
+                          if (gmIgnored) next.delete(gm.name);
+                          else next.add(gm.name);
+                          setIgnoredBroken(next);
+                        }}
+                        className="relative group/gmbtn w-6 h-6 rounded-md hover:bg-[color-mix(in_srgb,var(--text)_10%,transparent)] text-[var(--subtext)] hover:text-[var(--text)] flex items-center justify-center transition-all cursor-pointer"
+                      >
+                        <span className="material-symbols-outlined !text-[13px]">
+                          {gmIgnored
+                            ? t("icon_visibility", "visibility")
+                            : t("icon_visibility_off", "visibility_off")}
+                        </span>
+                        <HoverTooltip
+                          className="z-[100] !right-0 !translate-x-0 !left-auto"
+                          title={
+                            gmIgnored
+                              ? t("bp_restore_alert", "Restore")
+                              : t("btn_ignore", "Ignore")
+                          }
+                          icon={
+                            gmIgnored
+                              ? t("icon_visibility", "visibility")
+                              : t("icon_visibility_off", "visibility_off")
+                          }
+                        />
+                      </button>
+                    )}
+                    {allow_write && toggleInActiveSet && (
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          toggleInActiveSet(gm._originalSetName || gm.name, true, true);
+                        }}
+                        className="relative group/gmbtn w-6 h-6 rounded-md hover:bg-[color-mix(in_srgb,var(--danger)_12%,transparent)] text-[var(--subtext)] hover:text-[var(--danger)] flex items-center justify-center transition-all cursor-pointer"
+                      >
+                        <span className="material-symbols-outlined !text-[13px]">
+                          {t("icon_remove_circle_outline", "remove_circle_outline")}
+                        </span>
+                        <HoverTooltip
+                          className="z-[100] !right-0 !translate-x-0 !left-auto"
+                          title={t("btn_remove", "{Remove}")}
+                          icon={t("icon_remove_circle_outline", "remove_circle_outline")}
+                          variant="danger"
+                        />
+                      </button>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+export function renderGroupedIncompatibleSections({
+  groupedBrokenMods,
+  ignoredBroken,
+  setIgnoredBroken,
+  toggleInActiveSet,
+  allow_write,
+  t,
+  activeGameSchema,
+}: any) {
+  return (
+    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 w-full">
+      {groupedBrokenMods.map((mod: any) => {
+        const groupNames: string[] = mod._groupOriginalNames || [mod.name];
+        const isGroupIgnored =
+          ignoredBroken instanceof Set ? groupNames.every((n) => ignoredBroken.has(n)) : false;
+        return (
+          <IncompatibleModCard
+            key={mod._groupedTitle || mod.name}
+            mod={mod}
+            isIgnored={isGroupIgnored}
+            isAmber={mod._alert_type === "amber"}
+            setIgnoredBroken={setIgnoredBroken}
+            ignoredBroken={ignoredBroken}
+            toggleInActiveSet={toggleInActiveSet}
+            allow_write={allow_write}
+            t={t}
+            activeGameSchema={activeGameSchema}
+          />
+        );
+      })}
+    </div>
+  );
+}
+
+export function ConflictComparisonCard({
+  ac,
+  ignoredConflicts,
+  setIgnoredConflicts,
+  showImages,
+  allow_write,
+  toggleInActiveSet,
+  applyConflictOverride,
+  scopeName,
+  getPriorityDrop,
+  activeGameSchema,
+  t,
+}: any) {
+  const isIgnored = ignoredConflicts instanceof Set ? ignoredConflicts.has(ac.pairId) : false;
+  const isTier4 = Number(ac.conflict?.severity_rank) === 4;
+
+  const prefixA =
+    String(ac.modA?._originalSetName || ac.modA?.name || "")
+      .split(/[/\\]/)
+      .slice(0, -1)
+      .join("/") || "";
+  const prefixB =
+    String(ac.modB?._originalSetName || ac.modB?.name || "")
+      .split(/[/\\]/)
+      .slice(0, -1)
+      .join("/") || "";
+  const isWinnerA = prefixA.toLowerCase() === "sanctuary";
+  const isWinnerB = prefixB.toLowerCase() === "sanctuary";
+
+  const iconName = isTier4
+    ? t("icon_crisis_alert", "crisis_alert")
+    : t("icon_tune", "tune");
+
+  const imageA =
+    showImages &&
+    (ac.modA?.image_url || ac.modA?.imageUrl) &&
+    String(ac.modA?.image_url || ac.modA?.imageUrl) !== "null"
+      ? ac.modA.image_url || ac.modA.imageUrl
+      : undefined;
+  const imageB =
+    showImages &&
+    (ac.modB?.image_url || ac.modB?.imageUrl) &&
+    String(ac.modB?.image_url || ac.modB?.imageUrl) !== "null"
+      ? ac.modB.image_url || ac.modB.imageUrl
+      : undefined;
+
+  const rawNote = String(ac.conflict?.resolution_note || "").trim();
+  const hasMeaningfulNote =
+    rawNote.length > 0 && rawNote.toLowerCase() !== "test";
+  const conflictTitle = hasMeaningfulNote
+    ? rawNote
+    : isTier4
+      ? t("conflict_sev4_desc", "Fatal Collision — Cannot be installed together")
+      : t("conflict_sev3_desc", "Tuning Overlap — Load order override or minor feature overlap");
+
+  const severityBadgeClass = VAULT_CHIP_CLASS;
+  const winnerBadgeClass = VAULT_CHIP_CLASS;
+  const loserBadgeClass = `${VAULT_CHIP_CLASS} !text-[var(--subtext)]`;
+
+  const slots = [
+    { mod: ac.modA, image: imageA, isWinner: isWinnerA, isLoser: isWinnerB },
+    { mod: ac.modB, image: imageB, isWinner: isWinnerB, isLoser: isWinnerA },
+  ];
+
+  return (
+    <div
+      className={`glass-panel rounded-2xl p-3.5 border border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_20%,transparent)] transition-all flex flex-col gap-3 w-full ${
+        isIgnored ? "opacity-50 grayscale-[40%]" : ""
+      }`}
+    >
+      {/* Compact Header Strip */}
+      <div className="flex items-center justify-between gap-2.5 w-full">
+        <div className="flex items-center gap-2.5 min-w-0 flex-1">
+          <div className={severityBadgeClass}>
+            <span
+              className={`material-symbols-outlined !text-[12px] ${
+                isTier4 ? "text-[var(--danger)]" : "text-[var(--warning)]"
+              }`}
+            >
+              {iconName}
+            </span>
+            <span>
+              {isTier4
+                ? t("fatal_conflict", "Fatal Conflict")
+                : t("tier3_conflict", "Tuning Overlap")}
+            </span>
+          </div>
+
+          <div className="relative group/conflictnote flex items-center min-w-0 flex-1">
+            <span className="text-xs font-bold text-[var(--subtext)] truncate">
+              {conflictTitle}
+            </span>
+            <HoverTooltip
+              className="z-[100]"
+              title={conflictTitle}
+              icon={iconName}
+            />
+          </div>
+        </div>
+
+        {setIgnoredConflicts && ignoredConflicts instanceof Set && (
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              e.preventDefault();
+              const next = new Set(ignoredConflicts);
+              if (isIgnored) next.delete(ac.pairId);
+              else next.add(ac.pairId);
+              setIgnoredConflicts(next);
+            }}
+            className="relative group/actionbtn w-7 h-7 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_28%,transparent)] text-[var(--subtext)] hover:text-[var(--text)] flex items-center justify-center transition-all cursor-pointer shrink-0"
+          >
+            <span className="material-symbols-outlined !text-[15px]">
+              {isIgnored
+                ? t("icon_visibility", "visibility")
+                : t("icon_visibility_off", "visibility_off")}
+            </span>
+            <HoverTooltip
+              className="z-[100] !right-0 !translate-x-0 !left-auto"
+              title={
+                isIgnored
+                  ? t("bp_restore_alert", "Restore Alert")
+                  : t("btn_ignore", "Ignore")
+              }
+              icon={
+                isIgnored
+                  ? t("icon_visibility", "visibility")
+                  : t("icon_visibility_off", "visibility_off")
+              }
+            />
+          </button>
+        )}
+      </div>
+
+      {/* Head-to-Head VS Clash Grid */}
+      <div className="grid grid-cols-1 sm:grid-cols-[1fr_auto_1fr] items-center gap-2.5 w-full">
+        {slots.map((slot, sIdx) => {
+          if (!slot.mod) return null;
+          const mTitle = formatCleanModTitle(
+            formatDisplayName(slot.mod.displayName || slot.mod.name)
+          );
+          const mAuthor = extractValidCreator(slot.mod);
+          const isScript = isScriptExtension(
+            String(slot.mod?.name || slot.mod?._originalSetName || ""),
+            activeGameSchema
+          );
+          const mTypeLabel = isScript
+            ? t("type_script", "Script")
+            : t("type_package", "Module");
+          const mIcon = getModIcon(slot.mod, activeGameSchema, t);
+
+          const cardElement = (
+            <div
+              key={`${ac.pairId}-slot-${sIdx}`}
+              onClick={() => openModDossier(slot.mod)}
+              className={`glass-surface rounded-xl p-3 border transition-all flex flex-col justify-between gap-2.5 min-w-0 cursor-pointer ${
+                slot.isWinner && !isTier4
+                  ? "border-[color-mix(in_srgb,var(--text)_24%,transparent)]"
+                  : "border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_20%,transparent)]"
+              }`}
+            >
+              {/* Top Tier: Full-Width Icon + Title/Creator Identity */}
+              <div className="flex items-center gap-2.5 min-w-0 w-full">
+                <div className="w-9 h-9 rounded-xl glass-panel border border-[color-mix(in_srgb,var(--text)_10%,transparent)] flex items-center justify-center shrink-0 overflow-hidden">
+                  {slot.image ? (
+                    <img
+                      src={slot.image}
+                      alt={mTitle}
+                      className="w-full h-full object-cover"
+                    />
+                  ) : (
+                    <span className="material-symbols-outlined !text-[18px] text-[var(--accent)]">
+                      {mIcon}
+                    </span>
+                  )}
+                </div>
+                <div className="flex flex-col min-w-0 flex-1">
+                  <div className="relative group/clashmod flex items-center min-w-0 w-fit max-w-full">
+                    <span className="text-xs font-black text-[var(--text)] truncate">
+                      {mTitle}
+                    </span>
+                    <HoverTooltip
+                      className="z-[100]"
+                      title={mTitle}
+                      icon={mIcon}
+                    />
+                  </div>
+                  <div className="flex items-center gap-1.5 text-[11px] font-medium text-[var(--subtext)] min-w-0">
+                    {mAuthor && (
+                      <>
+                        <span className="truncate">{formatCleanModTitle(mAuthor)}</span>
+                        <span className="opacity-40 shrink-0">•</span>
+                      </>
+                    )}
+                    <span className="shrink-0">{mTypeLabel}</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Bottom Tier: Type/Status Badge on Left | Action Button on Right */}
+              <div className="flex items-center justify-between gap-2 pt-2 border-t border-[color-mix(in_srgb,var(--text)_8%,transparent)]">
+                <span className={VAULT_CHIP_CLASS}>
+                  <span className="material-symbols-outlined !text-[12px] text-[var(--accent)]">
+                    {isScript
+                      ? t("icon_terminal", "terminal")
+                      : t("icon_deployed_code", "deployed_code")}
+                  </span>
+                  <span>{mTypeLabel}</span>
+                </span>
+
+                <div className="flex items-center gap-1.5 shrink-0 ml-auto">
+                  {isTier4 ? (
+                    allow_write &&
+                    toggleInActiveSet && (
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          toggleInActiveSet(
+                            slot.mod._originalSetName || slot.mod.name,
+                            true,
+                            true
+                          );
+                        }}
+                        className="relative group/actionbtn h-7 px-2.5 rounded-lg glass-panel border border-[color-mix(in_srgb,var(--text)_12%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_24%,transparent)] text-[var(--subtext)] hover:text-[var(--danger)] flex items-center justify-center gap-1.5 text-[9.5px] font-black uppercase tracking-wider transition-all cursor-pointer shrink-0"
+                      >
+                        <span className="material-symbols-outlined !text-[14px]">
+                          {t("icon_remove_circle_outline", "remove_circle_outline")}
+                        </span>
+                        <span>{t("btn_remove", "{Remove}")}</span>
+                      </button>
+                    )
+                  ) : Number(ac.conflict?.severity_rank) === 3 ? (
+                    slot.isWinner ? (
+                      <div className={winnerBadgeClass}>
+                        <span className="material-symbols-outlined !text-[12px] text-[var(--success)]">
+                          {t("icon_check_circle", "check_circle")}
+                        </span>
+                        <span>{t("winner", "WINNING {MOD}")}</span>
+                      </div>
+                    ) : slot.isLoser ? (
+                      <div className={loserBadgeClass}>
+                        <span className="material-symbols-outlined !text-[12px] text-[var(--subtext)]">
+                          {t("icon_block", "block")}
+                        </span>
+                        <span>{t("bp_overridden_by_winner", "Overridden")}</span>
+                      </div>
+                    ) : (
+                      allow_write &&
+                      scopeName &&
+                      applyConflictOverride && (
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            applyConflictOverride(
+                              slot.mod._originalSetName || slot.mod.name,
+                              ac.pairId,
+                              scopeName
+                            );
+                          }}
+                          className="relative group/actionbtn w-7 h-7 rounded-lg glass-panel border border-[color-mix(in_srgb,var(--text)_12%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_24%,transparent)] text-[var(--subtext)] hover:text-[var(--accent)] flex items-center justify-center transition-all cursor-pointer shrink-0"
+                        >
+                          <span className="material-symbols-outlined !text-[15px]">
+                            {t("icon_check_circle", "check_circle")}
+                          </span>
+                          <HoverTooltip
+                            className="z-[100] !right-0 !translate-x-0 !left-auto"
+                            title={t("bp_select_winning_artifact", "Select Winner")}
+                            icon={t("icon_check_circle", "check_circle")}
+                            variant="accent"
+                          />
+                        </button>
+                      )
+                    )
+                  ) : getPriorityDrop ? (
+                    <div
+                      onClick={(e) => e.stopPropagation()}
+                      className="flex items-center gap-2"
+                    >
+                      <div className="w-28">{getPriorityDrop(slot.mod)}</div>
+                    </div>
+                  ) : null}
+                </div>
+              </div>
+            </div>
+          );
+
+          if (sIdx === 0) {
+            return (
+              <React.Fragment key={`${ac.pairId}-frag-${sIdx}`}>
+                {cardElement}
+                <div className="hidden sm:flex items-center justify-center">
+                  <div
+                    className={`w-7 h-7 rounded-lg glass-surface border border-[var(--glass-card-icon-border,rgba(255,255,255,0.22))] bg-[var(--glass-card-icon-bg,rgba(255,255,255,0.08))] shadow-[var(--glass-card-icon-shadow)] flex items-center justify-center shrink-0 ${
+                      isTier4 ? "text-[var(--danger)]" : "text-[var(--warning)]"
+                    }`}
+                  >
+                    <span className="material-symbols-outlined !text-[14px]">
+                      {t("icon_bolt", "bolt")}
+                    </span>
+                  </div>
+                </div>
+              </React.Fragment>
+            );
+          }
+
+          return cardElement;
+        })}
+      </div>
+    </div>
+  );
+}
+
+export default function CommandIncompatiblePanel({
+  isOpen,
+  onClose,
+  activeMods,
+  allow_write,
+  toggleInActiveSet,
+}: any) {
+  const { t } = useLexicon();
+  const { ownedDLC, maskedDLC, selectedVersion, activeGameSchema } = useStore(
+    useShallow((s) => ({
+      ownedDLC: s.ownedDLC,
+      maskedDLC: s.maskedDLC,
+      selectedVersion: s.selectedVersion,
+      activeGameSchema: s.activeGameSchema,
+    }))
+  );
+  const [ignoredBroken, setIgnoredBroken] = useState<Set<string>>(new Set());
+  const [searchQuery, setSearchQuery] = useState("");
+  const [categoryFilter, setCategoryFilter] = useState<string>("all");
+
+  const brokenMods = useMemo(() => {
+    return (activeMods || [])
+      .map((mod: any) =>
+        evaluateModIssues(mod, {
+          activeMods,
+          selectedVersion,
+          ownedDLC,
+          maskedDLC,
+          t,
+          activeGameSchema,
+        })
+      )
+      .filter(Boolean)
+      .sort((a: any, b: any) => {
+        if (a._alert_type === "red" && b._alert_type === "amber") return -1;
+        if (a._alert_type === "amber" && b._alert_type === "red") return 1;
+        return 0;
+      });
+  }, [activeMods, selectedVersion, ownedDLC, maskedDLC, t, activeGameSchema]);
+
+  const redMods = useMemo(
+    () => brokenMods.filter((m: any) => m._alert_type === "red"),
+    [brokenMods]
+  );
+  const amberMods = useMemo(
+    () => brokenMods.filter((m: any) => m._alert_type === "amber"),
+    [brokenMods]
+  );
+  const groupedBrokenMods = useMemo(() => groupBrokenMods(brokenMods), [brokenMods]);
+  const groupedRedMods = useMemo(
+    () => groupedBrokenMods.filter((m: any) => m._alert_type === "red"),
+    [groupedBrokenMods]
+  );
+  const groupedAmberMods = useMemo(
+    () => groupedBrokenMods.filter((m: any) => m._alert_type === "amber"),
+    [groupedBrokenMods]
+  );
+
+  const corruptedCount = useMemo(
+    () =>
+      groupedBrokenMods.filter((m: any) =>
+        (Array.isArray(m._categories) ? m._categories : [m._alert_category]).includes("corrupted")
+      ).length,
+    [groupedBrokenMods]
+  );
+  const mismatchCount = useMemo(
+    () =>
+      groupedBrokenMods.filter((m: any) =>
+        (Array.isArray(m._categories) ? m._categories : [m._alert_category]).includes(
+          "version_mismatch"
+        )
+      ).length,
+    [groupedBrokenMods]
+  );
+  const filteredGroupedBrokenMods = useMemo(() => {
+    const q = searchQuery.trim().toLowerCase();
+    return groupedBrokenMods.filter((mod: any) => {
+      const cats: string[] = Array.isArray(mod._categories)
+        ? mod._categories
+        : [mod._alert_category];
+
+      if (categoryFilter === "corrupted") {
+        if (!cats.includes("corrupted")) return false;
+      } else if (categoryFilter === "version_mismatch") {
+        if (!cats.includes("version_mismatch")) return false;
+      } else if (categoryFilter === "missing_reqs") {
+        if (!cats.includes("missing_dlc") && !cats.includes("missing_deps")) {
+          return false;
+        }
+      } else if (categoryFilter === "unstable") {
+        if (!cats.includes("unstable") && mod._alert_type !== "amber") return false;
+      }
+
+      if (!q) return true;
+      const title = String(mod._groupedTitle || mod.displayName || mod.name || "").toLowerCase();
+      const author = String(mod.author || "").toLowerCase();
+      const reason = String(mod._alert_reason || "").toLowerCase();
+      return title.includes(q) || author.includes(q) || reason.includes(q);
+    });
+  }, [groupedBrokenMods, searchQuery, categoryFilter]);
+
+  const panelIcon =
+    redMods.length > 0 ? t("icon_gpp_bad", "gpp_bad") : t("icon_gpp_maybe", "gpp_maybe");
+
+  return (
+    <SidePanel
+      isOpen={isOpen}
+      onClose={onClose}
+      title={t("citizen_action_incompatible", "Incompatible")}
+      subtitle={t("incompatible_broken", "Incompatible {Mods}")}
+      icon={panelIcon}
+      iconColorClass={redMods.length > 0 ? "text-[var(--danger)]" : "text-[var(--warning)]"}
+      widthClass="w-[90vw] md:w-[760px]"
+      headerActions={
+        allow_write && (redMods.length > 0 || amberMods.length > 0) ? (
+          <PanelHeaderGroup>
+            <PanelHeaderButton
+              icon={t("icon_remove_circle_outline", "remove_circle_outline")}
+              tooltip={`${t("btn_remove", "{Remove}")} ${groupedRedMods.length + groupedAmberMods.length} ${t("term_mods", "{Mods}")}`}
+              tooltipSubtitle={`${t("bp_purge_unstable", "{Remove} {0} Unstable").replace(/^.*\{0\}\s*/, `${groupedAmberMods.length} `)}\n${t("bp_purge_corrupted", "{Remove} {0} Corrupted").replace(/^.*\{0\}\s*/, `${groupedRedMods.length} `)}`}
+              variant={groupedRedMods.length > 0 ? "danger" : "warning"}
+              onClick={() => {
+                brokenMods.forEach((m: any) =>
+                  toggleInActiveSet && toggleInActiveSet(m._originalSetName || m.name, true, true)
+                );
+              }}
+            />
+          </PanelHeaderGroup>
+        ) : undefined
+      }
+    >
+      <div className="flex flex-col gap-4 mt-2 relative z-10 w-full pb-8">
+        <SidePanelHeroCard
+          icon={panelIcon}
+          overline={t("citizen_action_incompatible", "Incompatible")}
+          title={t("incompatible_broken", "Incompatible {Mods}")}
+          description={t("action_required", "Action Required")}
+          badge={`${groupedBrokenMods.length} ${t("term_mods", "Items")}`}
+          badgeIcon={panelIcon}
+          variant={
+            redMods.length > 0
+              ? "danger"
+              : groupedBrokenMods.length > 0
+                ? "warning"
+                : "success"
+          }
+        />
+
+        {groupedBrokenMods.length > 0 && (
+          <SidePanelFilterBar className="sm:grid-cols-3 gap-2.5">
+            <DashboardStatTile
+              variant="filter"
+              className="!w-full"
+              icon={panelIcon}
+              label={t("filter_all", "All")}
+              number={groupedBrokenMods.length}
+              colorClass={redMods.length > 0 ? "text-[var(--danger)]" : "text-[var(--warning)]"}
+              isActive={categoryFilter === "all"}
+              onClick={() => setCategoryFilter("all")}
+            />
+            <DashboardStatTile
+              variant="filter"
+              className="!w-full"
+              icon={t("icon_broken_image", "broken_image")}
+              label={t("status_corrupted", "Corrupted")}
+              number={corruptedCount}
+              colorClass="text-[var(--danger)]"
+              isActive={categoryFilter === "corrupted"}
+              onClick={() =>
+                setCategoryFilter(categoryFilter === "corrupted" ? "all" : "corrupted")
+              }
+            />
+            <DashboardStatTile
+              variant="filter"
+              className="!w-full"
+              icon={t("icon_sports_esports", "sports_esports")}
+              label={t("modal_version_mismatch", "Version Mismatch")}
+              number={mismatchCount}
+              colorClass="text-[var(--danger)]"
+              isActive={categoryFilter === "version_mismatch"}
+              onClick={() =>
+                setCategoryFilter(
+                  categoryFilter === "version_mismatch" ? "all" : "version_mismatch"
+                )
+              }
+            />
+          </SidePanelFilterBar>
+        )}
+
+        {groupedBrokenMods.length > 0 && (
+          <ActionPill
+            searchQuery={searchQuery}
+            setSearchQuery={setSearchQuery}
+            searchPlaceholder={t("nav_search", "Search...")}
+            primaryPopover={{
+              icon: t("icon_tune", "tune"),
+              label: t("filters", "Filters"),
+              content: (
+                <div className="flex flex-col gap-4 w-[280px] p-3">
+                  <div className="flex flex-col gap-2">
+                    <span className="text-[10px] font-black uppercase tracking-widest text-[var(--subtext)] opacity-80 px-1">
+                      {t("status", "Status")}
+                    </span>
+                    <InlineFilterGroup
+                      value={categoryFilter}
+                      onChange={(v: string) => setCategoryFilter(v)}
+                      options={[
+                        { id: "all", label: t("filter_all", "All") },
+                        { id: "corrupted", label: t("status_corrupted", "Corrupted") },
+                        { id: "version_mismatch", label: t("modal_version_mismatch", "Version Mismatch") },
+                        { id: "missing_reqs", label: t("badge_missing_dep", "Missing Dependency") },
+                        { id: "unstable", label: t("label_unstable", "Unstable") },
+                      ]}
+                    />
+                  </div>
+                </div>
+              ),
+            }}
+          />
+        )}
+
+        {filteredGroupedBrokenMods.length === 0 ? (
+          <EmptyState
+            icon={t("icon_check_circle", "check_circle")}
+            title={t("no_incompatible_detected", "No Incompatible {Mods} Detected")}
+          />
+        ) : (
+          <UniversalGroup
+            title={`${t("citizen_action_incompatible", "Incompatible")} (${filteredGroupedBrokenMods.length})`}
+            icon={panelIcon}
+            headerAction={
+              allow_write && toggleInActiveSet ? (
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    filteredGroupedBrokenMods.forEach((mod: any) => {
+                      const members: any[] =
+                        Array.isArray(mod._groupedMods) && mod._groupedMods.length > 0
+                          ? mod._groupedMods
+                          : [mod];
+                      members.forEach((m: any) => {
+                        toggleInActiveSet(m._originalSetName || m.name, true, true);
+                      });
+                    });
+                  }}
+                  className={`relative group/subaction w-7 h-7 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] ${
+                    filteredGroupedBrokenMods.some((m: any) => m._alert_type === "red")
+                      ? "text-[var(--danger)] hover:border-[color-mix(in_srgb,var(--text)_24%,transparent)] hover:bg-[color-mix(in_srgb,var(--danger)_10%,transparent)]"
+                      : "text-[var(--warning)] hover:border-[color-mix(in_srgb,var(--text)_24%,transparent)] hover:bg-[color-mix(in_srgb,var(--warning)_10%,transparent)]"
+                  } flex items-center justify-center transition-all cursor-pointer shrink-0`}
+                >
+                  <span className="material-symbols-outlined !text-[15px]">
+                    {t("icon_remove_circle_outline", "remove_circle_outline")}
+                  </span>
+                  <HoverTooltip
+                    className="z-[100] !right-0 !translate-x-0 !left-auto"
+                    title={(filteredGroupedBrokenMods.some((m: any) => m._alert_type === "red")
+                      ? t("bp_purge_corrupted", "{Remove} {0} Corrupted")
+                      : t("bp_purge_unstable", "{Remove} {0} Unstable")
+                    ).replace("{0}", String(filteredGroupedBrokenMods.length))}
+                    icon={t("icon_remove_circle_outline", "remove_circle_outline")}
+                    variant={
+                      filteredGroupedBrokenMods.some((m: any) => m._alert_type === "red")
+                        ? "danger"
+                        : "warning"
+                    }
+                  />
+                </button>
+              ) : undefined
+            }
+          >
+            {renderGroupedIncompatibleSections({
+              groupedBrokenMods: filteredGroupedBrokenMods,
+              ignoredBroken,
+              setIgnoredBroken,
+              toggleInActiveSet,
+              allow_write,
+              t,
+              activeGameSchema,
+            })}
+          </UniversalGroup>
+        )}
+      </div>
+    </SidePanel>
+  );
+}
+

@@ -4,6 +4,7 @@ import { useStore } from "./store";
 import { UniversalCard } from "./components/universal/UniversalCard";
 import { DynamicArtifactPreviewBanner } from "./chameleon-components/ThemeCard";
 import { openModDossier, isScriptExtension } from "./shared-components/modUtils";
+import { handleOpenUrl } from "./shared-components/misc";
 import { VAULT_CHIP_CLASS } from "./shared-components/constants";
 import { openSanctuaryContextMenu, SanctuaryContextMenuItem } from "./ContextMenu";
 
@@ -369,7 +370,7 @@ export function ArtifactCard({
           menuItems.push({
             label: t("visit_source", "Visit Source"),
             icon: t("icon_public", "public"),
-            onClick: () => window.open(mod.url, "_blank", "noopener,noreferrer"),
+            onClick: () => handleOpenUrl(mod.url),
           });
         }
         if (Array.isArray(contextMenuItems) && contextMenuItems.length > 0) {
@@ -602,7 +603,7 @@ export function VaultCard({
           menuItems.push({
             label: t("visit_source", "Visit Source"),
             icon: t("icon_public", "public"),
-            onClick: () => window.open(setItem.url, "_blank", "noopener,noreferrer"),
+            onClick: () => handleOpenUrl(setItem.url),
           });
         }
         if (Array.isArray(contextMenuItems) && contextMenuItems.length > 0) {

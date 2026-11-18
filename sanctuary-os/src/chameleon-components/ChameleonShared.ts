@@ -4,6 +4,7 @@ import { save, open } from "@tauri-apps/plugin-dialog";
 import { writeTextFile, writeFile, readTextFile, readFile, exists } from "@tauri-apps/plugin-fs";
 import { isStandaloneFork, supabaseAuth } from "../supabase";
 import { useStore } from "../store";
+import { joinLocalPath } from "../utils/localTemplateInspector";
 
 export const getLuminance = (hex: string) => {
   const cleanHex = (hex || '#000000').replace('#', '').padEnd(6, '0').slice(0, 6);
@@ -882,10 +883,10 @@ export const CURATED_COLOR_PALETTES: CuratedColorPalette[] = [
     },
   },
   {
-    id: 'sims',
-    labelKey: 'forge_palette_sims',
-    fallbackLabel: 'Plumbob Emerald',
-    suggestedWallpaper: '/themes/sims4.png',
+    id: 'emerald',
+    labelKey: 'forge_palette_emerald',
+    fallbackLabel: 'Emerald Prism',
+    suggestedWallpaper: '/themes/aurora.png',
     colors: {
       bg: '#eefbf5',
       sidebar: '#f4fdf9',
@@ -1018,8 +1019,6 @@ export const CURATED_COLOR_PALETTES: CuratedColorPalette[] = [
 
 export const BUILTIN_WALLPAPERS = [
   { id: 'architect', path: '/themes/architect.png', labelKey: 'forge_wp_architect', fallbackLabel: 'Sanctuary Spire' },
-  { id: 'sims4', path: '/themes/sims4.png', labelKey: 'forge_wp_sims4', fallbackLabel: 'Plumbob Prism' },
-  { id: 'sims4_dark', path: '/themes/sims4_dark.png', labelKey: 'forge_wp_sims4_dark', fallbackLabel: 'Plumbob Nocturne' },
   { id: 'aurora', path: '/themes/aurora.png', labelKey: 'forge_wp_aurora', fallbackLabel: 'Northern Aurora' },
   { id: 'radiant', path: '/themes/radiant.png', labelKey: 'forge_wp_radiant', fallbackLabel: 'Alabaster Dawn' },
   { id: 'synthwave', path: '/themes/synthwave.png', labelKey: 'forge_wp_synthwave', fallbackLabel: 'Neon Grid' },
@@ -1253,7 +1252,7 @@ export async function exportThemeWithAssets(
         } catch {}
       }
       const defaultPath = resolvedVaultPath
-        ? `${resolvedVaultPath}\\Data\\Themes\\${safeName}.json`
+        ? joinLocalPath(resolvedVaultPath, "Data", "Themes", `${safeName}.json`)
         : `${safeName}.json`;
       const savePath = await save({
         defaultPath,

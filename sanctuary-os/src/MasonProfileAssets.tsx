@@ -7,6 +7,7 @@ import {
   DynamicTemplatePreviewBanner,
 } from './chameleon-components/ThemeCard';
 import { openSanctuaryContextMenu } from './ContextMenu';
+import { loadInstalledTemplatesVersionMap, writeLocalTemplateFile } from './utils/localTemplateInspector';
 
 export default function MasonProfileAssets({ 
   activeView, 
@@ -486,29 +487,17 @@ export default function MasonProfileAssets({
                               ? JSON.parse(asset.json_data)
                               : asset.json_data;
                           if (vaultPath) {
-                            const templatesDir = `${vaultPath}\\Templates`;
-                            if (!(await exists(templatesDir)))
-                              await importFs.mkdir(templatesDir, { recursive: true });
-                            await importFs.writeTextFile(
-                              `${templatesDir}\\${asset.name}_template.json`,
-                              JSON.stringify(parsed, null, 2)
+                            await writeLocalTemplateFile(
+                              vaultPath,
+                              `${asset.name}_template.json`,
+                              parsed
                             );
                             useStore
                               .getState()
                               .pushStatus(`Successfully Installed Template: ${asset.name}`);
                             if (setInstalledTemplates) {
-                              const entries = await importFs.readDir(templatesDir);
-                              const tpls = await Promise.all(
-                                entries
-                                  .filter((en: any) => en.name?.endsWith('.json'))
-                                  .map(async (en: any) => {
-                                    const content = await importFs.readTextFile(
-                                      `${templatesDir}\\${en.name}`
-                                    );
-                                    return JSON.parse(content);
-                                  })
-                              );
-                              setInstalledTemplates(tpls);
+                              const nextMap = await loadInstalledTemplatesVersionMap(vaultPath);
+                              setInstalledTemplates(nextMap);
                             }
                           }
                         },
@@ -547,20 +536,12 @@ export default function MasonProfileAssets({
                           e.stopPropagation();
                           const parsed = typeof asset.json_data === 'string' ? JSON.parse(asset.json_data) : asset.json_data;
                           if (vaultPath) {
-                            const templatesDir = `${vaultPath}\\Templates`;
-                            if (!(await exists(templatesDir))) await importFs.mkdir(templatesDir, { recursive: true });
-                            await importFs.writeTextFile(`${templatesDir}\\${asset.name}_template.json`, JSON.stringify(parsed, null, 2));
+                            await writeLocalTemplateFile(vaultPath, `${asset.name}_template.json`, parsed);
                             useStore.getState().pushStatus(`Successfully Installed Template: ${asset.name}`);
                             
                             if (setInstalledTemplates) {
-                              const entries = await importFs.readDir(templatesDir);
-                              const tpls = await Promise.all(
-                                entries.filter((en: any) => en.name?.endsWith('.json')).map(async (en: any) => {
-                                  const content = await importFs.readTextFile(`${templatesDir}\\${en.name}`);
-                                  return JSON.parse(content);
-                                })
-                              );
-                              setInstalledTemplates(tpls);
+                              const nextMap = await loadInstalledTemplatesVersionMap(vaultPath);
+                              setInstalledTemplates(nextMap);
                             }
                           }
                         }}

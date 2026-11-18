@@ -13,6 +13,7 @@ import {
   ActionButton,
   HoverTooltip,
   VAULT_CHIP_CLASS,
+  sanitizeExternalHttpsUrl,
 } from '../shared';
 import { useShallow } from 'zustand/react/shallow';
 import { useModalStore } from '../store/modalStore';
@@ -40,12 +41,22 @@ function parseHexRgb(hexStr: string | undefined, fallback: [number, number, numb
   return fallback;
 }
 
+const SANCTUARY_BROWSER_NONCE = (() => {
+  try {
+    const buf = new Uint8Array(8);
+    crypto.getRandomValues(buf);
+    return Array.from(buf).map((b) => b.toString(16).padStart(2, '0')).join('');
+  } catch {
+    return `${Date.now().toString(16)}${Math.random().toString(16).slice(2, 10)}`;
+  }
+})();
+
 function normalizeUrlForCompare(rawUrl?: string | null): string {
   if (!rawUrl || typeof rawUrl !== 'string') return '';
   return rawUrl
     .trim()
-    .replace(/#sanctuary-(new-tab|action)=.*$/, '')
-    .replace(/([?&])sanc_fs=(true|false)&?/, '$1')
+    .replace(/#sanctuary-(?:new-tab(?:-[0-9a-f]+)?|action)=.*$/, '')
+    .replace(/([?&])sanc_fs(?:_[0-9a-f]+)?=(true|false)&?/, '$1')
     .replace(/[?&]$/, '')
     .replace(/\/+$/, '')
     .toLowerCase();
@@ -55,8 +66,8 @@ function cleanDisplayUrl(rawUrl?: string | null): string {
   if (!rawUrl || typeof rawUrl !== 'string') return '';
   return rawUrl
     .trim()
-    .replace(/#sanctuary-(new-tab|action)=.*$/, '')
-    .replace(/([?&])sanc_fs=(true|false)&?/, '$1')
+    .replace(/#sanctuary-(?:new-tab(?:-[0-9a-f]+)?|action)=.*$/, '')
+    .replace(/([?&])sanc_fs(?:_[0-9a-f]+)?=(true|false)&?/, '$1')
     .replace(/[?&]$/, '');
 }
 
@@ -379,7 +390,8 @@ export default function SidePanelBrowser() {
       .replace(/__OS_ACCENT_B__/g, String(browserThemeColors.accentB))
       .replace(/__OS_IS_LIGHT__/g, String(browserThemeColors.isLight))
       .replace(/__SANCTUARY_CTX_LABELS__/g, JSON.stringify(contextMenuLabels))
-      .replace(/__SANCTUARY_DOWNLOAD_EXTS__/g, JSON.stringify(schemaDownloadExts));
+      .replace(/__SANCTUARY_DOWNLOAD_EXTS__/g, JSON.stringify(schemaDownloadExts))
+      .replace(/__SANCTUARY_BROWSER_NONCE__/g, SANCTUARY_BROWSER_NONCE);
   }, [browserThemeColors, contextMenuLabels, schemaDownloadExts]);
 
   useEffect(() => {
@@ -393,18 +405,19 @@ export default function SidePanelBrowser() {
           .then((url: any) => {
             if (!url || typeof url !== 'string') return;
 
-            const hasFsFlag = url.includes('sanc_fs=true');
+            const hasFsFlag = url.includes(`sanc_fs_${SANCTUARY_BROWSER_NONCE}=true`);
             if (hasFsFlag !== (window as any).__last_sanc_fs_flag) {
               (window as any).__last_sanc_fs_flag = hasFsFlag;
               setIsBrowserFullscreen(hasFsFlag);
             }
 
-            if (url.includes('#sanctuary-new-tab=')) {
-              const parts = url.split('#sanctuary-new-tab=');
+            const newTabMarker = `#sanctuary-new-tab-${SANCTUARY_BROWSER_NONCE}=`;
+            if (url.includes(newTabMarker)) {
+              const parts = url.split(newTabMarker);
               if (parts.length > 1) {
-                const targetUrl = decodeURIComponent(parts[1]);
-                if (/^https?:\/\//i.test(targetUrl)) {
-                  openUrlInNewTab(targetUrl);
+                const safeTargetUrl = sanitizeExternalHttpsUrl(decodeURIComponent(parts[1]));
+                if (safeTargetUrl) {
+                  openUrlInNewTab(safeTargetUrl);
                 }
                 invoke('webview_eval', {
                   label: activeLabel,
@@ -1164,14 +1177,16 @@ export default function SidePanelBrowser() {
                   onClick={() => {
                     invoke('webview_url', { label: `side-browser-tab-${activeBrowserTabId}` })
                       .then((url) => {
-                        import('@tauri-apps/plugin-opener').then((m) =>
-                          m.openUrl((url as string) || currentActiveUrl)
-                        );
+                        const safe = sanitizeExternalHttpsUrl((url as string) || currentActiveUrl);
+                        if (safe) {
+                          import('@tauri-apps/plugin-opener').then((m) => m.openUrl(safe));
+                        }
                       })
                       .catch(() => {
-                        import('@tauri-apps/plugin-opener').then((m) =>
-                          m.openUrl(currentActiveUrl || localUrlInput)
-                        );
+                        const safe = sanitizeExternalHttpsUrl(currentActiveUrl || localUrlInput);
+                        if (safe) {
+                          import('@tauri-apps/plugin-opener').then((m) => m.openUrl(safe));
+                        }
                       });
                   }}
                 />

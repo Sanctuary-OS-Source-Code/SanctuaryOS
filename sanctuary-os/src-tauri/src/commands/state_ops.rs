@@ -1,6 +1,16 @@
 use crate::state::*;
 use crate::utils::*;
 use std::fs;
+use std::path::PathBuf;
+use std::sync::{OnceLock, RwLock};
+use std::time::SystemTime;
+
+type ConfigCacheEntry = Option<(PathBuf, Option<SystemTime>, SolderConfig)>;
+static GLOBAL_CONFIG_CACHE: OnceLock<RwLock<ConfigCacheEntry>> = OnceLock::new();
+
+fn global_config_cache() -> &'static RwLock<ConfigCacheEntry> {
+    GLOBAL_CONFIG_CACHE.get_or_init(|| RwLock::new(None))
+}
 
 #[tauri::command]
 pub fn update_active_game_schema(
@@ -132,74 +142,90 @@ fn normalize_solder_config(config: &mut SolderConfig, create_dirs: bool) -> bool
 #[tauri::command]
 pub fn get_global_config() -> SolderConfig {
     let path = get_config_path();
+    let current_mtime = fs::metadata(&path).ok().and_then(|m| m.modified().ok());
+
+    if let Ok(guard) = global_config_cache().read() {
+        if let Some((cached_path, cached_mtime, cached_cfg)) = guard.as_ref() {
+            if cached_path == &path && *cached_mtime == current_mtime {
+                return cached_cfg.clone();
+            }
+        }
+    }
+
+    let mut resolved_cfg = SolderConfig::default();
     if let Ok(content) = fs::read_to_string(&path) {
         if let Ok(v) = serde_json::from_str::<serde_json::Value>(&content) {
             if let Ok(mut config) = serde_json::from_value::<SolderConfig>(v.clone()) {
                 if !config.workspaces.is_empty() {
                     let _ = normalize_solder_config(&mut config, false);
-                    return config;
+                    resolved_cfg = config;
                 }
             }
+            if resolved_cfg.workspaces.is_empty() {
+                let live_path = v["live_path"]
+                    .as_str()
+                    .or(v["live_library_path"].as_str())
+                    .unwrap_or("")
+                    .to_string();
+                let mods_path = v["mods_path"].as_str().unwrap_or("").to_string();
+                let docs_path = v["docs_path"]
+                    .as_str()
+                    .or(v["user_data_path"].as_str())
+                    .map(|s| s.trim().to_string())
+                    .filter(|s| !s.is_empty());
+                let vault_path = v["vault_path"].as_str().unwrap_or("").to_string();
+                let schema_id = v["schema_id"]
+                    .as_str()
+                    .map(|s| s.trim().to_string())
+                    .filter(|s| !s.is_empty())
+                    .unwrap_or_else(|| "default_schema".to_string());
 
-            let live_path = v["live_path"]
-                .as_str()
-                .or(v["live_library_path"].as_str())
-                .unwrap_or("")
-                .to_string();
-            let mods_path = v["mods_path"].as_str().unwrap_or("").to_string();
-            let docs_path = v["docs_path"]
-                .as_str()
-                .or(v["user_data_path"].as_str())
-                .map(|s| s.trim().to_string())
-                .filter(|s| !s.is_empty());
-            let vault_path = v["vault_path"].as_str().unwrap_or("").to_string();
-            let schema_id = v["schema_id"]
-                .as_str()
-                .map(|s| s.trim().to_string())
-                .filter(|s| !s.is_empty())
-                .unwrap_or_else(|| "default_schema".to_string());
+                if !live_path.is_empty() || !mods_path.is_empty() || !vault_path.is_empty() {
+                    let default_workspace = WorkspaceConfig {
+                        id: "default_workspace".to_string(),
+                        name: "Default Game".to_string(),
+                        schema_id,
+                        live_path,
+                        mods_path,
+                        docs_path: docs_path.clone(),
+                        vault_path: vault_path.clone(),
+                        master_vault_path: Some(vault_path.clone()),
+                        engine_agency_level: v["engine_agency_level"].as_u64().map(|n| n as u32),
+                        defcon_backup_target: v["defcon_backup_target"].as_u64().map(|n| n as u32),
+                        backup_preference: v["backup_preference"].as_u64().map(|n| n as u32),
+                        engine_retention_cycles: v["engine_retention_cycles"]
+                            .as_u64()
+                            .map(|n| n as u32),
+                        world_retention_cycles: v["world_retention_cycles"].as_u64().map(|n| n as u32),
+                        vault_capacity_gb: v["vault_capacity_gb"].as_u64().map(|n| n as u32),
+                        timeline_retention_copies: v["timeline_retention_copies"]
+                            .as_u64()
+                            .map(|n| n as u32),
+                        timeline_retention_size_mb: v["timeline_retention_size_mb"]
+                            .as_u64()
+                            .map(|n| n as u32),
+                        supabase_url: None,
+                        supabase_anon_key: None,
+                        ingest_file_mode: v["ingest_file_mode"].as_str().map(|s| s.to_string()),
+                    };
 
-            if !live_path.is_empty() || !mods_path.is_empty() || !vault_path.is_empty() {
-                let default_workspace = WorkspaceConfig {
-                    id: "default_workspace".to_string(),
-                    name: "Default Game".to_string(),
-                    schema_id,
-                    live_path,
-                    mods_path,
-                    docs_path: docs_path.clone(),
-                    vault_path: vault_path.clone(),
-                    master_vault_path: Some(vault_path.clone()),
-                    engine_agency_level: v["engine_agency_level"].as_u64().map(|n| n as u32),
-                    defcon_backup_target: v["defcon_backup_target"].as_u64().map(|n| n as u32),
-                    backup_preference: v["backup_preference"].as_u64().map(|n| n as u32),
-                    engine_retention_cycles: v["engine_retention_cycles"]
-                        .as_u64()
-                        .map(|n| n as u32),
-                    world_retention_cycles: v["world_retention_cycles"].as_u64().map(|n| n as u32),
-                    vault_capacity_gb: v["vault_capacity_gb"].as_u64().map(|n| n as u32),
-                    timeline_retention_copies: v["timeline_retention_copies"]
-                        .as_u64()
-                        .map(|n| n as u32),
-                    timeline_retention_size_mb: v["timeline_retention_size_mb"]
-                        .as_u64()
-                        .map(|n| n as u32),
-                    supabase_url: None,
-                    supabase_anon_key: None,
-                    ingest_file_mode: v["ingest_file_mode"].as_str().map(|s| s.to_string()),
-                };
-
-                return SolderConfig {
-                    active_workspace_id: Some("default_workspace".to_string()),
-                    workspaces: vec![default_workspace],
-                    live_path: None,
-                    mods_path: None,
-                    docs_path,
-                    vault_path: Some(vault_path),
-                };
+                    resolved_cfg = SolderConfig {
+                        active_workspace_id: Some("default_workspace".to_string()),
+                        workspaces: vec![default_workspace],
+                        live_path: None,
+                        mods_path: None,
+                        docs_path,
+                        vault_path: Some(vault_path),
+                    };
+                }
             }
         }
     }
-    SolderConfig::default()
+
+    if let Ok(mut guard) = global_config_cache().write() {
+        *guard = Some((path, current_mtime, resolved_cfg.clone()));
+    }
+    resolved_cfg
 }
 
 #[tauri::command]
@@ -279,13 +305,77 @@ pub fn get_saved_coordinates() -> WorkspaceConfig {
     WorkspaceConfig::default()
 }
 
+fn validate_configured_coordinate_path(raw_opt: Option<&str>, field_label: &str) -> Result<(), String> {
+    let Some(raw) = raw_opt.map(|s| s.trim()).filter(|s| !s.is_empty() && !s.eq_ignore_ascii_case("web")) else {
+        return Ok(());
+    };
+    let p = std::path::Path::new(raw);
+    if !p.is_absolute() {
+        return Err(format!("Coordinate '{}' must be an absolute path.", field_label));
+    }
+    let resolved = crate::utils::resolve_canonical_target(p)?;
+    if crate::utils::is_blocked_sensitive_or_system_path(&resolved) {
+        return Err(format!(
+            "Blocked protected system or sensitive directory for '{}'.",
+            field_label
+        ));
+    }
+    for bare_root in [
+        dirs::home_dir(),
+        dirs::document_dir(),
+        dirs::desktop_dir(),
+        dirs::download_dir(),
+        dirs::picture_dir(),
+        dirs::config_dir(),
+        dirs::data_dir(),
+        dirs::data_local_dir(),
+    ]
+    .into_iter()
+    .flatten()
+    {
+        if crate::utils::path_is_within_root(&resolved, &bare_root)
+            && crate::utils::path_is_within_root(&bare_root, &resolved)
+        {
+            return Err(format!(
+                "Coordinate '{}' cannot be set to a bare OS profile directory; choose a dedicated folder.",
+                field_label
+            ));
+        }
+    }
+    Ok(())
+}
+
+fn validate_solder_config_paths(config: &SolderConfig) -> Result<(), String> {
+    validate_configured_coordinate_path(config.vault_path.as_deref(), "vault_path")?;
+    validate_configured_coordinate_path(config.live_path.as_deref(), "live_path")?;
+    validate_configured_coordinate_path(config.mods_path.as_deref(), "mods_path")?;
+    validate_configured_coordinate_path(config.docs_path.as_deref(), "docs_path")?;
+    for ws in &config.workspaces {
+        validate_configured_coordinate_path(Some(ws.vault_path.as_str()), "workspace.vault_path")?;
+        validate_configured_coordinate_path(ws.master_vault_path.as_deref(), "workspace.master_vault_path")?;
+        validate_configured_coordinate_path(Some(ws.live_path.as_str()), "workspace.live_path")?;
+        validate_configured_coordinate_path(Some(ws.mods_path.as_str()), "workspace.mods_path")?;
+        validate_configured_coordinate_path(ws.docs_path.as_deref(), "workspace.docs_path")?;
+    }
+    Ok(())
+}
+
 #[tauri::command]
 pub fn save_coordinates(mut config: SolderConfig) -> Result<String, String> {
+    validate_solder_config_paths(&config)?;
     normalize_solder_config(&mut config, true);
+    validate_solder_config_paths(&config)?;
     let json = serde_json::to_string_pretty(&config).map_err(|e| e.to_string())?;
 
     let config_path = get_config_path();
+    if let Ok(mut guard) = global_config_cache().write() {
+        *guard = None;
+    }
     crate::utils::atomic_write_bytes(&config_path, json.as_bytes())?;
+    let new_mtime = fs::metadata(&config_path).ok().and_then(|m| m.modified().ok());
+    if let Ok(mut guard) = global_config_cache().write() {
+        *guard = Some((config_path, new_mtime, config.clone()));
+    }
 
     // Enforce backup storage capacity cap asynchronously whenever workspace settings are saved
     let workspaces_for_cap = config.workspaces.clone();

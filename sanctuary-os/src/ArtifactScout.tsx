@@ -965,6 +965,79 @@ export const ArtifactScout = () => {
     const filteredClone = useMemo(() => cloneConflicts.filter(c => searchFilter(c, conflictSearch)), [cloneConflicts, conflictSearch]);
     const filteredSoft = useMemo(() => softConflicts.filter(c => searchFilter(c, conflictSearch)), [softConflicts, conflictSearch]);
 
+    const overridesViewModel = useMemo(() => {
+        if (activeTab !== "OVERRIDES") {
+            return { allActiveOverrides: [] as any[], trueIgnoredPairs: [] as string[] };
+        }
+        const activeSetMods = activeBlueprintObj?.mods || [];
+        const manualOverrides = activeSetMods
+            .filter((m: any) => hasPriorityPrefix(typeof m === "string" ? m : (m.name || m.path || "")))
+            .map((m: any) => typeof m === "string" ? m : (m.name || m.path || ""));
+
+        const resolvedOverrides = ignoredPairs.map((pair: string) => {
+            const parts = pair.split(/\s+(?:⚔️|ΓÜö∩╕Å|vs|VS|Vs|vS)\s+/);
+            const left = parts[0] || pair;
+            const right = parts[1];
+            if (!right) return null;
+
+            const leftClean = stripPriorityPrefix(left).toLowerCase();
+            const rightClean = stripPriorityPrefix(right).toLowerCase();
+
+            const leftIsWinner = manualOverrides.some((m: string) => {
+                const p = stripPriorityPrefix(m).toLowerCase();
+                return p === leftClean || p.endsWith(`/${leftClean}`) || p.endsWith(`\\${leftClean}`);
+            });
+
+            const rightIsWinner = manualOverrides.some((m: string) => {
+                const p = stripPriorityPrefix(m).toLowerCase();
+                return p === rightClean || p.endsWith(`/${rightClean}`) || p.endsWith(`\\${rightClean}`);
+            });
+
+            if (leftIsWinner || rightIsWinner) {
+                return {
+                    pair,
+                    winnerPath: leftIsWinner ? left : right,
+                    loserPath: leftIsWinner ? right : left,
+                    isManual: false,
+                };
+            }
+            return null;
+        }).filter(Boolean) as any[];
+
+        const ruleOverrides = activeBlueprintRules.map((r) => ({
+            id: r.id,
+            pair: `${r.modA} vs ${r.modB}`,
+            winnerPath: r.type === "after" ? r.modA : r.modB,
+            loserPath: r.type === "after" ? r.modB : r.modA,
+            isRule: true,
+            isManual: false,
+        }));
+
+        const dedupedResolvedOverrides = resolvedOverrides.filter((res) => {
+            const wClean = (stripPriorityPrefix(res.winnerPath).split(/[\\/]/).pop() || res.winnerPath).toLowerCase();
+            const lClean = (stripPriorityPrefix(res.loserPath).split(/[\\/]/).pop() || res.loserPath).toLowerCase();
+            return !ruleOverrides.some((ro) => {
+                const rw = (stripPriorityPrefix(ro.winnerPath).split(/[\\/]/).pop() || ro.winnerPath).toLowerCase();
+                const rl = (stripPriorityPrefix(ro.loserPath).split(/[\\/]/).pop() || ro.loserPath).toLowerCase();
+                return (rw === wClean && rl === lClean) || (rw === lClean && rl === wClean);
+            });
+        });
+
+        const searchLow = overrideSearch.toLowerCase();
+        const allActiveOverrides = [...ruleOverrides, ...dedupedResolvedOverrides].filter(
+            (o) =>
+                !overrideSearch ||
+                o.winnerPath.toLowerCase().includes(searchLow) ||
+                (o.loserPath && o.loserPath.toLowerCase().includes(searchLow))
+        );
+        const resolvedPairSet = new Set(resolvedOverrides.map((res) => res.pair));
+        const trueIgnoredPairs = ignoredPairs
+            .filter((pair: string) => !resolvedPairSet.has(pair))
+            .filter((pair: string) => !overrideSearch || pair.toLowerCase().includes(searchLow));
+
+        return { allActiveOverrides, trueIgnoredPairs };
+    }, [activeTab, activeBlueprintObj, ignoredPairs, activeBlueprintRules, overrideSearch]);
+
     const hasExplicitRuleBetween = (cleanA: string, cleanB: string) => {
         const baseA = stripKnownModExt(cleanA);
         const baseB = stripKnownModExt(cleanB);
@@ -1941,70 +2014,7 @@ export const ArtifactScout = () => {
                     )}
 
                     {activeTab === "OVERRIDES" && (() => {
-                        const activeSetMods = playSets.find((s: any) => s.name === scanScope)?.mods || [];
-                        const manualOverrides = activeSetMods
-                            .filter((m: any) => hasPriorityPrefix(typeof m === "string" ? m : (m.name || m.path || "")))
-                            .map((m: any) => typeof m === "string" ? m : (m.name || m.path || ""));
-
-                        const resolvedOverrides = ignoredPairs.map((pair: string) => {
-                            const parts = pair.split(/\s+(?:⚔️|ΓÜö∩╕Å|vs|VS|Vs|vS)\s+/);
-                            const left = parts[0] || pair;
-                            const right = parts[1];
-                            if (!right) return null;
-
-                            const leftClean = stripPriorityPrefix(left).toLowerCase();
-                            const rightClean = stripPriorityPrefix(right).toLowerCase();
-
-                            const leftIsWinner = manualOverrides.some((m: string) => {
-                                const p = stripPriorityPrefix(m).toLowerCase();
-                                return p === leftClean || p.endsWith(`/${leftClean}`) || p.endsWith(`\\${leftClean}`);
-                            });
-
-                            const rightIsWinner = manualOverrides.some((m: string) => {
-                                const p = stripPriorityPrefix(m).toLowerCase();
-                                return p === rightClean || p.endsWith(`/${rightClean}`) || p.endsWith(`\\${rightClean}`);
-                            });
-
-                            if (leftIsWinner || rightIsWinner) {
-                                return {
-                                    pair,
-                                    winnerPath: leftIsWinner ? left : right,
-                                    loserPath: leftIsWinner ? right : left,
-                                    isManual: false,
-                                };
-                            }
-                            return null;
-                        }).filter(Boolean) as any[];
-
-                        const ruleOverrides = activeBlueprintRules.map((r) => ({
-                            id: r.id,
-                            pair: `${r.modA} vs ${r.modB}`,
-                            winnerPath: r.type === "after" ? r.modA : r.modB,
-                            loserPath: r.type === "after" ? r.modB : r.modA,
-                            isRule: true,
-                            isManual: false,
-                        }));
-
-                        // Deduplicate resolvedOverrides that already have an explicit rule in ruleOverrides
-                        const dedupedResolvedOverrides = resolvedOverrides.filter((res) => {
-                            const wClean = (stripPriorityPrefix(res.winnerPath).split(/[\\/]/).pop() || res.winnerPath).toLowerCase();
-                            const lClean = (stripPriorityPrefix(res.loserPath).split(/[\\/]/).pop() || res.loserPath).toLowerCase();
-                            return !ruleOverrides.some((ro) => {
-                                const rw = (stripPriorityPrefix(ro.winnerPath).split(/[\\/]/).pop() || ro.winnerPath).toLowerCase();
-                                const rl = (stripPriorityPrefix(ro.loserPath).split(/[\\/]/).pop() || ro.loserPath).toLowerCase();
-                                return (rw === wClean && rl === lClean) || (rw === lClean && rl === wClean);
-                            });
-                        });
-
-                        const allActiveOverrides = [...ruleOverrides, ...dedupedResolvedOverrides].filter(
-                            (o) =>
-                                !overrideSearch ||
-                                o.winnerPath.toLowerCase().includes(overrideSearch.toLowerCase()) ||
-                                (o.loserPath && o.loserPath.toLowerCase().includes(overrideSearch.toLowerCase()))
-                        );
-                        const trueIgnoredPairs = ignoredPairs
-                            .filter((pair: string) => !resolvedOverrides.some((res) => res.pair === pair))
-                            .filter((pair: string) => !overrideSearch || pair.toLowerCase().includes(overrideSearch.toLowerCase()));
+                        const { allActiveOverrides, trueIgnoredPairs } = overridesViewModel;
 
                         return (
                             <CommandScreenLayout>

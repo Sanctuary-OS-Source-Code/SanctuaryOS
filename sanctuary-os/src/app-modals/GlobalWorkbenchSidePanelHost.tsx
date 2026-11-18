@@ -6,7 +6,7 @@ import { useWorkbenchEditor } from "../workbench/hooks/useWorkbenchEditor";
 import { useWorkbenchLayout } from "../workbench/hooks/useWorkbenchLayout";
 import { useMasonFiles, clearIdeCachedDraft } from "../hooks/useMasonFiles";
 import { invoke } from "@tauri-apps/api/core";
-import { writeTextFile, remove } from "@tauri-apps/plugin-fs";
+import { joinLocalPath } from "../utils/localTemplateInspector";
 
 const WorkbenchSidePanel = React.lazy(() =>
   import("../workbench/WorkbenchSidePanel").then((m) => ({ default: m.WorkbenchSidePanel }))
@@ -166,17 +166,17 @@ function StandaloneWorkbenchSidePanel() {
                 : sanitizedName + ".json";
 
               if (newFileName !== selectedFile.name) {
-                const dirPath = selectedFile.path.substring(
-                  0,
-                  selectedFile.path.lastIndexOf(
-                    selectedFile.path.includes("\\") ? "\\" : "/"
-                  )
-                );
-                const sep = selectedFile.path.includes("\\") ? "\\" : "/";
-                const newPath = `${dirPath}${sep}${newFileName}`;
+                const dirPath = selectedFile.path.replace(/[\\/][^\\/]+$/, "");
+                const newPath = joinLocalPath(dirPath, newFileName);
 
-                await writeTextFile(newPath, newJson);
-                await remove(selectedFile.path);
+                await invoke("rename_file_with_history", {
+                  oldPath: selectedFile.path,
+                  newPath,
+                });
+                await invoke("save_file_silently", {
+                  path: newPath,
+                  content: newJson,
+                });
 
                 useStore
                   .getState()

@@ -5,12 +5,51 @@
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers":
-    "authorization, x-client-info, apikey, content-type",
-  "Access-Control-Allow-Methods": "POST, OPTIONS",
-};
+const STATIC_ALLOWED_ORIGINS = new Set([
+  "https://sanctuaryos.gg",
+  "https://www.sanctuaryos.gg",
+  "https://app.sanctuaryos.gg",
+  "tauri://localhost",
+  "http://tauri.localhost",
+  "https://tauri.localhost",
+]);
+
+function isAllowedCorsOrigin(origin: string): boolean {
+  const clean = String(origin || "").trim().replace(/\/+$/, "");
+  if (!clean) return false;
+  if (STATIC_ALLOWED_ORIGINS.has(clean)) return true;
+  if (/^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/i.test(clean)) return true;
+  const extraRaw = String(Deno.env.get("ALLOWED_ORIGINS") || "");
+  if (extraRaw) {
+    for (const entry of extraRaw.split(",")) {
+      const normalized = entry.trim().replace(/\/+$/, "");
+      if (normalized && normalized === clean) return true;
+    }
+  }
+  return false;
+}
+
+function getCorsHeaders(req: Request): Record<string, string> {
+  const reqOrigin = req.headers.get("origin") || "";
+  const allowOrigin = isAllowedCorsOrigin(reqOrigin)
+    ? reqOrigin
+    : "https://sanctuaryos.gg";
+  return {
+    "Access-Control-Allow-Origin": allowOrigin,
+    "Access-Control-Allow-Headers":
+      "authorization, x-client-info, apikey, content-type",
+    "Access-Control-Allow-Methods": "POST, OPTIONS",
+    "Vary": "Origin",
+  };
+}
+
+function sanitizeHeaderLine(raw: unknown, maxLen = 200): string {
+  return String(raw || "")
+    .replace(/[\r\n\0]+/g, " ")
+    .replace(/\s+/g, " ")
+    .trim()
+    .slice(0, maxLen);
+}
 
 const ALLOWED_DISPATCH_ROLES = new Set(["keeper", "admin", "core_dev"]);
 
@@ -151,20 +190,28 @@ function isSafeHttpsRelayUrl(rawUrl: string): boolean {
   try {
     const parsed = new URL(rawUrl);
     if (parsed.protocol !== "https:") return false;
-    const host = parsed.hostname.toLowerCase();
+    if (parsed.username || parsed.password) return false;
+    if (parsed.port && parsed.port !== "443") return false;
+    const host = parsed.hostname.toLowerCase().replace(/^\[|\]$/g, "");
+    if (!host) return false;
     if (
       host === "localhost" ||
-      host === "127.0.0.1" ||
       host === "0.0.0.0" ||
+      host === "::" ||
       host === "::1" ||
-      host === "[::1]" ||
       host.endsWith(".local") ||
       host.endsWith(".internal") ||
+      /^0\./.test(host) ||
       /^10\./.test(host) ||
       /^127\./.test(host) ||
       /^169\.254\./.test(host) ||
       /^192\.168\./.test(host) ||
-      /^172\.(1[6-9]|2[0-9]|3[0-1])\./.test(host)
+      /^172\.(1[6-9]|2[0-9]|3[0-1])\./.test(host) ||
+      /^100\.(6[4-9]|[7-9]\d|1[01]\d|12[0-7])\./.test(host) ||
+      /^198\.1[89]\./.test(host) ||
+      /^f[cd][0-9a-f]{0,2}:/i.test(host) ||
+      /^fe[89ab][0-9a-f]:/i.test(host) ||
+      /^::ffff:/i.test(host)
     ) {
       return false;
     }
@@ -229,6 +276,7 @@ function buildSanctuaryEmailHtml(params: {
 }
 
 Deno.serve(async (req: Request) => {
+  const corsHeaders = getCorsHeaders(req);
   if (req.method === "OPTIONS") {
     return new Response("ok", { headers: corsHeaders });
   }
@@ -358,14 +406,14 @@ Deno.serve(async (req: Request) => {
       });
     }
 
-    const toEmail = String(body.to_email || "").trim();
-    const subject = String(body.subject || "").trim();
+    const toEmail = sanitizeHeaderLine(body.to_email, 254);
+    const subject = sanitizeHeaderLine(body.subject, 240);
     const bodyText = String(body.body_text || "").trim();
-    const ticketId = body.ticket_id ? String(body.ticket_id).trim() : null;
+    const ticketId = body.ticket_id ? sanitizeHeaderLine(body.ticket_id, 64) : null;
 
     if (
       !toEmail ||
-      !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(toEmail) ||
+      !/^[^\s@<>]+@[^\s@<>]+\.[^\s@<>]+$/.test(toEmail) ||
       !subject ||
       !bodyText
     ) {
@@ -401,26 +449,32 @@ Deno.serve(async (req: Request) => {
       // ignore config parse fallback
     }
 
-    const fromEmail =
-      String(
-        body.from_email ||
-          pipelineCfg.support_contact_email ||
-          Deno.env.get("KEEPER_FROM_EMAIL") ||
-          "support@sanctuaryos.gg"
-      ).trim() || "support@sanctuaryos.gg";
+    const emailFormatRegex = /^[^\s@<>]+@[^\s@<>]+\.[^\s@<>]+$/;
+    const rawFromEmail = sanitizeHeaderLine(
+      body.from_email ||
+        pipelineCfg.support_contact_email ||
+        Deno.env.get("KEEPER_FROM_EMAIL") ||
+        "support@sanctuaryos.gg",
+      254
+    );
+    const fromEmail = emailFormatRegex.test(rawFromEmail)
+      ? rawFromEmail
+      : "support@sanctuaryos.gg";
 
     const fromName =
-      String(
+      sanitizeHeaderLine(
         body.from_name ||
           pipelineCfg.support_sender_name ||
           Deno.env.get("KEEPER_FROM_NAME") ||
-          "Sanctuary OS Keepers Core"
-      ).trim() || "Sanctuary OS Keepers Core";
+          "Sanctuary OS Keepers Core",
+        120
+      ) || "Sanctuary OS Keepers Core";
 
-    const replyTo =
-      String(
-        body.reply_to || pipelineCfg.support_reply_to_email || fromEmail
-      ).trim() || fromEmail;
+    const rawReplyTo = sanitizeHeaderLine(
+      body.reply_to || pipelineCfg.support_reply_to_email || fromEmail,
+      254
+    );
+    const replyTo = emailFormatRegex.test(rawReplyTo) ? rawReplyTo : fromEmail;
 
     // Resolve relay credentials strictly from Edge environment or private runtime_secrets vault (never untrusted request body)
     let vaultApiKey = "";

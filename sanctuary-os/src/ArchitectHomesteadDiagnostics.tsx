@@ -14,6 +14,7 @@ import {
   UniversalGroup,
   fetchAllPaginated,
   openModDossier,
+  handleOpenUrl,
   VAULT_CHIP_CLASS,
 } from "./shared";
 import { openSanctuaryContextMenu, SanctuaryContextMenuItem } from "./ContextMenu";
@@ -482,6 +483,7 @@ export function HomesteadDiagnostics({
       });
 
       const dPath =
+        config.docs_path?.trim() ||
         config.mods_path.replace(/[\\/]+(?:mods|_mods|data|paks|~mods|plugins|scripts)[\\/]*$/i, "") ||
         config.mods_path;
       await invoke("airgap_saves", { docsPath: dPath, enable: true });
@@ -524,8 +526,7 @@ export function HomesteadDiagnostics({
               setIsLoading(false);
               clearInterval(interval);
               setLogWatcher(null);
-              await invoke("stop_lab_verification_session");
-              await invoke("airgap_saves", { docsPath: dPath, enable: false });
+              await invoke("teardown_lab_sandbox_session", { docsPath: dPath, closeGame: false });
               return;
             }
           }
@@ -539,8 +540,7 @@ export function HomesteadDiagnostics({
           setIsLoading(false);
           clearInterval(interval);
           setLogWatcher(null);
-          await invoke("stop_lab_verification_session");
-          await invoke("airgap_saves", { docsPath: dPath, enable: false });
+          await invoke("teardown_lab_sandbox_session", { docsPath: dPath, closeGame: false });
         }
       }, 1000);
       setLogWatcher(interval);
@@ -616,9 +616,10 @@ export function HomesteadDiagnostics({
     try {
       const config: any = await invoke("get_saved_coordinates");
       const dPath =
+        config.docs_path?.trim() ||
         config.mods_path.replace(/[\\/]+(?:mods|_mods|data|paks|~mods|plugins|scripts)[\\/]*$/i, "") ||
         config.mods_path;
-      await invoke("stop_lab_verification_session");
+      await invoke("teardown_lab_sandbox_session", { docsPath: dPath, closeGame: false });
       await invoke("airgap_saves", { docsPath: dPath, enable: false });
     } catch {}
 
@@ -1940,14 +1941,14 @@ export function HomesteadDiagnostics({
               <PanelHeaderButton
                 icon={t("icon_download", "download")}
                 tooltip={t("download_source", "Download Source")}
-                onClick={() => window.open(activeReport.download_url, "_blank")}
+                onClick={() => handleOpenUrl(activeReport.download_url)}
               />
             ) : null}
             <PanelHeaderButton
               icon={t("icon_search", "search")}
               tooltip={t("search_web", "Search Web")}
               onClick={() =>
-                window.open(
+                handleOpenUrl(
                   `https://www.google.com/search?q=${encodeURIComponent(
                     (useStore.getState().activeGameSchema?.display_name || "Mod") +
                       " " +
@@ -1955,8 +1956,7 @@ export function HomesteadDiagnostics({
                         activeReport?.name || "",
                         useStore.getState().activeGameSchema
                       )
-                  )}`,
-                  "_blank"
+                  )}`
                 )
               }
             />

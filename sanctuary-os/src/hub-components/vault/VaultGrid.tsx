@@ -18,9 +18,8 @@ function DrawerFilterSection({ title, options, value, onChange, t }: any) {
               key={opt.id}
               type="button"
               onClick={() => onChange(opt.id)}
-              className={`sa-dropdown-item flex items-center justify-between gap-2.5 px-3 py-2 text-[11px] capitalize tracking-wide text-left cursor-pointer ${
-                active ? "is-selected font-bold" : "font-semibold"
-              }`}
+              className={`sa-dropdown-item flex items-center justify-between gap-2.5 px-3 py-2 text-[11px] capitalize tracking-wide text-left cursor-pointer ${active ? "is-selected font-bold" : "font-semibold"
+                }`}
             >
               <span className="truncate flex items-center gap-2 min-w-0">
                 {opt.label}
@@ -191,7 +190,7 @@ export function VaultGrid(props: any) {
       const isEquipped = mod.isParent
         ? (mod.flavors || []).some((f: any) => cleanedActiveSet.has(f.name))
         : cleanedActiveSet.has(mod.name);
-      
+
       const getDeepCasualties = (targetMods: any[], shallow = false) => {
         let queue = [...targetMods];
         let seen = new Set<string>();
@@ -232,12 +231,12 @@ export function VaultGrid(props: any) {
         }
         return [...new Set(result)];
       };
-      
+
       let casualties: any[] = [];
       let tier3List: any[] = [];
       let isFlavorSwapCard = false;
       let exclusiveSlotName: string | undefined = undefined;
-      
+
       if (isEquipped) {
         if (mod.isVirtual) {
           const familyAnchor = mod.dbId || mod.familyId;
@@ -417,7 +416,7 @@ export function VaultGrid(props: any) {
       if (mod.isVirtual && mod.flavors) {
         mod.flavors.forEach(checkModDeps);
       }
-      
+
       map.set(mod.hash || mod.name, {
         isEquipped,
         casualties,
@@ -427,7 +426,7 @@ export function VaultGrid(props: any) {
         missingReqs,
       });
     });
-    
+
     return { cardComputations: map, missingReqsByMod: reqsByMod };
   }, [
     paginatedMods,
@@ -617,8 +616,8 @@ export function VaultGrid(props: any) {
                 label:
                   cat === "Script"
                     ? t("type_script", "Script")
-                    : cat === "Package"
-                      ? t("type_package", "Package")
+                    : cat === "Module" || cat === "Package"
+                      ? t("type_package", "Module")
                       : cat,
               })),
             ]}
@@ -722,32 +721,32 @@ export function VaultGrid(props: any) {
         const localRivals =
           anarchyRules?.highlander !== false && flavor.relationshipType === "flavor"
             ? (mod.flavors || []).filter(
-                (f: any) =>
-                  f.name !== flavor.name &&
-                  f.relationshipType === "flavor" &&
-                  cleanedActiveSet.has(f.name) &&
-                  !areArchetypes(flavor.hash, f.hash)
-              )
+              (f: any) =>
+                f.name !== flavor.name &&
+                f.relationshipType === "flavor" &&
+                cleanedActiveSet.has(f.name) &&
+                !areArchetypes(flavor.hash, f.hash)
+            )
             : [];
         const globalRivals =
           anarchyRules?.highlander !== false &&
-          (flavorSlot || flavor.communityGroupId || flavor.relationshipType === 'beta')
+            (flavorSlot || flavor.communityGroupId || flavor.relationshipType === 'beta')
             ? equippedDisplayMods.filter((m: any) => {
-                if (m.name === flavor.name) return false;
-                const mSlot = resolveModHighlanderSlot(m);
-                const mBaseFam = String(m.baseFamilyId || m.familyId || m.dbId || "").split("@")[0].toLowerCase();
-                const isSameHighlanderSlot =
-                  Boolean(flavorSlot && mSlot && mSlot.key === flavorSlot.key) &&
-                  (!flavorBaseFam || !mBaseFam || mBaseFam !== flavorBaseFam);
-                const isSameCommunityGroup =
-                  Boolean(flavor.communityGroupId && String(m.communityGroupId) === String(flavor.communityGroupId));
-                const isBetaRival = (flavor.relationshipType === 'beta' && m.relationshipType !== 'beta' || flavor.relationshipType !== 'beta' && m.relationshipType === 'beta') && (String(m.familyId) === String(flavor.familyId) || String(m.dbId) === String(flavor.familyId || flavor.dbId));
-                if (isSameHighlanderSlot || isSameCommunityGroup || isBetaRival) {
-                  if (areArchetypes(flavor.hash, m.hash)) return false;
-                  return true;
-                }
-                return false;
-              })
+              if (m.name === flavor.name) return false;
+              const mSlot = resolveModHighlanderSlot(m);
+              const mBaseFam = String(m.baseFamilyId || m.familyId || m.dbId || "").split("@")[0].toLowerCase();
+              const isSameHighlanderSlot =
+                Boolean(flavorSlot && mSlot && mSlot.key === flavorSlot.key) &&
+                (!flavorBaseFam || !mBaseFam || mBaseFam !== flavorBaseFam);
+              const isSameCommunityGroup =
+                Boolean(flavor.communityGroupId && String(m.communityGroupId) === String(flavor.communityGroupId));
+              const isBetaRival = (flavor.relationshipType === 'beta' && m.relationshipType !== 'beta' || flavor.relationshipType !== 'beta' && m.relationshipType === 'beta') && (String(m.familyId) === String(flavor.familyId) || String(m.dbId) === String(flavor.familyId || flavor.dbId));
+              if (isSameHighlanderSlot || isSameCommunityGroup || isBetaRival) {
+                if (areArchetypes(flavor.hash, m.hash)) return false;
+                return true;
+              }
+              return false;
+            })
             : [];
         const allRivalsRaw = [...localRivals, ...globalRivals].filter((v, i, a) => a.findIndex(t => t.name === v.name) === i);
         const seenDrawerFams = new Set<string>();
@@ -1039,165 +1038,165 @@ export function VaultGrid(props: any) {
                 </div>
 
                 {expandedFolder === mainKey && (
-                <AccordionDrawer isOpen={true}>
-                  <div
-                    className="w-full glass-panel rounded-3xl p-6 md:p-8 border border-[color-mix(in_srgb,var(--accent)_25%,rgba(255,255,255,0.16))] shadow-[0_24px_60px_rgba(0,0,0,0.45)] flex flex-col gap-6 relative isolate"
-                    onClick={(e) => e.stopPropagation()}
-                  >
-                    {/* Unified Full-Width Folder Header */}
-                    <div className="flex flex-wrap gap-4 items-center justify-between pb-5 border-b border-[color-mix(in_srgb,var(--text)_8%,transparent)] relative z-20 w-full">
-                      <div className="flex items-center gap-4 min-w-0">
-                        <div className="w-12 h-12 rounded-2xl glass-surface border border-[var(--glass-card-icon-border,rgba(255,255,255,0.22))] bg-[var(--glass-card-icon-bg,rgba(255,255,255,0.08))] shadow-[var(--glass-card-icon-shadow)] flex items-center justify-center shrink-0">
-                          <span className="material-symbols-outlined !text-[24px] text-[var(--accent)]">
-                            {t("icon_folder_open", "folder_open")}
-                          </span>
-                        </div>
-                        <div className="flex flex-col gap-1.5 min-w-0">
-                          <h3 className="text-xl md:text-2xl font-black text-[var(--text)] tracking-tight leading-tight truncate">
-                            {formatDisplayName(renderedMod.displayName || renderedMod.name)}
-                          </h3>
-                          <div className="flex flex-wrap items-center gap-2">
-                            <div className="px-2.5 py-1 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[9px] font-black uppercase tracking-wider text-[var(--text)] flex items-center gap-1.5 shrink-0">
-                              <span className="material-symbols-outlined !text-[12px] text-[var(--accent)]">
-                                {t("icon_account_tree", "account_tree")}
-                              </span>
-                              <span>
-                                {t("nav_exploring", "Exploring")}{" "}
-                                {filteredDrawerFlavors.length !== (renderedMod.flavors || []).length
-                                  ? `${filteredDrawerFlavors.length} / ${(renderedMod.flavors || []).length}`
-                                  : (renderedMod.flavors || []).length}{" "}
-                                {t("term_mods", "Artifacts")}
-                              </span>
+                  <AccordionDrawer isOpen={true}>
+                    <div
+                      className="w-full glass-panel rounded-3xl p-6 md:p-8 border border-[color-mix(in_srgb,var(--accent)_25%,rgba(255,255,255,0.16))] shadow-[0_24px_60px_rgba(0,0,0,0.45)] flex flex-col gap-6 relative isolate"
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      {/* Unified Full-Width Folder Header */}
+                      <div className="flex flex-wrap gap-4 items-center justify-between pb-5 border-b border-[color-mix(in_srgb,var(--text)_8%,transparent)] relative z-20 w-full">
+                        <div className="flex items-center gap-4 min-w-0">
+                          <div className="w-12 h-12 rounded-2xl glass-surface border border-[var(--glass-card-icon-border,rgba(255,255,255,0.22))] bg-[var(--glass-card-icon-bg,rgba(255,255,255,0.08))] shadow-[var(--glass-card-icon-shadow)] flex items-center justify-center shrink-0">
+                            <span className="material-symbols-outlined !text-[24px] text-[var(--accent)]">
+                              {t("icon_folder_open", "folder_open")}
+                            </span>
+                          </div>
+                          <div className="flex flex-col gap-1.5 min-w-0">
+                            <h3 className="text-xl md:text-2xl font-black text-[var(--text)] tracking-tight leading-tight truncate">
+                              {formatDisplayName(renderedMod.displayName || renderedMod.name)}
+                            </h3>
+                            <div className="flex flex-wrap items-center gap-2">
+                              <div className="px-2.5 py-1 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[9px] font-black uppercase tracking-wider text-[var(--text)] flex items-center gap-1.5 shrink-0">
+                                <span className="material-symbols-outlined !text-[12px] text-[var(--accent)]">
+                                  {t("icon_account_tree", "account_tree")}
+                                </span>
+                                <span>
+                                  {t("nav_exploring", "Exploring")}{" "}
+                                  {filteredDrawerFlavors.length !== (renderedMod.flavors || []).length
+                                    ? `${filteredDrawerFlavors.length} / ${(renderedMod.flavors || []).length}`
+                                    : (renderedMod.flavors || []).length}{" "}
+                                  {t("term_mods", "Artifacts")}
+                                </span>
+                              </div>
                             </div>
                           </div>
                         </div>
-                      </div>
 
-                      <div className="flex items-center gap-3 w-full md:w-auto relative z-30">
-                        <div className="flex-1 md:w-80 lg:w-96" onClick={(e) => e.stopPropagation()}>
-                          <ActionPill
-                            searchQuery={drawerSearchQuery}
-                            setSearchQuery={setDrawerSearchQuery}
-                            searchPlaceholder={t("search_ph", "Search {mods}...")}
-                            primaryPopover={{
-                              icon: t("icon_tune", "tune"),
-                              label: t("filters", "Filters"),
-                              content: drawerFilterPopoverContent,
+                        <div className="flex items-center gap-3 w-full md:w-auto relative z-30">
+                          <div className="flex-1 md:w-80 lg:w-96" onClick={(e) => e.stopPropagation()}>
+                            <ActionPill
+                              searchQuery={drawerSearchQuery}
+                              setSearchQuery={setDrawerSearchQuery}
+                              searchPlaceholder={t("search_ph", "Search {mods}...")}
+                              primaryPopover={{
+                                icon: t("icon_tune", "tune"),
+                                label: t("filters", "Filters"),
+                                content: drawerFilterPopoverContent,
+                              }}
+                              className="!w-full !max-w-full"
+                            />
+                          </div>
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setDrawerSearchQuery("");
+                              setExpandedFolder(null);
                             }}
-                            className="!w-full !max-w-full"
-                          />
+                            className="w-11 h-11 rounded-2xl glass-surface hover:bg-[color-mix(in_srgb,var(--danger)_15%,transparent)] hover:text-[var(--danger)] hover:border-[color-mix(in_srgb,var(--danger)_35%,transparent)] border border-[color-mix(in_srgb,var(--text)_12%,transparent)] flex items-center justify-center text-[var(--text)] transition-colors shadow-sm shrink-0 cursor-pointer pointer-events-auto"
+                          >
+                            <span className="material-symbols-outlined !text-[20px]">
+                              {t("icon_close", "close")}
+                            </span>
+                          </button>
                         </div>
-                        <button
-                          type="button"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setDrawerSearchQuery("");
-                            setExpandedFolder(null);
-                          }}
-                          className="w-11 h-11 rounded-2xl glass-surface hover:bg-[color-mix(in_srgb,var(--danger)_15%,transparent)] hover:text-[var(--danger)] hover:border-[color-mix(in_srgb,var(--danger)_35%,transparent)] border border-[color-mix(in_srgb,var(--text)_12%,transparent)] flex items-center justify-center text-[var(--text)] transition-colors shadow-sm shrink-0 cursor-pointer pointer-events-auto"
-                        >
-                          <span className="material-symbols-outlined !text-[20px]">
-                            {t("icon_close", "close")}
-                          </span>
-                        </button>
+                      </div>
+
+                      {/* Folder Sub-Cards Grid */}
+                      <div className="w-full relative z-10">
+                        {filteredDrawerFlavors.length === 0 ? (
+                          <EmptyState
+                            icon={t("icon_search_off", "search_off")}
+                            title={t("registry_no_mods", "No {Mods} Found")}
+                            minHeightClass="min-h-[180px]"
+                            className="col-span-full py-6"
+                          />
+                        ) : (
+                          <div
+                            ref={drawerScrollRef}
+                            onScroll={(e) => {
+                              if (drawerVisibleLimit >= filteredDrawerFlavors.length) return;
+                              const el = e.currentTarget;
+                              if (el.scrollTop + el.clientHeight >= el.scrollHeight - 360) {
+                                React.startTransition(() => {
+                                  setDrawerVisibleLimit((prev) =>
+                                    Math.min(filteredDrawerFlavors.length, prev + 25)
+                                  );
+                                });
+                              }
+                            }}
+                            className="grid grid-flow-row-dense grid-cols-[repeat(auto-fill,minmax(240px,1fr))] gap-5 max-h-[520px] lg:max-h-[620px] overflow-y-auto custom-scrollbar p-1"
+                          >
+                            {visibleDrawerFlavors.map((flavor: any, subIdx: number) => {
+                              const comp = drawerComputations.get(flavor.hash || flavor.name) || { isFlavorEquipped: cleanedActiveSet.has(flavor.name), drawerCasualties: [], flavorTier3: [], isSwappedState: false, isBetaSwap: false, drawerExclusiveSlotName: undefined, missingPacks: [], hasMissingDeps: false, flavorVersionMismatch: false, flavorGhostReason: null, isFlavorGhosted: false };
+                              const { isFlavorEquipped, drawerCasualties, flavorTier3, isSwappedState, isBetaSwap, drawerExclusiveSlotName, missingPacks, hasMissingDeps, flavorGhostReason, isFlavorGhosted } = comp;
+
+                              const flavorMissingReqs = (flavor && typeof flavor === "object" ? missingReqsByMod.get(flavor) : undefined) ?? flavor?.missingReqs ?? [];
+                              const modMissingReqs = (mod && typeof mod === "object" ? missingReqsByMod.get(mod) : undefined) ?? mod?.missingReqs ?? [];
+                              const combinedMissingDeps = [...flavorMissingReqs, ...modMissingReqs].filter((v, i, a) => a.findIndex(t => t.id === v.id) === i);
+
+                              return (
+                                <ModCard
+                                  compact={true}
+                                  hideHitBox={true}
+                                  key={`sub-${flavor.hash || flavor.name}-${subIdx}`}
+                                  mod={flavor}
+                                  gameVersion={selectedVersion}
+                                  ownedDLC={ownedDLC}
+                                  maskedDLC={maskedDLC}
+                                  isInActiveSet={isFlavorEquipped}
+                                  casualtyList={drawerCasualties}
+                                  anarchyRules={anarchyRules}
+                                  tier3List={flavorTier3 || []}
+                                  missingDeps={combinedMissingDeps}
+                                  flavorGhostReason={flavorGhostReason}
+                                  isSelfGhosted={isFlavorGhosted}
+                                  isSelfSwapped={isSwappedState}
+                                  isSelfBetaSwap={isBetaSwap}
+                                  exclusiveSlotName={drawerExclusiveSlotName}
+                                  onToggleSet={async (e: any, overrideBroken: boolean = false, keepBoth: boolean = false) => {
+                                    e.stopPropagation();
+                                    if (flavor.isGhosted || missingPacks.length > 0 || hasMissingDeps || flavorGhostReason === "VERSION_MISMATCH") {
+                                      if (!overrideBroken) {
+                                        setDrawerConfirmHash(drawerConfirmHash === flavor.hash ? null : flavor.hash);
+                                        return;
+                                      }
+                                    }
+                                    setDrawerConfirmHash(null);
+                                    await toggleInActiveSet(flavor.name, !overrideBroken, false, false, {
+                                      confirmedSwap: !keepBoth,
+                                      skipHighlanderSwap: Boolean(keepBoth),
+                                    });
+                                  }}
+                                  onContextMenu={(e: any) => {
+                                    if (props.onContextMenu) {
+                                      props.onContextMenu(e, flavor);
+                                    }
+                                  }}
+                                  onSelect={() => {
+                                    setMetaNameInput(flavor.displayName || flavor.name);
+                                    setMetaAuthorInput(flavor.author || mod.author || "");
+                                    setMetaVersionInput(flavor.version || mod.version || "");
+                                    setMetaDescInput(flavor.description || mod.description || "");
+                                    setMetaImageInput(flavor.image_url || flavor.imageUrl || mod.image_url || mod.imageUrl || "");
+                                    setMetaAllowWriteInput(flavor.allow_write || mod.allow_write || false);
+                                    setActiveDossier(flavor);
+                                  }}
+                                />
+                              );
+                            })}
+                            {drawerVisibleLimit < filteredDrawerFlavors.length && (
+                              <div ref={drawerSentinelRef} className="col-span-full h-2" />
+                            )}
+                          </div>
+                        )}
                       </div>
                     </div>
-
-                    {/* Folder Sub-Cards Grid */}
-                    <div className="w-full relative z-10">
-                      {filteredDrawerFlavors.length === 0 ? (
-                        <EmptyState
-                          icon={t("icon_search_off", "search_off")}
-                          title={t("registry_no_mods", "No {Mods} Found")}
-                          minHeightClass="min-h-[180px]"
-                          className="col-span-full py-6"
-                        />
-                      ) : (
-                        <div
-                          ref={drawerScrollRef}
-                          onScroll={(e) => {
-                            if (drawerVisibleLimit >= filteredDrawerFlavors.length) return;
-                            const el = e.currentTarget;
-                            if (el.scrollTop + el.clientHeight >= el.scrollHeight - 360) {
-                              React.startTransition(() => {
-                                setDrawerVisibleLimit((prev) =>
-                                  Math.min(filteredDrawerFlavors.length, prev + 25)
-                                );
-                              });
-                            }
-                          }}
-                          className="grid grid-flow-row-dense grid-cols-[repeat(auto-fill,minmax(240px,1fr))] gap-5 max-h-[520px] lg:max-h-[620px] overflow-y-auto custom-scrollbar p-1"
-                        >
-                          {visibleDrawerFlavors.map((flavor: any, subIdx: number) => {
-                            const comp = drawerComputations.get(flavor.hash || flavor.name) || { isFlavorEquipped: cleanedActiveSet.has(flavor.name), drawerCasualties: [], flavorTier3: [], isSwappedState: false, isBetaSwap: false, drawerExclusiveSlotName: undefined, missingPacks: [], hasMissingDeps: false, flavorVersionMismatch: false, flavorGhostReason: null, isFlavorGhosted: false };
-                            const { isFlavorEquipped, drawerCasualties, flavorTier3, isSwappedState, isBetaSwap, drawerExclusiveSlotName, missingPacks, hasMissingDeps, flavorGhostReason, isFlavorGhosted } = comp;
-
-                            const flavorMissingReqs = (flavor && typeof flavor === "object" ? missingReqsByMod.get(flavor) : undefined) ?? flavor?.missingReqs ?? [];
-                            const modMissingReqs = (mod && typeof mod === "object" ? missingReqsByMod.get(mod) : undefined) ?? mod?.missingReqs ?? [];
-                            const combinedMissingDeps = [...flavorMissingReqs, ...modMissingReqs].filter((v, i, a) => a.findIndex(t => t.id === v.id) === i);
-
-                            return (
-                              <ModCard
-                                compact={true}
-                                hideHitBox={true}
-                                key={`sub-${flavor.hash || flavor.name}-${subIdx}`}
-                                mod={flavor}
-                                gameVersion={selectedVersion}
-                                ownedDLC={ownedDLC}
-                                maskedDLC={maskedDLC}
-                                isInActiveSet={isFlavorEquipped}
-                                casualtyList={drawerCasualties}
-                                anarchyRules={anarchyRules}
-                                tier3List={flavorTier3 || []}
-                                missingDeps={combinedMissingDeps}
-                                flavorGhostReason={flavorGhostReason}
-                                isSelfGhosted={isFlavorGhosted}
-                                isSelfSwapped={isSwappedState}
-                                isSelfBetaSwap={isBetaSwap}
-                                exclusiveSlotName={drawerExclusiveSlotName}
-                                onToggleSet={async (e: any, overrideBroken: boolean = false, keepBoth: boolean = false) => {
-                                  e.stopPropagation();
-                                  if (flavor.isGhosted || missingPacks.length > 0 || hasMissingDeps || flavorGhostReason === "VERSION_MISMATCH") {
-                                    if (!overrideBroken) {
-                                      setDrawerConfirmHash(drawerConfirmHash === flavor.hash ? null : flavor.hash);
-                                      return;
-                                    }
-                                  }
-                                  setDrawerConfirmHash(null);
-                                  await toggleInActiveSet(flavor.name, !overrideBroken, false, false, {
-                                    confirmedSwap: !keepBoth,
-                                    skipHighlanderSwap: Boolean(keepBoth),
-                                  });
-                                }}
-                                onContextMenu={(e: any) => {
-                                  if (props.onContextMenu) {
-                                    props.onContextMenu(e, flavor);
-                                  }
-                                }}
-                                onSelect={() => {
-                                  setMetaNameInput(flavor.displayName || flavor.name);
-                                  setMetaAuthorInput(flavor.author || mod.author || "");
-                                  setMetaVersionInput(flavor.version || mod.version || "");
-                                  setMetaDescInput(flavor.description || mod.description || "");
-                                  setMetaImageInput(flavor.image_url || flavor.imageUrl || mod.image_url || mod.imageUrl || "");
-                                  setMetaAllowWriteInput(flavor.allow_write || mod.allow_write || false);
-                                  setActiveDossier(flavor);
-                                }}
-                              />
-                            );
-                          })}
-                          {drawerVisibleLimit < filteredDrawerFlavors.length && (
-                            <div ref={drawerSentinelRef} className="col-span-full h-2" />
-                          )}
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                </AccordionDrawer>
+                  </AccordionDrawer>
                 )}
-            </React.Fragment>
-          );
-        })
+              </React.Fragment>
+            );
+          })
         )}
       </div>
       {totalPages > 1 && (

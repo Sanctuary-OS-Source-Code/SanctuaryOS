@@ -833,13 +833,7 @@ export function resolveRealReportMod(
 
 const CLEAN_MOD_ACRONYMS = new Set([
   "UI",
-  "CAS",
-  "BB",
   "CC",
-  "MC",
-  "MCCC",
-  "WW",
-  "NWP",
   "XML",
   "JSON",
   "INI",
@@ -866,7 +860,6 @@ const CLEAN_MOD_ACRONYMS = new Set([
   "NPC",
   "AI",
   "OS",
-  "S4CL",
 ]);
 
 function formatReadableModName(raw: string): string {
@@ -1281,7 +1274,7 @@ export function extractReportLoadoutFromLogAndContext(
       hash: `${itemBaseKey || cleanRawName}_${parsedExt || "mod"}`,
       name: cleanRawName,
       displayName: getCleanModBaseName(cleanRawName),
-      file_extension: parsedExt || "package",
+      file_extension: parsedExt || "",
       version: parsedVer || "Local",
     };
   };

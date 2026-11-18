@@ -1954,7 +1954,7 @@ export function ChameleonControlDashboard({
                     { id: 'linear-gradient(135deg, rgba(2,0,36,1) 0%, rgba(9,9,121,1) 35%, rgba(0,212,255,1) 100%)', label: t('forge_bg_ocean', 'Deep Azure') },
                     { id: 'radial-gradient(circle at top right, #3f3f46, #000000)', label: t('forge_bg_slate', 'Monolith') },
                     { id: 'radial-gradient(circle at 80% -15%, rgba(56, 189, 248, 0.38) 0%, transparent 55%), radial-gradient(circle at 12% 105%, rgba(37, 99, 235, 0.28) 0%, transparent 60%), #050914', label: t('forge_bg_architect', 'Sanctuary') },
-                    { id: 'radial-gradient(circle at 18% -15%, rgba(16, 185, 129, 0.38) 0%, transparent 55%), radial-gradient(circle at 85% 110%, rgba(59, 130, 246, 0.30) 0%, transparent 65%), #061318', label: t('theme_name_sims4', 'Plumbob') },
+                    { id: 'radial-gradient(circle at 18% -15%, rgba(16, 185, 129, 0.38) 0%, transparent 55%), radial-gradient(circle at 85% 110%, rgba(59, 130, 246, 0.30) 0%, transparent 65%), #061318', label: t('theme_name_emerald', 'Emerald Prism') },
                   ].map((preset) => {
                     const isGradActive =
                       currentTheme.bgGradient === preset.id || (!currentTheme.bgGradient && preset.id === 'none');

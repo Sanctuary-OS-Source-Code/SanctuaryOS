@@ -6,12 +6,46 @@ use std::fs;
 use std::path::{Path, PathBuf};
 
 #[tauri::command]
-pub fn check_file_exists(file_path: String) -> bool {
+pub fn check_file_exists(
+    state: tauri::State<'_, SecurityState>,
+    file_path: String,
+) -> bool {
     let trimmed = file_path.trim();
     if trimmed.is_empty() || trimmed.contains("••••••") {
         return false;
     }
-    Path::new(trimmed).exists()
+    let p = Path::new(trimmed);
+    if !crate::utils::is_safe_user_file_path(p) {
+        return false;
+    }
+    let saved_coords = get_saved_coordinates();
+    let mut allowed_roots = crate::utils::get_allowed_config_roots(&saved_coords);
+    for dir_opt in [dirs::download_dir(), dirs::desktop_dir()]
+        .into_iter()
+        .flatten()
+    {
+        allowed_roots.push(dir_opt);
+    }
+    let canon_ok = crate::utils::ensure_path_within_roots(p, &allowed_roots).is_ok();
+    let volatile_match = if let Ok(canon_p) = crate::utils::resolve_canonical_target(p) {
+        state
+            .volatile_original_paths
+            .lock()
+            .map(|map| {
+                map.values().any(|v| {
+                    crate::utils::resolve_canonical_target(Path::new(v))
+                        .map(|cv| cv == canon_p)
+                        .unwrap_or(false)
+                })
+            })
+            .unwrap_or(false)
+    } else {
+        false
+    };
+    if !canon_ok && !volatile_match {
+        return false;
+    }
+    p.exists()
 }
 
 #[tauri::command]
@@ -90,7 +124,7 @@ fn zero_fill_and_remove_file(path: &Path, max_zero_bytes: u64) {
 }
 
 #[tauri::command]
-pub fn shred_external_file(
+pub async fn shred_external_file(
     state: tauri::State<'_, SecurityState>,
     app_state: tauri::State<'_, AppState>,
     file_path: String,
@@ -104,97 +138,110 @@ pub fn shred_external_file(
             .map(|n| n.to_string_lossy().to_string())
             .unwrap_or_default()
     });
-
-    let p = std::path::PathBuf::from(&file_path);
-    if !crate::utils::is_safe_user_file_path(&p) {
-        return Err("Refusing to purge protected or unsafe path.".into());
-    }
     let active_schema = app_state
         .active_schema
         .lock()
         .unwrap_or_else(|e| e.into_inner())
         .clone();
-    let saved_coords = get_saved_coordinates();
-    if crate::utils::is_protected_save_or_airgap_path(&p, &saved_coords, &active_schema) {
-        return Err("Refusing to purge protected user save or Lab Airgap vault file.".into());
-    }
+    let recorded_volatile_paths: Vec<String> = state
+        .volatile_original_paths
+        .lock()
+        .map(|map| map.values().cloned().collect())
+        .unwrap_or_default();
 
-    // Build strict allowed roots for external quarantine shredding:
-    // standard user drop roots (Downloads, Desktop, Documents) + any volatile origin parent recorded by ingest.
-    let mut allowed_external_roots: Vec<PathBuf> = [
-        dirs::download_dir(),
-        dirs::desktop_dir(),
-        dirs::document_dir(),
-        dirs::home_dir(),
-    ]
-    .into_iter()
-    .flatten()
-    .collect();
-    if let Ok(map) = state.volatile_original_paths.lock() {
-        for v in map.values() {
-            if let Some(parent) = Path::new(v).parent() {
-                if !parent.as_os_str().is_empty() {
-                    allowed_external_roots.push(parent.to_path_buf());
+    let fname_for_task = fname_str.clone();
+    let res = tauri::async_runtime::spawn_blocking(move || -> Result<String, String> {
+        let p = std::path::PathBuf::from(&file_path);
+        if !crate::utils::is_safe_user_file_path(&p) {
+            return Err("Refusing to purge protected or unsafe path.".into());
+        }
+        let saved_coords = get_saved_coordinates();
+        if crate::utils::is_protected_save_or_airgap_path(&p, &saved_coords, &active_schema) {
+            return Err("Refusing to purge protected user save or Lab Airgap vault file.".into());
+        }
+
+        let intake_drop_roots: Vec<PathBuf> = [dirs::download_dir(), dirs::desktop_dir()]
+            .into_iter()
+            .flatten()
+            .collect();
+        let canon_target = crate::utils::resolve_canonical_target(&p)?;
+        if crate::utils::is_blocked_sensitive_or_system_path(&canon_target) {
+            return Err("Refusing to purge protected or sensitive path.".into());
+        }
+        let mut is_recorded_volatile_origin = false;
+        for v in &recorded_volatile_paths {
+            if let Ok(canon_v) = crate::utils::resolve_canonical_target(Path::new(v)) {
+                if canon_v == canon_target {
+                    is_recorded_volatile_origin = true;
+                    break;
                 }
             }
         }
-    }
+        let is_within_drop_root = !intake_drop_roots.is_empty()
+            && crate::utils::ensure_strict_descendant_of_roots(&canon_target, &intake_drop_roots)
+                .is_ok();
+        if !is_recorded_volatile_origin && !is_within_drop_root {
+            return Err("Blocked: Refusing to shred path outside verified intake ledger or Downloads/Desktop.".into());
+        }
+        if canon_target.is_dir() && !is_recorded_volatile_origin {
+            return Err("Blocked: Refusing recursive external directory shred outside verified intake ledger.".into());
+        }
+        let resolved_p = canon_target;
 
-    let resolved_p = crate::utils::ensure_strict_descendant_of_roots(&p, &allowed_external_roots)?;
-
-    let config = get_saved_coordinates();
-    if !config.vault_path.trim().is_empty() {
-        let vault_root = crate::utils::get_vault_root_dir(&config.vault_path);
-        if let Ok(canon_vault) = crate::utils::resolve_canonical_target(&vault_root) {
-            if crate::utils::path_is_within_root(&resolved_p, &canon_vault) {
-                return Err("Refusing to purge Vault internal path as external file.".into());
+        if !saved_coords.vault_path.trim().is_empty() {
+            let vault_root = crate::utils::get_vault_root_dir(&saved_coords.vault_path);
+            if let Ok(canon_vault) = crate::utils::resolve_canonical_target(&vault_root) {
+                if crate::utils::path_is_within_root(&resolved_p, &canon_vault) {
+                    return Err("Refusing to purge Vault internal path as external file.".into());
+                }
             }
         }
-    }
 
-    clear_volatile_original_path(state, hash_str, fname_str.clone());
+        let safe_filename = std::path::Path::new(&fname_for_task)
+            .file_name()
+            .and_then(|n| n.to_str())
+            .unwrap_or(&fname_for_task)
+            .to_string();
+        let manifest_path = std::path::PathBuf::from(&saved_coords.vault_path)
+            .join("Quarantine")
+            .join(format!("{}.manifest.json", safe_filename));
 
-    let safe_filename = std::path::Path::new(&fname_str)
-        .file_name()
-        .and_then(|n| n.to_str())
-        .unwrap_or(&fname_str)
-        .to_string();
-    let manifest_path = std::path::PathBuf::from(&config.vault_path)
-        .join("Quarantine")
-        .join(format!("{}.manifest.json", safe_filename));
+        if !resolved_p.exists() {
+            return Err("File not found".into());
+        }
 
-    if resolved_p.exists() {
-        tauri::async_runtime::spawn_blocking(move || {
-            if resolved_p.is_dir() {
-                for entry in walkdir::WalkDir::new(&resolved_p)
-                    .follow_links(false)
-                    .into_iter()
-                    .filter_map(|e| e.ok())
-                {
-                    let ep = entry.path();
-                    if entry.file_type().is_file() {
-                        zero_fill_and_remove_file(ep, 32 * 1024 * 1024);
-                    }
-                }
-                let _ = std::fs::remove_dir_all(&resolved_p);
-            } else {
-                zero_fill_and_remove_file(&resolved_p, 100 * 1024 * 1024);
-            }
-
-            if let Ok(content) = std::fs::read_to_string(&manifest_path) {
-                if let Ok(mut manifest) = serde_json::from_str::<QuarantineManifest>(&content) {
-                    manifest.original_shredded = true;
-                    manifest.original_exists = false;
-                    if let Ok(json) = serde_json::to_string_pretty(&manifest) {
-                        let _ = crate::utils::atomic_write_bytes(&manifest_path, json.as_bytes());
-                    }
+        if resolved_p.is_dir() {
+            for entry in walkdir::WalkDir::new(&resolved_p)
+                .follow_links(false)
+                .into_iter()
+                .filter_map(|e| e.ok())
+            {
+                let ep = entry.path();
+                if entry.file_type().is_file() {
+                    zero_fill_and_remove_file(ep, 32 * 1024 * 1024);
                 }
             }
-        });
+            let _ = std::fs::remove_dir_all(&resolved_p);
+        } else {
+            zero_fill_and_remove_file(&resolved_p, 100 * 1024 * 1024);
+        }
+
+        if let Ok(content) = std::fs::read_to_string(&manifest_path) {
+            if let Ok(mut manifest) = serde_json::from_str::<QuarantineManifest>(&content) {
+                manifest.original_shredded = true;
+                manifest.original_exists = false;
+                if let Ok(json) = serde_json::to_string_pretty(&manifest) {
+                    let _ = crate::utils::atomic_write_bytes(&manifest_path, json.as_bytes());
+                }
+            }
+        }
         Ok("Purging initiated".into())
-    } else {
-        Err("File not found".into())
-    }
+    })
+    .await
+    .map_err(|e| e.to_string())??;
+
+    clear_volatile_original_path(state, hash_str, fname_str);
+    Ok(res)
 }
 
 #[tauri::command]
@@ -366,31 +413,118 @@ pub async fn move_to_lab(
     .map_err(|e| format!("Task failed: {}", e))?
 }
 
-#[tauri::command]
-pub fn get_quarantine_list() -> Vec<String> {
-    let config = get_saved_coordinates();
-    let hidden_q = PathBuf::from(&config.vault_path).join(".sanctuary_quarantine");
-    let reports_q = PathBuf::from(&config.vault_path).join("Quarantine");
-    let mut set = std::collections::BTreeSet::new();
+#[derive(serde::Serialize)]
+pub struct QuarantineItemDetail {
+    pub name: String,
+    pub size_bytes: u64,
+    pub modified_ms: u64,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub manifest: Option<QuarantineManifest>,
+}
+
+fn collect_quarantine_details_sync(vault_path: &str) -> Vec<QuarantineItemDetail> {
+    if vault_path.trim().is_empty() {
+        return Vec::new();
+    }
+    let hidden_q = PathBuf::from(vault_path).join(".sanctuary_quarantine");
+    let reports_q = PathBuf::from(vault_path).join("Quarantine");
+    let mut map: std::collections::BTreeMap<String, QuarantineItemDetail> =
+        std::collections::BTreeMap::new();
 
     for dir in [&hidden_q, &reports_q] {
-        if dir.exists() {
-            if let Ok(entries) = fs::read_dir(dir) {
-                for e in entries.flatten() {
-                    let name = e.file_name().to_string_lossy().into_owned();
-                    if name.starts_with(".shredding_") {
-                        continue;
-                    }
-                    if name.ends_with(".manifest.json") {
-                        set.insert(name.trim_end_matches(".manifest.json").to_string());
-                    } else if !name.ends_with(".json") {
-                        set.insert(name);
-                    }
+        if !dir.exists() {
+            continue;
+        }
+        if let Ok(entries) = fs::read_dir(dir) {
+            for e in entries.flatten() {
+                let raw_name = e.file_name().to_string_lossy().into_owned();
+                if raw_name.starts_with(".shredding_") {
+                    continue;
+                }
+                let logical_name = if raw_name.ends_with(".sanctuary.manifest.json") {
+                    raw_name
+                        .trim_end_matches(".sanctuary.manifest.json")
+                        .to_string()
+                } else if raw_name.ends_with(".manifest.json") {
+                    raw_name.trim_end_matches(".manifest.json").to_string()
+                } else if raw_name.ends_with(".json") {
+                    continue;
+                } else {
+                    raw_name
+                };
+                if logical_name.is_empty() {
+                    continue;
+                }
+                let meta = e.metadata().ok();
+                let size_bytes = if let Some(m) = &meta {
+                    if m.is_file() { m.len() } else { 0 }
+                } else {
+                    0
+                };
+                let modified_ms = meta
+                    .and_then(|m| m.modified().ok())
+                    .and_then(|t| t.duration_since(std::time::UNIX_EPOCH).ok())
+                    .map(|d| d.as_millis() as u64)
+                    .unwrap_or(0);
+
+                map.entry(logical_name.clone())
+                    .and_modify(|existing| {
+                        if existing.size_bytes == 0 && size_bytes > 0 {
+                            existing.size_bytes = size_bytes;
+                        }
+                        if modified_ms > existing.modified_ms {
+                            existing.modified_ms = modified_ms;
+                        }
+                    })
+                    .or_insert(QuarantineItemDetail {
+                        name: logical_name,
+                        size_bytes,
+                        modified_ms,
+                        manifest: None,
+                    });
+            }
+        }
+    }
+
+    if reports_q.exists() {
+        for (logical_name, detail) in &mut map {
+            let primary = reports_q.join(format!("{}.sanctuary.manifest.json", logical_name));
+            let legacy = reports_q.join(format!("{}.manifest.json", logical_name));
+            let raw_opt = fs::read_to_string(&primary)
+                .ok()
+                .or_else(|| fs::read_to_string(&legacy).ok());
+            if let Some(raw) = raw_opt {
+                if let Ok(parsed) = serde_json::from_str::<QuarantineManifest>(&raw) {
+                    detail.manifest = Some(parsed);
                 }
             }
         }
     }
-    set.into_iter().collect()
+
+    map.into_values().collect()
+}
+
+#[tauri::command]
+pub async fn get_quarantine_list() -> Vec<String> {
+    tauri::async_runtime::spawn_blocking(|| {
+        let config = get_saved_coordinates();
+        collect_quarantine_details_sync(&config.vault_path)
+            .into_iter()
+            .map(|d| d.name)
+            .collect()
+    })
+    .await
+    .unwrap_or_default()
+}
+
+#[tauri::command]
+pub async fn get_quarantine_details() -> Result<Vec<QuarantineItemDetail>, String> {
+    tauri::async_runtime::spawn_blocking(|| {
+        let config = get_saved_coordinates();
+        Ok(collect_quarantine_details_sync(&config.vault_path))
+    })
+    .await
+    .map_err(|e| e.to_string())?
 }
 
 #[tauri::command]

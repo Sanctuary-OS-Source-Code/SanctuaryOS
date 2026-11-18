@@ -1,1007 +1,50 @@
 // @ts-nocheck
 import { serve } from "https://deno.land/std@0.177.0/http/server.ts"
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
-
-const SERVER_AUTH_OPTS = {
-  auth: {
-    persistSession: false,
-    autoRefreshToken: false,
-    detectSessionInUrl: false,
-  },
-};
-
-const ALLOWED_FILTER_METHODS = new Set([
-  'eq',
-  'neq',
-  'gt',
-  'gte',
-  'lt',
-  'lte',
-  'like',
-  'ilike',
-  'is',
-  'in',
-  'contains',
-  'containedBy',
-  'overlaps',
-  'not',
-  'or',
-  'match',
-  'filter',
-  'textSearch',
-]);
-
-function applySpokeQueryFilters(query: any, filters: any[]) {
-  let q = query;
-  if (!Array.isArray(filters)) return q;
-  for (const f of filters) {
-    if (!f || typeof f.method !== 'string' || !ALLOWED_FILTER_METHODS.has(f.method)) continue;
-    const args = Array.isArray(f.args) ? f.args : [];
-    if (typeof q[f.method] === 'function') {
-      q = q[f.method](...args);
-    }
-  }
-  return q;
-}
-
-function applySpokeQueryModifiers(query: any, spec: any) {
-  let q = applySpokeQueryFilters(query, spec?.filters || []);
-  if (Array.isArray(spec?.orders)) {
-    for (const ord of spec.orders) {
-      if (ord && typeof ord.column === 'string' && typeof q.order === 'function') {
-        q = q.order(ord.column, ord.options || {});
-      }
-    }
-  }
-  if (Array.isArray(spec?.range) && spec.range.length === 2 && typeof q.range === 'function') {
-    q = q.range(Number(spec.range[0]) || 0, Number(spec.range[1]) || 0);
-  }
-  if (typeof spec?.limit === 'number' && Number.isFinite(spec.limit) && typeof q.limit === 'function') {
-    q = q.limit(spec.limit);
-  }
-  if (spec?.singleMode === 'single' && typeof q.single === 'function') {
-    q = q.single();
-  } else if (spec?.singleMode === 'maybeSingle' && typeof q.maybeSingle === 'function') {
-    q = q.maybeSingle();
-  }
-  return q;
-}
-
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-}
-
-const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-const SUPABASE_URL_REGEX = /^https:\/\/[a-z0-9-]+\.supabase\.co\/?$/i;
-
-function b64UrlToBytes(input: string): Uint8Array {
-  const clean = (input || '')
-    .replace(/\s+/g, '')
-    .replace(/-/g, '+')
-    .replace(/_/g, '/')
-    .replace(/=+$/, '');
-  const pad = (4 - (clean.length % 4)) % 4;
-  const bin = atob(clean + '='.repeat(pad));
-  const out = new Uint8Array(bin.length);
-  for (let i = 0; i < bin.length; i++) {
-    out[i] = bin.charCodeAt(i);
-  }
-  return out;
-}
-
-function bytesToB64(bytes: Uint8Array): string {
-  let bin = '';
-  for (let i = 0; i < bytes.byteLength; i++) {
-    bin += String.fromCharCode(bytes[i]);
-  }
-  return btoa(bin);
-}
-
-function bytesToB64Url(bytes: Uint8Array): string {
-  return bytesToB64(bytes).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
-}
-
-const SPOKE_GATEWAY_TOKEN_REGEX = /^spk_gw_[0-9a-f]{64}$/i;
-
-function normalizeSpokeUrl(rawUrl: string): string {
-  return String(rawUrl || '').trim().replace(/\/+$/, '').toLowerCase();
-}
-
-function detectCredentialKind(secret: string): 'spoke_gateway' | 'legacy_service_role' {
-  return SPOKE_GATEWAY_TOKEN_REGEX.test(String(secret || '').trim())
-    ? 'spoke_gateway'
-    : 'legacy_service_role';
-}
-
-function maskCredentialFingerprint(secret: string): string {
-  const clean = String(secret || '').trim();
-  if (!clean) return '';
-  if (SPOKE_GATEWAY_TOKEN_REGEX.test(clean)) {
-    return `spk_gw_...${clean.slice(-4).toLowerCase()}`;
-  }
-  return clean.length >= 6 ? `legacy_...${clean.slice(-6)}` : 'configured';
-}
-
-function parseMasterKeyMaterial(raw: string): Uint8Array {
-  const clean = String(raw || '').trim();
-  if (!clean) {
-    throw new Error('Missing SPOKE_VAULT_MASTER_KEY in Edge Function secrets');
-  }
-  if (/^[0-9a-f]{64}$/i.test(clean)) {
-    const out = new Uint8Array(32);
-    for (let i = 0; i < 32; i++) {
-      out[i] = parseInt(clean.slice(i * 2, i * 2 + 2), 16);
-    }
-    return out;
-  }
-  const decoded = b64UrlToBytes(clean);
-  if (decoded.byteLength !== 32) {
-    throw new Error('Invalid SPOKE_VAULT_MASTER_KEY length: expected 32 bytes (64 hex or 44 base64 chars)');
-  }
-  return decoded;
-}
-
-function getMasterKeyRing(): Array<{ kid: string; key: Uint8Array }> {
-  const ring: Array<{ kid: string; key: Uint8Array }> = [];
-  const primaryRaw = String(Deno.env.get('SPOKE_VAULT_MASTER_KEY') || '').trim();
-  if (primaryRaw) {
-    ring.push({ kid: 'master', key: parseMasterKeyMaterial(primaryRaw) });
-  }
-  const prevRaw = String(Deno.env.get('SPOKE_VAULT_PREVIOUS_KEYS') || '').trim();
-  if (prevRaw) {
-    const items = prevRaw.split(',').map((s) => s.trim()).filter(Boolean);
-    items.forEach((entry, idx) => {
-      const sep = entry.indexOf(':');
-      const kid = sep > 0 ? entry.slice(0, sep).trim() : `prev_${idx + 1}`;
-      const mat = sep > 0 ? entry.slice(sep + 1).trim() : entry;
-      if (mat) {
-        ring.push({ kid, key: parseMasterKeyMaterial(mat) });
-      }
-    });
-  }
-  if (ring.length === 0) {
-    throw new Error('SPOKE_VAULT_MASTER_KEY is not configured in Supabase Edge Function secrets');
-  }
-  return ring;
-}
-
-function buildSpokeAad(meta: { gameId: string; schemaId: string; supabaseUrl: string }): Uint8Array {
-  const aadStr = [
-    'sanctuary-spoke-aad:v1',
-    String(meta.gameId || '').trim().toLowerCase(),
-    String(meta.schemaId || '').trim().toUpperCase(),
-    normalizeSpokeUrl(meta.supabaseUrl),
-  ].join('|');
-  return new TextEncoder().encode(aadStr);
-}
-
-async function deriveRowAesKey(
-  masterBytes: Uint8Array,
-  salt: Uint8Array,
-  gameId: string,
-  usages: KeyUsage[]
-): Promise<CryptoKey> {
-  const ikm = await crypto.subtle.importKey('raw', masterBytes, 'HKDF', false, ['deriveKey']);
-  const info = new TextEncoder().encode(
-    `sanctuary-spoke-vault:v1:${String(gameId || '').trim().toLowerCase()}`
-  );
-  return crypto.subtle.deriveKey(
-    { name: 'HKDF', hash: 'SHA-256', salt, info },
-    ikm,
-    { name: 'AES-GCM', length: 256 },
-    false,
-    usages
-  );
-}
-
-async function sealSpokeEnvelope(
-  plaintextSecret: string,
-  meta: { gameId: string; schemaId: string; supabaseUrl: string }
-): Promise<{ envelope: string; keyVersion: string }> {
-  const cleanSecret = String(plaintextSecret || '').trim();
-  if (!cleanSecret) throw new Error('Cannot seal an empty Spoke credential');
-  const ring = getMasterKeyRing();
-  const primary = ring[0];
-  const salt = crypto.getRandomValues(new Uint8Array(16));
-  const iv = crypto.getRandomValues(new Uint8Array(12));
-  const aesKey = await deriveRowAesKey(primary.key, salt, meta.gameId, ['encrypt']);
-  const aad = buildSpokeAad(meta);
-  const ctBuf = await crypto.subtle.encrypt(
-    { name: 'AES-GCM', iv, additionalData: aad },
-    aesKey,
-    new TextEncoder().encode(cleanSecret)
-  );
-  const envelope = [
-    'enc',
-    'v1',
-    primary.kid,
-    bytesToB64Url(salt),
-    bytesToB64Url(iv),
-    bytesToB64Url(new Uint8Array(ctBuf)),
-  ].join(':');
-  return { envelope, keyVersion: `v1:${primary.kid}` };
-}
-
-async function openSpokeEnvelope(
-  envelope: string,
-  meta: { gameId: string; schemaId: string; supabaseUrl: string }
-): Promise<string> {
-  const clean = String(envelope || '').trim();
-  if (!clean.startsWith('enc:v1:')) {
-    throw new Error('Unsupported or unsealed Spoke credential format');
-  }
-  const parts = clean.split(':');
-  if (parts.length !== 6) {
-    throw new Error('Malformed Spoke credential envelope');
-  }
-  const [, , kid, saltB64, ivB64, ctB64] = parts;
-  const ring = getMasterKeyRing();
-  const ordered = [...ring.filter((r) => r.kid === kid), ...ring.filter((r) => r.kid !== kid)];
-  const salt = b64UrlToBytes(saltB64);
-  const iv = b64UrlToBytes(ivB64);
-  const ct = b64UrlToBytes(ctB64);
-  const aad = buildSpokeAad(meta);
-
-  for (const entry of ordered) {
-    try {
-      const aesKey = await deriveRowAesKey(entry.key, salt, meta.gameId, ['decrypt']);
-      const ptBuf = await crypto.subtle.decrypt(
-        { name: 'AES-GCM', iv, additionalData: aad },
-        aesKey,
-        ct
-      );
-      return new TextDecoder().decode(ptBuf);
-    } catch {
-      // Try next key in rotation ring
-    }
-  }
-  throw new Error('Spoke credential envelope decryption failed (key or bound metadata mismatch)');
-}
-
-function createSpokeClient(supabaseUrl: string, anonKey: string, credential: string) {
-  const cleanUrl = String(supabaseUrl || '').trim().replace(/\/+$/, '');
-  const cleanAnon = String(anonKey || '').trim();
-  const cleanCred = String(credential || '').trim();
-  if (SPOKE_GATEWAY_TOKEN_REGEX.test(cleanCred)) {
-    if (!cleanAnon) {
-      throw new Error('Spoke supabase_anon_key is required when using a scoped Spoke Gateway Token');
-    }
-    return createClient(cleanUrl, cleanAnon, {
-      ...SERVER_AUTH_OPTS,
-      global: {
-        headers: {
-          'x-sanctuary-spoke-token': cleanCred.toLowerCase(),
-        },
-      },
-    });
-  }
-  return createClient(cleanUrl, cleanCred, SERVER_AUTH_OPTS);
-}
-
-async function verifySpokeCredentialHandshake(
-  spokeClient: any,
-  credentialKind: 'spoke_gateway' | 'legacy_service_role'
-): Promise<{ ok: boolean; authMode: string }> {
-  const { data, error } = await spokeClient.rpc('verify_spoke_gateway_handshake');
-  if (!error) {
-    return { ok: true, authMode: String(data?.auth_mode || credentialKind) };
-  }
-  const errMsg = String(error?.message || '').toLowerCase();
-  const errCode = String(error?.code || '');
-  const isMissingFn =
-    errCode === '42883' ||
-    errCode === 'PGRST202' ||
-    errMsg.includes('could not find the function') ||
-    (errMsg.includes('verify_spoke_gateway_handshake') && errMsg.includes('does not exist'));
-
-  if (credentialKind === 'spoke_gateway') {
-    throw new Error(
-      `Spoke Gateway Token rejected by target Spoke: ${error.message || 'apply latest schema.sql and verify active token'}`
-    );
-  }
-  if (!isMissingFn) {
-    throw new Error(`Spoke handshake rejected: ${error.message}`);
-  }
-  const { error: fallbackErr } = await spokeClient
-    .from('profiles')
-    .select('id', { head: true, count: 'exact' })
-    .limit(1);
-  if (fallbackErr) {
-    throw new Error(`Spoke handshake failed: ${fallbackErr.message}`);
-  }
-  return { ok: true, authMode: 'legacy_service_role' };
-}
-
-function decodeCborItem(bytes: Uint8Array, offset = 0): { value: any; offset: number } {
-  if (offset >= bytes.length) throw new Error('CBOR unexpected EOF');
-  const initial = bytes[offset++];
-  const major = initial >> 5;
-  const info = initial & 0x1f;
-
-  function readLength(): number {
-    if (info < 24) return info;
-    if (info === 24) return bytes[offset++];
-    if (info === 25) {
-      const v = (bytes[offset] << 8) | bytes[offset + 1];
-      offset += 2;
-      return v;
-    }
-    if (info === 26) {
-      const v =
-        ((bytes[offset] << 24) >>> 0) +
-        ((bytes[offset + 1] << 16) | (bytes[offset + 2] << 8) | bytes[offset + 3]);
-      offset += 4;
-      return v;
-    }
-    throw new Error('Unsupported CBOR length info: ' + info);
-  }
-
-  if (major === 0) return { value: readLength(), offset };
-  if (major === 1) return { value: -1 - readLength(), offset };
-  if (major === 2) {
-    const len = readLength();
-    const slice = bytes.subarray(offset, offset + len);
-    offset += len;
-    return { value: slice, offset };
-  }
-  if (major === 3) {
-    const len = readLength();
-    const str = new TextDecoder().decode(bytes.subarray(offset, offset + len));
-    offset += len;
-    return { value: str, offset };
-  }
-  if (major === 4) {
-    const len = readLength();
-    const arr: any[] = [];
-    for (let i = 0; i < len; i++) {
-      const res = decodeCborItem(bytes, offset);
-      arr.push(res.value);
-      offset = res.offset;
-    }
-    return { value: arr, offset };
-  }
-  if (major === 5) {
-    const len = readLength();
-    const map = new Map<any, any>();
-    for (let i = 0; i < len; i++) {
-      const k = decodeCborItem(bytes, offset);
-      offset = k.offset;
-      const v = decodeCborItem(bytes, offset);
-      offset = v.offset;
-      map.set(k.value, v.value);
-    }
-    return { value: map, offset };
-  }
-  if (major === 7) {
-    if (info === 20) return { value: false, offset };
-    if (info === 21) return { value: true, offset };
-    if (info === 22) return { value: null, offset };
-  }
-  throw new Error('Unsupported CBOR major type: ' + major);
-}
-
-function derSignatureToP1363(der: Uint8Array): Uint8Array {
-  if (der.length === 64 && der[0] !== 0x30) return der;
-  let pos = 0;
-  if (der[pos++] !== 0x30) throw new Error('Invalid DER ECDSA signature');
-  const seqLen = der[pos++];
-  if (seqLen & 0x80) {
-    const nBytes = seqLen & 0x7f;
-    pos += nBytes;
-  }
-  if (der[pos++] !== 0x02) throw new Error('Invalid DER ECDSA r-integer tag');
-  const rLen = der[pos++];
-  let r = der.subarray(pos, pos + rLen);
-  pos += rLen;
-  if (der[pos++] !== 0x02) throw new Error('Invalid DER ECDSA s-integer tag');
-  const sLen = der[pos++];
-  let s = der.subarray(pos, pos + sLen);
-
-  while (r.length > 32 && r[0] === 0x00) r = r.subarray(1);
-  while (s.length > 32 && s[0] === 0x00) s = s.subarray(1);
-  if (r.length > 32 || s.length > 32) throw new Error('Invalid ECDSA coordinate length');
-
-  const out = new Uint8Array(64);
-  out.set(r, 32 - r.length);
-  out.set(s, 64 - s.length);
-  return out;
-}
-
-async function verifyCoseSignature(
-  publicKeyCborBytes: Uint8Array,
-  signedData: Uint8Array,
-  signatureBytes: Uint8Array
-): Promise<boolean> {
-  const { value: coseMap } = decodeCborItem(publicKeyCborBytes, 0);
-  const kty = coseMap.get(1);
-  const alg = coseMap.get(3);
-
-  if (kty === 3 || alg === -257) {
-    const n = coseMap.get(-1) as Uint8Array;
-    const e = coseMap.get(-2) as Uint8Array;
-    if (!n || !e) throw new Error('Missing RSA modulus or exponent in COSE key');
-    const key = await crypto.subtle.importKey(
-      'jwk',
-      { kty: 'RSA', n: bytesToB64Url(n), e: bytesToB64Url(e), alg: 'RS256', ext: true },
-      { name: 'RSASSA-PKCS1-v1_5', hash: 'SHA-256' },
-      false,
-      ['verify']
-    );
-    return await crypto.subtle.verify({ name: 'RSASSA-PKCS1-v1_5' }, key, signatureBytes, signedData);
-  }
-
-  if (kty === 2 || alg === -7) {
-    const x = coseMap.get(-2) as Uint8Array;
-    const y = coseMap.get(-3) as Uint8Array;
-    if (!x || !y) throw new Error('Missing EC P-256 coordinates in COSE key');
-    const key = await crypto.subtle.importKey(
-      'jwk',
-      { kty: 'EC', crv: 'P-256', x: bytesToB64Url(x), y: bytesToB64Url(y), ext: true },
-      { name: 'ECDSA', namedCurve: 'P-256' },
-      false,
-      ['verify']
-    );
-    const p1363Sig = derSignatureToP1363(signatureBytes);
-    return await crypto.subtle.verify(
-      { name: 'ECDSA', hash: 'SHA-256' },
-      key,
-      p1363Sig,
-      signedData
-    );
-  }
-
-  if (kty === 1 || alg === -8) {
-    const x = coseMap.get(-2) as Uint8Array;
-    if (!x) throw new Error('Missing Ed25519 public key bytes in COSE key');
-    const key = await crypto.subtle.importKey(
-      'jwk',
-      { kty: 'OKP', crv: 'Ed25519', x: bytesToB64Url(x), ext: true },
-      { name: 'Ed25519' },
-      false,
-      ['verify']
-    );
-    return await crypto.subtle.verify({ name: 'Ed25519' }, key, signatureBytes, signedData);
-  }
-
-  throw new Error(`Unsupported COSE key type (${kty}) or algorithm (${alg})`);
-}
-
-function isAllowedWebAuthnOrigin(originStr: string, rpId: string): boolean {
-  try {
-    const u = new URL(originStr);
-    const host = u.hostname.toLowerCase();
-    const target = (rpId || 'sanctuaryos.net').toLowerCase();
-    if (host === 'localhost' || host === '127.0.0.1') {
-      return u.protocol === 'http:' || u.protocol === 'https:';
-    }
-    return u.protocol === 'https:' && (host === target || host.endsWith('.' + target));
-  } catch {
-    return false;
-  }
-}
-
-async function matchesAllowedRpIdHash(
-  authDataBytes: Uint8Array,
-  rpId: string,
-  originStr: string
-): Promise<boolean> {
-  const candidates = new Set<string>([rpId || 'sanctuaryos.net']);
-  try {
-    const u = new URL(originStr);
-    const host = u.hostname.toLowerCase();
-    if (host === 'localhost' || host === '127.0.0.1') {
-      candidates.add(host);
-      candidates.add('localhost');
-      candidates.add('127.0.0.1');
-    }
-  } catch {}
-
-  for (const candidate of candidates) {
-    const expectedRpIdHash = new Uint8Array(
-      await crypto.subtle.digest('SHA-256', new TextEncoder().encode(candidate))
-    );
-    let matches = true;
-    for (let i = 0; i < 32; i++) {
-      if (authDataBytes[i] !== expectedRpIdHash[i]) {
-        matches = false;
-        break;
-      }
-    }
-    if (matches) return true;
-  }
-  return false;
-}
-
-function formatUuidFromBytes(bytes: Uint8Array): string {
-  const hex = Array.from(bytes)
-    .map((b) => b.toString(16).padStart(2, '0'))
-    .join('');
-  return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20, 32)}`;
-}
-
-const STAFF_ROLES = ['wayfinder', 'oversight', 'architect', 'senior_architect', 'admin'];
-const CREATOR_OR_STAFF_ROLES = [...STAFF_ROLES, 'mason'];
-
-const STAFF_ONLY_TABLES = new Set([
-  'global_network_status',
-  'global_security',
-  'heuristic_signatures',
-  'known_exception_rules',
-  'sanctuary_schemas',
-  'sanctuary_lexicons',
-  'sanctuary_themes',
-  'sanctuary_support_categories',
-  'sanctuary_telemetry_sources',
-  'dlc_registry',
-  'flavor_groups',
-  'flavor_group_members',
-  'game_versions',
-  'taxonomy',
-  'tracked_template_files',
-  'system_broadcasts',
-]);
-
-const CREATOR_OR_STAFF_TABLES = new Set([
-  'mods',
-  'mod_versions',
-  'mod_bundles',
-  'mod_dependencies',
-  'mod_relationships',
-  'version_dependencies',
-  'community_groups',
-  'community_group_members',
-  'collections',
-  'collection_members',
-  'logical_conflicts',
-  'mason_posts',
-  'masons',
-  'homestead_workbench_templates',
-]);
-
-const CITIZEN_TABLES = new Set([
-  'audit_logs',
-  'mason_post_comments',
-  'mason_post_likes',
-  'mason_post_views',
-  'dispatch_poll_votes',
-  'blueprints',
-  'blueprint_reports',
-  'nexus_assets',
-  'nexus_reports',
-  'content_flags',
-  'sanctuary_tickets',
-  'scout_suggestions',
-  'notifications',
-  'homestead_lab_logs',
-  'malware_reports',
-  'citizen_staging_queue',
-]);
-
-type CachedSpokeEntry = {
-  game: any;
-  serviceKey: string | null;
-  credentialKind: 'spoke_gateway' | 'legacy_service_role' | null;
-  keyVersion: string | null;
-  keyFingerprint: string;
-  rotatedAt: string | null;
-  expiresAt: number;
-};
-
-const spokeGameConfigCache = new Map<string, CachedSpokeEntry>();
-const SPOKE_GAME_CACHE_TTL_MS = 45_000;
-
-function invalidateSpokeGameConfigCache() {
-  spokeGameConfigCache.clear();
-}
-
-async function resolveGameWithServiceKey(supabaseAdmin: any, gameIdOrSchema: string) {
-  const cacheKey = String(gameIdOrSchema || '').trim().toLowerCase();
-  const cached = spokeGameConfigCache.get(cacheKey);
-  if (cached && cached.expiresAt > Date.now()) {
-    return {
-      game: cached.game,
-      serviceKey: cached.serviceKey,
-      credentialKind: cached.credentialKind,
-      keyVersion: cached.keyVersion,
-      keyFingerprint: cached.keyFingerprint,
-      rotatedAt: cached.rotatedAt,
-      error: null,
-    };
-  }
-
-  let gameQuery = supabaseAdmin
-    .from('sanctuary_games')
-    .select('id, name, schema_id, supabase_url, supabase_anon_key, is_active, is_keepers_only, donation_url, payment_processor');
-
-  if (UUID_REGEX.test(gameIdOrSchema)) {
-    gameQuery = gameQuery.eq('id', gameIdOrSchema);
-  } else {
-    gameQuery = gameQuery.ilike('schema_id', gameIdOrSchema);
-  }
-
-  const { data: game, error: gameError } = await gameQuery.maybeSingle();
-  if (gameError || !game) {
-    return {
-      game: null,
-      serviceKey: null,
-      credentialKind: null,
-      keyVersion: null,
-      keyFingerprint: '',
-      rotatedAt: null,
-      error: gameError,
-    };
-  }
-
-  const { data: credRows, error: credErr } = await supabaseAdmin.rpc('internal_get_spoke_credential', {
-    p_game_id: game.id,
-  });
-  if (credErr) {
-    throw new Error(`Failed to resolve Spoke credential from Vault: ${credErr.message}`);
-  }
-  const secretRow = Array.isArray(credRows) ? credRows[0] : credRows;
-
-  let serviceKey: string | null = null;
-  let credentialKind: 'spoke_gateway' | 'legacy_service_role' | null = null;
-  let keyVersion: string | null = null;
-  let keyFingerprint = '';
-  let rotatedAt: string | null = null;
-
-  if (secretRow?.envelope_ciphertext) {
-    serviceKey = await openSpokeEnvelope(secretRow.envelope_ciphertext, {
-      gameId: String(game.id),
-      schemaId: String(game.schema_id || ''),
-      supabaseUrl: String(game.supabase_url || ''),
-    });
-    credentialKind =
-      secretRow.credential_kind === 'spoke_gateway' || secretRow.credential_kind === 'legacy_service_role'
-        ? secretRow.credential_kind
-        : detectCredentialKind(serviceKey);
-    keyVersion = String(secretRow.key_version || 'v1:master');
-    keyFingerprint = String(secretRow.key_fingerprint || maskCredentialFingerprint(serviceKey));
-    rotatedAt = secretRow.rotated_at || null;
-  }
-
-  const entry: CachedSpokeEntry = {
-    game,
-    serviceKey,
-    credentialKind,
-    keyVersion,
-    keyFingerprint,
-    rotatedAt,
-    expiresAt: Date.now() + SPOKE_GAME_CACHE_TTL_MS,
-  };
-  spokeGameConfigCache.set(cacheKey, entry);
-  if (game.id) spokeGameConfigCache.set(String(game.id).toLowerCase(), entry);
-  if (game.schema_id) spokeGameConfigCache.set(String(game.schema_id).toLowerCase(), entry);
-  return {
-    game,
-    serviceKey,
-    credentialKind,
-    keyVersion,
-    keyFingerprint,
-    rotatedAt,
-    error: null,
-  };
-}
-
-const MAX_INLINE_THEME_DATA_URI_CHARS = 32_768;
-
-function assertNoOversizedInlineImageBlobs(table: string, row: any) {
-  if (!row || typeof row !== 'object') return;
-  const cleanTable = String(table || '').trim().toLowerCase();
-  if (cleanTable !== 'nexus_assets' && cleanTable !== 'sanctuary_themes') return;
-
-  const inspectValue = (val: unknown) => {
-    if (!val) return;
-    if (typeof val === 'string') {
-      if (val.startsWith('data:image/') && val.length > MAX_INLINE_THEME_DATA_URI_CHARS) {
-        throw new Error(
-          'Oversized inline base64 wallpaper rejected. Upload theme images via Cloud Storage or use an external HTTPS URL.'
-        );
-      }
-      if (val.length > MAX_INLINE_THEME_DATA_URI_CHARS && val.includes('data:image/')) {
-        try {
-          const parsed = JSON.parse(val);
-          if (parsed && typeof parsed === 'object') inspectValue(parsed);
-        } catch {
-          // ignore non-JSON strings
-        }
-      }
-      return;
-    }
-    if (typeof val === 'object') {
-      for (const entryVal of Object.values(val as Record<string, unknown>)) {
-        inspectValue(entryVal);
-      }
-    }
-  };
-
-  inspectValue(row.json_data);
-  inspectValue(row.theme_data);
-  inspectValue(row.banner_url);
-}
-
-function normalizeSpokeTableRow(table: string, row: any) {
-  if (!row || typeof row !== 'object') return row;
-  assertNoOversizedInlineImageBlobs(table, row);
-  return { ...row };
-}
-
-function isValidPassingLabCertProof(proof: any, expectedHash: string): boolean {
-  if (!proof || typeof proof !== 'object') return false;
-  const proofHash = String(proof.dna_hash || '').trim();
-  const activeSecs = Number(proof.active_seconds || 0);
-  const saveVerified = String(proof.save_file_verified || '').trim();
-  return (
-    Boolean(expectedHash) &&
-    proofHash === expectedHash &&
-    Number.isFinite(activeSecs) &&
-    activeSecs >= 15 &&
-    saveVerified.length > 0
-  );
-}
-
-async function hasExistingCloudPassingLabReceipt(
-  gameDb: any,
-  dnaHash: string,
-  versionId?: string | null
-): Promise<boolean> {
-  if (versionId) {
-    const { data: vLogs } = await gameDb
-      .from('homestead_lab_logs')
-      .select('log_snippet, tester_note')
-      .eq('version_id', versionId)
-      .limit(5);
-    if (
-      Array.isArray(vLogs) &&
-      vLogs.some(
-        (l: any) =>
-          l?.log_snippet === 'Clean' || String(l?.tester_note || '').includes('PASS_VERIFIED')
-      )
-    ) {
-      return true;
-    }
-  }
-  if (dnaHash) {
-    const { data: hLogs } = await gameDb
-      .from('homestead_lab_logs')
-      .select('log_snippet, tester_note')
-      .ilike('tester_note', `%${dnaHash}%`)
-      .limit(5);
-    if (
-      Array.isArray(hLogs) &&
-      hLogs.some(
-        (l: any) =>
-          l?.log_snippet === 'Clean' || String(l?.tester_note || '').includes('PASS_VERIFIED')
-      )
-    ) {
-      return true;
-    }
-  }
-  return false;
-}
-
-async function enforceArchitectSubmissionCompliance(
-  gameDb: any,
-  cleanTable: string,
-  row: any,
-  isCallerStaff: boolean
-) {
-  if (!row || typeof row !== 'object') return;
-  const certProof = row._lab_cert_proof;
-  if (Object.prototype.hasOwnProperty.call(row, '_lab_cert_proof')) {
-    delete row._lab_cert_proof;
-  }
-  if (isCallerStaff) return;
-
-  if (cleanTable === 'homestead_lab_logs') {
-    const snippet = String(row.log_snippet || '').trim();
-    const noteRaw = String(row.tester_note || '').trim();
-    const isVerifiedReceipt =
-      snippet === 'Clean' && noteRaw.includes('PASS_VERIFIED_4STAGE');
-
-    if (isVerifiedReceipt) {
-      let parsedNote: any = null;
-      try {
-        parsedNote = JSON.parse(noteRaw);
-      } catch {
-        parsedNote = null;
-      }
-      const receiptHash = String(parsedNote?.dna_hash || '').trim();
-      if (!receiptHash || !isValidPassingLabCertProof(certProof, receiptHash)) {
-        throw new Error(
-          'Forbidden: Verified Lab certificate proof is required to record a 4-stage pass receipt.'
-        );
-      }
-
-      const { data: verRow } = await gameDb
-        .from('mod_versions')
-        .select('id, mod_id, mods(compliance_tier, status)')
-        .eq('dna_hash', receiptHash)
-        .maybeSingle();
-
-      if (verRow) {
-        const parentMod = Array.isArray(verRow.mods) ? verRow.mods[0] : verRow.mods;
-        const tier = Number(parentMod?.compliance_tier ?? 0);
-        const statusLower = String(parentMod?.status || '').trim().toLowerCase();
-        if (tier !== 0 || statusLower === 'rejected') {
-          throw new Error('Forbidden: Only Tier 0 artifacts may record Architect Lab receipts.');
-        }
-        return;
-      }
-
-      const { data: scoutRow } = await gameDb
-        .from('scout_suggestions')
-        .select('id, status, compliance_tier, suggested_metadata')
-        .eq('dna_hash', receiptHash)
-        .neq('status', 'rejected')
-        .limit(1)
-        .maybeSingle();
-
-      const scoutTier = Number(
-        scoutRow?.compliance_tier ?? scoutRow?.suggested_metadata?.compliance_tier ?? 0
-      );
-      if (!scoutRow || scoutTier !== 0) {
-        throw new Error(
-          'Forbidden: Unknown hashes cannot write to Architect Lab logs unless queued in Tier 0 Scout or Creator Queue.'
-        );
-      }
-      return;
-    }
-
-    // Diagnostic / exception submission to Architects: STRICTLY known Tier 0 hashes only
-    if (!row.mod_id || !row.version_id) {
-      throw new Error(
-        'Forbidden: Submit to Architects only accepts known Tier 0 catalog hashes.'
-      );
-    }
-    const { data: verRow } = await gameDb
-      .from('mod_versions')
-      .select('id, mod_id, dna_hash, mods(id, compliance_tier, status)')
-      .eq('id', row.version_id)
-      .maybeSingle();
-    const parentMod = Array.isArray(verRow?.mods) ? verRow.mods[0] : verRow?.mods;
-    const tier = Number(parentMod?.compliance_tier ?? -1);
-    const statusLower = String(parentMod?.status || '').trim().toLowerCase();
-    if (
-      !verRow ||
-      String(verRow.mod_id) !== String(row.mod_id) ||
-      !verRow.dna_hash ||
-      !parentMod ||
-      tier !== 0 ||
-      statusLower === 'unverified' ||
-      statusLower === 'rejected'
-    ) {
-      throw new Error(
-        'Forbidden: Submit to Architects only accepts known Tier 0 hashes. Unknown Tier 0 hashes must be uploaded via Scout or Creator Queue with a passing Lab test.'
-      );
-    }
-  } else if (cleanTable === 'sanctuary_tickets') {
-    const meta = row.metadata && typeof row.metadata === 'object' ? row.metadata : {};
-    if (Array.isArray(meta.restricted_violations) && meta.restricted_violations.length > 0) {
-      throw new Error(
-        'Forbidden: Support tickets containing non-Tier-0 or unknown artifacts cannot be submitted to Architects.'
-      );
-    }
-    if (meta.target_mod_id) {
-      const { data: tMod } = await gameDb
-        .from('mods')
-        .select('id, compliance_tier, status, mod_versions(id)')
-        .eq('id', meta.target_mod_id)
-        .maybeSingle();
-      const tier = Number(tMod?.compliance_tier ?? -1);
-      const statusLower = String(tMod?.status || '').trim().toLowerCase();
-      const hasKnownVersion =
-        Array.isArray(tMod?.mod_versions) && tMod.mod_versions.length > 0;
-      if (
-        !tMod ||
-        tier !== 0 ||
-        statusLower === 'unverified' ||
-        statusLower === 'rejected' ||
-        !hasKnownVersion
-      ) {
-        throw new Error(
-          'Forbidden: Support tickets only accept known Tier 0 catalog artifacts.'
-        );
-      }
-    }
-  } else if (cleanTable === 'scout_suggestions') {
-    const tier = Number(
-      row.compliance_tier ?? row.suggested_metadata?.compliance_tier ?? 0
-    );
-    if (tier !== 0) {
-      throw new Error('Forbidden: Scout Queue only accepts Tier 0 artifacts.');
-    }
-    row.compliance_tier = 0;
-
-    const dnaHash = String(row.dna_hash || '').trim();
-    if (!dnaHash || dnaHash === 'calculating') {
-      throw new Error('Forbidden: Valid SHA-256 hash required for Scout Queue upload.');
-    }
-
-    const { data: existingVer } = await gameDb
-      .from('mod_versions')
-      .select('id, mod_id, mods(compliance_tier, status)')
-      .eq('dna_hash', dnaHash)
-      .maybeSingle();
-
-    const parentMod = Array.isArray(existingVer?.mods)
-      ? existingVer.mods[0]
-      : existingVer?.mods;
-    if (existingVer && parentMod && Number(parentMod.compliance_tier || 0) !== 0) {
-      throw new Error('Forbidden: Non-Tier-0 hashes cannot be submitted to Scout Queue.');
-    }
-
-    const isKnownApprovedTier0 =
-      Boolean(existingVer && parentMod) &&
-      Number(parentMod.compliance_tier || 0) === 0 &&
-      !['unverified', 'rejected'].includes(
-        String(parentMod.status || '').trim().toLowerCase()
-      );
-
-    if (!isKnownApprovedTier0) {
-      const hasPass =
-        isValidPassingLabCertProof(certProof, dnaHash) ||
-        (await hasExistingCloudPassingLabReceipt(gameDb, dnaHash, existingVer?.id));
-      if (!hasPass) {
-        throw new Error(
-          'Forbidden: Unknown Tier 0 Scout Queue uploads require a passing 4-stage Lab test.'
-        );
-      }
-    }
-  } else if (cleanTable === 'mods') {
-    const tier = Number(row.compliance_tier || 0);
-    if (!Number.isFinite(tier) || tier < 0 || tier >= 5) {
-      throw new Error('Forbidden: Invalid compliance tier.');
-    }
-    if (tier >= 1 && tier <= 4) {
-      row.compliance_tier = Math.min(4, Math.max(1, Math.round(tier)));
-      row.status = 'pending';
-    }
-  } else if (cleanTable === 'mod_versions') {
-    const dnaHash = String(row.dna_hash || '').trim();
-    if (!row.mod_id || !dnaHash || dnaHash === 'calculating') {
-      throw new Error('Forbidden: mod_id and valid dna_hash are required.');
-    }
-    const [{ data: parentMod }, { data: existingVer }] = await Promise.all([
-      gameDb
-        .from('mods')
-        .select('id, compliance_tier, status')
-        .eq('id', row.mod_id)
-        .maybeSingle(),
-      gameDb
-        .from('mod_versions')
-        .select('id, mod_id')
-        .eq('dna_hash', dnaHash)
-        .maybeSingle(),
-    ]);
-
-    if (!parentMod) {
-      throw new Error('Forbidden: Parent artifact record does not exist.');
-    }
-    const tier = Number(parentMod.compliance_tier || 0);
-    const statusLower = String(parentMod.status || '').trim().toLowerCase();
-    const isKnownApprovedTier0 =
-      Boolean(existingVer) &&
-      tier === 0 &&
-      statusLower !== 'unverified' &&
-      statusLower !== 'rejected';
-
-    if (tier === 0 && !isKnownApprovedTier0) {
-      const hasPass =
-        isValidPassingLabCertProof(certProof, dnaHash) ||
-        (await hasExistingCloudPassingLabReceipt(gameDb, dnaHash, existingVer?.id));
-      if (!hasPass) {
-        throw new Error(
-          'Forbidden: Unknown Tier 0 Creator Queue uploads require a passing 4-stage Lab test.'
-        );
-      }
-    }
-  }
-}
+import {
+  SERVER_AUTH_OPTS,
+  applySpokeQueryFilters,
+  applySpokeQueryModifiers,
+  getCorsHeaders,
+  sanitizeGatewayErrorMessage,
+  sanitizeSpokeSelectColumns,
+  redactRestrictedEmbeddedRelations,
+} from './corsAndSanitization.ts'
+import {
+  UUID_REGEX,
+  SUPABASE_URL_REGEX,
+  b64UrlToBytes,
+  bytesToB64,
+  normalizeSpokeUrl,
+  detectCredentialKind,
+  maskCredentialFingerprint,
+  sealSpokeEnvelope,
+  openSpokeEnvelope,
+  createSpokeClient,
+  verifySpokeCredentialHandshake,
+} from './cryptoEnvelope.ts'
+import {
+  decodeCborItem,
+  verifyCoseSignature,
+  isAllowedWebAuthnOrigin,
+  matchesAllowedRpIdHash,
+  formatUuidFromBytes,
+} from './webauthnCbor.ts'
+import {
+  STAFF_ROLES,
+  CREATOR_OR_STAFF_ROLES,
+  STAFF_ONLY_TABLES,
+  CREATOR_OR_STAFF_TABLES,
+  CITIZEN_TABLES,
+  invalidateSpokeGameConfigCache,
+  resolveGameWithServiceKey,
+  assertNoOversizedInlineImageBlobs,
+  normalizeSpokeTableRow,
+  enforceArchitectSubmissionCompliance,
+} from './spokeAccessAndOwnership.ts'
 
 serve(async (req) => {
+  const corsHeaders = getCorsHeaders(req)
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders })
   }
@@ -2067,6 +1110,119 @@ serve(async (req) => {
       }
     }
 
+    let cachedModIdsPromise: Promise<Set<string>> | null = null;
+    async function getCallerOwnedModIds(): Promise<Set<string>> {
+      if (!cachedModIdsPromise) {
+        cachedModIdsPromise = (async () => {
+          const ownedMasons = await getCallerOwnedMasonIds()
+          const mIds = Array.from(ownedMasons)
+          if (mIds.length === 0) return new Set<string>()
+          const { data: modRows } = await gameDb
+            .from('mods')
+            .select('id')
+            .in('mason_id', mIds)
+          return new Set((modRows || []).map((r: any) => String(r.id)))
+        })();
+      }
+      return cachedModIdsPromise;
+    }
+
+    let cachedStagingOwnerTagPromise: Promise<string> | null = null;
+    async function getCallerStagingOwnerTag(): Promise<string> {
+      if (!cachedStagingOwnerTagPromise) {
+        cachedStagingOwnerTagPromise = (async () => {
+          const enc = new TextEncoder().encode(`sanctuary_gw_staging_owner_v1:${v_user_id}`)
+          const digest = await crypto.subtle.digest('SHA-256', enc)
+          return Array.from(new Uint8Array(digest))
+            .map((b) => b.toString(16).padStart(2, '0'))
+            .join('')
+        })();
+      }
+      return cachedStagingOwnerTagPromise;
+    }
+
+    async function assertOwnedCreatorChildRow(
+      tableName: string,
+      row: Record<string, any>,
+      isExistingUpdate = false
+    ): Promise<void> {
+      if (isCallerStaff) return
+      const ownedMods = await getCallerOwnedModIds()
+      if (tableName === 'mod_versions') {
+        const modId = row?.mod_id ? String(row.mod_id) : ''
+        if (!modId || !ownedMods.has(modId)) {
+          throw new Error('Forbidden: mod_versions mod_id must belong to your owned artifacts')
+        }
+        if (row?.id) {
+          const { data: ex } = await gameDb
+            .from('mod_versions')
+            .select('mod_id')
+            .eq('id', row.id)
+            .maybeSingle()
+          if (ex && (!ex.mod_id || !ownedMods.has(String(ex.mod_id)))) {
+            throw new Error('Forbidden: Cannot modify version of another Creator artifact')
+          }
+        }
+      } else if (tableName === 'mod_bundles') {
+        const primaryId = row?.primary_id ? String(row.primary_id) : ''
+        if (!primaryId || !ownedMods.has(primaryId)) {
+          throw new Error('Forbidden: mod_bundles primary_id must belong to your owned artifacts')
+        }
+        if (row?.id) {
+          const { data: ex } = await gameDb
+            .from('mod_bundles')
+            .select('primary_id')
+            .eq('id', row.id)
+            .maybeSingle()
+          if (ex && (!ex.primary_id || !ownedMods.has(String(ex.primary_id)))) {
+            throw new Error('Forbidden: Cannot modify bundle of another Creator artifact')
+          }
+        }
+      } else if (tableName === 'mod_dependencies' || tableName === 'mod_relationships') {
+        const parentId = row?.parent_id ? String(row.parent_id) : ''
+        if (!parentId || !ownedMods.has(parentId)) {
+          throw new Error(`Forbidden: ${tableName} parent_id must belong to your owned artifacts`)
+        }
+        if (row?.id) {
+          const { data: ex } = await gameDb
+            .from(tableName)
+            .select('parent_id')
+            .eq('id', row.id)
+            .maybeSingle()
+          if (ex && (!ex.parent_id || !ownedMods.has(String(ex.parent_id)))) {
+            throw new Error(`Forbidden: Cannot modify ${tableName} of another Creator artifact`)
+          }
+        }
+      } else if (tableName === 'version_dependencies') {
+        const pHash = String(row?.parent_hash || '').trim()
+        if (!pHash) {
+          throw new Error('Forbidden: version_dependencies requires parent_hash')
+        }
+        const { data: verRow } = await gameDb
+          .from('mod_versions')
+          .select('mod_id')
+          .eq('dna_hash', pHash)
+          .maybeSingle()
+        if (!verRow?.mod_id || !ownedMods.has(String(verRow.mod_id))) {
+          throw new Error('Forbidden: version_dependencies parent_hash must belong to your owned artifacts')
+        }
+      } else if (tableName === 'community_groups' || tableName === 'community_group_members') {
+        throw new Error('Forbidden: Staff clearance required to modify shared conflict/group matrix')
+      } else if (tableName === 'logical_conflicts') {
+        if (isExistingUpdate) {
+          throw new Error('Forbidden: Staff clearance required to modify shared conflict/group matrix')
+        }
+        const modAId = row?.mod_a_id ? String(row.mod_a_id) : ''
+        const modBId = row?.mod_b_id ? String(row.mod_b_id) : ''
+        if ((!modAId || !ownedMods.has(modAId)) && (!modBId || !ownedMods.has(modBId))) {
+          throw new Error('Forbidden: logical_conflicts entry must reference one of your owned artifacts')
+        }
+        row.status = 'pending'
+      } else if (tableName === 'homestead_workbench_templates') {
+        throw new Error('Forbidden: Staff clearance required to modify shared Workbench templates')
+      }
+    }
+
     let resultData = null;
 
     // 7. Route actions
@@ -2571,6 +1727,10 @@ serve(async (req) => {
                 }
               }
             } else if (cleanTable === 'notifications') {
+              if (row.user_id && String(row.user_id) !== v_user_id) {
+                throw new Error('Forbidden: Cannot create notification for another citizen')
+              }
+              row.user_id = v_user_id
               row.actor_id = v_user_id
               if (row.id) {
                 const { data: ex } = await gameDb
@@ -2586,16 +1746,18 @@ serve(async (req) => {
               if (!row.user_token || String(row.user_token).length < 16) {
                 throw new Error('Invalid staging token')
               }
+              const callerOwnerTag = await getCallerStagingOwnerTag()
               if (row.id) {
                 const { data: ex } = await gameDb
                   .from('citizen_staging_queue')
-                  .select('user_token')
+                  .select('user_token, owner_tag')
                   .eq('id', row.id)
                   .maybeSingle()
-                if (ex && ex.user_token !== row.user_token) {
-                  throw new Error('Forbidden: Staging token mismatch')
+                if (ex && (ex.user_token !== row.user_token || (ex.owner_tag && ex.owner_tag !== callerOwnerTag))) {
+                  throw new Error('Forbidden: Staging queue ownership mismatch')
                 }
               }
+              row.owner_tag = callerOwnerTag
             } else if (cleanTable === 'masons') {
               delete row.is_verified
               delete row.followers_count
@@ -2663,6 +1825,18 @@ serve(async (req) => {
                   }
                 }
               }
+            } else if (
+              cleanTable === 'mod_versions' ||
+              cleanTable === 'mod_bundles' ||
+              cleanTable === 'mod_dependencies' ||
+              cleanTable === 'mod_relationships' ||
+              cleanTable === 'version_dependencies' ||
+              cleanTable === 'community_groups' ||
+              cleanTable === 'community_group_members' ||
+              cleanTable === 'logical_conflicts' ||
+              cleanTable === 'homestead_workbench_templates'
+            ) {
+              await assertOwnedCreatorChildRow(cleanTable, row, false)
             }
             await enforceArchitectSubmissionCompliance(gameDb, cleanTable, row, false)
           }
@@ -2780,8 +1954,48 @@ serve(async (req) => {
                 }
               }
             }
-          } else if (!isCallerStaff && !(await getIsCallerVerifiedMason())) {
-            throw new Error(`Forbidden: Verified Creator or Staff clearance required to delete from ${cleanTable}`)
+          } else if (!isCallerStaff) {
+            if (!(await getIsCallerVerifiedMason())) {
+              throw new Error(`Forbidden: Verified Creator or Staff clearance required to delete from ${cleanTable}`)
+            }
+            if (cleanTable === 'mods') {
+              throw new Error('Forbidden: Creators cannot delete cloud registry artifacts directly')
+            }
+            if (
+              cleanTable === 'logical_conflicts' ||
+              cleanTable === 'community_groups' ||
+              cleanTable === 'community_group_members' ||
+              cleanTable === 'homestead_workbench_templates'
+            ) {
+              throw new Error('Forbidden: Staff clearance required to modify shared conflict/group matrix')
+            }
+            const ownedMods = await getCallerOwnedModIds()
+            if (cleanTable === 'mod_versions') {
+              const { data: exVer } = await gameDb.from('mod_versions').select('mod_id').eq('id', id_value).maybeSingle()
+              if (!exVer?.mod_id || !ownedMods.has(String(exVer.mod_id))) {
+                throw new Error('Forbidden: You can only delete versions of your own artifacts')
+              }
+            } else if (cleanTable === 'mod_bundles') {
+              const { data: exB } = await gameDb.from('mod_bundles').select('primary_id').eq('id', id_value).maybeSingle()
+              if (!exB?.primary_id || !ownedMods.has(String(exB.primary_id))) {
+                throw new Error('Forbidden: You can only delete bundles of your own artifacts')
+              }
+            } else if (cleanTable === 'mod_dependencies' || cleanTable === 'mod_relationships') {
+              const { data: exRel } = await gameDb.from(cleanTable).select('parent_id').eq('id', id_value).maybeSingle()
+              if (!exRel?.parent_id || !ownedMods.has(String(exRel.parent_id))) {
+                throw new Error(`Forbidden: You can only delete ${cleanTable} of your own artifacts`)
+              }
+            } else if (cleanTable === 'version_dependencies') {
+              const { data: exVd } = await gameDb.from('version_dependencies').select('parent_hash').eq('id', id_value).maybeSingle()
+              const { data: exVer } = exVd?.parent_hash
+                ? await gameDb.from('mod_versions').select('mod_id').eq('dna_hash', exVd.parent_hash).maybeSingle()
+                : { data: null }
+              if (!exVer?.mod_id || !ownedMods.has(String(exVer.mod_id))) {
+                throw new Error('Forbidden: You can only delete version_dependencies of your own artifacts')
+              }
+            } else {
+              throw new Error(`Forbidden: Staff role required to delete from ${cleanTable}`)
+            }
           }
         } else if (CITIZEN_TABLES.has(cleanTable)) {
           if (!isCallerStaff) {
@@ -2809,7 +2023,17 @@ serve(async (req) => {
               if (!existingRow || !isOwned) {
                 throw new Error(`Forbidden: You can only delete your own records in ${cleanTable}`)
               }
-            } else if (cleanTable !== 'citizen_staging_queue') {
+            } else if (cleanTable === 'citizen_staging_queue') {
+              const callerOwnerTag = await getCallerStagingOwnerTag()
+              const { data: exRow } = await gameDb
+                .from('citizen_staging_queue')
+                .select('id, owner_tag')
+                .eq('id', id_value)
+                .maybeSingle()
+              if (!exRow || (exRow.owner_tag && exRow.owner_tag !== callerOwnerTag)) {
+                throw new Error('Forbidden: Staging queue ownership mismatch')
+              }
+            } else {
               throw new Error(`Forbidden: Staff role required to delete from ${cleanTable}`)
             }
           }
@@ -3324,15 +2548,62 @@ serve(async (req) => {
           }
 
           if (op === 'select') {
-            const selectColumns = typeof payload?.selectColumns === 'string' && payload.selectColumns.trim()
-              ? payload.selectColumns
-              : '*'
+            const selectColumns = sanitizeSpokeSelectColumns(
+              typeof payload?.selectColumns === 'string' && payload.selectColumns.trim()
+                ? payload.selectColumns
+                : '*'
+            )
             const selectOpts = payload?.selectOpts && typeof payload.selectOpts === 'object'
               ? payload.selectOpts
               : undefined
 
             if (cleanTable === 'malware_reports' && !isCallerStaff && hubRole !== 'keeper') {
               throw new Error('Forbidden: Staff clearance required to view malware reports')
+            }
+
+            if (cleanTable === 'citizen_staging_queue') {
+              const filtersArr = Array.isArray(payload?.filters) ? payload.filters : []
+              const hasValidTokenFilter = filtersArr.some(
+                (f: any) =>
+                  f?.method === 'eq' &&
+                  Array.isArray(f?.args) &&
+                  String(f.args[0] || '') === 'user_token' &&
+                  typeof f.args[1] === 'string' &&
+                  f.args[1].trim().length >= 16
+              )
+              if (!hasValidTokenFilter && !isCallerStaff) {
+                throw new Error('Forbidden: Staging queue select requires a valid user_token filter')
+              }
+              const callerOwnerTag = await getCallerStagingOwnerTag()
+              const requestedOwnerTag = selectColumns === '*' || /\bowner_tag\b/.test(selectColumns)
+              const qCols = requestedOwnerTag ? selectColumns : `${selectColumns},owner_tag`
+              let q = gameDb.from('citizen_staging_queue').select(qCols, selectOpts)
+              q = applySpokeQueryModifiers(q, payload)
+              const res = await q
+              if (res.error) throw res.error
+              let rows = res.data
+              if (!isCallerStaff) {
+                if (Array.isArray(rows)) {
+                  rows = rows
+                    .filter((r: any) => r && (!r.owner_tag || r.owner_tag === callerOwnerTag))
+                    .map((r: any) => {
+                      if (!requestedOwnerTag && r && typeof r === 'object') {
+                        const { owner_tag: _o, ...rest } = r
+                        return rest
+                      }
+                      return r
+                    })
+                } else if (rows && typeof rows === 'object') {
+                  if ((rows as any).owner_tag && (rows as any).owner_tag !== callerOwnerTag) {
+                    rows = null
+                  } else if (!requestedOwnerTag) {
+                    const { owner_tag: _o, ...rest } = rows as any
+                    rows = rest
+                  }
+                }
+              }
+              const finalCount = Array.isArray(rows) ? rows.length : (rows ? 1 : 0)
+              return { __spoke_query_v1: true, data: rows, count: selectOpts?.head ? res.count ?? finalCount : finalCount }
             }
 
             if (cleanTable === 'notifications' || cleanTable === 'pwa_push_subscriptions') {
@@ -3536,6 +2807,10 @@ serve(async (req) => {
               }
             }
 
+            if (!canReadComplianceTiers && responseData !== null) {
+              responseData = redactRestrictedEmbeddedRelations(responseData)
+            }
+
             if (
               !isCallerStaff &&
               responseData !== null &&
@@ -3571,13 +2846,45 @@ serve(async (req) => {
           // Mutations: insert | upsert | update | delete
           if (cleanTable === 'profiles') {
             if (op !== 'update') throw new Error('Forbidden direct profile operation')
-            const rawVals = payload?.values && typeof payload.values === 'object' ? payload.values : {}
+            const rawVals = payload?.values && typeof payload.values === 'object' ? { ...payload.values } : {}
+            delete rawVals.id
+            delete rawVals.created_at
             const isSelfBanOnly =
               Object.keys(rawVals).length > 0 &&
               rawVals.is_banned === true &&
               Object.keys(rawVals).every((k) => ['is_banned', 'blacklist_reason'].includes(k))
             if (!isCallerStaff && !isSelfBanOnly) {
               throw new Error('Forbidden: Insufficient permissions to update Spoke profile')
+            }
+            if (isCallerStaff && !isSelfBanOnly) {
+              if (!Array.isArray(payload?.filters) || payload.filters.length === 0) {
+                throw new Error('Refusing unfiltered update on profiles')
+              }
+              if (isArchitectOnlyStaff) {
+                if (rawVals.role !== undefined) {
+                  throw new Error('Forbidden: Architects cannot modify user roles')
+                }
+                delete rawVals.is_banned
+                delete rawVals.blacklist_reason
+                delete rawVals.is_comm_banned
+                delete rawVals.comm_blacklist_reason
+              }
+              if (isOversightOnlyStaff) {
+                const requestedRole = rawVals.role !== undefined ? String(rawVals.role || '').trim().toLowerCase() : ''
+                if (requestedRole && ['wayfinder', 'oversight', 'admin', 'core_dev'].includes(requestedRole)) {
+                  throw new Error('Forbidden: Oversight cannot promote users to Wayfinder, Oversight, or Admin roles')
+                }
+                const { data: matchedProfiles } = await applySpokeQueryFilters(
+                  gameDb.from('profiles').select('id, role'),
+                  payload.filters
+                )
+                if (
+                  Array.isArray(matchedProfiles) &&
+                  matchedProfiles.some((p: any) => ['wayfinder', 'admin'].includes(String(p?.role || '').toLowerCase()))
+                ) {
+                  throw new Error('Forbidden: Oversight cannot modify Wayfinder or Admin profiles')
+                }
+              }
             }
             let q = gameDb.from('profiles').update(
               isSelfBanOnly
@@ -3685,7 +2992,17 @@ serve(async (req) => {
                 } else if (cleanTable === 'scout_suggestions') {
                   row.submitter_id = v_user_id
                 } else if (cleanTable === 'notifications') {
+                  if (row.user_id && String(row.user_id) !== v_user_id) {
+                    throw new Error('Forbidden: Cannot create notification for another citizen')
+                  }
+                  row.user_id = v_user_id
                   row.actor_id = v_user_id
+                } else if (cleanTable === 'citizen_staging_queue') {
+                  if (!row.user_token || String(row.user_token).length < 16) {
+                    throw new Error('Invalid staging token')
+                  }
+                  const callerOwnerTag = await getCallerStagingOwnerTag()
+                  row.owner_tag = callerOwnerTag
                 } else if (cleanTable === 'masons') {
                   delete row.is_verified
                   delete row.followers_count
@@ -3709,6 +3026,18 @@ serve(async (req) => {
                   if (row.highlander_group_id !== undefined && !(await getIsCallerVerifiedMason())) {
                     delete row.highlander_group_id
                   }
+                } else if (
+                  cleanTable === 'mod_versions' ||
+                  cleanTable === 'mod_bundles' ||
+                  cleanTable === 'mod_dependencies' ||
+                  cleanTable === 'mod_relationships' ||
+                  cleanTable === 'version_dependencies' ||
+                  cleanTable === 'community_groups' ||
+                  cleanTable === 'community_group_members' ||
+                  cleanTable === 'logical_conflicts' ||
+                  cleanTable === 'homestead_workbench_templates'
+                ) {
+                  await assertOwnedCreatorChildRow(cleanTable, row, false)
                 }
                 await enforceArchitectSubmissionCompliance(gameDb, cleanTable, row, false)
               }
@@ -3944,6 +3273,69 @@ serve(async (req) => {
                 const mIds = Array.from(ownedMasons)
                 if (mIds.length === 0) throw new Error('Forbidden: No owned Creator profile')
                 q = q.in('mason_id', mIds)
+              } else if (cleanTable === 'mod_versions') {
+                const ownedMods = Array.from(await getCallerOwnedModIds())
+                if (ownedMods.length === 0) throw new Error('Forbidden: No owned artifacts')
+                if (op === 'update' && updateVals.mod_id !== undefined && !ownedMods.includes(String(updateVals.mod_id))) {
+                  throw new Error('Forbidden: mod_versions mod_id must belong to your owned artifacts')
+                }
+                q = q.in('mod_id', ownedMods)
+              } else if (cleanTable === 'mod_bundles') {
+                const ownedMods = Array.from(await getCallerOwnedModIds())
+                if (ownedMods.length === 0) throw new Error('Forbidden: No owned artifacts')
+                if (op === 'update' && updateVals.primary_id !== undefined && !ownedMods.includes(String(updateVals.primary_id))) {
+                  throw new Error('Forbidden: mod_bundles primary_id must belong to your owned artifacts')
+                }
+                q = q.in('primary_id', ownedMods)
+              } else if (cleanTable === 'mod_dependencies' || cleanTable === 'mod_relationships') {
+                const ownedMods = Array.from(await getCallerOwnedModIds())
+                if (ownedMods.length === 0) throw new Error('Forbidden: No owned artifacts')
+                if (op === 'update' && updateVals.parent_id !== undefined && !ownedMods.includes(String(updateVals.parent_id))) {
+                  throw new Error(`Forbidden: ${cleanTable} parent_id must belong to your owned artifacts`)
+                }
+                q = q.in('parent_id', ownedMods)
+              } else if (cleanTable === 'version_dependencies') {
+                const ownedMods = Array.from(await getCallerOwnedModIds())
+                if (ownedMods.length === 0) throw new Error('Forbidden: No owned artifacts')
+                const { data: myVers } = await gameDb.from('mod_versions').select('dna_hash').in('mod_id', ownedMods)
+                const ownedHashes = (myVers || []).map((v: any) => String(v.dna_hash)).filter(Boolean)
+                if (ownedHashes.length === 0) throw new Error('Forbidden: No owned version hashes')
+                if (op === 'update' && updateVals.parent_hash !== undefined && !ownedHashes.includes(String(updateVals.parent_hash))) {
+                  throw new Error('Forbidden: version_dependencies parent_hash must belong to your owned artifacts')
+                }
+                q = q.in('parent_hash', ownedHashes)
+              } else if (
+                cleanTable === 'logical_conflicts' ||
+                cleanTable === 'community_groups' ||
+                cleanTable === 'community_group_members' ||
+                cleanTable === 'homestead_workbench_templates'
+              ) {
+                throw new Error('Forbidden: Staff clearance required to modify shared conflict/group matrix')
+              } else if (cleanTable === 'citizen_staging_queue') {
+                const callerOwnerTag = await getCallerStagingOwnerTag()
+                const hasBoundFilter = Array.isArray(payload?.filters) && payload.filters.some(
+                  (f: any) =>
+                    (f?.method === 'eq' || f?.method === 'in') &&
+                    Array.isArray(f?.args) &&
+                    ['id', 'user_token'].includes(String(f.args[0] || ''))
+                )
+                if (!hasBoundFilter) {
+                  throw new Error('Forbidden: Staging queue mutation requires id or user_token filter')
+                }
+                const { data: matchedStaging } = await applySpokeQueryFilters(
+                  gameDb.from('citizen_staging_queue').select('id, owner_tag'),
+                  payload.filters
+                )
+                if (
+                  Array.isArray(matchedStaging) &&
+                  matchedStaging.some((r: any) => r?.owner_tag && r.owner_tag !== callerOwnerTag)
+                ) {
+                  throw new Error('Forbidden: Staging queue ownership mismatch')
+                }
+                q = q.or(`owner_tag.is.null,owner_tag.eq.${callerOwnerTag}`)
+                if (op === 'update') {
+                  updateVals.owner_tag = callerOwnerTag
+                }
               } else if (cleanTable === 'blueprints') {
                 const mIds = [v_user_id, ...Array.from(ownedMasons)]
                 q = q.in('mason_id', mIds)
@@ -3989,7 +3381,7 @@ serve(async (req) => {
                 const out = await executeSingleSpokeQuery(qSpec)
                 return { ok: true, ...out }
               } catch (err: any) {
-                return { ok: false, error: err?.message || String(err), original_error: err }
+                return { ok: false, error: sanitizeGatewayErrorMessage(err) }
               }
             })
           )
@@ -4149,6 +3541,32 @@ serve(async (req) => {
         }
         break
       }
+      case 'increment_spoke_counter': {
+        if (isCallerBanned) {
+          throw new Error('Forbidden: Account is suspended')
+        }
+        const kind = String(payload?.kind || '').trim().toLowerCase()
+        if (kind === 'asset') {
+          const assetId = String(payload?.id || payload?.asset_id || '').trim()
+          if (!UUID_REGEX.test(assetId)) {
+            throw new Error('Invalid asset_id')
+          }
+          const { error: incErr } = await gameDb.rpc('increment_asset_downloads', { asset_id: assetId })
+          if (incErr) throw incErr
+          resultData = { success: true }
+        } else if (kind === 'blueprint') {
+          const bpId = Number(payload?.id ?? payload?.blueprint_id)
+          if (!Number.isSafeInteger(bpId) || bpId <= 0) {
+            throw new Error('Invalid blueprint_id')
+          }
+          const { error: incErr } = await gameDb.rpc('increment_blueprint_downloads', { blueprint_id: bpId })
+          if (incErr) throw incErr
+          resultData = { success: true }
+        } else {
+          throw new Error('Invalid counter kind')
+        }
+        break
+      }
       default:
         throw new Error('Unknown action: ' + action)
     }
@@ -4158,10 +3576,11 @@ serve(async (req) => {
       status: 200,
     })
   } catch (error: any) {
-    console.error('Edge Function Error:', error.message)
-    return new Response(JSON.stringify({ error: error.message, original_error: error }), {
+    console.error('Edge Function Error:', error?.message || error)
+    return new Response(JSON.stringify({ error: sanitizeGatewayErrorMessage(error) }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       status: 200,
     })
   }
 })
+

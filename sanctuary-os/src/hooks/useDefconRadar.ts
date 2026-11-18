@@ -326,9 +326,10 @@ export function useDefconRadar(
             const rawVer = await tauriBridge
               .ripGameVersion(
                 config.live_path,
-                useStore.getState().activeGameSchema
+                useStore.getState().activeGameSchema,
+                config.docs_path || config.user_data_path || ""
               )
-              .catch(() => useStore.getState().selectedVersion || "");
+              .catch(() => "");
             currentDiskVer = cleanVersionString(rawVer);
             const prevKnownVer =
               localStorage.getItem(`sanctuary_defcon_known_version_${wsScope}`) ||

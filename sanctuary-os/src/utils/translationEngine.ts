@@ -111,11 +111,13 @@ export function resolveTargetLanguageIso(
   forceSystemFallback: boolean = false
 ): string {
   const cleanCode = String(activeLang || '').trim();
+  const baseIso = String(dictionary?._meta_iso || '').trim().toLowerCase();
   if (
     cleanCode === 'en-sanctuary' ||
     cleanCode === 'en-default' ||
-    cleanCode === 'en-sims' ||
-    cleanCode === 'Simlish'
+    cleanCode.toLowerCase().startsWith('en-') ||
+    baseIso === 'en' ||
+    String(dictionary?._meta_lang || dictionary?._meta_language || '').trim().toLowerCase() === 'english'
   ) {
     if (forceSystemFallback && typeof navigator !== 'undefined' && navigator.language) {
       const sysIso = navigator.language.split('-')[0].toLowerCase();
@@ -208,27 +210,26 @@ export function applyThematicGlossaryToProse(
     return fallback;
   };
 
-  const isStandard = activeLang === 'en-default';
-  const isSims = activeLang === 'en-sims' || activeLang === 'Simlish';
-  const isSimlish = activeLang === 'Simlish';
+  const isSanctuary = activeLang === 'en-sanctuary';
+  const usePlainTerms = !isSanctuary;
 
-  const termVault = resolveTerm('term_vault', isSimlish ? 'Stashi' : isStandard || isSims ? 'Library' : 'Vault');
-  const termBlueprint = resolveTerm('term_blueprint', isSimlish ? 'Playset' : isSims ? 'Modpack' : isStandard ? 'Play Set' : 'Blueprint');
-  const termBlueprints = resolveTerm('term_blueprints', isSimlish ? 'Playsets' : isSims ? 'Modpacks' : isStandard ? 'Play Sets' : 'Blueprints');
-  const termMason = resolveTerm('term_mason', isSimlish ? 'Maker' : isStandard || isSims ? 'Creator' : 'Mason');
-  const termMasons = resolveTerm('term_masons', isSimlish ? 'Makers' : isStandard || isSims ? 'Creators' : 'Masons');
-  const termCitizen = resolveTerm('term_citizen', isSims ? 'Simmer' : isStandard ? 'User' : 'Citizen');
-  const termCitizens = resolveTerm('term_citizens', isSims ? 'Simmers' : isStandard ? 'Users' : 'Citizens');
-  const termBackups = resolveTerm('term_backups', isSimlish ? 'Save-Capsules' : isStandard || isSims ? 'Backups' : 'Time Capsule');
-  const termLab = resolveTerm('term_lab', isSimlish ? 'Testi Lab' : isStandard || isSims ? 'Testing Lab' : 'Homestead');
-  const termNexus = resolveTerm('term_nexus', isSims ? 'The Gallery' : isStandard ? 'Marketplace' : 'Nexus');
-  const termDispatch = resolveTerm('term_dispatch', isSimlish ? 'Posti' : isStandard || isSims ? 'Post' : 'Transmission');
-  const termDispatches = resolveTerm('term_dispatches', isSimlish ? 'Postis' : isStandard || isSims ? 'Posts' : 'Transmissions');
+  const termVault = resolveTerm('term_vault', usePlainTerms ? 'Library' : 'Vault');
+  const termBlueprint = resolveTerm('term_blueprint', usePlainTerms ? 'Play Set' : 'Blueprint');
+  const termBlueprints = resolveTerm('term_blueprints', usePlainTerms ? 'Play Sets' : 'Blueprints');
+  const termMason = resolveTerm('term_mason', usePlainTerms ? 'Creator' : 'Mason');
+  const termMasons = resolveTerm('term_masons', usePlainTerms ? 'Creators' : 'Masons');
+  const termCitizen = resolveTerm('term_citizen', usePlainTerms ? 'User' : 'Citizen');
+  const termCitizens = resolveTerm('term_citizens', usePlainTerms ? 'Users' : 'Citizens');
+  const termBackups = resolveTerm('term_backups', usePlainTerms ? 'Backups' : 'Time Capsule');
+  const termLab = resolveTerm('term_lab', usePlainTerms ? 'Testing Lab' : 'Homestead');
+  const termNexus = resolveTerm('term_nexus', usePlainTerms ? 'Marketplace' : 'Nexus');
+  const termDispatch = resolveTerm('term_dispatch', usePlainTerms ? 'Post' : 'Transmission');
+  const termDispatches = resolveTerm('term_dispatches', usePlainTerms ? 'Posts' : 'Transmissions');
 
-  if (isStandard || isSims) {
+  if (usePlainTerms) {
     text = text
-      .replace(/\bComm-Link\s+Feed\b/gi, (m) => matchWordCasing(m, isSimlish ? 'Plumbob Feed' : 'Community Feed'))
-      .replace(/\bComm-Link\b/gi, (m) => matchWordCasing(m, isSimlish ? 'Plumbob Feed' : 'Community Feed'))
+      .replace(/\bComm-Link\s+Feed\b/gi, (m) => matchWordCasing(m, 'Community Feed'))
+      .replace(/\bComm-Link\b/gi, (m) => matchWordCasing(m, 'Community Feed'))
       .replace(/\bTime\s+Capsule\b/gi, (m) => matchWordCasing(m, termBackups))
       .replace(/\bHomestead\b/gi, (m) => matchWordCasing(m, termLab))
       .replace(/\bThe\s+Nexus\b/gi, (m) => matchWordCasing(m, termNexus))

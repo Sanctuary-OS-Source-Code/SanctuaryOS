@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { useStore } from "../store";
+import { fnv1aHashHex } from "../lib/cryptoUtils";
 import {
   DEFAULT_SCHEMA_CACHE_KEY,
   getBundledSchema,
@@ -44,7 +45,7 @@ function getActiveEnDefaultTemplate(): Record<string, any> {
         return { ...(enDefault as Record<string, any>), ...parsed["en-default"] };
       }
     }
-  } catch {}
+  } catch { }
   return enDefault as Record<string, any>;
 }
 
@@ -96,13 +97,24 @@ function resolveLanguageLabel(raw?: string): string {
 }
 
 export function getIdeDraftCacheKey(filePath: string): string {
-  return `sanctuary_ide_draft_${filePath}`;
+  const norm = String(filePath || "").trim().replace(/\\/g, "/").toLowerCase();
+  return `sanctuary_ide_draft_${fnv1aHashHex(norm)}`;
 }
 
 export function getIdeCachedDraft(filePath: string): string | null {
   if (!filePath) return null;
   try {
-    return localStorage.getItem(getIdeDraftCacheKey(filePath));
+    const hashedKey = getIdeDraftCacheKey(filePath);
+    const val = localStorage.getItem(hashedKey);
+    if (val !== null) return val;
+    const legacyKey = `sanctuary_ide_draft_${filePath}`;
+    const legacyVal = localStorage.getItem(legacyKey);
+    if (legacyVal !== null) {
+      localStorage.setItem(hashedKey, legacyVal);
+      localStorage.removeItem(legacyKey);
+      return legacyVal;
+    }
+    return null;
   } catch {
     return null;
   }
@@ -116,19 +128,22 @@ export function hasIdeCachedDraft(filePath: string): boolean {
 export function setIdeCachedDraft(filePath: string, content: string, originalContent: string) {
   if (!filePath) return;
   try {
+    const hashedKey = getIdeDraftCacheKey(filePath);
+    localStorage.removeItem(`sanctuary_ide_draft_${filePath}`);
     if (content !== originalContent) {
-      localStorage.setItem(getIdeDraftCacheKey(filePath), content);
+      localStorage.setItem(hashedKey, content);
     } else {
-      localStorage.removeItem(getIdeDraftCacheKey(filePath));
+      localStorage.removeItem(hashedKey);
     }
-  } catch {}
+  } catch { }
 }
 
 export function clearIdeCachedDraft(filePath: string) {
   if (!filePath) return;
   try {
     localStorage.removeItem(getIdeDraftCacheKey(filePath));
-  } catch {}
+    localStorage.removeItem(`sanctuary_ide_draft_${filePath}`);
+  } catch { }
 }
 
 function getValidCloudSchemaDraft(
@@ -298,13 +313,13 @@ export function useMasonFiles({
 
           const bundledSpokeSchema = !isKeepers
             ? getBundledSchema(
-                String(
-                  activeWs?.schema_id ||
-                    storeState.activeGameSchema?.id ||
-                    storeState.activeWorkspaceId ||
-                    ""
-                )
+              String(
+                activeWs?.schema_id ||
+                storeState.activeGameSchema?.id ||
+                storeState.activeWorkspaceId ||
+                ""
               )
+            )
             : null;
           const spokeUsesOfflineSimsFallback =
             !isKeepers &&
@@ -493,14 +508,14 @@ export function useMasonFiles({
               internalCloudTarget === "sanctuary_schemas"
                 ? getValidCloudSchemaDraft(path, id, schemaData)
                 : (() => {
-                    const d = getIdeCachedDraft(path);
-                    if (!d) return null;
-                    try {
-                      return { raw: d, parsed: JSON.parse(d) };
-                    } catch {
-                      return { raw: d, parsed: null };
-                    }
-                  })();
+                  const d = getIdeCachedDraft(path);
+                  if (!d) return null;
+                  try {
+                    return { raw: d, parsed: JSON.parse(d) };
+                  } catch {
+                    return { raw: d, parsed: null };
+                  }
+                })();
             const cachedDraft = validDraft?.raw || null;
             const parsedDraft = validDraft?.parsed || null;
             const effectiveSchema = parsedDraft || schemaData || {};
@@ -511,22 +526,22 @@ export function useMasonFiles({
                 : null;
             const displayTitle = isDefaultId
               ? effectiveSchema?.display_name ||
-                rowNameClean ||
-                "Default Master Schema"
+              rowNameClean ||
+              "Default Master Schema"
               : effectiveSchema?.display_name ||
-                effectiveSchema?.name ||
-                effectiveSchema?.game_name ||
-                rowNameClean ||
-                (!isKeepers ? spokeDisplayName : null) ||
-                row?.name ||
-                id;
+              effectiveSchema?.name ||
+              effectiveSchema?.game_name ||
+              rowNameClean ||
+              (!isKeepers ? spokeDisplayName : null) ||
+              row?.name ||
+              id;
             const rawSchemaAuthor =
               effectiveSchema?.author || effectiveSchema?._meta_author || "";
             const resolvedAuthor = isKeepers
               ? rawSchemaAuthor || "Sanctuary Foundry"
               : rawSchemaAuthor &&
-                  rawSchemaAuthor !== "Sanctuary Core" &&
-                  rawSchemaAuthor !== "Sanctuary Foundry"
+                rawSchemaAuthor !== "Sanctuary Core" &&
+                rawSchemaAuthor !== "Sanctuary Foundry"
                 ? rawSchemaAuthor
                 : spokeDisplayName;
             return {
@@ -582,7 +597,7 @@ export function useMasonFiles({
             let language = "";
             let community = "Local";
             let author = "";
-            if (n.match(/^[a-z]{2}-.+\.json$/i) || n === "simlish.json") {
+            if (n.match(/^[a-z]{2}-.+\.json$/i) || /[\\/]Lexicons[\\/]/i.test(fullPath)) {
               try {
                 const raw = await readTextFile(fullPath);
                 const parsed = JSON.parse(raw);
@@ -592,7 +607,7 @@ export function useMasonFiles({
                 );
                 community = parsed?._meta_badge || "Local Pack";
                 author = parsed?._meta_author || "";
-              } catch {}
+              } catch { }
             }
             foundFiles.push({
               name: entry.name,
@@ -634,13 +649,13 @@ export function useMasonFiles({
       const isLexicon = isCloudMode
         ? internalCloudTarget === "sanctuary_lexicons"
         : currentFile.content?.includes("_meta_lang") ||
-          currentFile.content?.includes('"a_citizen"') ||
-          currentFile.content?.includes('"term_mod"') ||
-          currentFile.name.startsWith("en-") ||
-          currentFile.name.startsWith("de-") ||
-          currentFile.name.startsWith("es-") ||
-          currentFile.name.startsWith("fr-") ||
-          currentFile.name.toLowerCase() === "simlish.json";
+        currentFile.content?.includes('"a_citizen"') ||
+        currentFile.content?.includes('"term_mod"') ||
+        currentFile.name.startsWith("en-") ||
+        currentFile.name.startsWith("de-") ||
+        currentFile.name.startsWith("es-") ||
+        currentFile.name.startsWith("fr-") ||
+        /[\\/]Lexicons[\\/]/i.test(String(currentFile.path || ""));
 
       if (isLexicon) {
         setReferenceData(getActiveEnDefaultTemplate());
@@ -670,13 +685,13 @@ export function useMasonFiles({
                 DEFAULT_SCHEMA_CACHE_KEY,
                 JSON.stringify(cloudDefault)
               );
-            } catch {}
+            } catch { }
             setReferenceData(cloudDefault);
             setReferenceLabel(
               t("validator_source_keepers", "Keepers Core Default Schema")
             );
           }
-        } catch {}
+        } catch { }
       }
     };
     fetchRef();
@@ -814,7 +829,7 @@ export function useMasonFiles({
         let parsedCanonical: any = null;
         try {
           parsedCanonical = JSON.parse(canonicalContent);
-        } catch {}
+        } catch { }
         const validSchemaDraft = getValidCloudSchemaDraft(
           file.path,
           fileId,
@@ -843,7 +858,7 @@ export function useMasonFiles({
                 clearIdeCachedDraft(file.path);
                 useCached = false;
               }
-            } catch {}
+            } catch { }
           }
           if (useCached) {
             workingContent = cachedDraft;
@@ -1077,7 +1092,7 @@ export function useMasonFiles({
         (w: any) =>
           String(w.id).toLowerCase() === String(storeState.activeWorkspaceId || "").toLowerCase() ||
           String(w.schema_id || "").toLowerCase() ===
-            String(storeState.activeWorkspaceId || "").toLowerCase()
+          String(storeState.activeWorkspaceId || "").toLowerCase()
       );
       const spokeDisplayName =
         activeWs?.name ||
@@ -1094,29 +1109,29 @@ export function useMasonFiles({
           : session?.user?.user_metadata?.username || spokeDisplayName;
         const contentToSave = isLexiconCreation
           ? buildInitialLexiconDict(
-              lexiconOptions?.displayName?.trim() || fileId,
-              lexiconOptions?.lang?.trim() || lexiconLang.toLowerCase(),
-              resolvedAuthor,
-              lexiconOptions?.starterPreset
-            )
+            lexiconOptions?.displayName?.trim() || fileId,
+            lexiconOptions?.lang?.trim() || lexiconLang.toLowerCase(),
+            resolvedAuthor,
+            lexiconOptions?.starterPreset
+          )
           : { schema_version: 1, metadata: {} };
         const payload =
           internalCloudTarget === "sanctuary_lexicons"
             ? {
-                id: fileId,
-                name: fileId,
-                badge: isKeepers ? "Sanctuary" : spokeDisplayName,
-                version: 1,
-                lexicon_data: contentToSave,
-                updated_at: new Date().toISOString(),
-              }
+              id: fileId,
+              name: fileId,
+              badge: isKeepers ? "Sanctuary" : spokeDisplayName,
+              version: 1,
+              lexicon_data: contentToSave,
+              updated_at: new Date().toISOString(),
+            }
             : {
-                id: fileId,
-                name: fileId,
-                schema_data: contentToSave,
-                version: 1,
-                updated_at: new Date().toISOString(),
-              };
+              id: fileId,
+              name: fileId,
+              schema_data: contentToSave,
+              version: 1,
+              updated_at: new Date().toISOString(),
+            };
 
         let error = null;
         const token = session?.access_token;
@@ -1204,20 +1219,20 @@ export function useMasonFiles({
             const payload =
               internalCloudTarget === "sanctuary_lexicons"
                 ? {
-                    id: fileId,
-                    name: fileId,
-                    badge: parsed._meta_badge || "Sanctuary",
-                    version: parsed._meta_version || 1,
-                    lexicon_data: parsed,
-                    updated_at: new Date().toISOString(),
-                  }
+                  id: fileId,
+                  name: fileId,
+                  badge: parsed._meta_badge || "Sanctuary",
+                  version: parsed._meta_version || 1,
+                  lexicon_data: parsed,
+                  updated_at: new Date().toISOString(),
+                }
                 : {
-                    id: fileId,
-                    name: parsed.manifest_name || fileId,
-                    schema_data: parsed,
-                    version: parsed.schema_version || 1,
-                    updated_at: new Date().toISOString(),
-                  };
+                  id: fileId,
+                  name: parsed.manifest_name || fileId,
+                  schema_data: parsed,
+                  version: parsed.schema_version || 1,
+                  updated_at: new Date().toISOString(),
+                };
             if (!isKeepers && token) {
               await client.rpc("secure_upsert_cloud_file", {
                 p_token: token,

@@ -367,7 +367,7 @@ export default function TimeCapsule({
                   )
                 : t(
                     "tc_seal_world_desc",
-                    "Capture Saves, Tray library, and user config files using hardlink deduplication."
+                    "Capture save states, user assets, and configuration files using hardlink deduplication."
                   )}
             </p>
           </div>

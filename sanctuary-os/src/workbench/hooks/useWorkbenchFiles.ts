@@ -5,10 +5,10 @@ import { listen } from '@tauri-apps/api/event';
 import { useStore } from '../../store';
 import { supabaseServices } from '../../lib/supabase-services';
 import { useLexicon } from '../../LexiconContext';
+import { joinLocalPath } from '../../utils/localTemplateInspector';
 import {
    isSanctuaryTemplateFile,
    isSanctuaryTemplateFileName,
-   isSanctuaryTemplateObject,
    stripJsonCommentsAndTrailingCommas
 } from '../workbenchFormatUtils';
 
@@ -80,36 +80,18 @@ export function useWorkbenchFiles({ mainTab, mainSearchQuery }: UseWorkbenchFile
 
             let validFiles: WorkbenchFileItem[] = [];
             try {
-               const results: string[] = await invoke("get_workbench_files", {
+               const catalog: any = await invoke("get_workbench_catalog", {
                   vaultPath: vaultPath || "",
                   modsPath: modsPath || "",
+                  docsPath: useStore.getState().docsPath || undefined,
                   gameSchema: activeGameSchema
                });
-               const unsavedSnapshot = useStore.getState().cwUnsavedEdits || {};
-               validFiles = await Promise.all(
-                  results.map(async (r) => {
-                     const sep = r.includes('\\') ? '\\' : '/';
-                     const parts = r.split(sep);
-                     const name = parts[parts.length - 1];
-                     if (isSanctuaryTemplateFileName(name)) {
-                        return { name, path: r, isTemplate: true };
-                     }
-                     if (name.toLowerCase().endsWith('.json')) {
-                        try {
-                           const rawContent = unsavedSnapshot[r] !== undefined
-                              ? unsavedSnapshot[r]
-                              : await readTextFile(r);
-                           const parsed = JSON.parse(stripJsonCommentsAndTrailingCommas(rawContent));
-                           if (isSanctuaryTemplateObject(parsed)) {
-                              return { name, path: r, isTemplate: true };
-                           }
-                        } catch {
-                           // Standard or malformed JSON config -> classify under CONFIGS
-                        }
-                     }
-                     return { name, path: r, isTemplate: false };
-                  })
-               );
+               const rawFiles = Array.isArray(catalog?.files) ? catalog.files : [];
+               validFiles = rawFiles.map((entry: any) => ({
+                  name: entry.name,
+                  path: entry.path,
+                  isTemplate: Boolean(entry.is_template),
+               }));
             } catch (e) {
                console.error("Native scanner failed:", e);
             }
@@ -221,13 +203,12 @@ export function useWorkbenchFiles({ mainTab, mainSearchQuery }: UseWorkbenchFile
          const newFileName = targetFileOverride
             ? `${baseTargetStem}_${shortId}.sanctuary.template.json`
             : `TEMPLATE_${shortId}.sanctuary.template.json`;
-         const sep = vaultPath.includes('\\') ? '\\' : '/';
-         const tmplPath = vaultPath.endsWith(sep) ? `${vaultPath}Data${sep}Templates` : `${vaultPath}${sep}Data${sep}Templates`;
+         const tmplPath = joinLocalPath(vaultPath, 'Data', 'Templates');
 
          if (!(await exists(tmplPath))) {
             await mkdir(tmplPath, { recursive: true });
          }
-         const newFilePath = `${tmplPath}${sep}${newFileName}`;
+         const newFilePath = joinLocalPath(tmplPath, newFileName);
          const lowerTarget = targetFileName.toLowerCase();
          const inferredParser = lowerTarget.endsWith('.json') || lowerTarget.endsWith('.jsonc')
             ? 'json'
@@ -342,10 +323,8 @@ export function useWorkbenchFiles({ mainTab, mainSearchQuery }: UseWorkbenchFile
          const newName = trimmedInput.toLowerCase().endsWith(ext.toLowerCase()) ? trimmedInput : trimmedInput + ext;
          const sep = oldPath.includes('\\') ? '\\' : '/';
          const dirPath = oldPath.substring(0, oldPath.lastIndexOf(sep));
-         const newPath = `${dirPath}${sep}${newName}`;
-         const oldContent = await readTextFile(oldPath);
-         await writeTextFile(newPath, oldContent);
-         await remove(oldPath);
+         const newPath = joinLocalPath(dirPath, newName);
+         await invoke('rename_file_with_history', { oldPath, newPath });
          if (useStore.getState().cwSelectedFile?.path === oldPath) {
             useStore.getState().setCwSelectedFile({
                name: newName,

@@ -306,6 +306,12 @@ pub struct VersionExtraction {
     pub line_prefix: String,
     #[serde(default)]
     pub json_key: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub xml_tag: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub regex_pattern: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub fallback_paths: Option<Vec<String>>,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, Default)]

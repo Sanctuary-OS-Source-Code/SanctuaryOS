@@ -10,7 +10,7 @@ import VersionTimeline from "./VersionTimeline";
 import { invoke } from '@tauri-apps/api/core';
 import { supabase } from './supabase';
 import { supabaseServices } from './lib/supabase-services';
-import { writeTextFile, remove } from '@tauri-apps/plugin-fs';
+import { joinLocalPath } from './utils/localTemplateInspector';
 import { CommandScreenLayout, CommandScreenBody, CommandScreenMain, CommandScreenSidebar, CommandScreenQuickLink, DashboardStatTile, CommandScreenSectionHeading, StatTileCarousel } from "./hub-components/SharedCommandScreenLayout";
 import { UniversalCard } from './components/universal/UniversalCard';
 
@@ -399,12 +399,11 @@ export default function CitizensWorkbench({ onOpenMasonProfile }: { onOpenMasonP
                         : `${sanitizedName.replace(/\.json$/i, '')}.sanctuary.template.json`;
 
                      if (newFileName !== selectedFile.name) {
-                        const dirPath = selectedFile.path.substring(0, selectedFile.path.lastIndexOf(selectedFile.path.includes('\\') ? '\\' : '/'));
-                        const sep = selectedFile.path.includes('\\') ? '\\' : '/';
-                        const newPath = `${dirPath}${sep}${newFileName}`;
+                        const dirPath = selectedFile.path.replace(/[\\/][^\\/]+$/, '');
+                        const newPath = joinLocalPath(dirPath, newFileName);
 
-                        await writeTextFile(newPath, newJson);
-                        await remove(selectedFile.path);
+                        await invoke('rename_file_with_history', { oldPath: selectedFile.path, newPath });
+                        await invoke('save_file_silently', { path: newPath, content: newJson });
 
                         useStore.getState().setCwSelectedFile({ name: newFileName, path: newPath, isTemplate: true });
                      } else {

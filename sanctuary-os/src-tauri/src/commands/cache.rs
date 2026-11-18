@@ -3,22 +3,26 @@ use crate::utils::*;
 use std::path::{Path, PathBuf};
 
 #[tauri::command]
-pub fn mark_explicitly_local(vault_path: String, file_path: String) -> Result<(), String> {
-    let db = open_db_conn(&vault_path)?;
-    let conn = db
-        .lock()
-        .map_err(|_| "Database lock poisoned.".to_string())?;
-    let rows = conn
-        .execute(
-            "UPDATE cache SET explicitly_local = 1 WHERE path = ?1",
-            rusqlite::params![file_path],
-        )
-        .map_err(|e| e.to_string())?;
-    if rows > 0 {
-        Ok(())
-    } else {
-        Err("File not found in cache".to_string())
-    }
+pub async fn mark_explicitly_local(vault_path: String, file_path: String) -> Result<(), String> {
+    tauri::async_runtime::spawn_blocking(move || {
+        let db = open_db_conn(&vault_path)?;
+        let conn = db
+            .lock()
+            .map_err(|_| "Database lock poisoned.".to_string())?;
+        let rows = conn
+            .execute(
+                "UPDATE cache SET explicitly_local = 1 WHERE path = ?1",
+                rusqlite::params![file_path],
+            )
+            .map_err(|e| e.to_string())?;
+        if rows > 0 {
+            Ok(())
+        } else {
+            Err("File not found in cache".to_string())
+        }
+    })
+    .await
+    .map_err(|e| e.to_string())?
 }
 
 #[tauri::command]
@@ -225,66 +229,70 @@ pub fn load_master_cache(vault_path: String) -> Result<String, String> {
 }
 
 #[tauri::command]
-pub fn purge_vault_artifacts(vault_path: String, filenames: Vec<String>) -> Result<String, String> {
-    if vault_path.trim().is_empty() {
-        return Err("Vault path not configured.".into());
-    }
-    let mut deleted = 0;
-    let vault_root = crate::utils::get_vault_root_dir(&vault_path);
-    let vault_mods_lane = crate::utils::get_vault_mods_lane(&vault_path);
-    let allowed_roots = vec![vault_root.clone(), vault_mods_lane.clone()];
+pub async fn purge_vault_artifacts(vault_path: String, filenames: Vec<String>) -> Result<String, String> {
+    tauri::async_runtime::spawn_blocking(move || {
+        if vault_path.trim().is_empty() {
+            return Err("Vault path not configured.".into());
+        }
+        let mut deleted = 0;
+        let vault_root = crate::utils::get_vault_root_dir(&vault_path);
+        let vault_mods_lane = crate::utils::get_vault_mods_lane(&vault_path);
+        let allowed_roots = vec![vault_root.clone(), vault_mods_lane.clone()];
 
-    for filename in filenames {
-        let trimmed_rel = filename.trim().trim_start_matches(&['/', '\\'][..]);
-        if trimmed_rel.is_empty() {
-            continue;
-        }
-        let rel_path = std::path::Path::new(trimmed_rel);
-        if !rel_path
-            .components()
-            .all(|c| matches!(c, std::path::Component::Normal(_)))
-        {
-            continue;
-        }
-        let candidates = [
-            vault_root.join(rel_path),
-            vault_mods_lane.join(rel_path),
-        ];
-        for path in candidates {
-            if crate::utils::ensure_strict_descendant_of_roots(&path, &allowed_roots).is_err()
-                || !crate::utils::is_safe_user_file_path(&path)
+        for filename in filenames {
+            let trimmed_rel = filename.trim().trim_start_matches(&['/', '\\'][..]);
+            if trimmed_rel.is_empty() {
+                continue;
+            }
+            let rel_path = std::path::Path::new(trimmed_rel);
+            if !rel_path
+                .components()
+                .all(|c| matches!(c, std::path::Component::Normal(_)))
             {
                 continue;
             }
-            if path.exists() || std::fs::symlink_metadata(&path).is_ok() {
-                let mut deleted_names = Vec::new();
-                if path.is_dir() {
-                    for entry in walkdir::WalkDir::new(&path)
-                        .into_iter()
-                        .filter_map(|e| e.ok())
-                    {
-                        if entry.file_type().is_file() {
-                            if let Some(fname) = entry.file_name().to_str() {
-                                deleted_names.push(fname.to_string());
+            let candidates = [
+                vault_root.join(rel_path),
+                vault_mods_lane.join(rel_path),
+            ];
+            for path in candidates {
+                if crate::utils::ensure_strict_descendant_of_roots(&path, &allowed_roots).is_err()
+                    || !crate::utils::is_safe_user_file_path(&path)
+                {
+                    continue;
+                }
+                if path.exists() || std::fs::symlink_metadata(&path).is_ok() {
+                    let mut deleted_names = Vec::new();
+                    if path.is_dir() {
+                        for entry in walkdir::WalkDir::new(&path)
+                            .into_iter()
+                            .filter_map(|e| e.ok())
+                        {
+                            if entry.file_type().is_file() {
+                                if let Some(fname) = entry.file_name().to_str() {
+                                    deleted_names.push(fname.to_string());
+                                }
                             }
                         }
+                        let _ = std::fs::remove_dir_all(&path);
+                    } else {
+                        if let Some(fname) = path.file_name().and_then(|n| n.to_str()) {
+                            deleted_names.push(fname.to_string());
+                        }
+                        let _ = std::fs::remove_file(&path);
                     }
-                    let _ = std::fs::remove_dir_all(&path);
-                } else {
-                    if let Some(fname) = path.file_name().and_then(|n| n.to_str()) {
-                        deleted_names.push(fname.to_string());
-                    }
-                    let _ = std::fs::remove_file(&path);
+
+                    cleanup_empty_vault_parents(&path, &vault_mods_lane, &vault_root);
+
+                    crate::utils::cleanup_live_counterparts_on_delete(&path, &deleted_names);
+                    deleted += 1;
                 }
-
-                cleanup_empty_vault_parents(&path, &vault_mods_lane, &vault_root);
-
-                crate::utils::cleanup_live_counterparts_on_delete(&path, &deleted_names);
-                deleted += 1;
             }
         }
-    }
-    Ok(format!("Purged {} artifacts.", deleted))
+        Ok(format!("Purged {} artifacts.", deleted))
+    })
+    .await
+    .map_err(|e| e.to_string())?
 }
 
 #[tauri::command]

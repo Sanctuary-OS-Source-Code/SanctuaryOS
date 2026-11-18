@@ -62,88 +62,63 @@ export function useRadarLogic(checkNetworkUpdates: (currentModList: any[], isMan
 
   async function fetchVault() {
     if (!isDesktop()) return;
-    const [rawQList, sList] = await Promise.all([
-      invoke<string[]>("get_quarantine_list").catch(() => []),
+    const [rawQDetails, sList] = await Promise.all([
+      invoke<any[]>("get_quarantine_details").catch(() => []),
       invoke<string[]>("get_shelter_list").catch(() => []),
     ]);
-    const qList = (rawQList || []).filter(
-      (q) => q && !q.startsWith(".shredding_") && !recentlyShreddedSet.has(q)
+    const filteredDetails = (rawQDetails || []).filter(
+      (d) => d?.name && !String(d.name).startsWith(".shredding_") && !recentlyShreddedSet.has(d.name)
     );
+    const qList = filteredDetails.map((d) => d.name);
     setQuarantineList(qList);
     setShelterContents(sList || []);
 
-    if (qList.length > 0) {
-      let vaultPath = useStore.getState().vaultPath;
-      if (!vaultPath) {
-        try {
-          const cfg: any = await invoke("get_saved_coordinates");
-          vaultPath = cfg?.vault_path || "";
-        } catch { }
-      }
-
+    if (filteredDetails.length > 0) {
       const enrichedItems = await Promise.all(
-        qList.map(async (q) => {
+        filteredDetails.map(async (detail) => {
+          const q = detail.name;
+          const parsed = detail.manifest || null;
           let volatileOrig: string | null = null;
           try {
             volatileOrig = await invoke<string | null>("get_volatile_original_path", {
-              hash: "",
+              hash: parsed?.detected_hash || "",
               filename: q,
             });
           } catch { }
-          if (vaultPath) {
-            try {
-              const sep = vaultPath.includes("/") ? "/" : "\\";
-              const cleanVaultRoot = vaultPath
-                .replace(/[\\/]+$/, "")
-                .replace(/[\\/]Mods$/i, "");
-              const primaryManifestPath = `${cleanVaultRoot}${sep}Quarantine${sep}${q}.sanctuary.manifest.json`;
-              const legacyManifestPath = `${cleanVaultRoot}${sep}Quarantine${sep}${q}.manifest.json`;
-              let rawJson = await invoke<string>("read_config_file", { path: primaryManifestPath }).catch(() => "");
-              if (!rawJson) {
-                rawJson = await invoke<string>("read_config_file", { path: legacyManifestPath });
-              }
-              if (rawJson) {
-                const parsed = JSON.parse(rawJson);
-                if (!volatileOrig && parsed.detected_hash) {
-                  try {
-                    volatileOrig = await invoke<string | null>("get_volatile_original_path", {
-                      hash: parsed.detected_hash,
-                      filename: q,
-                    });
-                  } catch { }
-                }
-                return {
-                  hash: parsed.detected_hash || q,
-                  name: q,
-                  displayName: parsed.artifact_name || q,
-                  matched_signature: parsed.signature || undefined,
-                  original_path: parsed.original_path || undefined,
-                  volatile_original_path: volatileOrig || undefined,
-                  original_exists: Boolean(parsed.original_exists),
-                  original_shredded: Boolean(parsed.original_shredded),
-                  quarantined_file_shredded: Boolean(parsed.quarantined_file_shredded),
-                  source_moved: Boolean(parsed.source_moved),
-                  ingest_mode: parsed.ingest_mode || undefined,
-                  file_size_bytes:
-                    typeof parsed.file_size_bytes === "number"
-                      ? parsed.file_size_bytes
-                      : undefined,
-                  file_extension: parsed.file_extension || undefined,
-                  matched_entry: parsed.matched_entry || undefined,
-                  detection_type: parsed.detection_type || undefined,
-                  detected_at: parsed.detected_at || undefined,
-                  quarantine_path: parsed.quarantine_path || undefined,
-                  status: "QUARANTINED",
-                  compliance_tier: 5,
-                };
-              }
-            } catch { }
+          if (parsed) {
+            return {
+              hash: parsed.detected_hash || q,
+              name: q,
+              displayName: parsed.artifact_name || q,
+              matched_signature: parsed.signature || undefined,
+              original_path: parsed.original_path || undefined,
+              volatile_original_path: volatileOrig || undefined,
+              original_exists: Boolean(parsed.original_exists),
+              original_shredded: Boolean(parsed.original_shredded),
+              quarantined_file_shredded: Boolean(parsed.quarantined_file_shredded),
+              source_moved: Boolean(parsed.source_moved),
+              ingest_mode: parsed.ingest_mode || undefined,
+              file_size_bytes:
+                typeof parsed.file_size_bytes === "number"
+                  ? parsed.file_size_bytes
+                  : typeof detail.size_bytes === "number"
+                    ? detail.size_bytes
+                    : undefined,
+              file_extension: parsed.file_extension || undefined,
+              matched_entry: parsed.matched_entry || undefined,
+              detection_type: parsed.detection_type || undefined,
+              detected_at: parsed.detected_at || undefined,
+              quarantine_path: parsed.quarantine_path || undefined,
+              status: "QUARANTINED",
+              compliance_tier: 5,
+            };
           }
           return {
             hash: q,
             name: q,
             displayName: q,
             volatile_original_path: volatileOrig || undefined,
+            file_size_bytes: typeof detail.size_bytes === "number" ? detail.size_bytes : undefined,
             status: "QUARANTINED",
             compliance_tier: 5,
           };
@@ -152,10 +127,14 @@ export function useRadarLogic(checkNetworkUpdates: (currentModList: any[], isMan
 
       setMalwareAlert((prev: any[]) => {
         const existingList = prev || [];
+        const enrichedByName = new Map<string, any>();
+        const enrichedByHash = new Map<string, any>();
+        for (const e of enrichedItems) {
+          if (e.name && !enrichedByName.has(e.name)) enrichedByName.set(e.name, e);
+          if (e.hash && !enrichedByHash.has(e.hash)) enrichedByHash.set(e.hash, e);
+        }
         const updatedExisting = existingList.map((item) => {
-          const match = enrichedItems.find(
-            (e) => e.name === item.name || (e.hash && e.hash === item.hash)
-          );
+          const match = enrichedByName.get(item.name) || (item.hash ? enrichedByHash.get(item.hash) : undefined);
           return match
             ? {
               ...item,
@@ -165,11 +144,14 @@ export function useRadarLogic(checkNetworkUpdates: (currentModList: any[], isMan
             }
             : item;
         });
+        const existingNames = new Set<string>();
+        const existingHashes = new Set<string>();
+        for (const p of updatedExisting) {
+          if (p.name) existingNames.add(p.name);
+          if (p.hash) existingHashes.add(p.hash);
+        }
         const newItems = enrichedItems.filter(
-          (e) =>
-            !updatedExisting.some(
-              (p) => p.name === e.name || (e.hash && p.hash === e.hash)
-            )
+          (e) => !existingNames.has(e.name) && !(e.hash && existingHashes.has(e.hash))
         );
 
         if (newItems.length > 0) {
@@ -256,7 +238,7 @@ export function useRadarLogic(checkNetworkUpdates: (currentModList: any[], isMan
 
           if (config.launch_args) {
             const tpl = activeGameSchema?.launch_args_dlc_mask_template;
-            let maskRegex = /-disablepack:([\w,]+)/i;
+            let maskRegex: RegExp | null = null;
             if (typeof tpl === "string" && tpl.includes("{packs}")) {
               const escaped = tpl
                 .replace(/[.*+?^${}()|[\]\\]/g, "\\$&")
@@ -265,7 +247,7 @@ export function useRadarLogic(checkNetworkUpdates: (currentModList: any[], isMan
                 maskRegex = new RegExp(escaped, "i");
               } catch { }
             }
-            const maskMatch = config.launch_args.match(maskRegex);
+            const maskMatch = maskRegex ? config.launch_args.match(maskRegex) : null;
             if (maskMatch?.[1]) {
               const masked = maskMatch[1]
                 .split(",")
@@ -780,19 +762,45 @@ export function useRadarLogic(checkNetworkUpdates: (currentModList: any[], isMan
           let edgeChanged = false;
           let ovrChanged = false;
 
+          const batchManifestByArtifact = new Map<string, any>();
+          if (!isOfflineMode && !quickScan && Array.isArray(sqliteManifests) && sqliteManifests.length > 0) {
+            const unhydratedTargets = sqliteManifests
+              .filter((r: any) => !r?.last_fetched_metadata && r?.artifact_id)
+              .map((r: any) => ({
+                artifact_id: r.artifact_id,
+                manifest_url: r.manifest_url || "",
+                local_hash: r.target_hash || null,
+                local_version: null,
+              }));
+            if (unhydratedTargets.length > 0) {
+              const pollResults = await invoke<any[]>("poll_edge_manifests_batch", {
+                vaultPath: config.vault_path,
+                gameId: activeGameSchema?.game_id || null,
+                targets: unhydratedTargets,
+                force: false,
+              }).catch(() => []);
+              for (const item of pollResults || []) {
+                if (item?.artifact_id && item?.manifest) {
+                  batchManifestByArtifact.set(item.artifact_id, item.manifest);
+                }
+              }
+            }
+          }
+
+          const localHashCounts = new Map<string, number>();
+          for (const lm of localMods) {
+            const h = lm?.hash ? String(lm.hash).toLowerCase() : "";
+            if (h) localHashCounts.set(h, (localHashCounts.get(h) || 0) + 1);
+          }
+
           for (const row of sqliteManifests || []) {
             let parsedMeta: any = null;
             if (row.last_fetched_metadata) {
               try {
                 parsedMeta = JSON.parse(row.last_fetched_metadata);
               } catch (e) { }
-            } else if (!isOfflineMode && !quickScan && row.artifact_id) {
-              try {
-                parsedMeta = await invoke<any>("fetch_and_sync_edge_manifest", {
-                  vaultPath: config.vault_path,
-                  artifactId: row.artifact_id,
-                });
-              } catch (e) { }
+            } else if (row.artifact_id && batchManifestByArtifact.has(row.artifact_id)) {
+              parsedMeta = batchManifestByArtifact.get(row.artifact_id);
             }
 
             const familyHashes = Array.from(
@@ -812,9 +820,10 @@ export function useRadarLogic(checkNetworkUpdates: (currentModList: any[], isMan
             );
 
             const lowerFamSet = new Set(familyHashes.map((fh: any) => String(fh).toLowerCase()));
-            const matchingInstalledCount = localMods.filter(
-              (lm: any) => lm?.hash && lowerFamSet.has(String(lm.hash).toLowerCase()),
-            ).length;
+            let matchingInstalledCount = 0;
+            for (const fh of lowerFamSet) {
+              matchingInstalledCount += localHashCounts.get(fh) || 0;
+            }
             const isMultiModule =
               matchingInstalledCount > 1 ||
               (Array.isArray(parsedMeta?.modules) && parsedMeta.modules.length > 1) ||

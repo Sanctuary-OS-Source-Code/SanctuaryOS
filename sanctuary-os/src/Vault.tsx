@@ -38,21 +38,60 @@ const Vault = React.memo(function Vault(props: any) {
   const { isBulkMode, setIsBulkMode, selectedMods, setSelectedMods, setStatus, runRadarSweep, setIsDropzoneOpen, setLocalFolderModal, playSets, setPlaySets, equipPlaySet, equipFilter, setEquipFilter, searchQuery, setSearchQuery, filterStatus, setFilterStatus, activeCategory, setActiveCategory, activeSubType, setActiveSubType, exclusiveSlotFilter, setExclusiveSlotFilter, visibleMods, displayModList, activePlaySetIndex, toggleInActiveSet, setMetaNameInput, setMetaAuthorInput, setMetaVersionInput, setMetaUrlInput, setActiveDossier, setDrawerConfirmHash, ownedDLC, maskedDLC, setMetaDescInput, setMetaImageInput, setMetaAllowWriteInput, expandedFolder, setExpandedFolder, drawerConfirmHash, modList, anarchyRules, setBulkModal } = props;
   const { t } = useLexicon();
   const activeWorkspaceId = useStore((state: any) => state.activeWorkspaceId);
-  const localFolderCount = React.useMemo(() => {
+  const syncLocalFolderStore = React.useCallback((updater: (prevList: any[]) => any[]) => {
+    const wsId = useStore.getState().activeWorkspaceId;
+    const storageKey = `sanctuary_${wsId}_playsets`;
+    let fromLs: any[] = [];
     try {
-      return JSON.parse(localStorage.getItem(`sanctuary_${activeWorkspaceId}_playsets`) || "[]").filter(
-        (s: any) =>
-          s &&
-          s.id &&
-          (String(s.id).startsWith("f_") || String(s.id).startsWith("local_")) &&
-          Array.isArray(s.items) &&
-          !Array.isArray(s.mods) &&
-          !s.isCollection
-      ).length;
-    } catch {
-      return 0;
+      const raw = JSON.parse(localStorage.getItem(storageKey) || "[]");
+      if (Array.isArray(raw)) fromLs = raw;
+    } catch {}
+    const currentSets = useStore.getState().playSets || playSets || [];
+    const seenIds = new Set(currentSets.map((s: any) => String(s?.id || "")).filter(Boolean));
+    const mergedBase = [
+      ...currentSets,
+      ...fromLs.filter((s: any) => s?.id && !seenIds.has(String(s.id))),
+    ];
+    const nextMerged = updater(mergedBase);
+    if (setPlaySets) {
+      setPlaySets(nextMerged);
+    } else {
+      useStore.getState().setPlaySets(nextMerged);
     }
-  }, [activeWorkspaceId, displayModList]);
+    try {
+      localStorage.setItem(storageKey, JSON.stringify(nextMerged));
+    } catch {}
+  }, [playSets, setPlaySets]);
+
+  const readMergedLocalFolders = React.useCallback(() => {
+    const wsId = useStore.getState().activeWorkspaceId || activeWorkspaceId;
+    const storageKey = `sanctuary_${wsId}_playsets`;
+    let fromLs: any[] = [];
+    try {
+      const raw = JSON.parse(localStorage.getItem(storageKey) || "[]");
+      if (Array.isArray(raw)) fromLs = raw;
+    } catch {}
+    const currentSets = playSets || [];
+    const byId = new Map<string, any>();
+    for (const s of [...currentSets, ...fromLs]) {
+      if (
+        s &&
+        s.id &&
+        (String(s.id).startsWith("f_") || String(s.id).startsWith("local_")) &&
+        Array.isArray(s.items) &&
+        !Array.isArray(s.mods) &&
+        !s.isCollection
+      ) {
+        byId.set(String(s.id), s);
+      }
+    }
+    return Array.from(byId.values());
+  }, [activeWorkspaceId, playSets]);
+
+  const localFolderCount = React.useMemo(
+    () => readMergedLocalFolders().length,
+    [readMergedLocalFolders, displayModList]
+  );
   const selectedVersion = useStore((state) => state.selectedVersion);
   const showImages = useStore((state: any) => state.showImages);
 
@@ -723,19 +762,20 @@ const Vault = React.memo(function Vault(props: any) {
   }, [equipFilter, displayModList, virtualFolderIds, activeGameSchema]);
 
   const handleCreateLocalFolder = React.useCallback(() => {
-    const localSets = JSON.parse(localStorage.getItem(`sanctuary_${useStore.getState().activeWorkspaceId}_playsets`) || "[]");
     const newId = `f_${Date.now()}`;
-    localSets.push({
-      id: newId,
-      name: "",
-      items: [],
-      isCollection: false
-    });
-    localStorage.setItem(`sanctuary_${useStore.getState().activeWorkspaceId}_playsets`, JSON.stringify(localSets));
+    syncLocalFolderStore((prev) => [
+      ...prev,
+      {
+        id: newId,
+        name: "",
+        items: [],
+        isCollection: false,
+      },
+    ]);
     setActiveLocalFolder(newId);
     setIsLocalFolderEditorOpen(true);
     runRadarSweep(true);
-  }, [runRadarSweep]);
+  }, [runRadarSweep, syncLocalFolderStore]);
 
   const handleVaultContextMenu = React.useCallback((e: any, mod: any) => {
     setVaultContextMenu({ x: e.clientX, y: e.clientY, mod });
@@ -820,7 +860,7 @@ const Vault = React.memo(function Vault(props: any) {
                         ? t("tab_cc", "Collection")
                         : isScript
                           ? t("type_script", "Script")
-                          : t("type_package", "Package");
+                          : t("type_package", "Module");
                       const modulesCount = Array.isArray(item?.flavors) && item.flavors.length > 1 ? item.flavors.length : 0;
 
                       return (
@@ -926,18 +966,7 @@ const Vault = React.memo(function Vault(props: any) {
                     title={t("quick_create_node", "Create Local Folder")}
                     subtitle={t("quick_create_node_desc", "Create a new local folder to organize your {mods}.")}
                     onClick={() => {
-                      const localSets = JSON.parse(localStorage.getItem(`sanctuary_${useStore.getState().activeWorkspaceId}_playsets`) || "[]");
-                      const newId = `f_${Date.now()}`;
-                      localSets.push({
-                        id: newId,
-                        name: "",
-                        items: [],
-                        isCollection: false
-                      });
-                      localStorage.setItem(`sanctuary_${useStore.getState().activeWorkspaceId}_playsets`, JSON.stringify(localSets));
-                      setActiveLocalFolder(newId);
-                      setIsLocalFolderEditorOpen(true);
-                      runRadarSweep(true);
+                      handleCreateLocalFolder();
                     }}
                     textColorClass="text-purple-500"
                     hoverTextColorClass="group-hover:text-purple-400"
@@ -1572,22 +1601,16 @@ const Vault = React.memo(function Vault(props: any) {
                             e.stopPropagation();
                             setVaultContextMenu(null);
                             setActiveSubmenu(null);
-                            const localSts = JSON.parse(
-                              localStorage.getItem(
-                                `sanctuary_${useStore.getState().activeWorkspaceId}_playsets`
-                              ) || "[]"
-                            );
                             const newId = `f_${Date.now()}`;
-                            localSts.push({
-                              id: newId,
-                              name: "",
-                              items: targetHashes,
-                              isCollection: false,
-                            });
-                            localStorage.setItem(
-                              `sanctuary_${useStore.getState().activeWorkspaceId}_playsets`,
-                              JSON.stringify(localSts)
-                            );
+                            syncLocalFolderStore((prev) => [
+                              ...prev,
+                              {
+                                id: newId,
+                                name: "",
+                                items: targetHashes,
+                                isCollection: false,
+                              },
+                            ]);
                             setActiveLocalFolder(newId);
                             setIsLocalFolderEditorOpen(true);
                             runRadarSweep(true);
@@ -1608,19 +1631,7 @@ const Vault = React.memo(function Vault(props: any) {
                         <div className="w-full h-px bg-gradient-to-r from-transparent via-[color-mix(in_srgb,var(--text)_10%,transparent)] to-transparent my-0.5" />
                         <div className="flex flex-col gap-1 max-h-56 overflow-y-auto custom-scrollbar pr-0.5">
                           {(() => {
-                            const localSts = JSON.parse(
-                              localStorage.getItem(
-                                `sanctuary_${useStore.getState().activeWorkspaceId}_playsets`
-                              ) || "[]"
-                            ).filter(
-                              (s: any) =>
-                                s &&
-                                s.id &&
-                                (String(s.id).startsWith("f_") ||
-                                  String(s.id).startsWith("local_")) &&
-                                Array.isArray(s.items) &&
-                                !s.isCollection
-                            );
+                            const localSts = readMergedLocalFolders();
                             if (localSts.length === 0) {
                               return (
                                 <div className="px-3 py-2 text-[11px] font-semibold text-[var(--subtext)] opacity-60">
@@ -1634,24 +1645,17 @@ const Vault = React.memo(function Vault(props: any) {
                                 type="button"
                                 onClick={(e) => {
                                   e.stopPropagation();
-                                  const allRawSets = JSON.parse(
-                                    localStorage.getItem(
-                                      `sanctuary_${useStore.getState().activeWorkspaceId}_playsets`
-                                    ) || "[]"
-                                  );
-                                  const updatedSets = allRawSets.map((s: any) =>
-                                    s.id === ls.id
-                                      ? {
-                                          ...s,
-                                          items: Array.from(
-                                            new Set([...(s.items || []), ...targetHashes])
-                                          ),
-                                        }
-                                      : s
-                                  );
-                                  localStorage.setItem(
-                                    `sanctuary_${useStore.getState().activeWorkspaceId}_playsets`,
-                                    JSON.stringify(updatedSets)
+                                  syncLocalFolderStore((allRawSets) =>
+                                    allRawSets.map((s: any) =>
+                                      s.id === ls.id
+                                        ? {
+                                            ...s,
+                                            items: Array.from(
+                                              new Set([...(s.items || []), ...targetHashes])
+                                            ),
+                                          }
+                                        : s
+                                    )
                                   );
                                   setVaultContextMenu(null);
                                   setActiveSubmenu(null);

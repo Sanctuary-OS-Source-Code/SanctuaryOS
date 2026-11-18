@@ -11,12 +11,64 @@ const SERVER_AUTH_OPTS = {
   },
 };
 
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers":
-    "authorization, x-client-info, apikey, content-type, x-internal-push-secret",
-  "Access-Control-Allow-Methods": "POST, OPTIONS",
-};
+const STATIC_ALLOWED_ORIGINS = new Set([
+  "https://sanctuaryos.gg",
+  "https://www.sanctuaryos.gg",
+  "https://app.sanctuaryos.gg",
+  "tauri://localhost",
+  "http://tauri.localhost",
+  "https://tauri.localhost",
+]);
+
+function isAllowedCorsOrigin(origin: string): boolean {
+  const clean = String(origin || "").trim().replace(/\/+$/, "");
+  if (!clean) return false;
+  if (STATIC_ALLOWED_ORIGINS.has(clean)) return true;
+  if (/^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/i.test(clean)) return true;
+  const extraRaw = String(Deno.env.get("ALLOWED_ORIGINS") || "");
+  if (extraRaw) {
+    for (const entry of extraRaw.split(",")) {
+      const normalized = entry.trim().replace(/\/+$/, "");
+      if (normalized && normalized === clean) return true;
+    }
+  }
+  return false;
+}
+
+function getCorsHeaders(req: Request): Record<string, string> {
+  const reqOrigin = req.headers.get("origin") || "";
+  const allowOrigin = isAllowedCorsOrigin(reqOrigin)
+    ? reqOrigin
+    : "https://sanctuaryos.gg";
+  return {
+    "Access-Control-Allow-Origin": allowOrigin,
+    "Access-Control-Allow-Headers":
+      "authorization, x-client-info, apikey, content-type, x-internal-push-secret",
+    "Access-Control-Allow-Methods": "POST, OPTIONS",
+    "Vary": "Origin",
+  };
+}
+
+function isAllowedWebPushEndpoint(rawEndpoint: string): boolean {
+  try {
+    const parsed = new URL(String(rawEndpoint || "").trim());
+    if (parsed.protocol !== "https:") return false;
+    if (parsed.username || parsed.password) return false;
+    if (parsed.port && parsed.port !== "443") return false;
+    const host = parsed.hostname.toLowerCase();
+    return (
+      host === "fcm.googleapis.com" ||
+      host === "android.googleapis.com" ||
+      host === "push.services.mozilla.com" ||
+      host.endsWith(".push.services.mozilla.com") ||
+      host.endsWith(".notify.windows.com") ||
+      host.endsWith(".push.apple.com") ||
+      host.endsWith(".push.opera.com")
+    );
+  } catch {
+    return false;
+  }
+}
 
 const HUB_BROADCAST_ROLES = new Set(["keeper", "admin", "core_dev"]);
 const SPOKE_BROADCAST_ROLES = new Set([
@@ -110,6 +162,7 @@ function shouldSendForCategory(
 }
 
 serve(async (req: Request) => {
+  const corsHeaders = getCorsHeaders(req);
   if (req.method === "OPTIONS") {
     return new Response("ok", { headers: corsHeaders });
   }
@@ -214,6 +267,42 @@ serve(async (req: Request) => {
     const excludeEndpoint = String(body.exclude_endpoint || "").trim();
     const targetSpoke = sanitizeSpokeSlug(body.spoke_id);
 
+    async function isAuthorizedHubOrSpokeStaff(uid: string): Promise<boolean> {
+      const { data: hubProf } = await supabase
+        .from("profiles")
+        .select("role, is_banned")
+        .eq("id", uid)
+        .maybeSingle();
+      if (hubProf?.is_banned) return false;
+      const hubRole = String(hubProf?.role || "").toLowerCase();
+      if (HUB_BROADCAST_ROLES.has(hubRole)) return true;
+
+      if (targetSpoke) {
+        const { data: gameRow } = await supabase
+          .from("sanctuary_games")
+          .select("id, supabase_url, supabase_anon_key")
+          .ilike("schema_id", targetSpoke)
+          .maybeSingle();
+        if (gameRow?.id && gameRow?.supabase_url && gameRow?.supabase_anon_key) {
+          const spokeDb = createClient(
+            gameRow.supabase_url,
+            gameRow.supabase_anon_key,
+            SERVER_AUTH_OPTS
+          );
+          const { data: spokeProf } = await spokeDb
+            .from("profiles")
+            .select("role, is_banned")
+            .eq("id", uid)
+            .maybeSingle();
+          const spokeRole = String(spokeProf?.role || "").toLowerCase();
+          if (!spokeProf?.is_banned && SPOKE_BROADCAST_ROLES.has(spokeRole)) {
+            return true;
+          }
+        }
+      }
+      return false;
+    }
+
     // Enforce strict authorization on broadcast & user_notification push types when called externally
     if (!isTrustedInternalCaller) {
       if (pushType === "broadcast") {
@@ -223,39 +312,7 @@ serve(async (req: Request) => {
             { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
           );
         }
-        const { data: hubProf } = await supabase
-          .from("profiles")
-          .select("role, is_banned")
-          .eq("id", callerUserId)
-          .maybeSingle();
-        const hubRole = String(hubProf?.role || "").toLowerCase();
-        let authorizedBroadcast =
-          !hubProf?.is_banned && HUB_BROADCAST_ROLES.has(hubRole);
-
-        if (!authorizedBroadcast && !hubProf?.is_banned && targetSpoke) {
-          // Verify Spoke staff clearance if dispatching for a specific Spoke (profiles SELECT is public read-only)
-          const { data: gameRow } = await supabase
-            .from("sanctuary_games")
-            .select("id, supabase_url, supabase_anon_key")
-            .ilike("schema_id", targetSpoke)
-            .maybeSingle();
-          if (gameRow?.id && gameRow?.supabase_url && gameRow?.supabase_anon_key) {
-            const spokeDb = createClient(
-              gameRow.supabase_url,
-              gameRow.supabase_anon_key,
-              SERVER_AUTH_OPTS
-            );
-            const { data: spokeProf } = await spokeDb
-              .from("profiles")
-              .select("role, is_banned")
-              .eq("id", callerUserId)
-              .maybeSingle();
-            const spokeRole = String(spokeProf?.role || "").toLowerCase();
-            if (!spokeProf?.is_banned && SPOKE_BROADCAST_ROLES.has(spokeRole)) {
-              authorizedBroadcast = true;
-            }
-          }
-        }
+        const authorizedBroadcast = await isAuthorizedHubOrSpokeStaff(callerUserId);
 
         if (!authorizedBroadcast) {
           return new Response(
@@ -268,6 +325,13 @@ serve(async (req: Request) => {
           return new Response(
             JSON.stringify({ success: false, error: "Authentication required for user notification push" }),
             { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+          );
+        }
+        const targetUid = String(body.user_id || "").trim();
+        if (!targetUid || (targetUid !== callerUserId && !(await isAuthorizedHubOrSpokeStaff(callerUserId)))) {
+          return new Response(
+            JSON.stringify({ success: false, error: "Forbidden: Cannot push notifications to another citizen" }),
+            { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } }
           );
         }
       } else if (
@@ -464,6 +528,14 @@ serve(async (req: Request) => {
         (sub: any) => sub.endpoint !== excludeEndpoint
       );
     }
+
+    subscriptions = subscriptions.filter(
+      (sub: any) =>
+        sub?.endpoint &&
+        sub?.p256dh &&
+        sub?.auth &&
+        isAllowedWebPushEndpoint(String(sub.endpoint))
+    );
 
     let sentCount = 0;
     const staleEndpoints: string[] = [];

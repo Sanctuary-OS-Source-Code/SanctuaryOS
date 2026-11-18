@@ -53,10 +53,21 @@ pub async fn fetch_system_telemetry() -> Result<SystemTelemetry, String> {
 #[tauri::command]
 pub async fn get_directory_size(path: String) -> Result<u64, String> {
     tauri::async_runtime::spawn_blocking(move || {
+        let p = std::path::PathBuf::from(path.trim());
+        if p.as_os_str().is_empty() || !p.exists() {
+            return Ok(0);
+        }
+        let coords = crate::commands::state_ops::get_saved_coordinates();
+        let allowed_roots = crate::utils::get_allowed_config_roots(&coords);
+        if allowed_roots.is_empty() {
+            return Err("Blocked: No configured workspace roots to measure directory size.".into());
+        }
+        let canon = crate::utils::ensure_path_within_roots(&p, &allowed_roots)?;
+
         let mut total_size = 0;
         let mut engine_core_seen = false;
 
-        let mut walker = walkdir::WalkDir::new(&path).into_iter();
+        let mut walker = walkdir::WalkDir::new(&canon).follow_links(false).into_iter();
         while let Some(Ok(entry)) = walker.next() {
             let name = entry.file_name().to_string_lossy();
 

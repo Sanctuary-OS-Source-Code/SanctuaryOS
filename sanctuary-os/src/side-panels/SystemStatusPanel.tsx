@@ -152,22 +152,20 @@ export function SystemStatusPanel({
           if (config && config.vault_path) {
             try {
               const { join } = await import("@tauri-apps/api/path");
-              const modsPath = await join(config.vault_path, "Mods");
-              const dataPath = await join(config.vault_path, "Data");
-              const devPath = await join(config.vault_path, "Dev");
+              const [modsPath, dataPath, devPath] = await Promise.all([
+                join(config.vault_path, "Mods"),
+                join(config.vault_path, "Data"),
+                join(config.vault_path, "Dev"),
+              ]);
 
-              const aSize = await invoke("get_directory_size", { path: modsPath }).catch(
-                () => 0
-              );
-              const dSize = await invoke("get_directory_size", { path: dataPath }).catch(
-                () => 0
-              );
-              const sSize = await invoke("get_directory_size", { path: devPath }).catch(
-                () => 0
-              );
-              const backups = await invoke<any[]>("get_backups", {
-                vaultPath: config.vault_path,
-              }).catch(() => []);
+              const [aSize, dSize, sSize, backups] = await Promise.all([
+                invoke("get_directory_size", { path: modsPath }).catch(() => 0),
+                invoke("get_directory_size", { path: dataPath }).catch(() => 0),
+                invoke("get_directory_size", { path: devPath }).catch(() => 0),
+                invoke<any[]>("get_backups", {
+                  vaultPath: config.vault_path,
+                }).catch(() => []),
+              ]);
               const bSize = backups.reduce(
                 (acc, b) => acc + (b.size_mb || 0) * 1048576,
                 0

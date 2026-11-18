@@ -2367,14 +2367,25 @@ pub async fn restore_game_data(
                 last_emit: std::time::Instant::now(),
             };
 
+            const MAX_TAR_ZST_RESTORE_BYTES: u64 = 32 * 1024 * 1024 * 1024; // 32 GiB safety ceiling
+            const MAX_TAR_ZST_ENTRY_BYTES: u64 = 4 * 1024 * 1024 * 1024;
             let _ = std::fs::create_dir_all(&target);
             let mut archive =
                 tar::Archive::new(zstd::Decoder::new(progress_reader).map_err(|e| e.to_string())?);
+            let mut total_extracted_bytes: u64 = 0;
             for entry_res in archive.entries().map_err(|e| e.to_string())? {
                 let mut entry = entry_res.map_err(|e| e.to_string())?;
                 let entry_type = entry.header().entry_type();
                 if entry_type.is_symlink() || entry_type.is_hard_link() {
                     return Err("Blocked symlink or hardlink entry inside backup archive.".into());
+                }
+                let entry_size = entry.header().size().unwrap_or(0);
+                if entry_size > MAX_TAR_ZST_ENTRY_BYTES {
+                    return Err("Blocked oversized entry inside backup archive.".into());
+                }
+                total_extracted_bytes = total_extracted_bytes.saturating_add(entry_size);
+                if total_extracted_bytes > MAX_TAR_ZST_RESTORE_BYTES {
+                    return Err("Blocked: Decompressed backup archive exceeds 32 GiB safety cap.".into());
                 }
                 let rel_path = entry.path().map_err(|e| e.to_string())?.into_owned();
                 if !rel_path
@@ -2394,7 +2405,19 @@ pub async fn restore_game_data(
                     if let Some(parent) = out_path.parent() {
                         let _ = std::fs::create_dir_all(parent);
                     }
-                    entry.unpack(&out_path).map_err(|e| e.to_string())?;
+                    // Unlink existing file/CoW hardlink before writing restored bytes so shared snapshots stay immutable
+                    if let Ok(meta) = std::fs::symlink_metadata(&out_path) {
+                        if meta.file_type().is_symlink() || meta.is_file() {
+                            let _ = std::fs::remove_file(&out_path);
+                        }
+                    }
+                    use std::io::Read;
+                    let mut out_file = std::fs::File::create(&out_path).map_err(|e| e.to_string())?;
+                    std::io::copy(
+                        &mut entry.by_ref().take(MAX_TAR_ZST_ENTRY_BYTES + 1),
+                        &mut out_file,
+                    )
+                    .map_err(|e| e.to_string())?;
                     final_total += 1;
                 }
             }

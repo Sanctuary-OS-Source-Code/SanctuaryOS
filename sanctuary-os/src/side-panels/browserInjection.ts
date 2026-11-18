@@ -2,6 +2,7 @@ export const INJECTED_BROWSER_SCRIPT = `
 (function() {
 const SANC_CTX_LABELS = __SANCTUARY_CTX_LABELS__;
 const SANC_DOWNLOAD_EXTS = __SANCTUARY_DOWNLOAD_EXTS__;
+const SANC_NONCE = "__SANCTUARY_BROWSER_NONCE__";
 const SANC_BG_R = Number("__OS_BG_R__") || 6;
 const SANC_BG_G = Number("__OS_BG_G__") || 13;
 const SANC_BG_B = Number("__OS_BG_B__") || 31;
@@ -323,8 +324,8 @@ if (!window.__sanctuary_fs_injected) {
         currentFsElement = el;
         try {
             const url = new URL(window.location.href);
-            if (el) url.searchParams.set("sanc_fs", "true");
-            else url.searchParams.delete("sanc_fs");
+            if (el) url.searchParams.set("sanc_fs_" + SANC_NONCE, "true");
+            else url.searchParams.delete("sanc_fs_" + SANC_NONCE);
             window.history.replaceState({}, "", url.toString());
             setTimeout(() => {
                 document.dispatchEvent(new Event('fullscreenchange'));
@@ -351,7 +352,7 @@ if (!window.__sanctuary_fs_injected) {
         if (currentFsElement && args[2]) {
             try {
                 const u = new URL(args[2], window.location.href);
-                u.searchParams.set("sanc_fs", "true");
+                u.searchParams.set("sanc_fs_" + SANC_NONCE, "true");
                 args[2] = u.toString();
             } catch(e) {}
         }
@@ -363,7 +364,7 @@ if (!window.__sanctuary_fs_injected) {
         if (currentFsElement && args[2]) {
             try {
                 const u = new URL(args[2], window.location.href);
-                u.searchParams.set("sanc_fs", "true");
+                u.searchParams.set("sanc_fs_" + SANC_NONCE, "true");
                 args[2] = u.toString();
             } catch(e) {}
         }
@@ -422,7 +423,7 @@ if (!window.__sanctuary_fs_injected) {
                 if (action === 'reload') window.location.reload();
                 else if (action === 'back') window.history.back();
                 else if (action === 'newTab' && isLink) {
-                    window.location.hash = "sanctuary-new-tab=" + encodeURIComponent(a.href);
+                    window.location.hash = "sanctuary-new-tab-" + SANC_NONCE + "=" + encodeURIComponent(a.href);
                     setTimeout(() => window.history.replaceState(null, '', window.location.pathname + window.location.search), 50);
                 } else if (action === 'copyLink' && isLink) {
                     copyPlainTextLocal(a.href);
@@ -490,7 +491,7 @@ if (!window.__sanctuary_fs_injected) {
             if (a && a.href) {
                 e.preventDefault();
                 e.stopPropagation();
-                window.location.hash = "sanctuary-new-tab=" + encodeURIComponent(a.href);
+                window.location.hash = "sanctuary-new-tab-" + SANC_NONCE + "=" + encodeURIComponent(a.href);
                 setTimeout(() => {
                     window.history.replaceState(null, '', window.location.pathname + window.location.search);
                 }, 50);

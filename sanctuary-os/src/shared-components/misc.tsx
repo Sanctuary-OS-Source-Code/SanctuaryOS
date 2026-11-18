@@ -6,16 +6,36 @@ import { useModalStore } from '../store/modalStore';
 import { isDesktop } from '../utils/envUtils';
 import { SidePanelContext } from "./layout";
 import { HoverTooltip } from "./alerts";
+export function sanitizeExternalHttpsUrl(rawUrl?: string | null): string | null {
+  if (!rawUrl || typeof rawUrl !== "string") return null;
+  const trimmed = rawUrl.trim();
+  if (!trimmed || /[\r\n\0]/.test(trimmed)) return null;
+  // Reject explicit unsafe URI schemes before auto-prefixing https://
+  if (/^[a-z][a-z0-9+.-]*:/i.test(trimmed) && !/^https?:\/\//i.test(trimmed)) {
+    return null;
+  }
+  const candidate = /^https?:\/\//i.test(trimmed) ? trimmed : `https://${trimmed.replace(/^\/+/, "")}`;
+  try {
+    const parsed = new URL(candidate);
+    if (parsed.protocol === "https:") {
+      return parsed.toString();
+    }
+    const isLocalDev =
+      Boolean((import.meta as any)?.env?.DEV) &&
+      parsed.protocol === "http:" &&
+      (parsed.hostname === "localhost" || parsed.hostname === "127.0.0.1");
+    return isLocalDev ? parsed.toString() : null;
+  } catch {
+    return null;
+  }
+}
+
 export const handleOpenUrl = (url: string) => {
-  if (!url || typeof url !== "string") return;
-  const trimmed = url.trim();
-  if (!trimmed) return;
-  const normalizedUrl = /^(https?:\/\/|mailto:)/i.test(trimmed)
-    ? trimmed
-    : `https://${trimmed}`;
+  const safeUrl = sanitizeExternalHttpsUrl(url);
+  if (!safeUrl) return;
 
   if (!isDesktop()) {
-    window.open(normalizedUrl, "_blank", "noopener,noreferrer");
+    window.open(safeUrl, "_blank", "noopener,noreferrer");
     return;
   }
 
@@ -25,22 +45,23 @@ export const handleOpenUrl = (url: string) => {
     typeof document !== "undefined" &&
     document.body.classList.contains("sa-malware-lockdown");
   if (useInternalBrowser && !isLockdownActive) {
-    setSideBrowserUrl(normalizedUrl);
+    setSideBrowserUrl(safeUrl);
     setIsSideBrowserOpen(true);
   } else {
-    openUrl(normalizedUrl).catch(() => {
-      window.open(normalizedUrl, "_blank", "noopener,noreferrer");
+    openUrl(safeUrl).catch(() => {
+      window.open(safeUrl, "_blank", "noopener,noreferrer");
     });
   }
 };
 export const fetchAllPaginated = async (queryFn: () => any) => {
-  let allData: any[] = [];
+  const allData: any[] = [];
   let from = 0;
   const step = 999;
   while (true) {
     const { data, error } = await queryFn().range(from, from + step);
-    if (error || !data || data.length === 0) break;
-    allData = [...allData, ...data];
+    if (error) return { data: allData, error };
+    if (!data || data.length === 0) break;
+    allData.push(...data);
     if (data.length <= step) break;
     from += step + 1;
   }

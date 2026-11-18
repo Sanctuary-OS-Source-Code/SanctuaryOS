@@ -993,7 +993,7 @@ export function groupModVersionPoolItems(
       /\.script$/i.test(fileName);
     const typeLabel = isScript
       ? t("type_script", "Script")
-      : t("type_package", "Package");
+      : t("type_package", "Module");
     const rawDisplay = formatDisplayName(fileName);
     const displayTitle = formatCleanModTitle(rawDisplay) || rawDisplay;
 
@@ -2427,7 +2427,7 @@ export function VaultVersionPoolSidePanel({
                           options={[
                             { id: "ALL", label: t("filter_all", "All") },
                             { id: "SCRIPT", label: t("type_script", "Script") },
-                            { id: "PACKAGE", label: t("type_package", "Package") },
+                            { id: "PACKAGE", label: t("type_package", "Module") },
                           ]}
                         />
                       </div>

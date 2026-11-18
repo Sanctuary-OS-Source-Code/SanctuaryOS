@@ -425,8 +425,8 @@ const workspaceHasDatabaseConfig = (wsId: string): boolean => {
 
 const loadSelectedVersion = (wsId: string) => {
   try {
-    if (!workspaceHasDatabaseConfig(wsId)) {
-      localStorage.removeItem(`sanctuary_${wsId}_selected_version`);
+    if (!wsId || (isPlaceholderWorkspaceKey(wsId) && !workspaceHasDatabaseConfig(wsId))) {
+      if (wsId) localStorage.removeItem(`sanctuary_${wsId}_selected_version`);
       return '';
     }
     return localStorage.getItem(`sanctuary_${wsId}_selected_version`) || '';
@@ -978,6 +978,7 @@ interface GlobalState {
   maskedDLC: string[];
   setMaskedDLC: (dlcs: string[]) => void;
   selectedVersion: string;
+  selectedVersionSource: "disk" | "cached" | "cloud" | "manual" | "none";
   setSelectedVersion: (version: string) => void;
   detectGameVersion: () => Promise<void>;
   networkUpdates: { broken: any[], obsolete: any[], updated: any[] };
@@ -1117,6 +1118,7 @@ export const useStore = create<GlobalState>((set) => ({
       ownedDLC: loadOwnedDLC(wsId),
       maskedDLC: loadMaskedDLC(wsId),
       selectedVersion: loadSelectedVersion(wsId),
+      selectedVersionSource: loadSelectedVersion(wsId) ? "cached" : "none",
       activeConflictCount: loadActiveConflictCount(wsId),
       activeBrokenCounts: loadActiveBrokenCounts(wsId),
       scanProgress: { current: 0, total: 0, message: '' },
@@ -1333,10 +1335,11 @@ export const useStore = create<GlobalState>((set) => ({
     return { maskedDLC };
   }),
   selectedVersion: loadSelectedVersion(initialBootWorkspaceId),
+  selectedVersionSource: loadSelectedVersion(initialBootWorkspaceId) ? "cached" : "none",
   setSelectedVersion: (selectedVersion) => set((state) => {
     const wsId = state.activeWorkspaceId || initialBootWorkspaceId;
     if (wsId) {
-      if (selectedVersion && workspaceHasDatabaseConfig(wsId)) {
+      if (selectedVersion && (workspaceHasDatabaseConfig(wsId) || !isPlaceholderWorkspaceKey(wsId))) {
         safeLocalStorageSetItem(`sanctuary_${wsId}_selected_version`, selectedVersion);
       } else if (!selectedVersion) {
         try {
@@ -1344,54 +1347,146 @@ export const useStore = create<GlobalState>((set) => ({
         } catch {}
       }
     }
-    return { selectedVersion };
+    return {
+      selectedVersion,
+      selectedVersionSource: selectedVersion ? "manual" : "none",
+    };
   }),
   detectGameVersion: async () => {
-    if (!isDesktop()) return;
-    try {
-      const currentWsId = useStore.getState().activeWorkspaceId || initialBootWorkspaceId;
-      if (!hasActiveGameDatabase() && !workspaceHasDatabaseConfig(currentWsId)) {
-        try {
-          localStorage.removeItem(`sanctuary_${currentWsId}_selected_version`);
-        } catch {}
-        set({ selectedVersion: "" });
-        return;
+    const cleanDetectedVer = (raw: string) =>
+      String(raw || "")
+        .trim()
+        .replace(/^v(?=\d)/i, "")
+        .replace(/[^0-9A-Za-z.+-]/g, "");
+
+    const currentWsId = useStore.getState().activeWorkspaceId || initialBootWorkspaceId;
+    const isUnconfiguredCore =
+      !hasActiveGameDatabase() &&
+      !workspaceHasDatabaseConfig(currentWsId) &&
+      (!currentWsId || isPlaceholderWorkspaceKey(currentWsId));
+    if (isUnconfiguredCore) {
+      try {
+        if (currentWsId) localStorage.removeItem(`sanctuary_${currentWsId}_selected_version`);
+      } catch {}
+      set({ selectedVersion: "", selectedVersionSource: "none" });
+      return;
+    }
+
+    const resolveFallbackVersion = async (): Promise<{
+      version: string;
+      source: "cached" | "cloud" | "none";
+    }> => {
+      // Tier 4 Fallback: Existing cached workspace or DEFCON known version
+      const stateVer = cleanDetectedVer(useStore.getState().selectedVersion || "");
+      const cachedVer = cleanDetectedVer(
+        (currentWsId &&
+          (localStorage.getItem(`sanctuary_${currentWsId}_selected_version`) ||
+            localStorage.getItem(`sanctuary_defcon_known_version_${currentWsId}`))) ||
+          ""
+      );
+      const localFallback = stateVer || cachedVer;
+      if (localFallback) {
+        return { version: localFallback, source: "cached" };
       }
 
+      // Tier 5 Fallback: Spoke cloud game_versions (ordered by latest release_date)
+      const canQueryCloud =
+        typeof navigator !== "undefined" &&
+        navigator.onLine &&
+        localStorage.getItem("sanctuary_local_only") !== "true" &&
+        hasActiveGameDatabase();
+      if (canQueryCloud) {
+        try {
+          const { data } = await supabase
+            .from("game_versions")
+            .select("version, release_date")
+            .order("release_date", { ascending: false })
+            .limit(10);
+          if (Array.isArray(data) && data.length > 0) {
+            const topDate = String(data[0]?.release_date || "");
+            const sameTopDate = data
+              .filter((r: any) => String(r?.release_date || "") === topDate)
+              .map((r: any) => cleanDetectedVer(r?.version || ""))
+              .filter(Boolean)
+              .sort((a, b) => b.localeCompare(a, undefined, { numeric: true, sensitivity: "base" }));
+            const picked = sameTopDate[0] || cleanDetectedVer(data[0]?.version || "");
+            if (picked) {
+              return { version: picked, source: "cloud" };
+            }
+          }
+        } catch {}
+      }
+
+      return { version: "", source: "none" };
+    };
+
+    const applyFallbackIfNeeded = async () => {
+      const fb = await resolveFallbackVersion();
+      if (fb.version) {
+        set((state) => {
+          const wsId = state.activeWorkspaceId || initialBootWorkspaceId;
+          if (wsId && fb.source === "cloud") {
+            safeLocalStorageSetItem(`sanctuary_${wsId}_selected_version`, fb.version);
+          }
+          const standByLabel = translateStoreStatus('status_standing_by', 'Standing By');
+          return {
+            selectedVersion: fb.version,
+            selectedVersionSource: fb.source,
+            status: `${standByLabel} | v${fb.version}`,
+          };
+        });
+      } else {
+        set({
+          selectedVersion: "",
+          selectedVersionSource: "none",
+          status: translateStoreStatus('status_standing_by', 'Standing By'),
+        });
+      }
+    };
+
+    if (!isDesktop()) {
+      await applyFallbackIfNeeded();
+      return;
+    }
+
+    try {
       const config: any = await invoke("get_saved_coordinates");
       if (!config?.live_path) {
-        try {
-          localStorage.removeItem(`sanctuary_${currentWsId}_selected_version`);
-        } catch {}
-        set({ selectedVersion: "" });
+        await applyFallbackIfNeeded();
         return;
       }
 
-      if (config?.docs_path || config?.user_data_path) {
-        set({ docsPath: String(config.docs_path || config.user_data_path) });
+      const docsPathVal = String(config?.docs_path || config?.user_data_path || "");
+      if (docsPathVal) {
+        set({ docsPath: docsPathVal });
       }
 
       const rawRipped = await invoke<string>("rip_game_version", {
         livePath: config.live_path,
+        docsPath: docsPathVal || null,
         gameSchema: useStore.getState().activeGameSchema,
       });
-      const cleanVersion = String(rawRipped || "")
-        .trim()
-        .replace(/^v(?=\d)/i, "")
-        .replace(/[^0-9A-Za-z.+-]/g, "");
-      set((state) => {
-        const wsId = state.activeWorkspaceId || initialBootWorkspaceId;
-        if (wsId && cleanVersion) {
-          safeLocalStorageSetItem(`sanctuary_${wsId}_selected_version`, cleanVersion);
-        }
-        const standByLabel = translateStoreStatus('status_standing_by', 'Standing By');
-        return {
-          selectedVersion: cleanVersion,
-          status: cleanVersion ? `${standByLabel} | v${cleanVersion}` : standByLabel,
-        };
-      });
+      const cleanVersion = cleanDetectedVer(rawRipped);
+      if (cleanVersion) {
+        set((state) => {
+          const wsId = state.activeWorkspaceId || initialBootWorkspaceId;
+          if (wsId) {
+            safeLocalStorageSetItem(`sanctuary_${wsId}_selected_version`, cleanVersion);
+          }
+          const standByLabel = translateStoreStatus('status_standing_by', 'Standing By');
+          return {
+            selectedVersion: cleanVersion,
+            selectedVersionSource: "disk",
+            status: `${standByLabel} | v${cleanVersion}`,
+          };
+        });
+        return;
+      }
+
+      await applyFallbackIfNeeded();
     } catch (err) {
-      console.warn("Version detection failed:", err);
+      console.warn("Version detection failed, trying cached/cloud fallback:", err);
+      await applyFallbackIfNeeded();
     }
   },
   networkUpdates: loadNetworkUpdates(initialBootWorkspaceId),

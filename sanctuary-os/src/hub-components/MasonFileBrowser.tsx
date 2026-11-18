@@ -85,7 +85,9 @@ export default function MasonFileBrowser({
       if (
         !isCloudMode &&
         !f.name.match(/^[a-z]{2}-.+\.json$/i) &&
-        f.name.toLowerCase() !== "simlish.json"
+        !/[\\/]Lexicons[\\/]/i.test(String(f.path || "")) &&
+        !f.isOfficialCore &&
+        !f.language
       ) {
         return false;
       }
@@ -155,7 +157,9 @@ export default function MasonFileBrowser({
           ? internalCloudTarget === "sanctuary_lexicons"
           : Boolean(
               file.name.match(/^[a-z]{2}-.+\.json$/i) ||
-                file.name.toLowerCase() === "simlish.json"
+                /[\\/]Lexicons[\\/]/i.test(String(file.path || "")) ||
+                file.isOfficialCore ||
+                file.language
             );
         const isUnsaved = isFileUnsaved(file);
         const rawBaseName =

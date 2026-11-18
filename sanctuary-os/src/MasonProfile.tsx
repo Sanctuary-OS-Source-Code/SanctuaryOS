@@ -22,8 +22,9 @@ import { useTheme } from "./ThemeContext";
 import { useStore } from "./store";
 import AssetPreviewSidebar from "./AssetPreviewSidebar";
 import MasonPostViewer from "./side-panels/MasonPostViewer";
-import { readDir, readTextFile, exists } from "@tauri-apps/plugin-fs";
+import { exists } from "@tauri-apps/plugin-fs";
 import * as importFs from "@tauri-apps/plugin-fs";
+import { loadInstalledTemplatesVersionMap } from "./utils/localTemplateInspector";
 import { MarketBlueprintPanel } from "./side-panels/NexusSidePanels";
 import MasonProfileHeader from "./MasonProfileHeader";
 import MasonProfileOverview from "./MasonProfileOverview";
@@ -97,30 +98,13 @@ export default function MasonProfile({
   const vaultPath = useStore((state) => state.vaultPath);
 
   useEffect(() => {
-    const fetchLocalTemplates = async () => {
-      try {
-        if (!vaultPath) return;
-        const templatesDir = `${vaultPath}\\Templates`;
-        if (await exists(templatesDir)) {
-          const files = await readDir(templatesDir);
-          const map: Record<string, string> = {};
-          for (const file of files) {
-            if (file.name?.endsWith("_template.json")) {
-              try {
-                const content = await readTextFile(`${templatesDir}\\${file.name}`);
-                const parsed = JSON.parse(content);
-                const d = Array.isArray(parsed) ? parsed[0] : parsed;
-                if (d.name) {
-                  map[d.name] = d.version || "1.0.0";
-                }
-              } catch {}
-            }
-          }
-          setInstalledTemplates(map);
-        }
-      } catch {}
+    let active = true;
+    loadInstalledTemplatesVersionMap(vaultPath).then((map) => {
+      if (active) setInstalledTemplates(map);
+    });
+    return () => {
+      active = false;
     };
-    fetchLocalTemplates();
   }, [vaultPath]);
 
   const isInstalled = (asset: any) => {

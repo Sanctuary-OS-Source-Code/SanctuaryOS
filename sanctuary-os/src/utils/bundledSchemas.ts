@@ -89,6 +89,9 @@ export const BUNDLED_DEFAULT_SCHEMA: Record<string, any> =
     version_extraction: {
       method: null,
       json_key: null,
+      xml_tag: null,
+      regex_pattern: null,
+      fallback_paths: [],
       line_prefix: '',
       relative_path: '',
     },

@@ -510,48 +510,36 @@ export function DynamicLexiconPreviewBanner({
   })();
 
   const rawName = String(data?.displayName || data?.name || '').toLowerCase();
-  const langLabel = String(
-    parsed?._meta_language || data?.language || (rawName.includes('simlish') ? 'Simlish' : 'English')
-  );
+  const langLabel = String(parsed?._meta_language || data?.language || 'English');
   const langCode = langLabel.slice(0, 3).toUpperCase();
   const isSanctuary = rawName.includes('sanctuary') || String(data?.lexicon_type || '').toLowerCase().includes('sanctuary');
-  const isSims = rawName.includes('sims') || rawName.includes('simlish') || String(data?.community || '').toLowerCase().includes('sims');
-  const isSimlish = rawName.includes('simlish');
 
-  const accentColor = isSims ? '#10b981' : isSanctuary ? '#38bdf8' : '#a855f7';
+  const accentColor = isSanctuary ? '#38bdf8' : '#a855f7';
 
   const samplePairs = [
     {
       id: 'mod',
       icon: t('icon_extension', 'extension'),
       label: t('lex_preview_mod', 'Core Asset'),
-      val:
-        parsed?.term_mod ||
-        (isSimlish ? 'Plumbob' : isSanctuary ? 'Artifact' : 'Mod'),
+      val: parsed?.term_mod || (isSanctuary ? 'Artifact' : 'Mod'),
     },
     {
       id: 'vault',
       icon: t('icon_inventory_2', 'inventory_2'),
       label: t('lex_preview_vault', 'Storage'),
-      val:
-        parsed?.term_vault ||
-        (isSimlish ? 'Bweb' : isSanctuary ? 'Vault' : 'Library'),
+      val: parsed?.term_vault || (isSanctuary ? 'Vault' : 'Library'),
     },
     {
       id: 'blueprint',
       icon: t('icon_map', 'map'),
       label: t('lex_preview_blueprint', 'Collection'),
-      val:
-        parsed?.term_blueprint ||
-        (isSimlish ? 'Nooboo' : isSims ? 'Modpack' : isSanctuary ? 'Blueprint' : 'Play Set'),
+      val: parsed?.term_blueprint || (isSanctuary ? 'Blueprint' : 'Play Set'),
     },
     {
       id: 'mason',
       icon: t('icon_construction', 'construction'),
       label: t('lex_preview_mason', 'Author'),
-      val:
-        parsed?.term_mason ||
-        (isSimlish ? 'Sul Sul' : isSanctuary ? 'Mason' : 'Creator'),
+      val: parsed?.term_mason || (isSanctuary ? 'Mason' : 'Creator'),
     },
   ];
 

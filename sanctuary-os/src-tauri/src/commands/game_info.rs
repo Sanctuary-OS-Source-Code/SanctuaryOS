@@ -2,11 +2,15 @@ use crate::commands::state_ops::*;
 use crate::state::*;
 use crate::utils::*;
 use std::fs;
-use std::path::PathBuf;
+use std::io::Read;
+use std::path::{Component, Path, PathBuf};
+
+const MAX_VERSION_DESCRIPTOR_BYTES: u64 = 2 * 1024 * 1024;
 
 #[tauri::command]
 pub async fn rip_game_version(
     live_path: String,
+    docs_path: Option<String>,
     game_schema: Option<crate::schema::GameSchema>,
     state: tauri::State<'_, AppState>,
 ) -> Result<String, String> {
@@ -17,11 +21,62 @@ pub async fn rip_game_version(
             .unwrap_or_else(|e| e.into_inner())
             .clone()
     });
+    let effective_docs = docs_path
+        .map(|s| s.trim().to_string())
+        .filter(|s| !s.is_empty())
+        .or_else(|| {
+            get_saved_coordinates()
+                .docs_path
+                .map(|s| s.trim().to_string())
+                .filter(|s| !s.is_empty())
+        });
     tauri::async_runtime::spawn_blocking(move || {
-        rip_game_version_with_schema(&live_path, &effective_schema)
+        rip_game_version_with_schema_and_docs(
+            &live_path,
+            effective_docs.as_deref(),
+            &effective_schema,
+        )
     })
     .await
     .map_err(|e| e.to_string())?
+}
+
+fn is_safe_relative_version_path(rel: &str) -> bool {
+    let trimmed = rel.trim();
+    if trimmed.is_empty() {
+        return false;
+    }
+    let normalized = trimmed.replace('\\', "/");
+    let p = Path::new(&normalized);
+    if p.is_absolute() {
+        return false;
+    }
+    p.components()
+        .all(|c| matches!(c, Component::Normal(_) | Component::CurDir))
+}
+
+fn read_version_bytes_bounded(path: &Path) -> Option<Vec<u8>> {
+    let file = fs::File::open(path).ok()?;
+    let mut buf = Vec::new();
+    file.take(MAX_VERSION_DESCRIPTOR_BYTES)
+        .read_to_end(&mut buf)
+        .ok()?;
+    Some(buf)
+}
+
+fn decode_version_texts(bytes: &[u8]) -> (String, String) {
+    let lossy = String::from_utf8_lossy(bytes).into_owned();
+    let printable: String = bytes
+        .iter()
+        .map(|&b| {
+            if b >= 0x20 && b < 0x7f || b == b'\r' || b == b'\n' || b == b'\t' {
+                b as char
+            } else {
+                ' '
+            }
+        })
+        .collect();
+    (lossy, printable)
 }
 
 fn extract_json_key_version(json_val: &serde_json::Value, key_path: &str) -> Option<String> {
@@ -47,63 +102,393 @@ fn extract_json_key_version(json_val: &serde_json::Value, key_path: &str) -> Opt
     crate::game_logic::clean_semver_like_version(&raw)
 }
 
-fn try_extract_version_from_schema_descriptor(
-    live_path: &str,
-    root_path: &std::path::Path,
+fn extract_xml_or_plist_tag_version(content: &str, tag_name: &str) -> Option<String> {
+    let tag = tag_name.trim();
+    if tag.is_empty() {
+        return None;
+    }
+    let escaped = regex::escape(tag);
+
+    // 1. Plist style: <key>CFBundleShortVersionString</key> <string>1.2.3</string>
+    if let Ok(re_plist) = regex::RegexBuilder::new(&format!(
+        r"(?is)<key>\s*{escaped}\s*</key>\s*<string>\s*([^<]+?)\s*</string>"
+    ))
+    .size_limit(1 << 16)
+    .build()
+    {
+        if let Some(cap) = re_plist.captures(content).and_then(|c| c.get(1)) {
+            if let Some(ver) = crate::game_logic::clean_semver_like_version(cap.as_str()) {
+                return Some(ver);
+            }
+        }
+    }
+
+    // 2. Standard XML element: <GameVersion>1.2.3</GameVersion>
+    if let Ok(re_elem) = regex::RegexBuilder::new(&format!(
+        r"(?is)<(?:[A-Za-z0-9_]+:)?{escaped}\b[^>]*>\s*([^<]+?)\s*</(?:[A-Za-z0-9_]+:)?{escaped}\s*>"
+    ))
+    .size_limit(1 << 16)
+    .build()
+    {
+        if let Some(cap) = re_elem.captures(content).and_then(|c| c.get(1)) {
+            if let Some(ver) = crate::game_logic::clean_semver_like_version(cap.as_str()) {
+                return Some(ver);
+            }
+        }
+    }
+
+    // 3. XML attribute: version="1.2.3"
+    if let Ok(re_attr) = regex::RegexBuilder::new(&format!(
+        r#"(?i)\b{escaped}\s*=\s*["']([^"']+)["']"#
+    ))
+    .size_limit(1 << 16)
+    .build()
+    {
+        if let Some(cap) = re_attr.captures(content).and_then(|c| c.get(1)) {
+            if let Some(ver) = crate::game_logic::clean_semver_like_version(cap.as_str()) {
+                return Some(ver);
+            }
+        }
+    }
+
+    None
+}
+
+fn extract_regex_version(content: &str, pattern: &str) -> Option<String> {
+    let trimmed = pattern.trim();
+    if trimmed.is_empty() || trimmed.len() > 256 {
+        return None;
+    }
+    let re = regex::RegexBuilder::new(trimmed)
+        .size_limit(1 << 18)
+        .build()
+        .ok()?;
+    let caps = re.captures(content)?;
+    let raw = caps
+        .get(1)
+        .or_else(|| caps.get(0))
+        .map(|m| m.as_str())?;
+    crate::game_logic::clean_semver_like_version(raw)
+}
+
+fn extract_ini_prefix_version(content: &str, prefix: &str) -> Option<String> {
+    let prefix_trimmed = prefix.trim();
+    if prefix_trimmed.is_empty() {
+        return None;
+    }
+    let prefix_lower = prefix_trimmed.to_lowercase();
+    for line in content.lines() {
+        let trimmed_line = line.trim();
+        let line_lower = trimmed_line.to_lowercase();
+        if line_lower.starts_with(&prefix_lower) {
+            let after_prefix = &trimmed_line[prefix_trimmed.len()..];
+            let remainder = after_prefix
+                .trim_start()
+                .strip_prefix('=')
+                .or_else(|| after_prefix.trim_start().strip_prefix(':'))
+                .unwrap_or(after_prefix);
+            if let Some(cleaned) = crate::game_logic::clean_semver_like_version(remainder) {
+                return Some(cleaned);
+            }
+        }
+    }
+    None
+}
+
+fn extract_plain_text_version(content: &str) -> Option<String> {
+    for line in content.lines() {
+        let trimmed = line.trim();
+        if trimmed.is_empty() || trimmed.starts_with('#') || trimmed.starts_with(';') || trimmed.starts_with("//") {
+            continue;
+        }
+        if let Some(cleaned) = crate::game_logic::clean_semver_like_version(trimmed) {
+            return Some(cleaned);
+        }
+    }
+    for token in content.split_whitespace() {
+        if token.chars().any(|c| c == '.') {
+            if let Some(cleaned) = crate::game_logic::clean_semver_like_version(token) {
+                return Some(cleaned);
+            }
+        }
+    }
+    None
+}
+
+fn extract_version_from_text_blob(
+    content: &str,
+    printable_fallback: &str,
     version_ext: &crate::schema::VersionExtraction,
 ) -> Option<String> {
-    let rel = version_ext.relative_path.trim();
-    if rel.is_empty() {
+    if let Some(json_key) = version_ext
+        .json_key
+        .as_deref()
+        .map(|s| s.trim())
+        .filter(|s| !s.is_empty())
+    {
+        if let Ok(parsed) = serde_json::from_str::<serde_json::Value>(content) {
+            if let Some(ver) = extract_json_key_version(&parsed, json_key) {
+                return Some(ver);
+            }
+        }
+    }
+
+    if let Some(xml_tag) = version_ext
+        .xml_tag
+        .as_deref()
+        .map(|s| s.trim())
+        .filter(|s| !s.is_empty())
+    {
+        if let Some(ver) = extract_xml_or_plist_tag_version(content, xml_tag)
+            .or_else(|| extract_xml_or_plist_tag_version(printable_fallback, xml_tag))
+        {
+            return Some(ver);
+        }
+    }
+
+    if let Some(pat) = version_ext
+        .regex_pattern
+        .as_deref()
+        .map(|s| s.trim())
+        .filter(|s| !s.is_empty())
+    {
+        if let Some(ver) = extract_regex_version(content, pat)
+            .or_else(|| extract_regex_version(printable_fallback, pat))
+        {
+            return Some(ver);
+        }
+    }
+
+    let prefix = version_ext.line_prefix.trim();
+    if !prefix.is_empty() {
+        if let Some(ver) = extract_ini_prefix_version(content, prefix)
+            .or_else(|| extract_ini_prefix_version(printable_fallback, prefix))
+        {
+            return Some(ver);
+        }
+    }
+
+    let method_lower = version_ext
+        .method
+        .as_deref()
+        .map(|s| s.trim().to_lowercase())
+        .unwrap_or_default();
+    let no_specific_selector = version_ext
+        .json_key
+        .as_deref()
+        .map_or(true, |s| s.trim().is_empty())
+        && version_ext
+            .xml_tag
+            .as_deref()
+            .map_or(true, |s| s.trim().is_empty())
+        && version_ext
+            .regex_pattern
+            .as_deref()
+            .map_or(true, |s| s.trim().is_empty())
+        && prefix.is_empty();
+
+    if matches!(method_lower.as_str(), "plain_text" | "raw_file" | "text")
+        || (no_specific_selector && !version_ext.relative_path.trim().is_empty())
+    {
+        return extract_plain_text_version(printable_fallback)
+            .or_else(|| extract_plain_text_version(content));
+    }
+
+    None
+}
+
+fn try_extract_version_from_schema_descriptor(
+    live_path: &str,
+    root_path: &Path,
+    docs_path: Option<&str>,
+    version_ext: &crate::schema::VersionExtraction,
+) -> Option<String> {
+    let mut rel_paths: Vec<String> = Vec::new();
+    if is_safe_relative_version_path(&version_ext.relative_path) {
+        rel_paths.push(version_ext.relative_path.trim().replace('\\', "/"));
+    }
+    if let Some(fallbacks) = &version_ext.fallback_paths {
+        for fb in fallbacks {
+            if is_safe_relative_version_path(fb) {
+                let norm = fb.trim().replace('\\', "/");
+                if !rel_paths.contains(&norm) {
+                    rel_paths.push(norm);
+                }
+            }
+        }
+    }
+    if rel_paths.is_empty() {
         return None;
     }
 
-    let candidates = [root_path.join(rel), PathBuf::from(live_path).join(rel)];
-    for candidate in candidates {
-        if !candidate.is_file() {
-            continue;
+    let mut base_roots: Vec<PathBuf> = Vec::new();
+    if !root_path.as_os_str().is_empty() {
+        base_roots.push(root_path.to_path_buf());
+    }
+    let live_buf = PathBuf::from(live_path.trim());
+    if !live_buf.as_os_str().is_empty() && !base_roots.contains(&live_buf) {
+        base_roots.push(live_buf);
+    }
+    if let Some(docs) = docs_path.map(|s| s.trim()).filter(|s| !s.is_empty()) {
+        let docs_buf = PathBuf::from(docs);
+        if !base_roots.contains(&docs_buf) {
+            base_roots.push(docs_buf);
         }
-        let Ok(content) = fs::read_to_string(&candidate) else {
-            continue;
-        };
+    }
 
-        if let Some(json_key) = version_ext
-            .json_key
-            .as_deref()
-            .map(|s| s.trim())
-            .filter(|s| !s.is_empty())
-        {
-            if let Ok(parsed) = serde_json::from_str::<serde_json::Value>(&content) {
-                if let Some(ver) = extract_json_key_version(&parsed, json_key) {
-                    return Some(ver);
-                }
+    let method_is_pe = version_ext
+        .method
+        .as_deref()
+        .map_or(false, |m| m.eq_ignore_ascii_case("pe_header"));
+
+    for rel in rel_paths {
+        for root in &base_roots {
+            let candidate = root.join(&rel);
+            if !candidate.exists() {
+                continue;
             }
-        }
 
-        let prefix = version_ext.line_prefix.trim();
-        if !prefix.is_empty() {
-            let prefix_lower = prefix.to_lowercase();
-            for line in content.lines() {
-                let trimmed_line = line.trim();
-                if trimmed_line.to_lowercase().starts_with(&prefix_lower) {
-                    let remainder = if let Some(idx) = trimmed_line.find('=') {
-                        &trimmed_line[idx + 1..]
-                    } else if let Some(idx) = trimmed_line.find(':') {
-                        &trimmed_line[idx + 1..]
-                    } else {
-                        &trimmed_line[prefix.len()..]
-                    };
-                    if let Some(cleaned) = crate::game_logic::clean_semver_like_version(remainder) {
-                        return Some(cleaned);
+            let ext_lower = candidate
+                .extension()
+                .and_then(|e| e.to_str())
+                .map(|s| s.to_ascii_lowercase())
+                .unwrap_or_default();
+
+            if method_is_pe || matches!(ext_lower.as_str(), "exe" | "dll" | "app") {
+                if let Some((ver, is_stub)) =
+                    crate::game_logic::extract_pe_file_version_detailed(&candidate)
+                {
+                    if !is_stub {
+                        return Some(ver);
                     }
                 }
             }
-        } else if matches!(
-            version_ext.method.as_deref(),
-            Some("plain_text" | "raw_file" | "text")
-        ) {
-            if let Some(first_line) = content.lines().map(|l| l.trim()).find(|l| !l.is_empty()) {
-                if let Some(cleaned) = crate::game_logic::clean_semver_like_version(first_line) {
-                    return Some(cleaned);
+
+            if candidate.is_file() {
+                if let Some(bytes) = read_version_bytes_bounded(&candidate) {
+                    let (lossy, printable) = decode_version_texts(&bytes);
+                    if let Some(ver) =
+                        extract_version_from_text_blob(&lossy, &printable, version_ext)
+                    {
+                        return Some(ver);
+                    }
+                }
+            }
+        }
+    }
+
+    None
+}
+
+fn try_unreal_build_version(dir: &Path) -> Option<String> {
+    let build_ver_path = dir.join("Build").join("Build.version");
+    if !build_ver_path.is_file() {
+        return None;
+    }
+    let bytes = read_version_bytes_bounded(&build_ver_path)?;
+    let val = serde_json::from_slice::<serde_json::Value>(&bytes).ok()?;
+    let major = val.get("MajorVersion").and_then(|v| v.as_u64())?;
+    let minor = val.get("MinorVersion").and_then(|v| v.as_u64()).unwrap_or(0);
+    let patch = val.get("PatchVersion").and_then(|v| v.as_u64()).unwrap_or(0);
+    let changelist = val.get("Changelist").and_then(|v| v.as_u64()).unwrap_or(0);
+    if major == 0 && minor == 0 && patch == 0 {
+        return None;
+    }
+    if changelist > 0 {
+        Some(format!("{}.{}.{}.{}", major, minor, patch, changelist))
+    } else {
+        Some(format!("{}.{}.{}", major, minor, patch))
+    }
+}
+
+fn try_generic_engine_manifests_and_steam(
+    root_path: &Path,
+    docs_path: Option<&str>,
+    game_schema: &Option<crate::schema::GameSchema>,
+) -> Option<String> {
+    // 3a. Unreal Engine Build.version at root or one subdirectory below (e.g., Engine/Build/Build.version or <Game>/Build/Build.version)
+    if let Some(v) = try_unreal_build_version(root_path) {
+        return Some(v);
+    }
+    if let Ok(entries) = fs::read_dir(root_path) {
+        for entry in entries.flatten().take(32) {
+            let p = entry.path();
+            if p.is_dir() {
+                if let Some(v) = try_unreal_build_version(&p) {
+                    return Some(v);
+                }
+            }
+        }
+    }
+
+    // 3b. Neutral engine-agnostic JSON/text version files in engine root or user data root
+    let mut scan_roots = vec![root_path.to_path_buf()];
+    if let Some(docs) = docs_path.map(|s| s.trim()).filter(|s| !s.is_empty()) {
+        let dp = PathBuf::from(docs);
+        if !scan_roots.contains(&dp) {
+            scan_roots.push(dp);
+        }
+    }
+
+    let generic_json_files = ["version.json", "build_info.json"];
+    let generic_json_keys = ["version", "game_version", "build_version", "versionName"];
+    for base in &scan_roots {
+        for fname in generic_json_files {
+            let cand = base.join(fname);
+            if cand.is_file() {
+                if let Some(bytes) = read_version_bytes_bounded(&cand) {
+                    if let Ok(val) = serde_json::from_slice::<serde_json::Value>(&bytes) {
+                        for key in generic_json_keys {
+                            if let Some(ver) = extract_json_key_version(&val, key) {
+                                return Some(ver);
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    let generic_text_files = ["version.txt", "GameVersion.txt", "build_version.txt"];
+    for base in &scan_roots {
+        for fname in generic_text_files {
+            let cand = base.join(fname);
+            if cand.is_file() {
+                if let Some(bytes) = read_version_bytes_bounded(&cand) {
+                    let (lossy, printable) = decode_version_texts(&bytes);
+                    if let Some(ver) = extract_plain_text_version(&printable)
+                        .or_else(|| extract_plain_text_version(&lossy))
+                    {
+                        return Some(ver);
+                    }
+                }
+            }
+        }
+    }
+
+    // 3c. Steamworks appmanifest_<steam_app_id>.acf buildid fallback (helpful for Linux/Proton native builds without PE version resources)
+    if let Some(app_id) = game_schema
+        .as_ref()
+        .and_then(|s| s.steam_app_id.as_deref())
+        .map(|s| s.trim())
+        .filter(|s| !s.is_empty() && s.chars().all(|c| c.is_ascii_digit()))
+    {
+        let manifest_name = format!("appmanifest_{}.acf", app_id);
+        let re_buildid = regex::Regex::new(r#"(?i)"buildid"\s+"(\d+)""#).ok()?;
+        for ancestor in root_path.ancestors().take(5) {
+            let direct = ancestor.join(&manifest_name);
+            let under_steamapps = ancestor.join("steamapps").join(&manifest_name);
+            for acf in [direct, under_steamapps] {
+                if acf.is_file() {
+                    if let Some(bytes) = read_version_bytes_bounded(&acf) {
+                        let text = String::from_utf8_lossy(&bytes);
+                        if let Some(cap) = re_buildid.captures(&text).and_then(|c| c.get(1)) {
+                            let bid = cap.as_str().trim();
+                            if !bid.is_empty() && bid != "0" {
+                                return Some(format!("build.{}", bid));
+                            }
+                        }
+                    }
                 }
             }
         }
@@ -116,108 +501,78 @@ pub fn rip_game_version_with_schema(
     live_path: &str,
     game_schema: &Option<crate::schema::GameSchema>,
 ) -> Result<String, String> {
+    rip_game_version_with_schema_and_docs(live_path, None, game_schema)
+}
+
+pub fn rip_game_version_with_schema_and_docs(
+    live_path: &str,
+    docs_path: Option<&str>,
+    game_schema: &Option<crate::schema::GameSchema>,
+) -> Result<String, String> {
     let root_path = crate::game_logic::resolve_game_engine_root(live_path, game_schema);
 
-    // 1. If schema explicitly configures JSON key extraction, prefer it first so wrapper executables
-    // do not shadow authoritative manifest versions (e.g., version.json / info.json / pack.mcmeta).
+    // Tier 1: Authoritative Schema Descriptor (runs BEFORE executable probing when configured,
+    // so wrapper executables with generic 1.0.0.0 never shadow configured ini/json/xml/regex/text descriptors)
     if let Some(schema) = game_schema {
         if let Some(version_ext) = &schema.version_extraction {
-            let prefers_json = version_ext.method.as_deref() == Some("json_key")
+            let method_none = version_ext
+                .method
+                .as_deref()
+                .map_or(false, |m| m.eq_ignore_ascii_case("none"));
+            let has_paths = is_safe_relative_version_path(&version_ext.relative_path)
                 || version_ext
-                    .json_key
-                    .as_deref()
-                    .map(|s| !s.trim().is_empty())
-                    .unwrap_or(false);
-            if prefers_json {
-                if let Some(ver) =
-                    try_extract_version_from_schema_descriptor(live_path, &root_path, version_ext)
-                {
+                    .fallback_paths
+                    .as_ref()
+                    .map_or(false, |fps| fps.iter().any(|p| is_safe_relative_version_path(p)));
+            if !method_none && has_paths {
+                if let Some(ver) = try_extract_version_from_schema_descriptor(
+                    live_path,
+                    &root_path,
+                    docs_path,
+                    version_ext,
+                ) {
                     return Ok(ver);
                 }
             }
         }
     }
 
-    // 2. Probe executable PE version header using schema executable_names / executable_subdir
-    let mut exe_path = crate::game_logic::resolve_executable_path(live_path, game_schema);
-
-    if exe_path.is_none() {
-        let mut search_folder = root_path.clone();
-        if let Some(schema) = game_schema {
-            if let Some(sub_str) = schema
-                .paths
-                .executable_subdir
-                .as_deref()
-                .filter(|s| !s.is_empty())
-            {
-                let sub = root_path.join(sub_str);
-                if sub.exists() {
-                    search_folder = sub;
-                }
-            }
-        }
-
-        if let Ok(entries) = fs::read_dir(&search_folder) {
-            let mut largest_exe = None;
-            let mut max_size = 0;
-            for entry in entries.flatten() {
-                let path = entry.path();
-                if path.is_file()
-                    && path
-                        .extension()
-                        .and_then(|e| e.to_str())
-                        .map(|s| s.to_lowercase())
-                        == Some("exe".to_string())
-                {
-                    if let Some(file_name) = path.file_stem().and_then(|n| n.to_str()) {
-                        let name_lower = file_name.to_lowercase();
-                        if name_lower.contains("redist")
-                            || name_lower.contains("crashhandler")
-                            || name_lower.contains("anticheat")
-                            || name_lower.contains("unins")
-                            || name_lower.contains("setup")
-                        {
-                            continue;
-                        }
-                    }
-                    if let Ok(metadata) = path.metadata() {
-                        if metadata.len() > max_size {
-                            max_size = metadata.len();
-                            largest_exe = Some(path);
-                        }
-                    }
-                }
-            }
-            exe_path = largest_exe;
-        }
+    // Tier 2: Executable PE VersionInfo (Fixed + StringFileInfo) / macOS Info.plist
+    let mut stub_fallback: Option<String> = None;
+    let exe_path = crate::game_logic::resolve_executable_path(live_path, game_schema);
+    let mut candidate_bins: Vec<PathBuf> = Vec::new();
+    if let Some(exe) = exe_path {
+        candidate_bins.push(exe);
+    }
+    let live_buf = PathBuf::from(live_path.trim());
+    if !live_buf.as_os_str().is_empty() && !candidate_bins.contains(&live_buf) {
+        candidate_bins.push(live_buf);
+    }
+    if !root_path.as_os_str().is_empty() && !candidate_bins.contains(&root_path) {
+        candidate_bins.push(root_path.clone());
     }
 
-    if let Some(exe) = &exe_path {
-        if let Some(version_str) = crate::game_logic::extract_pe_file_version(exe) {
-            if !version_str.is_empty() && version_str != "0.0.0.0" {
-                return Ok(version_str);
-            }
-        }
-    }
-
-    if let Some(version_str) =
-        crate::game_logic::extract_pe_file_version(std::path::Path::new(&live_path))
-            .or_else(|| crate::game_logic::extract_pe_file_version(&root_path))
-    {
-        if !version_str.is_empty() && version_str != "0.0.0.0" {
-            return Ok(version_str);
-        }
-    }
-
-    // 3. Schema-driven text / INI / JSON version extraction fallback
-    if let Some(schema) = game_schema {
-        if let Some(version_ext) = &schema.version_extraction {
-            if let Some(ver) =
-                try_extract_version_from_schema_descriptor(live_path, &root_path, version_ext)
-            {
+    for bin_path in candidate_bins {
+        if let Some((ver, is_stub)) =
+            crate::game_logic::extract_pe_file_version_detailed(&bin_path)
+        {
+            if !is_stub {
                 return Ok(ver);
             }
+            if stub_fallback.is_none() {
+                stub_fallback = Some(ver);
+            }
         }
+    }
+
+    // Tier 3: Engine-Agnostic Structural Fallbacks (Unreal Build.version, generic manifests, Steamworks appmanifest)
+    if let Some(ver) = try_generic_engine_manifests_and_steam(&root_path, docs_path, game_schema) {
+        return Ok(ver);
+    }
+
+    // Tier 4: Generic stub version (e.g. 1.0.0.0) if no richer source succeeded
+    if let Some(stub) = stub_fallback {
+        return Ok(stub);
     }
 
     Err("backend_version_string_empty".into())
@@ -675,13 +1030,20 @@ pub fn save_file_with_history(
 ) -> Result<String, String> {
     use std::time::{SystemTime, UNIX_EPOCH};
 
-    if !crate::utils::is_safe_user_file_path(std::path::Path::new(&path)) {
+    let target = std::path::Path::new(&path);
+    if !crate::utils::is_safe_user_file_path(target) {
         return Err("Blocked: Refusing to write to protected system path.".into());
     }
+    let config = get_saved_coordinates();
+    let allowed = crate::utils::get_allowed_config_roots(&config);
+    if allowed.is_empty() {
+        return Err("Blocked: No configured workspace roots to validate file write.".into());
+    }
+    crate::utils::ensure_strict_descendant_of_roots(target, &allowed)?;
 
-    let prior_disk_content = std::fs::read_to_string(&path).ok();
+    let prior_disk_content = std::fs::read_to_string(target).ok();
     mark_workbench_save(&path);
-    crate::utils::atomic_write_bytes(std::path::Path::new(&path), content.as_bytes())
+    crate::utils::atomic_write_bytes(target, content.as_bytes())
         .map_err(|e| format!("Failed to save file: {}", e))?;
 
     if let Some(file_history_dir) = get_file_history_dir(&app, &path) {
@@ -745,11 +1107,18 @@ pub fn save_file_with_history(
 
 #[tauri::command]
 pub fn save_file_silently(path: String, content: String) -> Result<String, String> {
-    if !crate::utils::is_safe_user_file_path(std::path::Path::new(&path)) {
+    let target = std::path::Path::new(&path);
+    if !crate::utils::is_safe_user_file_path(target) {
         return Err("Blocked: Refusing to write to protected system path.".into());
     }
+    let config = get_saved_coordinates();
+    let allowed = crate::utils::get_allowed_config_roots(&config);
+    if allowed.is_empty() {
+        return Err("Blocked: No configured workspace roots to validate file write.".into());
+    }
+    crate::utils::ensure_strict_descendant_of_roots(target, &allowed)?;
     mark_workbench_save(&path);
-    crate::utils::atomic_write_bytes(std::path::Path::new(&path), content.as_bytes())
+    crate::utils::atomic_write_bytes(target, content.as_bytes())
         .map_err(|e| format!("Failed to save file: {}", e))?;
     Ok("Saved successfully".into())
 }
@@ -837,42 +1206,230 @@ pub fn rename_version(
     )
 }
 
-#[derive(serde::Serialize, serde::Deserialize, Clone, Debug)]
-pub struct CloudHijackReport {
-    pub is_hijacked: bool,
-    pub provider: Option<String>,
-    pub detected_path: String,
+#[tauri::command]
+pub async fn rename_file_with_history(
+    app: tauri::AppHandle,
+    old_path: String,
+    new_path: String,
+) -> Result<String, String> {
+    tauri::async_runtime::spawn_blocking(move || {
+        let old_target = std::path::Path::new(&old_path);
+        let new_target = std::path::Path::new(&new_path);
+        if !crate::utils::is_safe_user_file_path(old_target)
+            || !crate::utils::is_safe_user_file_path(new_target)
+        {
+            return Err("Blocked: Refusing to rename protected system path.".into());
+        }
+        let config = get_saved_coordinates();
+        let allowed = crate::utils::get_allowed_config_roots(&config);
+        if allowed.is_empty() {
+            return Err("Blocked: No configured workspace roots to validate rename.".into());
+        }
+        let resolved_old = crate::utils::ensure_strict_descendant_of_roots(old_target, &allowed)?;
+        crate::utils::ensure_strict_descendant_of_roots(new_target, &allowed)?;
+
+        let new_leaf = new_target
+            .file_name()
+            .and_then(|n| n.to_str())
+            .ok_or_else(|| "Invalid destination filename.".to_string())?;
+        if !crate::utils::is_safe_single_node_component(new_leaf) {
+            return Err("Invalid destination filename.".into());
+        }
+        if new_target.exists()
+            && resolved_old
+                != crate::utils::resolve_canonical_target(new_target)
+                    .unwrap_or_else(|_| new_target.to_path_buf())
+        {
+            return Err("Destination file already exists.".into());
+        }
+        if let Some(parent) = new_target.parent() {
+            let _ = std::fs::create_dir_all(parent);
+        }
+        fs::rename(&resolved_old, new_target)
+            .map_err(|e| format!("Failed to rename file: {}", e))?;
+
+        if let (Some(old_hist), Some(new_hist)) = (
+            get_file_history_dir(&app, &old_path),
+            get_file_history_dir(&app, &new_path),
+        ) {
+            if old_hist.exists() && old_hist != new_hist && !new_hist.exists() {
+                if let Some(parent) = new_hist.parent() {
+                    let _ = fs::create_dir_all(parent);
+                }
+                let _ = fs::rename(&old_hist, &new_hist);
+            }
+        }
+
+        Ok(new_target.to_string_lossy().to_string())
+    })
+    .await
+    .map_err(|e| e.to_string())?
 }
 
-#[tauri::command]
-pub fn detect_cloud_hijack(mods_path: String) -> CloudHijackReport {
-    let trimmed = mods_path.trim();
-    if trimmed.is_empty() {
-        return CloudHijackReport {
-            is_hijacked: false,
-            provider: None,
-            detected_path: String::new(),
-        };
+#[cfg(test)]
+mod version_ripper_tests {
+    use super::*;
+
+    struct TempTestDir(PathBuf);
+    impl TempTestDir {
+        fn new(suffix: &str) -> Self {
+            let p = std::env::temp_dir().join(format!(
+                "sanctuary_ver_test_{}_{}",
+                suffix,
+                uuid::Uuid::new_v4()
+            ));
+            let _ = fs::create_dir_all(&p);
+            Self(p)
+        }
+    }
+    impl Drop for TempTestDir {
+        fn drop(&mut self) {
+            let _ = fs::remove_dir_all(&self.0);
+        }
     }
 
-    let path_obj = PathBuf::from(trimmed);
-    if let Some(detected) = crate::commands::system::detect_cloud_provider_for_path(&path_obj) {
-        return CloudHijackReport {
-            is_hijacked: true,
-            provider: Some(detected.provider),
-            detected_path: detected.resolved_path,
-        };
+    fn base_schema_with_ver(ve: crate::schema::VersionExtraction) -> crate::schema::GameSchema {
+        let mut schema = crate::schema::GameSchema::default();
+        schema.version_extraction = Some(ve);
+        schema
     }
 
-    let cleaned = crate::utils::strip_windows_verbatim_prefix(&path_obj);
-    let canonical_or_raw = crate::utils::resolve_canonical_target(&cleaned)
-        .unwrap_or(cleaned)
-        .to_string_lossy()
-        .to_string();
+    #[test]
+    fn test_ini_and_json_key_priority() {
+        let tmp = TempTestDir::new("ini_json");
+        let cfg_path = tmp.0.join("engine.ini");
+        fs::write(&cfg_path, "[Build]\nEngineVersion = 2.14.9\n").unwrap();
 
-    CloudHijackReport {
-        is_hijacked: false,
-        provider: None,
-        detected_path: canonical_or_raw,
+        let schema_ini = Some(base_schema_with_ver(crate::schema::VersionExtraction {
+            method: Some("ini_key".into()),
+            relative_path: "engine.ini".into(),
+            line_prefix: "EngineVersion".into(),
+            ..Default::default()
+        }));
+        let res_ini = rip_game_version_with_schema_and_docs(
+            &tmp.0.to_string_lossy(),
+            None,
+            &schema_ini,
+        )
+        .unwrap();
+        assert_eq!(res_ini, "2.14.9");
+
+        let json_path = tmp.0.join("manifest.json");
+        fs::write(&json_path, r#"{"meta":{"gameVersion":"v4.7.210-rc1"}}"#).unwrap();
+        let schema_json = Some(base_schema_with_ver(crate::schema::VersionExtraction {
+            method: Some("json_key".into()),
+            relative_path: "manifest.json".into(),
+            json_key: Some("meta.gameVersion".into()),
+            ..Default::default()
+        }));
+        let res_json = rip_game_version_with_schema_and_docs(
+            &tmp.0.to_string_lossy(),
+            None,
+            &schema_json,
+        )
+        .unwrap();
+        assert_eq!(res_json, "4.7.210-rc1");
+    }
+
+    #[test]
+    fn test_binary_prefixed_docs_version_and_fallbacks() {
+        let game_dir = TempTestDir::new("bin_game");
+        let docs_dir = TempTestDir::new("bin_docs");
+        let ver_bin = docs_dir.0.join("EngineVersion.dat");
+        // Length-prefixed UTF-8 string preceded by arbitrary non-UTF8 header bytes
+        let mut payload = vec![0xFFu8, 0x00, 0x11, 0x80];
+        payload.extend_from_slice(b"1.108.329.1020");
+        fs::write(&ver_bin, payload).unwrap();
+
+        let schema = Some(base_schema_with_ver(crate::schema::VersionExtraction {
+            method: Some("plain_text".into()),
+            relative_path: "missing_primary.txt".into(),
+            fallback_paths: Some(vec!["EngineVersion.dat".into()]),
+            ..Default::default()
+        }));
+
+        let res = rip_game_version_with_schema_and_docs(
+            &game_dir.0.to_string_lossy(),
+            Some(&docs_dir.0.to_string_lossy()),
+            &schema,
+        )
+        .unwrap();
+        assert_eq!(res, "1.108.329.1020");
+    }
+
+    #[test]
+    fn test_xml_tag_and_regex_extraction() {
+        let tmp = TempTestDir::new("xml_regex");
+        fs::write(
+            tmp.0.join("BuildInfo.xml"),
+            "<Root><AppVersion>3.6.18</AppVersion></Root>",
+        )
+        .unwrap();
+        fs::write(
+            tmp.0.join("revision.log"),
+            "Initializing Runtime Rev: build 9.12.4-hotfix (win64)",
+        )
+        .unwrap();
+
+        let schema_xml = Some(base_schema_with_ver(crate::schema::VersionExtraction {
+            method: Some("xml_tag".into()),
+            relative_path: "BuildInfo.xml".into(),
+            xml_tag: Some("AppVersion".into()),
+            ..Default::default()
+        }));
+        assert_eq!(
+            rip_game_version_with_schema_and_docs(&tmp.0.to_string_lossy(), None, &schema_xml)
+                .unwrap(),
+            "3.6.18"
+        );
+
+        let schema_re = Some(base_schema_with_ver(crate::schema::VersionExtraction {
+            method: Some("regex".into()),
+            relative_path: "revision.log".into(),
+            regex_pattern: Some(r"build\s+([0-9]+\.[0-9]+\.[0-9]+(?:-[A-Za-z0-9]+)?)".into()),
+            ..Default::default()
+        }));
+        assert_eq!(
+            rip_game_version_with_schema_and_docs(&tmp.0.to_string_lossy(), None, &schema_re)
+                .unwrap(),
+            "9.12.4-hotfix"
+        );
+    }
+
+    #[test]
+    fn test_unreal_and_steam_appmanifest_fallbacks() {
+        let unreal_dir = TempTestDir::new("unreal");
+        fs::create_dir_all(unreal_dir.0.join("Engine").join("Build")).unwrap();
+        fs::write(
+            unreal_dir.0.join("Engine").join("Build").join("Build.version"),
+            r#"{"MajorVersion":5,"MinorVersion":4,"PatchVersion":2,"Changelist":33043543}"#,
+        )
+        .unwrap();
+        let res_unreal = rip_game_version_with_schema_and_docs(
+            &unreal_dir.0.to_string_lossy(),
+            None,
+            &None,
+        )
+        .unwrap();
+        assert_eq!(res_unreal, "5.4.2.33043543");
+
+        let steam_root = TempTestDir::new("steamapps");
+        let steamapps = steam_root.0.join("steamapps");
+        let game_dir = steamapps.join("common").join("SampleGame");
+        fs::create_dir_all(&game_dir).unwrap();
+        fs::write(
+            steamapps.join("appmanifest_1091500.acf"),
+            "\"AppState\"\n{\n\t\"appid\"\t\t\"1091500\"\n\t\"buildid\"\t\t\"16842109\"\n}\n",
+        )
+        .unwrap();
+        let mut steam_schema = crate::schema::GameSchema::default();
+        steam_schema.steam_app_id = Some("1091500".into());
+        let res_steam = rip_game_version_with_schema_and_docs(
+            &game_dir.to_string_lossy(),
+            None,
+            &Some(steam_schema),
+        )
+        .unwrap();
+        assert_eq!(res_steam, "build.16842109");
     }
 }

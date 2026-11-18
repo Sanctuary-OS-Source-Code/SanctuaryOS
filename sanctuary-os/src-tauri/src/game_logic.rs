@@ -1459,18 +1459,101 @@ pub fn clean_semver_like_version(raw: &str) -> Option<String> {
     }
 }
 
-pub fn extract_pe_file_version(exe_path: &Path) -> Option<String> {
+fn is_zero_version_str(v: &str) -> bool {
+    let trimmed = v.trim();
+    trimmed.is_empty()
+        || trimmed
+            .split('.')
+            .all(|seg| !seg.is_empty() && seg.chars().all(|c| c == '0'))
+}
+
+fn is_generic_stub_version(v: &str) -> bool {
+    let core = v
+        .split(|c: char| c == '-' || c == '+')
+        .next()
+        .unwrap_or(v)
+        .trim();
+    let parts: Vec<&str> = core.split('.').collect();
+    if parts.is_empty() || parts.len() > 4 {
+        return false;
+    }
+    matches!(parts.first().copied(), Some("1"))
+        && parts[1..]
+            .iter()
+            .all(|seg| !seg.is_empty() && seg.chars().all(|c| c == '0'))
+}
+
+/// Extracts an executable or bundle version alongside a flag indicating whether the version
+/// looks like a generic engine wrapper stub (e.g. `1.0.0.0`).
+pub fn extract_pe_file_version_detailed(exe_path: &Path) -> Option<(String, bool)> {
+    let mut stub_candidate: Option<String> = None;
+
     if exe_path.is_file() {
         if let Ok(map) = pelite::FileMap::open(exe_path) {
             if let Ok(pe) = pelite::PeFile::from_bytes(map.as_ref()) {
                 if let Ok(resources) = pe.resources() {
                     if let Ok(version_info) = resources.version_info() {
-                        if let Some(fixed) = version_info.fixed() {
-                            let v = fixed.dwFileVersion;
-                            let version_str =
-                                format!("{}.{}.{}.{}", v.Major, v.Minor, v.Patch, v.Build);
-                            if version_str != "0.0.0.0" {
-                                return Some(version_str);
+                        let file_info = version_info.file_info();
+                        let fixed_file_ver = file_info.fixed.map(|f| {
+                            let v = f.dwFileVersion;
+                            format!("{}.{}.{}.{}", v.Major, v.Minor, v.Patch, v.Build)
+                        });
+                        let fixed_product_ver = file_info.fixed.map(|f| {
+                            let v = f.dwProductVersion;
+                            format!("{}.{}.{}.{}", v.Major, v.Minor, v.Patch, v.Build)
+                        });
+
+                        // Prefer non-stub StringFileInfo entries when dwFileVersion is missing or stubbed
+                        let mut string_ver: Option<(String, bool)> = None;
+                        for key_name in ["ProductVersion", "FileVersion"] {
+                            for table in file_info.strings.values() {
+                                if let Some(raw_val) = table.get(key_name) {
+                                    if let Some(cleaned) = clean_semver_like_version(raw_val) {
+                                        if !is_zero_version_str(&cleaned) {
+                                            let is_stub = is_generic_stub_version(&cleaned);
+                                            if !is_stub {
+                                                string_ver = Some((cleaned, false));
+                                                break;
+                                            } else if string_ver.is_none() {
+                                                string_ver = Some((cleaned, true));
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                            if matches!(string_ver, Some((_, false))) {
+                                break;
+                            }
+                        }
+
+                        if let Some(ref fver) = fixed_file_ver {
+                            if !is_zero_version_str(fver) {
+                                let is_stub = is_generic_stub_version(fver);
+                                if !is_stub {
+                                    return Some((fver.clone(), false));
+                                }
+                                stub_candidate = Some(fver.clone());
+                            }
+                        }
+
+                        if let Some((sver, is_stub)) = string_ver {
+                            if !is_stub {
+                                return Some((sver, false));
+                            }
+                            if stub_candidate.is_none() {
+                                stub_candidate = Some(sver);
+                            }
+                        }
+
+                        if let Some(ref pver) = fixed_product_ver {
+                            if !is_zero_version_str(pver) {
+                                let is_stub = is_generic_stub_version(pver);
+                                if !is_stub {
+                                    return Some((pver.clone(), false));
+                                }
+                                if stub_candidate.is_none() {
+                                    stub_candidate = Some(pver.clone());
+                                }
                             }
                         }
                     }
@@ -1499,14 +1582,24 @@ pub fn extract_pe_file_version(exe_path: &Path) -> Option<String> {
                     .or_else(|| extract_plist_key_value(&xml, "CFBundleVersion"))
                 {
                     if let Some(cleaned) = clean_semver_like_version(&v) {
-                        return Some(cleaned);
+                        if !is_zero_version_str(&cleaned) {
+                            let is_stub = is_generic_stub_version(&cleaned);
+                            if !is_stub {
+                                return Some((cleaned, false));
+                            }
+                            if stub_candidate.is_none() {
+                                stub_candidate = Some(cleaned);
+                            }
+                        }
+                    } else if !v.trim().is_empty() {
+                        return Some((v, false));
                     }
-                    return Some(v);
                 }
             }
         }
     }
-    None
+
+    stub_candidate.map(|s| (s, true))
 }
 
 pub fn resolve_game_engine_root(live_path: &str, schema: &Option<GameSchema>) -> PathBuf {

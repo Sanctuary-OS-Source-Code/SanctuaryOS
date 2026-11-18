@@ -7,7 +7,7 @@ export * from "./shared-components/versionUtils";
 export * from "./shared-components/stringUtils";
 export * from "./shared-components/modUtils";
 export * from "./shared-components/misc";
-export * from "./shared/LinkAssetSidePanel";
+export * from "./side-panels/LinkAssetSidePanel";
 export {
   UniversalGroup,
   StatBox,

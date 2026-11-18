@@ -205,6 +205,54 @@ CREATE TABLE IF NOT EXISTS public.monthly_donation_ledgers (
     PRIMARY KEY (month_key, target_id)
 );
 
+CREATE TABLE IF NOT EXISTS public.user_encrypted_keyrings (
+    user_id UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
+    encrypted_vault_secret TEXT NOT NULL CHECK (length(encrypted_vault_secret) <= 4096),
+    updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW()
+);
+
+CREATE OR REPLACE FUNCTION sanctuary_internal.current_staging_owner_tag()
+RETURNS TEXT
+LANGUAGE plpgsql
+STABLE
+SECURITY DEFINER
+SET search_path = public, extensions, sanctuary_internal
+AS $$
+DECLARE
+    v_uid UUID := (SELECT auth.uid());
+    v_key TEXT;
+BEGIN
+    IF v_uid IS NULL THEN
+        RETURN NULL;
+    END IF;
+    v_key := COALESCE(
+        NULLIF(sanctuary_internal.read_runtime_secret('staging_owner_hmac_key'), ''),
+        'sanctuary_staging_owner_v1'
+    );
+    RETURN encode(
+        extensions.hmac(convert_to(v_uid::text, 'UTF8'), convert_to(v_key, 'UTF8'), 'sha256'),
+        'hex'
+    );
+END;
+$$;
+
+REVOKE ALL ON FUNCTION sanctuary_internal.current_staging_owner_tag() FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION sanctuary_internal.current_staging_owner_tag() TO authenticated, service_role;
+
+CREATE OR REPLACE FUNCTION sanctuary_internal.stamp_staging_owner_tag()
+RETURNS TRIGGER
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public, sanctuary_internal
+AS $$
+BEGIN
+    IF (SELECT auth.uid()) IS NOT NULL THEN
+        NEW.owner_tag := sanctuary_internal.current_staging_owner_tag();
+    END IF;
+    RETURN NEW;
+END;
+$$;
+
 CREATE TABLE IF NOT EXISTS public.sanctuary_schemas (
     id TEXT PRIMARY KEY,
     name TEXT NOT NULL,
@@ -996,7 +1044,6 @@ BEGIN
         'covered_cents', v_next_cents,
         'stripe_fees_cents', v_next_fees,
         'net_received_cents', v_next_net,
-        'tx_nonces', v_nonces,
         'updated_at', NOW()
     )::text;
 
@@ -1028,6 +1075,34 @@ $$;
 
 REVOKE ALL ON FUNCTION public.record_monthly_donation_ledger(TEXT, TEXT, INTEGER, INTEGER, TEXT) FROM PUBLIC, anon, authenticated;
 GRANT EXECUTE ON FUNCTION public.record_monthly_donation_ledger(TEXT, TEXT, INTEGER, INTEGER, TEXT) TO service_role;
+
+CREATE OR REPLACE FUNCTION public.get_monthly_donation_summaries(p_month_key TEXT)
+RETURNS TABLE(
+    month_key TEXT,
+    target_id TEXT,
+    covered_cents BIGINT,
+    stripe_fees_cents BIGINT,
+    net_received_cents BIGINT,
+    updated_at TIMESTAMP WITH TIME ZONE
+)
+LANGUAGE sql
+STABLE
+SECURITY DEFINER
+SET search_path = public
+AS $$
+    SELECT l.month_key,
+           l.target_id,
+           l.covered_cents,
+           l.stripe_fees_cents,
+           l.net_received_cents,
+           l.updated_at
+    FROM public.monthly_donation_ledgers l
+    WHERE l.month_key = btrim(COALESCE(p_month_key, ''))
+    ORDER BY l.target_id ASC;
+$$;
+
+REVOKE ALL ON FUNCTION public.get_monthly_donation_summaries(TEXT) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION public.get_monthly_donation_summaries(TEXT) TO anon, authenticated, service_role;
 
 CREATE OR REPLACE FUNCTION public.internal_get_runtime_secret(p_key TEXT)
 RETURNS TEXT
@@ -1497,7 +1572,9 @@ DECLARE
     v_existing_uid UUID;
     v_spokes TEXT[];
 BEGIN
-    IF v_endpoint NOT LIKE 'https://%' OR length(v_p256dh) < 16 OR length(v_auth) < 8 THEN
+    IF v_endpoint !~* '^https://([a-z0-9-]+\.)*(fcm\.googleapis\.com|android\.googleapis\.com|push\.services\.mozilla\.com|notify\.windows\.com|push\.apple\.com|push\.opera\.com)/'
+       OR length(v_p256dh) < 16
+       OR length(v_auth) < 8 THEN
         RAISE EXCEPTION 'Invalid Web Push subscription payload';
     END IF;
 
@@ -1835,8 +1912,7 @@ BEGIN
     END IF;
 
     RETURN jsonb_build_object(
-        'is_blinded_account', (v_matched_blind AND NOT v_matched_plain),
-        'has_plain_email', v_matched_plain
+        'is_blinded_account', (v_matched_blind AND NOT v_matched_plain)
     );
 END;
 $$;
@@ -1891,6 +1967,7 @@ GRANT EXECUTE ON FUNCTION public.sanctuary_resolve_login_identifier(TEXT) TO ano
 ALTER TABLE public.profiles ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.donation_event_nonces ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.monthly_donation_ledgers ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.user_encrypted_keyrings ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.sanctuary_schemas ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.sanctuary_lexicons ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.sanctuary_themes ENABLE ROW LEVEL SECURITY;
@@ -1934,10 +2011,25 @@ DROP POLICY IF EXISTS "Service role manages donation nonces" ON public.donation_
 CREATE POLICY "Service role manages donation nonces" ON public.donation_event_nonces
     FOR ALL TO service_role USING (true) WITH CHECK (true);
 
--- Monthly Donation Ledgers
+-- Monthly Donation Ledgers & Private Encrypted Keyrings
 DROP POLICY IF EXISTS "hub_monthly_donation_ledgers_select" ON public.monthly_donation_ledgers;
 CREATE POLICY "hub_monthly_donation_ledgers_select" ON public.monthly_donation_ledgers
-    FOR SELECT TO public USING (true);
+    FOR SELECT TO authenticated USING (sanctuary_internal.is_hub_staff());
+
+DROP POLICY IF EXISTS "hub_user_encrypted_keyrings_select" ON public.user_encrypted_keyrings;
+CREATE POLICY "hub_user_encrypted_keyrings_select" ON public.user_encrypted_keyrings
+    FOR SELECT TO authenticated USING (user_id = (SELECT auth.uid()));
+DROP POLICY IF EXISTS "hub_user_encrypted_keyrings_insert" ON public.user_encrypted_keyrings;
+CREATE POLICY "hub_user_encrypted_keyrings_insert" ON public.user_encrypted_keyrings
+    FOR INSERT TO authenticated WITH CHECK (user_id = (SELECT auth.uid()));
+DROP POLICY IF EXISTS "hub_user_encrypted_keyrings_update" ON public.user_encrypted_keyrings;
+CREATE POLICY "hub_user_encrypted_keyrings_update" ON public.user_encrypted_keyrings
+    FOR UPDATE TO authenticated
+    USING (user_id = (SELECT auth.uid()))
+    WITH CHECK (user_id = (SELECT auth.uid()));
+DROP POLICY IF EXISTS "hub_user_encrypted_keyrings_delete" ON public.user_encrypted_keyrings;
+CREATE POLICY "hub_user_encrypted_keyrings_delete" ON public.user_encrypted_keyrings
+    FOR DELETE TO authenticated USING (user_id = (SELECT auth.uid()));
 DROP POLICY IF EXISTS "hub_monthly_donation_ledgers_insert" ON public.monthly_donation_ledgers;
 CREATE POLICY "hub_monthly_donation_ledgers_insert" ON public.monthly_donation_ledgers
     FOR INSERT TO authenticated WITH CHECK (sanctuary_internal.is_hub_keeper());
@@ -2154,8 +2246,14 @@ CREATE POLICY "hub_keeper_email_dispatches_delete" ON public.keeper_email_dispat
 
 -- Broadcasts, Polls & System Directives
 DROP POLICY IF EXISTS "hub_keeper_system_broadcasts_select" ON public.keeper_system_broadcasts;
-CREATE POLICY "hub_keeper_system_broadcasts_select" ON public.keeper_system_broadcasts
-    FOR SELECT TO public USING (true);
+DROP POLICY IF EXISTS "hub_keeper_system_broadcasts_select_anon" ON public.keeper_system_broadcasts;
+CREATE POLICY "hub_keeper_system_broadcasts_select_anon" ON public.keeper_system_broadcasts
+    FOR SELECT TO anon
+    USING (COALESCE(target_audience, 'All') <> 'Internal_Pipeline' OR category IN ('PipelineConfig', 'SpokeDonationConfig'));
+DROP POLICY IF EXISTS "hub_keeper_system_broadcasts_select_auth" ON public.keeper_system_broadcasts;
+CREATE POLICY "hub_keeper_system_broadcasts_select_auth" ON public.keeper_system_broadcasts
+    FOR SELECT TO authenticated
+    USING (COALESCE(target_audience, 'All') <> 'Internal_Pipeline' OR category IN ('PipelineConfig', 'SpokeDonationConfig') OR sanctuary_internal.is_hub_staff());
 DROP POLICY IF EXISTS "hub_keeper_system_broadcasts_insert" ON public.keeper_system_broadcasts;
 CREATE POLICY "hub_keeper_system_broadcasts_insert" ON public.keeper_system_broadcasts
     FOR INSERT TO authenticated WITH CHECK (sanctuary_internal.is_hub_staff());
@@ -2213,20 +2311,58 @@ CREATE POLICY "hub_system_directives_delete" ON public.system_directives
     FOR DELETE TO authenticated USING (sanctuary_internal.is_hub_staff());
 
 -- Ephemeral Encrypted Staging Queue & PWA Push Subscriptions
+DO $$
+BEGIN
+    IF sanctuary_internal.read_runtime_secret('staging_owner_hmac_key') IS NULL THEN
+        PERFORM sanctuary_internal.write_runtime_secret(
+            'staging_owner_hmac_key',
+            encode(extensions.gen_random_bytes(32), 'hex')
+        );
+    END IF;
+END $$;
+
+ALTER TABLE public.citizen_staging_queue ADD COLUMN IF NOT EXISTS owner_tag TEXT;
+CREATE INDEX IF NOT EXISTS idx_hub_staging_queue_owner_tag ON public.citizen_staging_queue(owner_tag);
+
+DROP TRIGGER IF EXISTS trg_stamp_staging_owner_tag ON public.citizen_staging_queue;
+CREATE TRIGGER trg_stamp_staging_owner_tag
+    BEFORE INSERT OR UPDATE ON public.citizen_staging_queue
+    FOR EACH ROW EXECUTE FUNCTION sanctuary_internal.stamp_staging_owner_tag();
+
 DROP POLICY IF EXISTS "hub_staging_queue_select" ON public.citizen_staging_queue;
 CREATE POLICY "hub_staging_queue_select" ON public.citizen_staging_queue
-    FOR SELECT TO public USING (expires_at IS NULL OR expires_at > NOW());
+    FOR SELECT TO authenticated
+    USING (
+        (expires_at IS NULL OR expires_at > NOW())
+        AND (owner_tag IS NULL OR owner_tag = (SELECT sanctuary_internal.current_staging_owner_tag()))
+    );
 DROP POLICY IF EXISTS "hub_staging_queue_insert" ON public.citizen_staging_queue;
 CREATE POLICY "hub_staging_queue_insert" ON public.citizen_staging_queue
-    FOR INSERT TO public WITH CHECK (length(user_token) >= 16 AND length(encrypted_payload) <= 10485760);
+    FOR INSERT TO authenticated
+    WITH CHECK (
+        length(user_token) >= 16
+        AND length(encrypted_payload) <= 10485760
+        AND owner_tag = (SELECT sanctuary_internal.current_staging_owner_tag())
+    );
 DROP POLICY IF EXISTS "hub_staging_queue_update" ON public.citizen_staging_queue;
 CREATE POLICY "hub_staging_queue_update" ON public.citizen_staging_queue
-    FOR UPDATE TO public
-    USING (length(user_token) >= 16)
-    WITH CHECK (length(user_token) >= 16 AND length(encrypted_payload) <= 10485760);
+    FOR UPDATE TO authenticated
+    USING (
+        length(user_token) >= 16
+        AND (owner_tag IS NULL OR owner_tag = (SELECT sanctuary_internal.current_staging_owner_tag()))
+    )
+    WITH CHECK (
+        length(user_token) >= 16
+        AND length(encrypted_payload) <= 10485760
+        AND owner_tag = (SELECT sanctuary_internal.current_staging_owner_tag())
+    );
 DROP POLICY IF EXISTS "hub_staging_queue_delete" ON public.citizen_staging_queue;
 CREATE POLICY "hub_staging_queue_delete" ON public.citizen_staging_queue
-    FOR DELETE TO public USING (length(user_token) >= 16);
+    FOR DELETE TO authenticated
+    USING (
+        length(user_token) >= 16
+        AND (owner_tag IS NULL OR owner_tag = (SELECT sanctuary_internal.current_staging_owner_tag()))
+    );
 
 DROP POLICY IF EXISTS "hub_pwa_push_subscriptions_select" ON public.pwa_push_subscriptions;
 CREATE POLICY "hub_pwa_push_subscriptions_select" ON public.pwa_push_subscriptions
@@ -2235,7 +2371,7 @@ DROP POLICY IF EXISTS "hub_pwa_push_subscriptions_insert" ON public.pwa_push_sub
 CREATE POLICY "hub_pwa_push_subscriptions_insert" ON public.pwa_push_subscriptions
     FOR INSERT TO anon, authenticated
     WITH CHECK (
-        endpoint LIKE 'https://%'
+        endpoint ~* '^https://([a-z0-9-]+\.)*(fcm\.googleapis\.com|android\.googleapis\.com|push\.services\.mozilla\.com|notify\.windows\.com|push\.apple\.com|push\.opera\.com)/'
         AND length(p256dh) >= 16
         AND length(auth) >= 8
         AND (user_id IS NULL OR user_id = (SELECT auth.uid()))
@@ -2245,7 +2381,7 @@ CREATE POLICY "hub_pwa_push_subscriptions_update" ON public.pwa_push_subscriptio
     FOR UPDATE TO authenticated
     USING (user_id = (SELECT auth.uid()) OR user_id IS NULL)
     WITH CHECK (
-        endpoint LIKE 'https://%'
+        endpoint ~* '^https://([a-z0-9-]+\.)*(fcm\.googleapis\.com|android\.googleapis\.com|push\.services\.mozilla\.com|notify\.windows\.com|push\.apple\.com|push\.opera\.com)/'
         AND length(p256dh) >= 16
         AND length(auth) >= 8
         AND user_id = (SELECT auth.uid())

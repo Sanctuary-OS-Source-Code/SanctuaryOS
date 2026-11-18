@@ -12,15 +12,21 @@ pub struct ScrubbedLogFile {
 }
 
 pub fn read_and_scrub_exception_file(log_path: &Path) -> Option<String> {
-    let bytes = fs::read(log_path).ok()?;
-    if bytes.is_empty() {
+    use std::io::Read;
+    const MAX_EXCEPTION_BYTES: u64 = 5 * 1024 * 1024;
+    let file = fs::File::open(log_path).ok()?;
+    let mut bytes = Vec::new();
+    file.take(MAX_EXCEPTION_BYTES + 1)
+        .read_to_end(&mut bytes)
+        .ok()?;
+    if bytes.is_empty() || bytes.len() as u64 > MAX_EXCEPTION_BYTES || bytes.contains(&0) {
         return None;
     }
-    let max_len = bytes.len().min(512 * 1024);
-    let raw_text = String::from_utf8_lossy(&bytes[..max_len]).into_owned();
-    let scrubbed = crate::utils::scrub_user_data_from_log(&raw_text);
-    // Also scrub the real log file on disk atomically so any direct access or external export is free of PII
-    if scrubbed != raw_text {
+    let raw_text = std::str::from_utf8(&bytes).ok()?;
+    let max_preview = raw_text.chars().take(512 * 1024).collect::<String>();
+    let scrubbed = crate::utils::scrub_user_data_from_log(&max_preview);
+    // Also scrub the real UTF-8 text log file on disk atomically so any direct access is free of PII
+    if scrubbed != max_preview && bytes.len() <= 512 * 1024 {
         let _ = crate::utils::atomic_write_bytes(log_path, scrubbed.as_bytes());
     }
     Some(scrubbed)
@@ -185,6 +191,173 @@ pub fn clear_old_logs(docs_path: String, state: tauri::State<'_, AppState>) {
     }
 }
 
+fn is_safe_telemetry_relative(rel: &str) -> bool {
+    let trimmed = rel.trim();
+    if trimmed.is_empty() || trimmed.contains('\0') {
+        return false;
+    }
+    let norm = trimmed.replace('\\', "/");
+    let p = Path::new(&norm);
+    if p.is_absolute() {
+        return false;
+    }
+    p.components().all(|c| matches!(c, std::path::Component::Normal(_)))
+}
+
+fn is_allowed_telemetry_log_file(path: &Path) -> bool {
+    let Some(name_lower) = path.file_name().and_then(|n| n.to_str()).map(|s| s.to_ascii_lowercase()) else {
+        return false;
+    };
+    if matches!(
+        name_lower.as_str(),
+        "solder_config.json" | "local_passkey_vault_v2.json" | ".passkey_master_key.bin"
+    ) || name_lower.starts_with(".env")
+    {
+        return false;
+    }
+    let Some(ext_lower) = path.extension().and_then(|e| e.to_str()).map(|s| s.to_ascii_lowercase()) else {
+        return false;
+    };
+    matches!(ext_lower.as_str(), "log" | "txt" | "xml" | "json")
+}
+
+#[tauri::command]
+pub async fn read_workspace_telemetry_log(
+    source_root: String,
+    relative_pattern: String,
+    state: tauri::State<'_, AppState>,
+) -> Result<Option<String>, String> {
+    let game_schema = state
+        .active_schema
+        .lock()
+        .unwrap_or_else(|e| e.into_inner())
+        .clone();
+    tauri::async_runtime::spawn_blocking(move || {
+        use std::io::Read;
+        let config = crate::commands::state_ops::get_saved_coordinates();
+        let mods_dir_str = config.mods_path.trim();
+        let docs_dir = crate::utils::resolve_effective_docs_path(&config, &game_schema);
+
+        let trimmed_root = source_root.trim();
+        let (base_dir, suffix) = if let Some(rest) = trimmed_root.strip_prefix("%MODS_DIR%") {
+            if mods_dir_str.is_empty() {
+                return Ok(None);
+            }
+            (PathBuf::from(mods_dir_str), rest.trim_start_matches(&['/', '\\'][..]))
+        } else if let Some(rest) = trimmed_root.strip_prefix("%DOC_DIR%") {
+            if docs_dir.trim().is_empty() {
+                return Ok(None);
+            }
+            (PathBuf::from(&docs_dir), rest.trim_start_matches(&['/', '\\'][..]))
+        } else {
+            return Err("Blocked: Telemetry source root must begin with %MODS_DIR% or %DOC_DIR%.".into());
+        };
+
+        let mut search_dir = base_dir.clone();
+        if !suffix.is_empty() {
+            if !is_safe_telemetry_relative(suffix) {
+                return Err("Blocked: Unsafe relative subpath in telemetry source root.".into());
+            }
+            search_dir = search_dir.join(suffix);
+        }
+
+        let pat_trimmed = relative_pattern.trim().replace('\\', "/");
+        if pat_trimmed.is_empty() {
+            return Ok(None);
+        }
+        let pat_path = Path::new(&pat_trimmed);
+        if pat_path.is_absolute()
+            || !pat_path
+                .components()
+                .all(|c| matches!(c, std::path::Component::Normal(_)))
+        {
+            return Err("Blocked: Unsafe telemetry file pattern.".into());
+        }
+
+        let allowed_roots: Vec<PathBuf> = vec![base_dir];
+        let direct_target = search_dir.join(pat_path);
+        let candidate_file = if direct_target.exists() && direct_target.is_file() {
+            direct_target
+        } else if pat_trimmed.contains('*') {
+            let leaf_pat = pat_path
+                .file_name()
+                .and_then(|n| n.to_str())
+                .unwrap_or("")
+                .to_ascii_lowercase();
+            let scan_dir = pat_path
+                .parent()
+                .filter(|p| !p.as_os_str().is_empty())
+                .map(|p| search_dir.join(p))
+                .unwrap_or(search_dir);
+            if !scan_dir.is_dir() {
+                return Ok(None);
+            }
+            let _ = crate::utils::ensure_path_within_roots(&scan_dir, &allowed_roots)?;
+            let parts: Vec<&str> = leaf_pat.split('*').collect();
+            let mut best: Option<(std::time::SystemTime, PathBuf)> = None;
+            if let Ok(entries) = fs::read_dir(&scan_dir) {
+                for entry in entries.flatten() {
+                    let ep = entry.path();
+                    if !ep.is_file() || !is_allowed_telemetry_log_file(&ep) {
+                        continue;
+                    }
+                    let fname = entry.file_name().to_string_lossy().to_ascii_lowercase();
+                    let matched = if parts.len() == 2 {
+                        fname.starts_with(parts[0])
+                            && fname.ends_with(parts[1])
+                            && fname.len() >= parts[0].len() + parts[1].len()
+                    } else {
+                        false
+                    };
+                    if matched {
+                        let mtime = entry
+                            .metadata()
+                            .ok()
+                            .and_then(|m| m.modified().ok())
+                            .unwrap_or(std::time::UNIX_EPOCH);
+                        if best.as_ref().map_or(true, |(t, _)| mtime > *t) {
+                            best = Some((mtime, ep));
+                        }
+                    }
+                }
+            }
+            match best {
+                Some((_, p)) => p,
+                None => return Ok(None),
+            }
+        } else {
+            return Ok(None);
+        };
+
+        let resolved_file =
+            crate::utils::ensure_strict_descendant_of_roots(&candidate_file, &allowed_roots)?;
+        if !is_allowed_telemetry_log_file(&resolved_file) {
+            return Err("Blocked: File type is not permitted for telemetry attachment.".into());
+        }
+
+        const MAX_TELEMETRY_LOG_BYTES: u64 = 32 * 1024;
+        let Ok(file) = fs::File::open(&resolved_file) else {
+            return Ok(None);
+        };
+        let mut buf = Vec::new();
+        if file
+            .take(MAX_TELEMETRY_LOG_BYTES)
+            .read_to_end(&mut buf)
+            .is_err()
+        {
+            return Ok(None);
+        }
+        if buf.is_empty() || buf.contains(&0) {
+            return Ok(None);
+        }
+        let raw = String::from_utf8_lossy(&buf);
+        let scrubbed = crate::utils::scrub_user_data_from_log(&raw);
+        Ok(Some(scrubbed))
+    })
+    .await
+    .map_err(|e| e.to_string())?
+}
+
 #[tauri::command]
 pub fn write_os_log(
     app_handle: tauri::AppHandle,
@@ -196,16 +369,36 @@ pub fn write_os_log(
     use std::time::{SystemTime, UNIX_EPOCH};
     use tauri::Manager;
 
+    const MAX_OS_LOG_BYTES: u64 = 5 * 1024 * 1024;
+    let level_clean = match level.trim().to_ascii_uppercase().as_str() {
+        "ERROR" => "ERROR",
+        "WARN" | "WARNING" => "WARNING",
+        "INFO" => "INFO",
+        "DEBUG" => "DEBUG",
+        _ => "INFO",
+    };
+
     if let Ok(log_dir) = app_handle.path().app_log_dir() {
         let _ = std::fs::create_dir_all(&log_dir);
         let log_file = log_dir.join("sanctuary-os.log");
+        if let Ok(meta) = fs::metadata(&log_file) {
+            if meta.len() >= MAX_OS_LOG_BYTES {
+                let rotated = log_dir.join("sanctuary-os.log.1");
+                let _ = fs::rename(&log_file, &rotated);
+            }
+        }
         if let Ok(mut file) = OpenOptions::new().create(true).append(true).open(&log_file) {
             let timestamp = match SystemTime::now().duration_since(UNIX_EPOCH) {
                 Ok(n) => n.as_secs().to_string(),
                 Err(_) => "vlocal".to_string(),
             };
-            let scrubbed_msg = crate::utils::scrub_user_data_from_log(&message);
-            let _ = writeln!(file, "[{}] [{}]: {}", timestamp, level, scrubbed_msg);
+            let single_line: String = message
+                .chars()
+                .take(4096)
+                .map(|c| if c == '\r' || c == '\n' || c.is_control() { ' ' } else { c })
+                .collect();
+            let scrubbed_msg = crate::utils::scrub_user_data_from_log(&single_line);
+            let _ = writeln!(file, "[{}] [{}]: {}", timestamp, level_clean, scrubbed_msg);
         }
     }
     Ok(())

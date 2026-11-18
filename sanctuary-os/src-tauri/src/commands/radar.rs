@@ -3,7 +3,7 @@ use crate::state::*;
 use crate::utils::*;
 use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet};
 use std::fs::File;
-use std::io::{Read, Seek, SeekFrom};
+use std::io::{BufReader, Read, Seek, SeekFrom};
 use std::path::{Path, PathBuf};
 use walkdir::WalkDir;
 
@@ -117,14 +117,15 @@ fn extract_binary_chunk_keys(path: &Path, analyzer: &SchemaConflictAnalyzer) -> 
         None => return Vec::new(),
     };
 
-    let mut file = match File::open(path) {
+    let raw_file = match File::open(path) {
         Ok(f) => f,
         Err(_) => return Vec::new(),
     };
-    let file_len = match file.metadata() {
+    let file_len = match raw_file.metadata() {
         Ok(m) => m.len(),
         Err(_) => return Vec::new(),
     };
+    let mut file = BufReader::with_capacity(64 * 1024, raw_file);
 
     let header_offset = analyzer.header_offset.unwrap_or(0);
     if let Some(magic_spec) = analyzer.magic_bytes.as_deref().filter(|s| !s.trim().is_empty()) {

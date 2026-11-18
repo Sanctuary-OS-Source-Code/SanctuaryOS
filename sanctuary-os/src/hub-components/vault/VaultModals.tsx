@@ -101,7 +101,7 @@ export function VaultModals(props: any) {
       String(matchedMod?.type || "").toLowerCase().includes("script");
     const typeLabel = isScript
       ? t("type_script", "Script")
-      : t("type_package", "Package");
+      : t("type_package", "Module");
     const rawCompat = matchedMod?.compatible_versions || parentMod?.compatible_versions;
     const compatArr = Array.isArray(rawCompat)
       ? rawCompat
@@ -110,7 +110,7 @@ export function VaultModals(props: any) {
         : [];
     const gameVer = compatArr.length > 0 ? getHighestVersion(compatArr) : null;
     const iconName = getModIcon(
-      matchedMod || { name: targetFile, type: isScript ? "Script" : "Package" },
+      matchedMod || { name: targetFile, type: isScript ? "Script" : "Module" },
       activeGameSchema,
       t
     );
@@ -296,7 +296,7 @@ export function VaultModals(props: any) {
           <ConflictResolutionSidebar
             conflict={activeTier3Conflict}
             onClose={() => setActiveTier3Conflict(null)}
-            onVault={() => {}}
+            onVault={() => { }}
             onOverride={(winnerName, modPair) => {
               applyConflictOverride(winnerName, modPair, playSets[activePlaySetIndex]?.name);
             }}
