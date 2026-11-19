@@ -16,6 +16,7 @@ import { handlePreAuthGatewayActions, handleWebAuthnRegistration } from './publi
 import { handleKeeperHubActions, handlePreClientSpokeAdminActions } from './keeperHubActions.ts'
 import { handleSpokeQueryAction } from './spokeQueryProxy.ts'
 import { createSpokeOwnershipHelpers, handleSpokeMutationAction } from './spokeMutationActions.ts'
+import { checkGatewayRateLimit, verifySupabaseJwtLocally } from './rateLimitAndAuth.ts'
 
 serve(async (req) => {
   const corsHeaders = getCorsHeaders(req)
@@ -27,6 +28,7 @@ serve(async (req) => {
     const supabaseUrl = Deno.env.get('SUPABASE_URL') ?? ''
     const supabaseAnonKey = Deno.env.get('SUPABASE_ANON_KEY') ?? ''
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
+    const supabaseJwtSecret = Deno.env.get('SUPABASE_JWT_SECRET') ?? ''
 
     const supabaseClient = createClient(supabaseUrl, supabaseAnonKey, SERVER_AUTH_OPTS)
     const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey, SERVER_AUTH_OPTS)
@@ -43,11 +45,28 @@ serve(async (req) => {
 
     let user: any = null
     let authError: any = null
+    const requireRemoteRevocationCheck = String(action).startsWith('webauthn_register')
     if (token && token.includes('.')) {
-      const authRes = await supabaseClient.auth.getUser(token)
-      user = authRes?.data?.user ?? null
-      authError = authRes?.error ?? null
+      const localRes = requireRemoteRevocationCheck
+        ? { verified: false, user: null, shouldFallbackRemote: true }
+        : await verifySupabaseJwtLocally({
+            token,
+            supabaseUrl,
+            jwtSecret: supabaseJwtSecret,
+          })
+      if (localRes.verified && localRes.user) {
+        user = localRes.user
+      } else if (localRes.shouldFallbackRemote) {
+        const authRes = await supabaseClient.auth.getUser(token)
+        user = authRes?.data?.user ?? null
+        authError = authRes?.error ?? null
+      } else {
+        authError = { message: 'Invalid or expired JWT' }
+      }
     }
+
+    const rateLimitRes = checkGatewayRateLimit(req, String(action), user?.id ?? null, corsHeaders)
+    if (rateLimitRes) return rateLimitRes
 
     // Special Hub-wide action: WebAuthn Assertion Verification
 

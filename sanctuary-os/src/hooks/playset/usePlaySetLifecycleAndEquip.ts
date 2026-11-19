@@ -17,6 +17,16 @@ import type { CompiledLoadOrderItem } from "./types";
 import { compileLoadOrder, unpackBlueprintLoadOrder } from "./loadOrderCompiler";
 import { precomputeBlueprintConflicts } from "./conflictPrecomputer";
 
+type PendingEquipRequest = {
+  setName: string | number;
+  overrideSet?: any;
+  skipCloudCheck: boolean;
+  onAfterAuthorizedDeploy?: () => void;
+};
+
+let activeEquipPromise: Promise<boolean> | null = null;
+let pendingEquipRequest: PendingEquipRequest | null = null;
+
 export function usePlaySetLifecycleAndEquip({
   playSets,
   setPlaySets,
@@ -304,7 +314,7 @@ export function usePlaySetLifecycleAndEquip({
     setPendingImportSet(null);
   }
 
-  async function equipPlaySet(
+  async function executeEquipPlaySetInternal(
     setName: string | number,
     overrideSet?: any,
     skipCloudCheck = false,
@@ -660,6 +670,51 @@ export function usePlaySetLifecycleAndEquip({
       setStatus(`${t("status_deploy_failed", "Deployment Failed:")} ${t(errStr, errStr)}`);
       return false;
     }
+  }
+
+  async function equipPlaySet(
+    setName: string | number,
+    overrideSet?: any,
+    skipCloudCheck = false,
+    onAfterAuthorizedDeploy?: () => void
+  ): Promise<boolean> {
+    if (activeEquipPromise) {
+      pendingEquipRequest = {
+        setName,
+        overrideSet,
+        skipCloudCheck,
+        onAfterAuthorizedDeploy,
+      };
+      return activeEquipPromise;
+    }
+
+    const run = async (): Promise<boolean> => {
+      let lastOk = await executeEquipPlaySetInternal(
+        setName,
+        overrideSet,
+        skipCloudCheck,
+        onAfterAuthorizedDeploy
+      );
+      while (pendingEquipRequest) {
+        const nextReq = pendingEquipRequest;
+        pendingEquipRequest = null;
+        lastOk = await executeEquipPlaySetInternal(
+          nextReq.setName,
+          nextReq.overrideSet,
+          nextReq.skipCloudCheck,
+          nextReq.onAfterAuthorizedDeploy
+        );
+      }
+      return lastOk;
+    };
+
+    const promise = run().finally(() => {
+      if (activeEquipPromise === promise) {
+        activeEquipPromise = null;
+      }
+    });
+    activeEquipPromise = promise;
+    return promise;
   }
 
   return {

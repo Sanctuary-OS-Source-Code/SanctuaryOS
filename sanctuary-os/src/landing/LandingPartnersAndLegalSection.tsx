@@ -74,8 +74,8 @@ export function LandingPartnersSection({
           title={t('no_results', 'No matching items found.')}
         />
       ) : (
-        /* 3 Compact Cards in a Single Row: [About Guide • Apply • Combined Covenants] */
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 w-full">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 w-full">
+          {/* 3 Compact Cards in a Single Row: [About Guide • Apply • Combined Covenants] */}
           {/* Card 1: About Partner Spokes & Setup Guide */}
           {showGuide && (
             <UniversalCard
@@ -281,7 +281,7 @@ export function LandingLegalSection({
           title={t('no_results', 'No matching items found.')}
         />
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6 w-full">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 w-full">
           {showEula && (
             <UniversalCard
               layout="vertical"

@@ -16,7 +16,7 @@ export default function ComplianceManualFlagSidePanel({ isOpen, onClose, initial
   const [manualSearchQuery, setManualSearchQuery] = useState("");
   const [manualSearchResults, setManualSearchResults] = useState<any[]>([]);
   const [manualSelectedMod, setManualSelectedMod] = useState<any>(null);
-  const [manualTier, setManualTier] = useState<number>(isMalwareOnly ? 5 : 1);
+  const [manualTier, setManualTier] = useState<number>(isMalwareOnly ? 6 : 1);
   const [registryReason, setRegistryReason] = useState("");
   const [customModName, setCustomModName] = useState("");
   const [customAuthor, setCustomAuthor] = useState("");
@@ -84,7 +84,7 @@ export default function ComplianceManualFlagSidePanel({ isOpen, onClose, initial
     if (isOpen) {
       setManualSearchQuery(initialQuery);
       setManualSelectedMod(null);
-      setManualTier(isMalwareOnly ? 5 : 1);
+      setManualTier(isMalwareOnly ? 6 : 1);
       setCustomModName("");
       setCustomAuthor("");
       setExtraHashes([]);
@@ -204,7 +204,7 @@ export default function ComplianceManualFlagSidePanel({ isOpen, onClose, initial
       const accessToken = useStore.getState().session?.access_token || '';
 
       // Oversight manual flags skip Pending and transition directly to Active ('verified' or 'blacklisted')
-      const manualStatus = manualTier === 5 ? 'blacklisted' : 'verified';
+      const manualStatus = manualTier === 6 ? 'blacklisted' : 'verified';
       const cleanManualReason = registryReason.trim();
       const trimmedName = customModName.trim();
       const trimmedAuthor = customAuthor.trim();
@@ -374,7 +374,7 @@ export default function ComplianceManualFlagSidePanel({ isOpen, onClose, initial
       window.dispatchEvent(new CustomEvent('sanctuary-compliance-updated'));
       onClose();
       if (onSuccess) onSuccess();
-      if (manualTier === 5) {
+      if (manualTier === 6) {
          window.dispatchEvent(new CustomEvent('force-radar-sweep'));
       }
     } catch (err: any) {
@@ -610,7 +610,7 @@ export default function ComplianceManualFlagSidePanel({ isOpen, onClose, initial
                 <CustomComplianceDropdown
                   value={manualTier}
                   onChange={setManualTier}
-                  maxTier={sourceHub === "Architect" ? 4 : 6}
+                  maxTier={sourceHub === "Architect" ? 5 : 6}
                 />
               </div>
             )}
@@ -806,7 +806,7 @@ export default function ComplianceManualFlagSidePanel({ isOpen, onClose, initial
               disabled={isSubmitting}
             />
             <ActionButton
-              variant={isMalwareOnly || manualTier === 5 ? "danger" : "primary"}
+              variant={isMalwareOnly || manualTier === 6 ? "danger" : "primary"}
               icon={t("icon_flag", "flag")}
               label={isSubmitting ? t("btn_submitting", "Submitting...") : t("comp_manual_btn_activate", "Enforce Active Flag")}
               disabled={isSubmitting || ((!manualSelectedMod && !manualSearchQuery.trim()) || !registryReason.trim())}

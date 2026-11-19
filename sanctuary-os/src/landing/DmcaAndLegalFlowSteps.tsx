@@ -3,7 +3,8 @@ import { createPortal } from "react-dom";
 import { useLexicon } from "../LexiconContext";
 import { useStore } from "../store";
 import { supabaseAuth } from "../supabase";
-import { CustomDropdown, VAULT_CHIP_CLASS } from "../shared";
+import { CustomDropdown } from "../shared";
+import { SpokeTargetDossierSidePanel } from "./SpokeTargetDossierSidePanel";
 import {
   computeDropdownViewportCoords,
   type DropdownViewportCoords,
@@ -165,68 +166,146 @@ export function isValidTargetIdentifierToken(
   );
 }
 
+export function getLegalComplianceMissingReasons(
+  draft: LegalComplianceDraft,
+  replyEmail: string,
+  subject: string,
+  body: string,
+  translateFn?: (key: string, fallback?: string) => string
+): string[] {
+  const t = (k: string, fb: string) =>
+    translateFn ? translateFn(k, fb) || fb : fb;
+  const missing: string[] = [];
+
+  if (draft.subType === "privacy_general") {
+    if (replyEmail.trim().length < 3) {
+      missing.push(t("landing_contact_form_reply_to", "Reply Email or Handle"));
+    }
+    if (subject.trim().length < 3) {
+      missing.push(t("landing_contact_form_subject", "Subject"));
+    }
+    if (body.trim().length < 10) {
+      missing.push(
+        `${t("dmca_missing_message_len", "Message (10+ chars)")} (${body.trim().length}/10)`
+      );
+    }
+    return missing;
+  }
+
+  if (!isRealLegalEmail(replyEmail)) {
+    missing.push(t("dmca_missing_valid_email", "Valid non-blinded email address"));
+  }
+  if (draft.targetScope === "spoke" && !UUID_REGEX.test(draft.targetSpokeId)) {
+    missing.push(t("dmca_missing_target_spoke", "Target game workspace"));
+  }
+
+  const tokens = collectAllLegalTargetIdentifiers(draft);
+  const hasAllValidTokens =
+    tokens.length > 0 &&
+    tokens.every((tok) => isValidTargetIdentifierToken(tok, draft.targetScope));
+
+  if (draft.subType === "dmca_takedown") {
+    if (tokens.length === 0) {
+      missing.push(
+        draft.targetScope === "spoke"
+          ? t("dmca_missing_target_mod", "Selected {Mod} or manual UUID / SHA-256 hash")
+          : t("dmca_missing_target_url", "Target page URL or content reference")
+      );
+    } else if (!hasAllValidTokens) {
+      missing.push(t("dmca_missing_valid_target_id", "Valid target identifier format"));
+    }
+
+    const workLen = draft.workDescription.trim().length;
+    if (workLen < 15) {
+      missing.push(
+        `${t("dmca_missing_work_desc_len", "Original work description (15+ chars)")} (${workLen}/15)`
+      );
+    }
+
+    const trimmedUrl = draft.workUrl.trim();
+    if (trimmedUrl.length > 0 && !URL_REGEX.test(trimmedUrl)) {
+      missing.push(
+        t("dmca_missing_valid_work_url", "Valid http(s) Reference URL (or leave blank)")
+      );
+    }
+  } else {
+    const hasCounterTarget =
+      UUID_REGEX.test(draft.originalNoticeId.trim()) || hasAllValidTokens;
+    if (!hasCounterTarget) {
+      missing.push(
+        t(
+          "dmca_missing_counter_notice_ref",
+          "Original Takedown Notice UUID or removed item ID"
+        )
+      );
+    }
+    const counterLen = draft.workDescription.trim().length;
+    if (counterLen < 10) {
+      missing.push(
+        `${t("dmca_missing_counter_desc_len", "Mistake / misidentification explanation (10+ chars)")} (${counterLen}/10)`
+      );
+    }
+  }
+
+  if (!isPlausibleLegalName(draft.fullLegalName)) {
+    missing.push(t("dmca_missing_legal_name", "Full first and last legal name"));
+  }
+  if (draft.phone.trim().length < 7) {
+    missing.push(t("dmca_missing_phone", "Valid phone number"));
+  }
+  if (!isPlausiblePhysicalAddress(draft.physicalAddress)) {
+    missing.push(t("dmca_missing_address", "Complete physical street address"));
+  }
+
+  if (draft.subType === "dmca_takedown") {
+    if (!draft.goodFaithAttested) {
+      missing.push(t("dmca_cb_good_faith_title", "Good-Faith Belief"));
+    }
+    if (!draft.perjuryAuthorityAttested) {
+      missing.push(
+        t("dmca_cb_perjury_title", "Accuracy & Authorization (Under Penalty of Perjury)")
+      );
+    }
+  } else {
+    if (!(draft.goodFaithAttested && draft.perjuryAuthorityAttested)) {
+      missing.push(
+        t(
+          "dmca_cb_mistake_title",
+          "Mistake or Misidentification (Under Penalty of Perjury)"
+        )
+      );
+    }
+    if (!draft.jurisdictionAttested) {
+      missing.push(
+        t("dmca_cb_jurisdiction_title", "Federal Court Jurisdiction Consent")
+      );
+    }
+  }
+
+  const sigMatches =
+    draft.electronicSignature.trim().length >= 3 &&
+    draft.electronicSignature.trim().toLowerCase() ===
+      draft.fullLegalName.trim().toLowerCase();
+  if (!sigMatches) {
+    missing.push(
+      t(
+        "dmca_missing_signature_match",
+        "Electronic signature matching Full Legal Name"
+      )
+    );
+  }
+
+  return missing;
+}
+
 export function isLegalComplianceDraftValid(
   draft: LegalComplianceDraft,
   replyEmail: string,
   subject: string,
   body: string
 ): boolean {
-  if (draft.subType === "privacy_general") {
-    return Boolean(
-      replyEmail.trim().length >= 3 &&
-        subject.trim().length >= 3 &&
-        body.trim().length >= 10
-    );
-  }
-
-  if (!isRealLegalEmail(replyEmail)) return false;
-  if (draft.targetScope === "spoke" && !UUID_REGEX.test(draft.targetSpokeId)) {
-    return false;
-  }
-
-  const tokens = collectAllLegalTargetIdentifiers(draft);
-  const sigMatches =
-    draft.electronicSignature.trim().length >= 3 &&
-    draft.electronicSignature.trim().toLowerCase() ===
-      draft.fullLegalName.trim().toLowerCase();
-
-  const hasContactBlock = Boolean(
-    isPlausibleLegalName(draft.fullLegalName) &&
-      isPlausiblePhysicalAddress(draft.physicalAddress) &&
-      draft.phone.trim().length >= 7 &&
-      sigMatches
-  );
-  if (!hasContactBlock) return false;
-
-  if (draft.subType === "dmca_takedown") {
-    const validIds =
-      tokens.length > 0 &&
-      tokens.every((tok) => isValidTargetIdentifierToken(tok, draft.targetScope));
-    const trimmedUrl = draft.workUrl.trim();
-    const validOptionalUrl = trimmedUrl.length === 0 || URL_REGEX.test(trimmedUrl);
-    const validDesc = draft.workDescription.trim().length >= 15;
-    return Boolean(
-      validIds &&
-        validOptionalUrl &&
-        validDesc &&
-        draft.goodFaithAttested &&
-        draft.perjuryAuthorityAttested &&
-        draft.forwardingAcknowledged
-    );
-  }
-
-  const hasNoticeOrIds =
-    UUID_REGEX.test(draft.originalNoticeId.trim()) ||
-    (tokens.length > 0 &&
-      tokens.every((tok) => isValidTargetIdentifierToken(tok, draft.targetScope)));
-  const validCounterDesc = draft.workDescription.trim().length >= 10;
-  return Boolean(
-    hasNoticeOrIds &&
-      validCounterDesc &&
-      draft.goodFaithAttested &&
-      draft.perjuryAuthorityAttested &&
-      draft.jurisdictionAttested &&
-      draft.forwardingAcknowledged
+  return (
+    getLegalComplianceMissingReasons(draft, replyEmail, subject, body).length === 0
   );
 }
 
@@ -338,6 +417,8 @@ export function DmcaGuidedComplianceForm({
   const [spokeItems, setSpokeItems] = useState<LegalTargetItem[]>([]);
   const [isSearchingSpoke, setIsSearchingSpoke] = useState(false);
   const [isPickerOpen, setIsPickerOpen] = useState(false);
+  const [dossierPreviewItem, setDossierPreviewItem] =
+    useState<LegalTargetItem | null>(null);
   const instanceId = useId();
   const inputWrapRef = useRef<HTMLDivElement>(null);
   const popoverRef = useRef<HTMLDivElement>(null);
@@ -353,6 +434,12 @@ export function DmcaGuidedComplianceForm({
   const activePublicSpokes = (games || []).filter(
     (g) => g?.id && g?.is_active !== false && g?.is_keepers_only !== true
   );
+  const selectedSpokeGame =
+    activePublicSpokes.find(
+      (g) => String(g.id) === String(draft.targetSpokeId)
+    ) || null;
+  const minWorkDescChars = draft.subType === "dmca_takedown" ? 15 : 10;
+  const workDescLen = draft.workDescription.trim().length;
   const scopeOptions = [
     {
       id: "hub",
@@ -603,26 +690,53 @@ export function DmcaGuidedComplianceForm({
         {draft.subType === "dmca_takedown" && draft.targetScope === "spoke" ? (
           <div className="flex flex-col gap-2.5">
             {draft.selectedTargets.length > 0 && (
-              <div className="flex flex-wrap gap-1.5">
+              <div className="flex flex-col gap-2">
                 {draft.selectedTargets.map((item) => {
                   const meta = kindMeta(item.kind);
                   return (
-                    <button
+                    <div
                       key={`${item.kind}:${item.identifier}`}
-                      type="button"
-                      onClick={() => selectOrToggleTarget(item)}
-                      className={`${VAULT_CHIP_CLASS} cursor-pointer hover:border-[var(--accent)] no-text-case`}
+                      className="glass-surface rounded-2xl p-3.5 border border-[color-mix(in_srgb,var(--text)_14%,transparent)] flex flex-wrap sm:flex-nowrap items-center justify-between gap-3 no-text-case"
                     >
-                      <span className="material-symbols-outlined !text-[12px] text-[var(--accent)]">
-                        {meta.icon}
-                      </span>
-                      <span className="truncate max-w-[200px] no-text-case">
-                        {item.title}
-                      </span>
-                      <span className="material-symbols-outlined !text-[12px] text-[var(--subtext)]">
-                        {t("icon_close", "close")}
-                      </span>
-                    </button>
+                      <div className="flex items-center gap-3 min-w-0 flex-1">
+                        <div className="w-10 h-10 rounded-xl glass-surface border border-[var(--glass-card-icon-border,rgba(255,255,255,0.22))] bg-[var(--glass-card-icon-bg,rgba(255,255,255,0.08))] shadow-[var(--glass-card-icon-shadow)] flex items-center justify-center shrink-0 text-[var(--accent)]">
+                          <span className="material-symbols-outlined !text-[18px]">
+                            {meta.icon}
+                          </span>
+                        </div>
+                        <div className="flex flex-col gap-0.5 min-w-0 flex-1">
+                          <span className="text-sm font-black text-[var(--text)] truncate no-text-case">
+                            {item.title}
+                          </span>
+                          <span className="text-xs text-[var(--subtext)] truncate no-text-case">
+                            {`${meta.label}${item.subtitle ? ` • ${item.subtitle}` : ""} • #${item.identifier.slice(0, 8)}`}
+                          </span>
+                        </div>
+                      </div>
+
+                      <div className="ml-auto flex items-center gap-2 shrink-0">
+                        <button
+                          type="button"
+                          onClick={() => setDossierPreviewItem(item)}
+                          className="px-3 py-1.5 rounded-xl glass-surface border border-[color-mix(in_srgb,var(--text)_14%,transparent)] hover:border-[var(--accent)] text-[11px] font-black text-[var(--text)] flex items-center gap-1.5 cursor-pointer transition-all no-text-case"
+                        >
+                          <span className="material-symbols-outlined !text-[14px] text-[var(--accent)]">
+                            {t("icon_menu_book", "menu_book")}
+                          </span>
+                          <span>{t("view_dossier", "View Dossier")}</span>
+                        </button>
+                        <button
+                          type="button"
+                          aria-label={t("btn_remove", "{Remove}")}
+                          onClick={() => selectOrToggleTarget(item)}
+                          className="w-8 h-8 rounded-xl glass-surface border border-[color-mix(in_srgb,var(--text)_14%,transparent)] hover:border-[var(--danger)] text-[var(--subtext)] hover:text-[var(--danger)] flex items-center justify-center cursor-pointer transition-all shrink-0"
+                        >
+                          <span className="material-symbols-outlined !text-[15px]">
+                            {t("icon_close", "close")}
+                          </span>
+                        </button>
+                      </div>
+                    </div>
                   );
                 })}
               </div>
@@ -717,49 +831,67 @@ export function DmcaGuidedComplianceForm({
                             );
                             const meta = kindMeta(item.kind);
                             return (
-                              <button
+                              <div
                                 key={`${item.kind}:${item.identifier}`}
-                                type="button"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  selectOrToggleTarget(item);
-                                }}
-                                className={`sa-dropdown-item w-full text-left px-3.5 py-2.5 text-xs flex items-center justify-between gap-3 cursor-pointer shrink-0 no-text-case ${
+                                className={`sa-dropdown-item w-full px-3 py-2 text-xs flex items-center justify-between gap-2 shrink-0 no-text-case ${
                                   isSelected ? "is-selected font-bold" : "font-medium"
                                 }`}
                               >
-                                <div className="flex items-center gap-2.5 min-w-0">
+                                <button
+                                  type="button"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    selectOrToggleTarget(item);
+                                  }}
+                                  className="flex items-center justify-between gap-2.5 flex-1 min-w-0 text-left cursor-pointer"
+                                >
+                                  <div className="flex items-center gap-2.5 min-w-0">
+                                    <span
+                                      className={`material-symbols-outlined !text-[18px] shrink-0 ${
+                                        isSelected
+                                          ? "text-[var(--accent)]"
+                                          : "text-[var(--subtext)]"
+                                      }`}
+                                    >
+                                      {meta.icon}
+                                    </span>
+                                    <div className="flex flex-col min-w-0">
+                                      <span className="text-xs font-bold text-[var(--text)] truncate no-text-case">
+                                        {item.title}
+                                      </span>
+                                      <span className="text-[11px] text-[var(--subtext)] truncate no-text-case">
+                                        {meta.label}
+                                        {item.subtitle ? ` • ${item.subtitle}` : ""}
+                                      </span>
+                                    </div>
+                                  </div>
                                   <span
                                     className={`material-symbols-outlined !text-[18px] shrink-0 ${
                                       isSelected
                                         ? "text-[var(--accent)]"
-                                        : "text-[var(--subtext)]"
+                                        : "text-[var(--subtext)] opacity-55"
                                     }`}
                                   >
-                                    {meta.icon}
+                                    {isSelected
+                                      ? t("icon_check_circle", "check_circle")
+                                      : t("icon_add_circle_outline", "add_circle_outline")}
                                   </span>
-                                  <div className="flex flex-col min-w-0">
-                                    <span className="text-xs font-bold text-[var(--text)] truncate no-text-case">
-                                      {item.title}
-                                    </span>
-                                    <span className="text-[11px] text-[var(--subtext)] truncate no-text-case">
-                                      {meta.label}
-                                      {item.subtitle ? ` • ${item.subtitle}` : ""}
-                                    </span>
-                                  </div>
-                                </div>
-                                <span
-                                  className={`material-symbols-outlined !text-[18px] shrink-0 ${
-                                    isSelected
-                                      ? "text-[var(--accent)]"
-                                      : "text-[var(--subtext)] opacity-55"
-                                  }`}
+                                </button>
+                                <button
+                                  type="button"
+                                  aria-label={t("view_dossier", "View Dossier")}
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setIsPickerOpen(false);
+                                    setDossierPreviewItem(item);
+                                  }}
+                                  className="w-7 h-7 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] hover:border-[var(--accent)] text-[var(--subtext)] hover:text-[var(--accent)] flex items-center justify-center shrink-0 cursor-pointer transition-all"
                                 >
-                                  {isSelected
-                                    ? t("icon_check_circle", "check_circle")
-                                    : t("icon_add_circle_outline", "add_circle_outline")}
-                                </span>
-                              </button>
+                                  <span className="material-symbols-outlined !text-[15px]">
+                                    {t("icon_visibility", "visibility")}
+                                  </span>
+                                </button>
+                              </div>
                             );
                           })
                         )}
@@ -840,30 +972,45 @@ export function DmcaGuidedComplianceForm({
         }
         icon={t("icon_description", "description")}
       >
-        <UniversalTextArea
-          label={`${
-            draft.subType === "dmca_takedown"
-              ? t("dmca_work_description_label", "Description of Original Work")
-              : t(
-                  "dmca_counter_work_desc_label",
-                  "Why Was the Content Removed by Mistake or Misidentification?"
-                )
-          } *`}
-          value={draft.workDescription}
-          onChange={(val) => onChange({ ...draft, workDescription: val })}
-          className="min-h-[96px] no-text-case"
-          placeholder={
-            draft.subType === "dmca_takedown"
-              ? t(
-                  "dmca_work_description_ph",
-                  "Describe the original copyrighted work allegedly infringed (minimum 15 characters)..."
-                )
-              : t(
-                  "dmca_counter_work_desc_ph",
-                  "Identify the removed item and explain why removal was a mistake or misidentification..."
-                )
-          }
-        />
+        <div className="flex flex-col gap-1.5">
+          <div className="flex items-center justify-between gap-2 px-1">
+            <label className="text-[10px] font-black text-[var(--subtext)] opacity-75 uppercase tracking-widest leading-tight">
+              {`${
+                draft.subType === "dmca_takedown"
+                  ? t("dmca_work_description_label", "Description of Original Work")
+                  : t(
+                      "dmca_counter_work_desc_label",
+                      "Why Was the Content Removed by Mistake or Misidentification?"
+                    )
+              } *`}
+            </label>
+            <span
+              className={`text-[10px] font-mono font-bold shrink-0 ${
+                workDescLen >= minWorkDescChars
+                  ? "text-[var(--success)]"
+                  : "text-[var(--warning)]"
+              }`}
+            >
+              {`${workDescLen} / ${minWorkDescChars}+`}
+            </span>
+          </div>
+          <UniversalTextArea
+            value={draft.workDescription}
+            onChange={(val) => onChange({ ...draft, workDescription: val })}
+            className="min-h-[96px] no-text-case"
+            placeholder={
+              draft.subType === "dmca_takedown"
+                ? t(
+                    "dmca_work_description_ph",
+                    "Describe the original copyrighted work allegedly infringed (minimum 15 characters)..."
+                  )
+                : t(
+                    "dmca_counter_work_desc_ph",
+                    "Identify the removed item and explain why removal was a mistake or misidentification..."
+                  )
+            }
+          />
+        </div>
 
         {draft.subType === "dmca_takedown" && (
           <div className="flex flex-col gap-1">
@@ -978,23 +1125,6 @@ export function DmcaGuidedComplianceForm({
                 "Under penalty of perjury, the information in this notification is accurate and I am the copyright owner, or am authorized to act on behalf of the owner, of an exclusive right that is allegedly infringed."
               )}
             />
-            <StatutoryCheckboxCard
-              checked={draft.forwardingAcknowledged}
-              onToggle={() =>
-                onChange({
-                  ...draft,
-                  forwardingAcknowledged: !draft.forwardingAcknowledged,
-                })
-              }
-              title={t(
-                "dmca_cb_takedown_forwarding_title",
-                "Creator Identity Disclosure & § 512(f) Liability"
-              )}
-              label={t(
-                "dmca_clause_takedown_forwarding_text",
-                "I understand that my full legal name, physical mailing address, and email address will be forwarded directly to the affected {Mason} if this notice is validated, that {mod} ideas, mechanics, titles, and personal disputes are not copyrightable, and that false claims carry federal damages under 17 U.S.C. § 512(f)."
-              )}
-            />
           </div>
         ) : (
           <div className="flex flex-col gap-2.5">
@@ -1028,20 +1158,6 @@ export function DmcaGuidedComplianceForm({
                 "I consent to the jurisdiction of the Federal District Court for the judicial district in which my address is located (or any judicial district in which the service provider may be found if outside the U.S.) and will accept service of process from the claimant."
               )}
             />
-            <StatutoryCheckboxCard
-              checked={draft.forwardingAcknowledged}
-              onToggle={() =>
-                onChange({
-                  ...draft,
-                  forwardingAcknowledged: !draft.forwardingAcknowledged,
-                })
-              }
-              title={t("dmca_cb_forwarding_title", "Claimant Forwarding Acknowledgment")}
-              label={t(
-                "dmca_counter_forward_text",
-                "I acknowledge that my full legal name, physical address, phone number, and counter-notice statement will be forwarded directly to the copyright claimant under federal law."
-              )}
-            />
           </div>
         )}
 
@@ -1060,6 +1176,23 @@ export function DmcaGuidedComplianceForm({
           </span>
         )}
       </UniversalGroup>
+
+      <SpokeTargetDossierSidePanel
+        isOpen={Boolean(dossierPreviewItem)}
+        onClose={() => setDossierPreviewItem(null)}
+        item={dossierPreviewItem}
+        spokeGame={selectedSpokeGame}
+        isSelected={
+          Boolean(dossierPreviewItem) &&
+          draft.selectedTargets.some(
+            (s) =>
+              s.identifier.toLowerCase() ===
+                dossierPreviewItem!.identifier.toLowerCase() &&
+              s.kind === dossierPreviewItem!.kind
+          )
+        }
+        onToggleSelect={selectOrToggleTarget}
+      />
     </div>
   );
 }

@@ -1174,11 +1174,11 @@ export default function ModDossier({
       }
 
       const resolvedTier = Math.min(
-        4,
+        5,
         Math.max(
           1,
           customTier ??
-          (reason === "adult" ? 2 : reason === "NSFW" ? 1 : flagComplianceTier || 1)
+          (reason === "adult" || reason === "NSFW" ? 2 : flagComplianceTier || 2)
         )
       );
       const cleanNotes =

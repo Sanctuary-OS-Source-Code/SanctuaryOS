@@ -449,9 +449,9 @@ export async function handleSubmitDmcaOrLegalNotice(ctx: {
         '17 U.S.C. § 512(c)(3)(A)(iv): Telephone number and real email address are required.'
       )
     }
-    if (!goodFaithAttested || !perjuryAuthorityAttested || !forwardingAcknowledged) {
+    if (!goodFaithAttested || !perjuryAuthorityAttested) {
       throw new Error(
-        '17 U.S.C. § 512(c)(3)(A)(v)-(vi): Good-faith belief, perjury/authority, and creator identity forwarding acknowledgments are all required.'
+        '17 U.S.C. § 512(c)(3)(A)(v)-(vi): Good-faith belief and perjury/authority attestations are required.'
       )
     }
     if (!electronicSignature || electronicSignature.toLowerCase() !== fullLegalName.toLowerCase()) {
@@ -477,9 +477,9 @@ export async function handleSubmitDmcaOrLegalNotice(ctx: {
         '17 U.S.C. § 512(g)(3)(A): Full legal name, physical address, phone number, and real email address are required.'
       )
     }
-    if (!goodFaithAttested || !perjuryAuthorityAttested || !jurisdictionAttested || !forwardingAcknowledged) {
+    if (!goodFaithAttested || !perjuryAuthorityAttested || !jurisdictionAttested) {
       throw new Error(
-        '17 U.S.C. § 512(g)(3)(C)-(D): Statutory mistake/misidentification perjury attestation, Federal Court jurisdiction consent, and claimant-forwarding acknowledgment are all required.'
+        '17 U.S.C. § 512(g)(3)(C)-(D): Statutory mistake/misidentification perjury attestation and Federal Court jurisdiction consent are required.'
       )
     }
     if (!electronicSignature || electronicSignature.toLowerCase() !== fullLegalName.toLowerCase()) {
@@ -573,6 +573,18 @@ export async function handleSubmitDmcaOrLegalNotice(ctx: {
         target_spoke_id: targetSpokeId,
         target_spoke_name: spokeName,
         sla_deadline_at: slaDeadlineAt,
+        dmca_meta: {
+          notice_id: noticeId,
+          notice_type: noticeType,
+          target_scope: targetScope,
+          target_spoke_id: targetSpokeId,
+          target_spoke_name: spokeName,
+          target_identifiers: targetIdentifiers,
+          work_url: workUrl || null,
+          claimant_masked: claimantMasked,
+          reply_masked: replyMasked,
+          sla_deadline_at: slaDeadlineAt,
+        },
         contact_meta: {
           category: 'Legal, DMCA & Privacy Compliance',
           notice_type: noticeType,
@@ -667,6 +679,18 @@ export async function handleSubmitDmcaOrLegalNotice(ctx: {
           sla_deadline_at: slaDeadlineAt,
           target_identifiers: targetIdentifiers,
           external_claimant_relay: !user?.id,
+          dmca_meta: {
+            notice_id: noticeId,
+            notice_type: noticeType,
+            target_scope: targetScope,
+            target_spoke_id: targetSpokeId,
+            target_spoke_name: spokeName,
+            target_identifiers: targetIdentifiers,
+            work_url: workUrl || null,
+            claimant_masked: claimantMasked,
+            reply_masked: replyMasked,
+            sla_deadline_at: slaDeadlineAt,
+          },
         },
       }
       if (relayAuthorId) spokeTicketBody.author_id = relayAuthorId
@@ -736,6 +760,124 @@ export async function handleListSpokeDmcaNotices(ctx: {
 
   const nowMs = Date.now()
   const overdueSpokeCounts: Record<string, number> = {}
+  const uniqueSpokeIds: string[] = Array.from(
+    new Set<string>(
+      (rows || [])
+        .map((r: any) => String(r?.target_spoke_id || '').trim())
+        .filter((id: string) => UUID_REGEX.test(id))
+    )
+  )
+  const spokeClients = new Map<string, { game: any; db: any }>()
+  await Promise.all(
+    uniqueSpokeIds.map(async (sid) => {
+      try {
+        const res = await resolveGameWithServiceKey(supabaseAdmin, sid)
+        if (res?.game) {
+          const db = res.serviceKey
+            ? createSpokeClient(
+                res.game.supabase_url,
+                res.game.supabase_anon_key || '',
+                res.serviceKey
+              )
+            : null
+          spokeClients.set(sid, { game: res.game, db })
+        }
+      } catch {
+        // Ignore single spoke resolution failure
+      }
+    })
+  )
+
+  const resolvedTargetsBySpoke = new Map<string, Map<string, any>>()
+  for (const sid of uniqueSpokeIds) {
+    const entry = spokeClients.get(sid)
+    if (!entry?.db) continue
+    const tokensForSpoke: string[] = Array.from(
+      new Set<string>(
+        (rows || [])
+          .filter((r: any) => String(r?.target_spoke_id || '') === sid)
+          .flatMap((r: any) => (Array.isArray(r.target_identifiers) ? r.target_identifiers : []))
+          .map((x: any) => String(x || '').trim())
+          .filter(Boolean)
+      )
+    )
+    if (tokensForSpoke.length === 0) continue
+
+    const targetMap = new Map<string, any>()
+    const uuidTokens = tokensForSpoke.filter((tok) => UUID_REGEX.test(tok))
+    const hashTokens = tokensForSpoke.filter((tok) => SHA256_REGEX.test(tok)).map((tok) => tok.toLowerCase())
+    const blueprintCodes = tokensForSpoke.filter(
+      (tok) => !UUID_REGEX.test(tok) && !SHA256_REGEX.test(tok) && BLUEPRINT_CODE_REGEX.test(tok)
+    )
+
+    try {
+      if (uuidTokens.length > 0) {
+        const { data: modRows } = await entry.db
+          .from('mods')
+          .select('id, name, master_author, status, compliance_tier, url, description, created_at, mod_versions(dna_hash, version_label, created_at)')
+          .in('id', uuidTokens)
+        for (const m of modRows || []) {
+          targetMap.set(String(m.id).toLowerCase(), {
+            identifier: String(m.id),
+            kind: 'mod',
+            title: String(m.name || m.id),
+            subtitle: m.master_author ? String(m.master_author) : undefined,
+            compliance_tier: m.compliance_tier,
+            status: m.status,
+            description: m.description,
+            url: m.url,
+            created_at: m.created_at,
+            versions: Array.isArray(m.mod_versions) ? m.mod_versions : [],
+          })
+        }
+      }
+      if (hashTokens.length > 0) {
+        const { data: verRows } = await entry.db
+          .from('mod_versions')
+          .select('dna_hash, version_label, mods(id, name, master_author, status, compliance_tier, url, description, created_at)')
+          .in('dna_hash', hashTokens)
+        for (const v of verRows || []) {
+          const modObj = Array.isArray(v.mods) ? v.mods[0] : v.mods
+          if (v.dna_hash && modObj?.id) {
+            targetMap.set(String(v.dna_hash).toLowerCase(), {
+              identifier: String(modObj.id),
+              hash: String(v.dna_hash),
+              kind: 'mod',
+              title: String(modObj.name || modObj.id),
+              subtitle: modObj.master_author ? String(modObj.master_author) : undefined,
+              compliance_tier: modObj.compliance_tier,
+              status: modObj.status,
+              description: modObj.description,
+              url: modObj.url,
+              created_at: modObj.created_at,
+            })
+          }
+        }
+      }
+      if (blueprintCodes.length > 0 || uuidTokens.length > 0) {
+        const { data: bpRows } = await entry.db
+          .from('blueprints')
+          .select('id, code, name, description, created_at, compliance_tier')
+          .in(blueprintCodes.length > 0 ? 'code' : 'id', blueprintCodes.length > 0 ? blueprintCodes : uuidTokens)
+        for (const bp of bpRows || []) {
+          const info = {
+            identifier: String(bp.code || bp.id),
+            kind: 'blueprint',
+            title: String(bp.name || bp.code || bp.id),
+            compliance_tier: bp.compliance_tier,
+            description: bp.description,
+            created_at: bp.created_at,
+          }
+          if (bp.id) targetMap.set(String(bp.id).toLowerCase(), info)
+          if (bp.code) targetMap.set(String(bp.code).toLowerCase(), info)
+        }
+      }
+    } catch {
+      // Best effort Spoke target enrichment
+    }
+    resolvedTargetsBySpoke.set(sid, targetMap)
+  }
+
   const enriched = await Promise.all(
     (rows || []).map(async (row: any) => {
       const decryptedContact = await openLegalContact(
@@ -762,6 +904,15 @@ export async function handleListSpokeDmcaNotices(ctx: {
           CONSUMER_WEBMAIL_DOMAINS.has(emailDomain)
       )
 
+      const sid = String(row.target_spoke_id || '').trim()
+      const spokeMeta = spokeClients.get(sid)?.game
+      const spokeTargetMap = resolvedTargetsBySpoke.get(sid)
+      const resolvedTargets = Array.isArray(row.target_identifiers)
+        ? row.target_identifiers
+            .map((tok: string) => spokeTargetMap?.get(String(tok || '').trim().toLowerCase()) || null)
+            .filter(Boolean)
+        : []
+
       return {
         ...row,
         sealed_legal_contact: undefined,
@@ -769,6 +920,12 @@ export async function handleListSpokeDmcaNotices(ctx: {
         is_sla_overdue: Boolean(isOverdue),
         authority_check_recommended: authorityCheckRecommended,
         claimant_email_domain: emailDomain || null,
+        target_spoke_name:
+          row.metadata?.target_spoke_name ||
+          spokeMeta?.name ||
+          spokeMeta?.schema_id ||
+          null,
+        resolved_targets: resolvedTargets,
       }
     })
   )
@@ -797,6 +954,9 @@ export async function handleExecuteDmcaTriageAction(ctx: {
   if (!['VALIDATE_TAKEDOWN', 'HOLD_VERIFY_AUTHORITY', 'REJECT_NOTICE', 'ACCEPT_COUNTER_NOTICE', 'RESTORE_MATERIAL'].includes(subAction)) {
     throw new Error('Invalid DMCA triage action')
   }
+  if (!resolutionNotes || resolutionNotes.length < 3) {
+    throw new Error('Triage resolution / audit notes are required for all DMCA compliance actions')
+  }
 
   const isKeeper = hubRole === 'keeper'
   const isSpokeCompliance =
@@ -814,8 +974,22 @@ export async function handleExecuteDmcaTriageAction(ctx: {
     .maybeSingle()
   if (fetchErr || !notice) throw new Error('Compliance notice record not found')
 
-  if (!isKeeper && String(notice.target_spoke_id || '') !== String(game?.id || '')) {
-    throw new Error('Forbidden: Cross-Spoke DMCA triage denied')
+  const isSpokeNotice =
+    Boolean(notice.target_spoke_id) ||
+    String(notice.target_scope || '').toLowerCase() === 'spoke'
+  const callerContext = String(payload?.caller_context || '').trim().toLowerCase()
+
+  if (isSpokeNotice) {
+    if (callerContext === 'keepers_core') {
+      throw new Error(
+        'Forbidden: Partner Spoke DMCA notices are read-only view copies in Keepers Core and can only be triaged by that Spoke’s Wayfinder or Oversight staff.'
+      )
+    }
+    if (!isSpokeCompliance || String(notice.target_spoke_id || '') !== String(game?.id || '')) {
+      throw new Error('Forbidden: Cross-Spoke DMCA triage denied')
+    }
+  } else if (!isKeeper) {
+    throw new Error('Forbidden: Keepers Core clearance required to triage Hub DMCA notices')
   }
 
   const nowIso = new Date().toISOString()
@@ -835,7 +1009,7 @@ export async function handleExecuteDmcaTriageAction(ctx: {
   let affectedBlueprintsCount = 0
 
   if (subAction === 'VALIDATE_TAKEDOWN') {
-    const holdReason = `[DMCA HOLD - TIER 6] ${resolutionNotes || '17 U.S.C. § 512(c)(3) Validated Takedown Hold (10-14 business day window)'}`
+    const holdReason = `[DMCA HOLD - TIER 1] ${resolutionNotes || '17 U.S.C. § 512(c)(3) Validated Takedown Hold (10-14 business day window)'}`
     if (gameDb) {
       const { hashTokens, matchedMods, matchedBlueprints } = await findMatchingSpokeTargets(
         gameDb,
@@ -846,7 +1020,7 @@ export async function handleExecuteDmcaTriageAction(ctx: {
         await gameDb
           .from('mods')
           .update({
-            compliance_tier: 6,
+            compliance_tier: 1,
             status: 'verified',
             status_reason: holdReason,
             has_pending_flag: false,
@@ -859,7 +1033,7 @@ export async function handleExecuteDmcaTriageAction(ctx: {
         await gameDb
           .from('blueprints')
           .update({
-            compliance_tier: 6,
+            compliance_tier: 1,
             is_public: false,
             has_pending_flag: false,
           })
@@ -952,7 +1126,7 @@ export async function handleExecuteDmcaTriageAction(ctx: {
             title: publishingRevokedNow
               ? 'DMCA Takedown & Cloud Publishing Revoked (§ 512(i))'
               : `DMCA Takedown Hold Placed (Strike ${nextStrikes}/3)`,
-            message: `Material referenced under DMCA Notice #${noticeId.slice(0, 8)} has been soft-delisted (Tier 6). You have 10–14 business days to file a § 512(g)(3) counter-notice.${
+            message: `Material referenced under DMCA Notice #${noticeId.slice(0, 8)} has been soft-delisted (Tier 1). You have 10–14 business days to file a § 512(g)(3) counter-notice.${
               claimantIdentityParts.length > 0
                 ? `\n\nClaimant Contact Disclosure (17 U.S.C. § 512(c)(3)(A)(iv)):\n${claimantIdentityParts.join('\n')}`
                 : ''
@@ -971,9 +1145,6 @@ export async function handleExecuteDmcaTriageAction(ctx: {
   } else if (subAction === 'HOLD_VERIFY_AUTHORITY') {
     nextRelayStatus = 'AWAITING_AUTHORITY'
   } else if (subAction === 'REJECT_NOTICE') {
-    if (!resolutionNotes) {
-      throw new Error('Rejection reason is required to reject an incomplete or invalid DMCA notice')
-    }
     nextRelayStatus = 'REJECTED_INVALID'
   } else if (subAction === 'ACCEPT_COUNTER_NOTICE') {
     nextRelayStatus = 'COUNTER_NOTICE_PENDING_10_14D'
@@ -1061,6 +1232,10 @@ export async function handleExecuteDmcaTriageAction(ctx: {
   }
   if (subAction === 'VALIDATE_TAKEDOWN' || subAction === 'ACCEPT_COUNTER_NOTICE') {
     noticeUpdate.counter_window_ends_at = windowEndsIso
+    noticeUpdate.sla_deadline_at = null
+  } else if (subAction === 'RESTORE_MATERIAL' || subAction === 'REJECT_NOTICE') {
+    noticeUpdate.sla_deadline_at = null
+    noticeUpdate.counter_window_ends_at = null
   }
 
   const { error: updNoticeErr } = await supabaseAdmin

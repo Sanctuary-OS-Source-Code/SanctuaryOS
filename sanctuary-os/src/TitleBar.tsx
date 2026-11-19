@@ -9,6 +9,7 @@ import { isDesktop } from "./utils/envUtils";
 import { isRootDomain } from "./utils/routingUtils";
 import { HoverTooltip } from "./shared-components/alerts";
 import { getCommandHotkeys } from "./side-panels/GlobalCommandPalette";
+import { findWorkspaceByIdentifier } from "./supabase";
 
 export function TitleBar({
   subtitleIndex = 0,
@@ -20,7 +21,7 @@ export function TitleBar({
 
   const activeWorkspaceId = useStore((state) => state.activeWorkspaceId);
   const workspaces = useStore((state) => state.workspaces);
-  const activeWorkspace = workspaces?.find((w: any) => w.id === activeWorkspaceId);
+  const activeWorkspace = findWorkspaceByIdentifier(workspaces, activeWorkspaceId);
   const isConfigured = useStore((state) => state.isConfigured);
   const view = useStore((state) => state.view);
   const setView = useStore((state) => state.setView);

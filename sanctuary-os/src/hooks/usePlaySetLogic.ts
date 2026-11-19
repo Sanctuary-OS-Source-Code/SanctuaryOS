@@ -228,9 +228,7 @@ export function usePlaySetLogic() {
       isScanning ||
       isSilentScanning ||
       !Array.isArray(modList) ||
-      modList.length === 0 ||
-      !Array.isArray(playSets) ||
-      playSets.length === 0
+      modList.length === 0
     ) {
       return;
     }
@@ -285,220 +283,223 @@ export function usePlaySetLogic() {
 
     if (exactVaultMap.size === 0) return;
 
-    let anySetChanged = false;
-    const cleanedPlaySets = playSets.map((set: any) => {
-      if (!set || !Array.isArray(set.mods) || set.mods.length === 0) return set;
+    setPlaySets((currentPlaySets: any[]) => {
+      if (!Array.isArray(currentPlaySets) || currentPlaySets.length === 0) {
+        return currentPlaySets;
+      }
 
-      let setChanged = false;
-      const rawCandidates: string[] = [];
-      const nextHashes: Record<string, string> = { ...(set.modHashes || {}) };
-      const nextMeta: Record<string, any> = set.modMeta ? { ...set.modMeta } : {};
-      const remapCleanLower = new Map<string, string>();
+      let anySetChanged = false;
+      const cleanedPlaySets = currentPlaySets.map((set: any) => {
+        if (!set || !Array.isArray(set.mods) || set.mods.length === 0) return set;
 
-      for (let i = 0; i < set.mods.length; i++) {
-        const rawMod = set.mods[i];
-        const modName =
-          typeof rawMod === "string"
-            ? rawMod
-            : String(rawMod?.name || rawMod?.path || "");
-        if (
-          !modName ||
-          modName.startsWith("FOLDER_") ||
-          modName.startsWith("SET_") ||
-          modName.startsWith("LOCAL_SET_")
-        ) {
-          setChanged = true;
-          continue;
-        }
+        let setChanged = false;
+        const rawCandidates: string[] = [];
+        const nextHashes: Record<string, string> = { ...(set.modHashes || {}) };
+        const nextMeta: Record<string, any> = set.modMeta ? { ...set.modMeta } : {};
+        const remapCleanLower = new Map<string, string>();
 
-        const strippedName = stripPriorityTierPrefix(modName, activeGameSchema);
-        const tierPrefix =
-          modName.length > strippedName.length
-            ? modName.slice(0, modName.length - strippedName.length)
-            : "";
-        const cleanFile = strippedName.split(/[\\/]/).pop() || strippedName;
-        const cleanLow = cleanFile.toLowerCase();
-        const strippedLow = strippedName.replace(/\\/g, "/").toLowerCase();
-
-        // 1. Direct or path-moved match
-        const directMod =
-          exactVaultMap.get(modName) ||
-          exactVaultMap.get(strippedName) ||
-          strippedLowerVaultMap.get(strippedLow) ||
-          cleanLowerVaultMap.get(cleanLow);
-
-        if (directMod) {
-          const canonicalVaultRel = stripPriorityTierPrefix(
-            String(directMod.name),
-            activeGameSchema
-          );
-          const resolvedEntry = tierPrefix
-            ? `${tierPrefix}${canonicalVaultRel}`
-            : exactVaultMap.has(modName)
-              ? modName
-              : directMod.name;
-
-          if (resolvedEntry !== modName || typeof rawMod !== "string") {
+        for (let i = 0; i < set.mods.length; i++) {
+          const rawMod = set.mods[i];
+          const modName =
+            typeof rawMod === "string"
+              ? rawMod
+              : String(rawMod?.name || rawMod?.path || "");
+          if (
+            !modName ||
+            modName.startsWith("FOLDER_") ||
+            modName.startsWith("SET_") ||
+            modName.startsWith("LOCAL_SET_")
+          ) {
             setChanged = true;
+            continue;
           }
-          if (directMod.hash && nextHashes[resolvedEntry] !== directMod.hash) {
-            nextHashes[resolvedEntry] = directMod.hash;
-            if (resolvedEntry !== modName) delete nextHashes[modName];
-          }
-          rawCandidates.push(resolvedEntry);
-          continue;
-        }
 
-        // 2. DNA Hash Self-Heal (file was renamed on disk)
-        const oldHash =
-          nextHashes[modName] || nextHashes[strippedName] || nextHashes[cleanFile];
-        let healedMod = oldHash ? dnaVaultMap.get(String(oldHash)) : undefined;
+          const strippedName = stripPriorityTierPrefix(modName, activeGameSchema);
+          const tierPrefix =
+            modName.length > strippedName.length
+              ? modName.slice(0, modName.length - strippedName.length)
+              : "";
+          const cleanFile = strippedName.split(/[\\/]/).pop() || strippedName;
+          const cleanLow = cleanFile.toLowerCase();
+          const strippedLow = strippedName.replace(/\\/g, "/").toLowerCase();
 
-        // 3. Extension-Safe Base-Name Self-Heal (version label updated in filename)
-        if (!healedMod) {
-          const dotIdx = cleanLow.lastIndexOf(".");
-          const ext = dotIdx >= 0 ? cleanLow.slice(dotIdx) : "";
-          const baseOnly = cleanFile.replace(extRegex, "").toLowerCase();
-          if (baseOnly) {
-            healedMod = baseExtVaultMap.get(`${baseOnly}::${ext}`);
-          }
-        }
+          // 1. Direct or path-moved match
+          const directMod =
+            exactVaultMap.get(modName) ||
+            exactVaultMap.get(strippedName) ||
+            strippedLowerVaultMap.get(strippedLow) ||
+            cleanLowerVaultMap.get(cleanLow);
 
-        if (healedMod) {
-          const canonicalVaultRel = stripPriorityTierPrefix(
-            String(healedMod.name),
-            activeGameSchema
-          );
-          const healedClean =
-            canonicalVaultRel.split(/[\\/]/).pop() || canonicalVaultRel;
-          const healedEntry = tierPrefix
-            ? `${tierPrefix}${canonicalVaultRel}`
-            : healedMod.name;
+          if (directMod) {
+            const canonicalVaultRel = stripPriorityTierPrefix(
+              String(directMod.name),
+              activeGameSchema
+            );
+            const resolvedEntry = tierPrefix
+              ? `${tierPrefix}${canonicalVaultRel}`
+              : exactVaultMap.has(modName)
+                ? modName
+                : directMod.name;
 
-          rawCandidates.push(healedEntry);
-          if (healedMod.hash) {
-            nextHashes[healedEntry] = healedMod.hash;
-          }
-          if (healedEntry !== modName) {
-            if (nextMeta[modName] && !nextMeta[healedEntry]) {
-              nextMeta[healedEntry] = nextMeta[modName];
+            if (resolvedEntry !== modName || typeof rawMod !== "string") {
+              setChanged = true;
             }
-            delete nextMeta[modName];
-            delete nextHashes[modName];
+            if (directMod.hash && nextHashes[resolvedEntry] !== directMod.hash) {
+              nextHashes[resolvedEntry] = directMod.hash;
+              if (resolvedEntry !== modName) delete nextHashes[modName];
+            }
+            rawCandidates.push(resolvedEntry);
+            continue;
           }
-          if (cleanLow && healedClean.toLowerCase() !== cleanLow) {
-            remapCleanLower.set(cleanLow, healedClean);
+
+          // 2. DNA Hash Self-Heal (file was renamed on disk)
+          const oldHash =
+            nextHashes[modName] || nextHashes[strippedName] || nextHashes[cleanFile];
+          let healedMod = oldHash ? dnaVaultMap.get(String(oldHash)) : undefined;
+
+          // 3. Extension-Safe Base-Name Self-Heal (version label updated in filename)
+          if (!healedMod) {
+            const dotIdx = cleanLow.lastIndexOf(".");
+            const ext = dotIdx >= 0 ? cleanLow.slice(dotIdx) : "";
+            const baseOnly = cleanFile.replace(extRegex, "").toLowerCase();
+            if (baseOnly) {
+              healedMod = baseExtVaultMap.get(`${baseOnly}::${ext}`);
+            }
           }
-          setChanged = true;
-          continue;
-        }
 
-        // 4. Genuinely deleted/missing from Vault -> prune cleanly
-        delete nextHashes[modName];
-        delete nextHashes[strippedName];
-        delete nextHashes[cleanFile];
-        delete nextMeta[modName];
-        delete nextMeta[strippedName];
-        delete nextMeta[cleanFile];
-        setChanged = true;
-      }
+          if (healedMod) {
+            const canonicalVaultRel = stripPriorityTierPrefix(
+              String(healedMod.name),
+              activeGameSchema
+            );
+            const healedClean =
+              canonicalVaultRel.split(/[\\/]/).pop() || canonicalVaultRel;
+            const healedEntry = tierPrefix
+              ? `${tierPrefix}${canonicalVaultRel}`
+              : healedMod.name;
 
-      const dedupedMods = deduplicateBlueprintArtifacts(
-        rawCandidates,
-        activeGameSchema
-      );
-      if (dedupedMods.length !== set.mods.length) {
-        setChanged = true;
-      } else if (!setChanged) {
-        for (let i = 0; i < dedupedMods.length; i++) {
-          if (dedupedMods[i] !== set.mods[i]) {
+            rawCandidates.push(healedEntry);
+            if (healedMod.hash) {
+              nextHashes[healedEntry] = healedMod.hash;
+            }
+            if (healedEntry !== modName) {
+              if (nextMeta[modName] && !nextMeta[healedEntry]) {
+                nextMeta[healedEntry] = nextMeta[modName];
+              }
+              delete nextMeta[modName];
+              delete nextHashes[modName];
+            }
+            if (cleanLow && healedClean.toLowerCase() !== cleanLow) {
+              remapCleanLower.set(cleanLow, healedClean);
+            }
             setChanged = true;
-            break;
+            continue;
+          }
+
+          // 4. Genuinely deleted/missing from Vault -> prune cleanly
+          delete nextHashes[modName];
+          delete nextHashes[strippedName];
+          delete nextHashes[cleanFile];
+          delete nextMeta[modName];
+          delete nextMeta[strippedName];
+          delete nextMeta[cleanFile];
+          setChanged = true;
+        }
+
+        const dedupedMods = deduplicateBlueprintArtifacts(
+          rawCandidates,
+          activeGameSchema
+        );
+        if (dedupedMods.length !== set.mods.length) {
+          setChanged = true;
+        } else if (!setChanged) {
+          for (let i = 0; i < dedupedMods.length; i++) {
+            if (dedupedMods[i] !== set.mods[i]) {
+              setChanged = true;
+              break;
+            }
           }
         }
-      }
 
-      if (!setChanged) return set;
+        if (!setChanged) return set;
 
-      anySetChanged = true;
+        anySetChanged = true;
 
-      const survivingCleanLower = new Set<string>();
-      dedupedMods.forEach((mPath: string) => {
-        const s = stripPriorityTierPrefix(mPath, activeGameSchema);
-        const c = (s.split(/[\\/]/).pop() || s).toLowerCase();
-        if (c) survivingCleanLower.add(c);
+        const survivingCleanLower = new Set<string>();
+        dedupedMods.forEach((mPath: string) => {
+          const s = stripPriorityTierPrefix(mPath, activeGameSchema);
+          const c = (s.split(/[\\/]/).pop() || s).toLowerCase();
+          if (c) survivingCleanLower.add(c);
+        });
+
+        let nextModTiers = set.modTiers;
+        if (set.modTiers && typeof set.modTiers === "object") {
+          const cleanedTiers: Record<string, string> = {};
+          Object.entries(set.modTiers).forEach(([k, v]) => {
+            const kClean = (k.split(/[\\/]/).pop() || k).toLowerCase();
+            const remapped = remapCleanLower.get(kClean);
+            const finalKey = remapped || k;
+            const finalClean = (finalKey.split(/[\\/]/).pop() || finalKey).toLowerCase();
+            if (survivingCleanLower.has(finalClean) && typeof v === "string") {
+              cleanedTiers[finalKey] = v;
+            }
+          });
+          nextModTiers = cleanedTiers;
+        }
+
+        let nextLoadOrder = set.loadOrder;
+        if (Array.isArray(set.loadOrder)) {
+          nextLoadOrder = set.loadOrder
+            .map((n: string) => {
+              const c = (String(n || "").split(/[\\/]/).pop() || String(n || "")).toLowerCase();
+              return remapCleanLower.get(c) || n;
+            })
+            .filter((n: string) => {
+              const c = (String(n || "").split(/[\\/]/).pop() || String(n || "")).toLowerCase();
+              return survivingCleanLower.has(c);
+            });
+        }
+
+        let nextLoadRules = set.loadRules;
+        if (Array.isArray(set.loadRules)) {
+          nextLoadRules = set.loadRules
+            .map((r: any) => {
+              if (!r?.modA || !r?.modB) return null;
+              const cA = (String(r.modA).split(/[\\/]/).pop() || String(r.modA)).toLowerCase();
+              const cB = (String(r.modB).split(/[\\/]/).pop() || String(r.modB)).toLowerCase();
+              return {
+                ...r,
+                modA: remapCleanLower.get(cA) || r.modA,
+                modB: remapCleanLower.get(cB) || r.modB,
+              };
+            })
+            .filter((r: any) => {
+              if (!r) return false;
+              const cA = (String(r.modA).split(/[\\/]/).pop() || String(r.modA)).toLowerCase();
+              const cB = (String(r.modB).split(/[\\/]/).pop() || String(r.modB)).toLowerCase();
+              return survivingCleanLower.has(cA) && survivingCleanLower.has(cB);
+            });
+        }
+
+        return {
+          ...set,
+          mods: dedupedMods,
+          modHashes: nextHashes,
+          modMeta: Object.keys(nextMeta).length > 0 ? nextMeta : undefined,
+          modTiers: nextModTiers,
+          loadOrder: nextLoadOrder,
+          loadRules: nextLoadRules,
+          ignoredGhosts: undefined,
+        };
       });
 
-      let nextModTiers = set.modTiers;
-      if (set.modTiers && typeof set.modTiers === "object") {
-        const cleanedTiers: Record<string, string> = {};
-        Object.entries(set.modTiers).forEach(([k, v]) => {
-          const kClean = (k.split(/[\\/]/).pop() || k).toLowerCase();
-          const remapped = remapCleanLower.get(kClean);
-          const finalKey = remapped || k;
-          const finalClean = (finalKey.split(/[\\/]/).pop() || finalKey).toLowerCase();
-          if (survivingCleanLower.has(finalClean) && typeof v === "string") {
-            cleanedTiers[finalKey] = v;
-          }
-        });
-        nextModTiers = cleanedTiers;
-      }
-
-      let nextLoadOrder = set.loadOrder;
-      if (Array.isArray(set.loadOrder)) {
-        nextLoadOrder = set.loadOrder
-          .map((n: string) => {
-            const c = (String(n || "").split(/[\\/]/).pop() || String(n || "")).toLowerCase();
-            return remapCleanLower.get(c) || n;
-          })
-          .filter((n: string) => {
-            const c = (String(n || "").split(/[\\/]/).pop() || String(n || "")).toLowerCase();
-            return survivingCleanLower.has(c);
-          });
-      }
-
-      let nextLoadRules = set.loadRules;
-      if (Array.isArray(set.loadRules)) {
-        nextLoadRules = set.loadRules
-          .map((r: any) => {
-            if (!r?.modA || !r?.modB) return null;
-            const cA = (String(r.modA).split(/[\\/]/).pop() || String(r.modA)).toLowerCase();
-            const cB = (String(r.modB).split(/[\\/]/).pop() || String(r.modB)).toLowerCase();
-            return {
-              ...r,
-              modA: remapCleanLower.get(cA) || r.modA,
-              modB: remapCleanLower.get(cB) || r.modB,
-            };
-          })
-          .filter((r: any) => {
-            if (!r) return false;
-            const cA = (String(r.modA).split(/[\\/]/).pop() || String(r.modA)).toLowerCase();
-            const cB = (String(r.modB).split(/[\\/]/).pop() || String(r.modB)).toLowerCase();
-            return survivingCleanLower.has(cA) && survivingCleanLower.has(cB);
-          });
-      }
-
-      return {
-        ...set,
-        mods: dedupedMods,
-        modHashes: nextHashes,
-        modMeta: Object.keys(nextMeta).length > 0 ? nextMeta : undefined,
-        modTiers: nextModTiers,
-        loadOrder: nextLoadOrder,
-        loadRules: nextLoadRules,
-        ignoredGhosts: undefined,
-      };
+      return anySetChanged ? cleanedPlaySets : currentPlaySets;
     });
-
-    if (anySetChanged) {
-      setPlaySets(cleanedPlaySets);
-    }
   }, [
     isGlobalConfigLoaded,
     isScanning,
     isSilentScanning,
     modList,
-    playSets,
     activeGameSchema,
     setPlaySets,
   ]);

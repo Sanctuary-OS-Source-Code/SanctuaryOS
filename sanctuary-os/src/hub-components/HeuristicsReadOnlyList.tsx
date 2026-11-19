@@ -42,7 +42,7 @@ export function formatHeuristicSeverity(
 ): string {
   const clean = String(severity || "").trim().toLowerCase();
   if (clean === "malware") return t("rating_malware", "Malware");
-  if (clean === "explicit") return t("tier_1_label", "Adult / NSFW (T1)");
+  if (clean === "explicit") return t("tier_2_label", "Explicit Content (T2)");
   return clean
     ? clean
         .replace(/[_-]+/g, " ")

@@ -175,11 +175,11 @@ export function redactRestrictedEmbeddedRelations(data: any): any {
       if (Array.isArray(rel)) {
         next[relKey] = rel.filter((item: any) => {
           const t = Number(item?.compliance_tier ?? 0)
-          return !((t >= 1 && t <= 4) || t === 6)
+          return !(t >= 1 && t <= 5)
         })
       } else if (typeof rel === 'object') {
         const t = Number(rel?.compliance_tier ?? 0)
-        if ((t >= 1 && t <= 4) || t === 6) {
+        if (t >= 1 && t <= 5) {
           next[relKey] = null
         }
       }

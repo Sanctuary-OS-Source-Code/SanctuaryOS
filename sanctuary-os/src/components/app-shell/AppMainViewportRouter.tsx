@@ -24,33 +24,35 @@ import { createPortal } from "react-dom";
 import { ContextMenu } from "../../shared-components/ContextMenu";
 import { GlobalTooltip } from "../../shared-components/GlobalTooltip";
 import { useTooltipStore } from "../../store/tooltipStore";
+import { getStaticNoiseDataUrl } from "../../utils/noiseTexture";
+import { lazyWithRetry } from "../../utils/lazyWithRetry";
 
-const ArchitectHub = React.lazy(() => import("../../views/ArchitectHub"));
-const GlobalFeed = React.lazy(() => import("../../views/GlobalFeed"));
-const Settings = React.lazy(() => import("../../views/SettingsTab"));
-const ModDossier = React.lazy(() => import("../../side-panels/ModDossier"));
-const BlueprintArchitect = React.lazy(() => import("../../views/BlueprintArchitect"));
-const Nexus = React.lazy(() => import("../../views/Nexus"));
-const ArtifactScout = React.lazy(() => import("../../views/ArtifactScout").then((m) => ({ default: m.ArtifactScout })));
-const WebLandingPage = React.lazy(() => import("../../views/WebLandingPage"));
-const WorkspaceFirstTimeSetup = React.lazy(() => import("../WorkspaceFirstTimeSetup"));
-const NotificationSidebar = React.lazy(() => import("../../side-panels/NotificationSidebar"));
-const CitizenTicketsSidePanel = React.lazy(() => import("../../side-panels/CitizenTicketsSidePanel"));
-const MasonHub = React.lazy(() => import("../../views/MasonHub"));
-const MasonProfile = React.lazy(() => import("../../views/MasonProfile"));
-const MasonPostViewer = React.lazy(() => import("../../side-panels/MasonPostViewer"));
-const SupportHub = React.lazy(() => import("../../views/SupportHub"));
-const Blueprints = React.lazy(() => import("../../views/Blueprints"));
-const StagingPayloadEditor = React.lazy(() => import("../StagingPayloadEditor"));
-const Lab = React.lazy(() => import("../../views/Lab"));
-const TimeCapsule = React.lazy(() => import("../../views/TimeCapsule"));
-const Oversight = React.lazy(() => import("../../views/Oversight"));
-const WayfinderHub = React.lazy(() => import("../../views/WayfinderHub"));
-const KeepersCore = React.lazy(() => import("../../views/KeepersCore"));
-const UpdateSidePanel = React.lazy(() => import("../../side-panels/UpdateSidePanel").then((m) => ({ default: m.UpdateSidePanel })));
-const NexusUpdatesSidePanel = React.lazy(() => import("../../side-panels/NexusUpdatesSidePanel").then((m) => ({ default: m.NexusUpdatesSidePanel })));
-const SupporterCelebrationSidePanel = React.lazy(() => import("../../side-panels/SupporterCelebrationSidePanel").then((m) => ({ default: m.SupporterCelebrationSidePanel })));
-const CitizensWorkbench = React.lazy(() => import("../../views/CitizensWorkbench"));
+const ArchitectHub = lazyWithRetry(() => import("../../views/ArchitectHub"));
+const GlobalFeed = lazyWithRetry(() => import("../../views/GlobalFeed"));
+const Settings = lazyWithRetry(() => import("../../views/SettingsTab"));
+const ModDossier = lazyWithRetry(() => import("../../side-panels/ModDossier"));
+const BlueprintArchitect = lazyWithRetry(() => import("../../views/BlueprintArchitect"));
+const Nexus = lazyWithRetry(() => import("../../views/Nexus"));
+const ArtifactScout = lazyWithRetry(() => import("../../views/ArtifactScout").then((m) => ({ default: m.ArtifactScout })));
+const WebLandingPage = lazyWithRetry(() => import("../../views/WebLandingPage"));
+const WorkspaceFirstTimeSetup = lazyWithRetry(() => import("../WorkspaceFirstTimeSetup"));
+const NotificationSidebar = lazyWithRetry(() => import("../../side-panels/NotificationSidebar"));
+const CitizenTicketsSidePanel = lazyWithRetry(() => import("../../side-panels/CitizenTicketsSidePanel"));
+const MasonHub = lazyWithRetry(() => import("../../views/MasonHub"));
+const MasonProfile = lazyWithRetry(() => import("../../views/MasonProfile"));
+const MasonPostViewer = lazyWithRetry(() => import("../../side-panels/MasonPostViewer"));
+const SupportHub = lazyWithRetry(() => import("../../views/SupportHub"));
+const Blueprints = lazyWithRetry(() => import("../../views/Blueprints"));
+const StagingPayloadEditor = lazyWithRetry(() => import("../StagingPayloadEditor"));
+const Lab = lazyWithRetry(() => import("../../views/Lab"));
+const TimeCapsule = lazyWithRetry(() => import("../../views/TimeCapsule"));
+const Oversight = lazyWithRetry(() => import("../../views/Oversight"));
+const WayfinderHub = lazyWithRetry(() => import("../../views/WayfinderHub"));
+const KeepersCore = lazyWithRetry(() => import("../../views/KeepersCore"));
+const UpdateSidePanel = lazyWithRetry(() => import("../../side-panels/UpdateSidePanel").then((m) => ({ default: m.UpdateSidePanel })));
+const NexusUpdatesSidePanel = lazyWithRetry(() => import("../../side-panels/NexusUpdatesSidePanel").then((m) => ({ default: m.NexusUpdatesSidePanel })));
+const SupporterCelebrationSidePanel = lazyWithRetry(() => import("../../side-panels/SupporterCelebrationSidePanel").then((m) => ({ default: m.SupporterCelebrationSidePanel })));
+const CitizensWorkbench = lazyWithRetry(() => import("../../views/CitizensWorkbench"));
 
 export function AppMainViewportRouter({
   currentTheme,
@@ -296,6 +298,7 @@ export function AppMainViewportRouter({
     if (!isDesktop() || !isGlobalConfigLoaded) return;
     const warm = () => {
       void import("../../views/Blueprints");
+      void import("../../views/SettingsTab");
     };
     const w = window as any;
     if (typeof w.requestIdleCallback === "function") {
@@ -324,7 +327,20 @@ export function AppMainViewportRouter({
           >
             <div className="relative z-10 w-full min-h-full pb-[100px] max-md:pb-[40px]">
               {isGlobalConfigLoaded && (
-                <Suspense fallback={null}>
+                <Suspense
+                  fallback={
+                    <div className="p-6 md:p-10">
+                      <div className="glass-panel rounded-3xl p-6 border border-[var(--border)] flex items-center gap-4">
+                        <span className="material-symbols-outlined animate-spin text-[22px] text-[var(--accent)]">
+                          {t("icon_progress_activity", "progress_activity")}
+                        </span>
+                        <span className="text-sm font-black uppercase tracking-widest text-[var(--text)]">
+                          {t("loading", "Loading...")}
+                        </span>
+                      </div>
+                    </div>
+                  }
+                >
                   {(view === "landing" || (((!isConfigured && !isWorkspaceSetupOverlayOpen) || (!isDesktop() && isRootDomain())) && view !== "settings" && view !== "KeepersCore")) ? (
                     <WebLandingPage />
                   ) : (
@@ -833,28 +849,43 @@ export function AppMainViewportRouter({
             statusLog={statusLog}
             clearStatusLog={clearStatusLog}
           />
-          <Suspense fallback={null}>
-            {isNotificationSidebarOpen && (
-              <NotificationSidebar
-                onClose={() => setIsNotificationSidebarOpen(false)}
-                onOpenPost={setGlobalViewingPost}
-              />
-            )}
-          </Suspense>
+          <ErrorBoundary
+            variant="overlay"
+            moduleName={t("notifications", "Notifications")}
+            onClose={() => setIsNotificationSidebarOpen(false)}
+          >
+            <Suspense fallback={null}>
+              {isNotificationSidebarOpen && (
+                <NotificationSidebar
+                  onClose={() => setIsNotificationSidebarOpen(false)}
+                  onOpenPost={setGlobalViewingPost}
+                />
+              )}
+            </Suspense>
+          </ErrorBoundary>
           <NexusUpdatesChecker />
-          <Suspense fallback={null}>
-            {globalViewingPost && (
-              <MasonPostViewer
-                post={globalViewingPost}
-                onClose={() => setGlobalViewingPost(null)}
-                onOpenMasonProfile={handleOpenMasonProfile}
-                userId={session?.user?.id}
-              />
-            )}
-            {isCitizenTicketsOpen && (
-              <CitizenTicketsSidePanel isOpen={isCitizenTicketsOpen} onClose={() => setIsCitizenTicketsOpen(false)} userId={session?.user?.id} />
-            )}
-          </Suspense>
+          <ErrorBoundary
+            variant="overlay"
+            moduleName={t("support", "Support")}
+            onClose={() => {
+              setGlobalViewingPost(null);
+              setIsCitizenTicketsOpen(false);
+            }}
+          >
+            <Suspense fallback={null}>
+              {globalViewingPost && (
+                <MasonPostViewer
+                  post={globalViewingPost}
+                  onClose={() => setGlobalViewingPost(null)}
+                  onOpenMasonProfile={handleOpenMasonProfile}
+                  userId={session?.user?.id}
+                />
+              )}
+              {isCitizenTicketsOpen && (
+                <CitizenTicketsSidePanel isOpen={isCitizenTicketsOpen} onClose={() => setIsCitizenTicketsOpen(false)} userId={session?.user?.id} />
+              )}
+            </Suspense>
+          </ErrorBoundary>
           <GlobalCommandPalette
             onInspectMod={(mod) => {
               window.dispatchEvent(new CustomEvent("sanctuary-open-dossier", { detail: mod }));
@@ -895,15 +926,28 @@ export function AppMainViewportRouter({
             }}
           />
           <DevBuildClearanceGate />
-          <Suspense fallback={null}>
-            {isUpdatePanelOpen && <UpdateSidePanel />}
-            <SupporterCelebrationSidePanel />
-            {isNexusUpdatesPanelOpen && <NexusUpdatesSidePanel />}
-            {isSupportPanelOpen && <SupportHub />}
-            {isDesktop() && (
-              <WorkspaceFirstTimeSetup isOpen={isWorkspaceSetupOverlayOpen} />
-            )}
-          </Suspense>
+          <ErrorBoundary
+            variant="overlay"
+            moduleName={t("release_notes_tile_changelog", "Changelog")}
+            onClose={() => {
+              const modalState = useModalStore.getState();
+              modalState.setIsUpdatePanelOpen(false);
+              modalState.setIsNexusUpdatesPanelOpen(false);
+              modalState.setIsSupportPanelOpen(false);
+            }}
+          >
+            <Suspense fallback={null}>
+              {isUpdatePanelOpen && <UpdateSidePanel />}
+              <SupporterCelebrationSidePanel />
+              {isNexusUpdatesPanelOpen && <NexusUpdatesSidePanel />}
+              {isSupportPanelOpen && (
+                <SupportHub onOpenModDossier={setActiveDossier} />
+              )}
+              {isDesktop() && (
+                <WorkspaceFirstTimeSetup isOpen={isWorkspaceSetupOverlayOpen} />
+              )}
+            </Suspense>
+          </ErrorBoundary>
           <ContextMenu />
           <GlobalTooltip />
           <PixelSnapper />
@@ -1051,10 +1095,11 @@ export function AppGlobalOverlays({
       */}
       {currentTheme.ambientNoise !== false && !isLinuxDesktop() && (
         <div
-          className="fixed inset-0 w-full h-full opacity-[0.06] mix-blend-overlay pointer-events-none z-[9999999] transform-gpu"
+          className="fixed inset-0 w-full h-full opacity-[0.45] pointer-events-none z-[9999999] transform-gpu"
           style={{
-            backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E")`,
-            backgroundRepeat: 'repeat'
+            backgroundImage: getStaticNoiseDataUrl() ? `url("${getStaticNoiseDataUrl()}")` : undefined,
+            backgroundRepeat: 'repeat',
+            backgroundSize: '96px 96px',
           }}
         />
       )}

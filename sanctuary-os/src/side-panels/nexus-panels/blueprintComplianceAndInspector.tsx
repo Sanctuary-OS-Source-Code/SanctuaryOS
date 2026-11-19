@@ -191,7 +191,7 @@ export async function auditBlueprintsTier0Compliance(
       resolveComplianceHashTiers(supabaseClient, allHashes),
     ]);
     rpcTierMap.forEach((tier, normH) => {
-      if (tier >= 1 && tier <= 5) {
+      if (tier >= 1 && tier <= 6) {
         restrictedTierMap.set(normH, tier);
       }
     });
@@ -203,7 +203,7 @@ export async function auditBlueprintsTier0Compliance(
             const cTier =
               typeof dbMod.compliance_tier === "number" ? dbMod.compliance_tier : -1;
             const normRowHash = normalizeComplianceHash(row.dna_hash);
-            if (cTier >= 1 && cTier <= 4) {
+            if (cTier >= 1 && cTier <= 5) {
               if (normRowHash) restrictedTierMap.set(normRowHash, cTier);
               continue;
             }

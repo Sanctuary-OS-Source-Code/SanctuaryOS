@@ -705,21 +705,21 @@ export function ModDossierSecondaryDrawers({
               title={cleanArtifactTitle}
               description={t(
                 "nexus_compliance_flag_desc",
-                "Tier 1–4 compliance flags route directly to Oversight Compliance as Pending until verified by Oversight or Wayfinder staff."
+                "Tier 1–5 compliance flags route directly to Oversight Compliance as Pending until verified by Oversight or Wayfinder staff."
               )}
               variant="warning"
             />
 
             <UniversalGroup
-              title={t("compliance_tier", "Compliance Tier (Tier 1–4)")}
+              title={t("compliance_tier", "Compliance Tier (Tier 1–5)")}
               icon={t("icon_policy", "policy")}
             >
               <div className="space-y-3">
                 <CustomComplianceDropdown
-                  value={Math.min(4, Math.max(1, Number(flagComplianceTier || 1)))}
+                  value={Math.min(5, Math.max(1, Number(flagComplianceTier || 1)))}
                   onChange={(val) => setFlagComplianceTier(val)}
                   minTier={1}
-                  maxTier={4}
+                  maxTier={5}
                 />
                 <UniversalTextArea
                   label={t("reason", "Reason")}

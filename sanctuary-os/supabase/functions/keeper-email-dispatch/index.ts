@@ -4,7 +4,8 @@
 // Enforces authenticated Keeper/Core-Dev/Admin authorization and server-side secret isolation.
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { EMAIL_PNG_ASSETS } from "./assetsData.ts";
+
+const LIVE_ASSET_BYTE_CACHE = new Map<string, ArrayBuffer>();
 
 function decodeBase64Bytes(b64: string): ArrayBuffer {
   const bin = atob(b64);
@@ -14,6 +15,17 @@ function decodeBase64Bytes(b64: string): ArrayBuffer {
     out[i] = bin.charCodeAt(i);
   }
   return buf;
+}
+
+function arrayBufferToBase64(buf: ArrayBuffer): string {
+  const bytes = new Uint8Array(buf);
+  const chunkSize = 0x8000;
+  let bin = "";
+  for (let i = 0; i < bytes.length; i += chunkSize) {
+    const chunk = bytes.subarray(i, Math.min(i + chunkSize, bytes.length));
+    bin += String.fromCharCode(...chunk);
+  }
+  return btoa(bin);
 }
 
 const STATIC_ALLOWED_ORIGINS = new Set([
@@ -209,8 +221,20 @@ async function deriveThreadAesKey(salt: Uint8Array): Promise<CryptoKey> {
   );
 }
 
+export interface ThreadAttachmentMeta {
+  id?: string;
+  filename: string;
+  content_type: string;
+  size?: number;
+  content_id?: string | null;
+  is_inline?: boolean;
+  download_url?: string | null;
+  expires_at?: string | null;
+  data_url?: string | null;
+}
+
 async function sealThreadEnvelope(
-  payload: { external_email: string; body_text: string },
+  payload: { external_email: string; body_text: string; attachments?: ThreadAttachmentMeta[] },
   threadId: string
 ): Promise<string> {
   const salt = crypto.getRandomValues(new Uint8Array(16));
@@ -228,7 +252,7 @@ async function sealThreadEnvelope(
 async function openThreadEnvelope(
   sealed: string | null | undefined,
   threadId: string
-): Promise<{ external_email: string; body_text: string } | null> {
+): Promise<{ external_email: string; body_text: string; attachments?: ThreadAttachmentMeta[] } | null> {
   const clean = String(sealed || "").trim();
   if (!clean.startsWith("enc:t1:")) return null;
   const parts = clean.split(":");
@@ -249,6 +273,7 @@ async function openThreadEnvelope(
     return {
       external_email: String(parsed?.external_email || ""),
       body_text: String(parsed?.body_text || ""),
+      attachments: Array.isArray(parsed?.attachments) ? parsed.attachments : [],
     };
   } catch {
     return null;
@@ -279,24 +304,102 @@ function extractEmailAddress(raw: unknown): { email: string; name: string } {
   };
 }
 
+function normalizeEmailThreadSubject(rawSubject: string): string {
+  let clean = String(rawSubject || "").trim().toLowerCase();
+  let prev = "";
+  while (clean !== prev) {
+    prev = clean;
+    clean = clean
+      .replace(/^(?:re|fwd|fw)\s*:\s*/i, "")
+      .replace(/^\[[^\]]+\]\s*/i, "")
+      .trim();
+  }
+  return clean.replace(/\s+/g, " ").trim();
+}
+
 function stripQuotedEmailReply(rawText: string): string {
   const normalized = String(rawText || "").replace(/\r\n/g, "\n").trim();
   if (!normalized) return "";
   const lines = normalized.split("\n");
   const kept: string[] = [];
+  let hitQuoteBoundary = false;
   for (const line of lines) {
+    const tLine = line.trim();
     if (
-      /^On .+wrote:\s*$/i.test(line.trim()) ||
-      /^-{3,}\s*Original Message\s*-{3,}/i.test(line.trim()) ||
-      /^From:\s.+@/i.test(line.trim()) ||
-      /^>/.test(line.trim())
+      /^On .+wrote:\s*$/i.test(tLine) ||
+      /^-{3,}\s*Original Message\s*-{3,}/i.test(tLine) ||
+      /^_{12,}$/.test(tLine) ||
+      /^From:\s.+@/i.test(tLine) ||
+      /^>/.test(tLine)
     ) {
+      hitQuoteBoundary = true;
       break;
     }
     kept.push(line);
   }
   const cleaned = kept.join("\n").trim();
-  return cleaned || normalized;
+  return hitQuoteBoundary ? cleaned : cleaned || normalized;
+}
+
+function extractInlineDataImagesFromHtml(html: string): ThreadAttachmentMeta[] {
+  const rawHtml = String(html || "");
+  if (!rawHtml.includes("data:image/")) return [];
+  const results: ThreadAttachmentMeta[] = [];
+  const imgRegex = /<img\b[^>]*src=["'](data:(image\/[a-z0-9.+-]+);base64,([a-z0-9+/=\s]+))["'][^>]*>/gi;
+  let m: RegExpExecArray | null;
+  let idx = 1;
+  while ((m = imgRegex.exec(rawHtml)) !== null && results.length < 4) {
+    const contentType = String(m[2] || "image/png").toLowerCase();
+    const b64Clean = String(m[3] || "").replace(/\s+/g, "");
+    if (!b64Clean || b64Clean.length > 240_000) continue;
+    const ext = contentType.split("/")[1]?.replace(/[^a-z0-9]/g, "") || "png";
+    results.push({
+      id: `inline_img_${idx}`,
+      filename: `screenshot-${idx}.${ext}`,
+      content_type: contentType,
+      size: Math.floor((b64Clean.length * 3) / 4),
+      is_inline: true,
+      data_url: `data:${contentType};base64,${b64Clean}`,
+    });
+    idx += 1;
+  }
+  return results;
+}
+
+async function fetchResendReceivedAttachments(
+  apiKey: string,
+  emailId: string
+): Promise<ThreadAttachmentMeta[]> {
+  const cleanKey = String(apiKey || "").trim();
+  const cleanId = String(emailId || "").trim();
+  if (!cleanKey || !cleanId) return [];
+  try {
+    const res = await fetch(
+      `https://api.resend.com/emails/receiving/${encodeURIComponent(cleanId)}/attachments`,
+      {
+        method: "GET",
+        headers: { Authorization: `Bearer ${cleanKey}` },
+      }
+    );
+    if (!res.ok) return [];
+    const json = await res.json().catch(() => ({}));
+    const list = Array.isArray(json?.data) ? json.data : Array.isArray(json) ? json : [];
+    return list
+      .filter((att: any) => att && (att.filename || att.download_url || att.content_type))
+      .slice(0, 10)
+      .map((att: any) => ({
+        id: att.id ? String(att.id) : undefined,
+        filename: String(att.filename || "attachment"),
+        content_type: String(att.content_type || "application/octet-stream"),
+        size: typeof att.size === "number" ? att.size : undefined,
+        content_id: att.content_id ? String(att.content_id) : null,
+        is_inline: Boolean(att.content_id),
+        download_url: att.download_url ? String(att.download_url) : null,
+        expires_at: att.expires_at ? String(att.expires_at) : null,
+      }));
+  } catch {
+    return [];
+  }
 }
 
 function timingSafeEqualStr(a: string, b: string): boolean {
@@ -404,8 +507,10 @@ function isSafeHttpsRelayUrl(rawUrl: string): boolean {
   }
 }
 
-const LIVE_EMAIL_ASSET_BASE =
-  "https://tpsbtaqxlczrysqqmanp.supabase.co/functions/v1/keeper-email-dispatch/assets";
+const LIVE_EMAIL_ASSET_BASE = (
+  Deno.env.get("PUBLIC_EMAIL_ASSET_BASE_URL") ||
+  `${(Deno.env.get("SUPABASE_URL") || "https://tpsbtaqxlczrysqqmanp.supabase.co").replace(/\/+$/, "")}/functions/v1/keeper-email-dispatch/assets`
+).replace(/\/+$/, "");
 const SANCTUARY_LOGO_URL = `${LIVE_EMAIL_ASSET_BASE}/sanctuary-logo.png?v=2`;
 
 function maskEmailAddress(raw: string): string {
@@ -836,44 +941,50 @@ async function deliverEmailViaProvider(params: {
   return { dispatchStatus, providerUsed, providerMessageId, errorMessage };
 }
 
-async function handleInboundEmailWebhook(
-  req: Request,
+interface InboundSyncSummary {
+  status: "ok" | "empty_inbox" | "send_only_api_key" | "no_api_key" | "error";
+  synced_count: number;
+  total_remote: number;
+  detail?: string;
+}
+
+let lastInboundSyncAtMs = 0;
+
+async function ingestInboundEmailRecord(
   adminClient: any,
-  corsHeaders: Record<string, string>
-): Promise<Response> {
-  const ctx = await resolveMailerContext(adminClient);
-  if (!ctx.inboundWebhookSecret) {
-    return new Response(
-      JSON.stringify({ ok: false, error: "Inbound webhook secret not configured" }),
-      { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-    );
-  }
+  ctx: Awaited<ReturnType<typeof resolveMailerContext>>,
+  evtData: Record<string, any>,
+  options?: { isResend?: boolean; attachments?: ThreadAttachmentMeta[] }
+): Promise<{
+  ok: boolean;
+  ignored?: boolean;
+  already_ingested?: boolean;
+  reason?: string;
+  thread_id?: string;
+  ticket_id?: string | null;
+  dispatch_id?: string | null;
+}> {
+  const headersMap = evtData.headers && typeof evtData.headers === "object" ? evtData.headers : {};
+  const incomingMsgId = sanitizeHeaderLine(
+    evtData.id || evtData.email_id || evtData.message_id || headersMap["message-id"] || "",
+    256
+  );
 
-  const rawBody = await req.text();
-  const isVerified = await verifyInboundWebhookSignature(req, rawBody, ctx.inboundWebhookSecret);
-  if (!isVerified) {
-    return new Response(
-      JSON.stringify({ ok: false, error: "Invalid inbound webhook signature" }),
-      { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-    );
-  }
-
-  const payload = JSON.parse(rawBody || "{}");
-  let evtData = payload?.type === "email.received" ? payload?.data || {} : payload || {};
-  const isResendEvent = payload?.type === "email.received";
-
-  if (isResendEvent && evtData?.email_id && ctx.resendApiKey) {
-    try {
-      const rxRes = await fetch(`https://api.resend.com/emails/receiving/${evtData.email_id}`, {
-        method: "GET",
-        headers: { Authorization: `Bearer ${ctx.resendApiKey}` },
-      });
-      if (rxRes.ok) {
-        const rxJson = await rxRes.json().catch(() => ({}));
-        evtData = { ...evtData, ...rxJson };
-      }
-    } catch {
-      // Fall back to webhook event fields
+  if (incomingMsgId) {
+    const { data: existingRow } = await adminClient
+      .from("keeper_email_dispatches")
+      .select("id, thread_id, ticket_id")
+      .eq("provider_message_id", incomingMsgId)
+      .limit(1)
+      .maybeSingle();
+    if (existingRow?.id) {
+      return {
+        ok: true,
+        already_ingested: true,
+        dispatch_id: existingRow.id,
+        thread_id: existingRow.thread_id || existingRow.ticket_id || existingRow.id,
+        ticket_id: existingRow.ticket_id || null,
+      };
     }
   }
 
@@ -881,23 +992,40 @@ async function handleInboundEmailWebhook(
   const toRaw = Array.isArray(evtData.to) ? evtData.to[0] : evtData.to;
   const toParsed = extractEmailAddress(toRaw);
   const senderEmail = senderParsed.email;
-  const rawSubject = sanitizeHeaderLine(evtData.subject || "Reply", 240);
-  const rawTextBody = String(
-    evtData.text ||
-      evtData.plain ||
-      String(evtData.html || "").replace(/<[^>]+>/g, " ").replace(/\s+/g, " ") ||
-      ""
-  ).trim();
-  const cleanReplyText = stripQuotedEmailReply(rawTextBody);
 
-  if (!senderEmail || !cleanReplyText) {
-    return new Response(
-      JSON.stringify({ ok: true, ignored: true, reason: "Missing sender email or body" }),
-      { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-    );
+  if (!senderEmail) {
+    return { ok: true, ignored: true, reason: "Missing sender email" };
+  }
+  const ownSenders = new Set(
+    [ctx.fromEmail, ctx.replyTo, "noreply@sanctuaryos.net", "support@sanctuaryos.net"]
+      .map((s) => String(s || "").trim().toLowerCase())
+      .filter(Boolean)
+  );
+  if (ownSenders.has(senderEmail.toLowerCase())) {
+    return { ok: true, ignored: true, reason: "Ignored self-sent outbound copy" };
   }
 
-  const headersMap = evtData.headers && typeof evtData.headers === "object" ? evtData.headers : {};
+  const rawSubject = sanitizeHeaderLine(evtData.subject || "Reply", 240);
+  const rawHtml = String(evtData.html || "");
+  const htmlAsText = rawHtml
+    .replace(/<style\b[\s\S]*?<\/style>/gi, " ")
+    .replace(/<br\s*\/?>/gi, "\n")
+    .replace(/<\/(?:p|div|li|tr)>/gi, "\n")
+    .replace(/<[^>]+>/g, " ")
+    .replace(/[ \t]+/g, " ")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
+  const rawTextBody = String(evtData.text || evtData.plain || htmlAsText || "").trim();
+  const cleanReplyText = stripQuotedEmailReply(rawTextBody);
+
+  const providedAttachments = Array.isArray(options?.attachments) ? options!.attachments! : [];
+  const inlineHtmlAttachments = providedAttachments.length === 0 ? extractInlineDataImagesFromHtml(rawHtml) : [];
+  const attachments = providedAttachments.length > 0 ? providedAttachments : inlineHtmlAttachments;
+
+  if (!cleanReplyText && attachments.length === 0) {
+    return { ok: true, ignored: true, reason: "Missing sender reply body or attachments" };
+  }
+
   const headerThreadId = sanitizeHeaderLine(
     headersMap["x-sanctuary-thread-id"] || headersMap["X-Sanctuary-Thread-ID"] || "",
     64
@@ -906,9 +1034,9 @@ async function handleInboundEmailWebhook(
     evtData.in_reply_to || headersMap["in-reply-to"] || headersMap["In-Reply-To"] || "",
     256
   );
-  const incomingMsgId = sanitizeHeaderLine(
-    evtData.message_id || evtData.email_id || headersMap["message-id"] || "",
-    256
+  const referencesHeader = sanitizeHeaderLine(
+    headersMap["references"] || headersMap["References"] || "",
+    512
   );
 
   let matchedThreadId: string | null =
@@ -924,18 +1052,25 @@ async function handleInboundEmailWebhook(
     }
   }
 
-  if (!matchedThreadId && inReplyTo) {
-    const bareId = inReplyTo.replace(/^<|>$/g, "").split("@")[0];
-    const { data: refRow } = await adminClient
-      .from("keeper_email_dispatches")
-      .select("id, thread_id, ticket_id")
-      .or(`provider_message_id.eq.${inReplyTo},provider_message_id.eq.${bareId}`)
-      .order("created_at", { ascending: false })
-      .limit(1)
-      .maybeSingle();
-    if (refRow) {
-      matchedThreadId = refRow.thread_id || refRow.ticket_id || refRow.id;
-      matchedTicketId = refRow.ticket_id || null;
+  const refCandidates = [inReplyTo, ...referencesHeader.split(/\s+/)]
+    .map((tok) => tok.trim())
+    .filter(Boolean);
+  if (!matchedThreadId && refCandidates.length > 0) {
+    for (const refTok of refCandidates) {
+      const bareId = refTok.replace(/^<|>$/g, "").split("@")[0];
+      if (!bareId) continue;
+      const { data: refRow } = await adminClient
+        .from("keeper_email_dispatches")
+        .select("id, thread_id, ticket_id")
+        .or(`provider_message_id.eq.${refTok},provider_message_id.eq.${bareId}`)
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      if (refRow) {
+        matchedThreadId = refRow.thread_id || refRow.ticket_id || refRow.id;
+        matchedTicketId = refRow.ticket_id || null;
+        break;
+      }
     }
   }
 
@@ -959,50 +1094,72 @@ async function handleInboundEmailWebhook(
   }
 
   const recipientHash = await computeRecipientHash(senderEmail);
+  const normalizedIncomingSubj = normalizeEmailThreadSubject(rawSubject);
   if (!matchedThreadId) {
-    const { data: hashRow } = await adminClient
+    const { data: hashRows } = await adminClient
       .from("keeper_email_dispatches")
-      .select("id, thread_id, ticket_id")
+      .select("id, thread_id, ticket_id, subject, created_at")
       .eq("recipient_hash", recipientHash)
       .order("created_at", { ascending: false })
-      .limit(1)
-      .maybeSingle();
-    if (hashRow) {
-      matchedThreadId = hashRow.thread_id || hashRow.ticket_id || hashRow.id;
-      matchedTicketId = hashRow.ticket_id || null;
+      .limit(20);
+    if (Array.isArray(hashRows) && hashRows.length > 0) {
+      const exactSubjMatch = normalizedIncomingSubj
+        ? hashRows.find(
+            (r: any) => normalizeEmailThreadSubject(String(r?.subject || "")) === normalizedIncomingSubj
+          )
+        : null;
+      const chosen = exactSubjMatch || hashRows[0];
+      matchedThreadId = chosen.thread_id || chosen.ticket_id || chosen.id;
+      matchedTicketId = chosen.ticket_id || null;
     }
   }
 
   const finalThreadId = matchedThreadId || crypto.randomUUID();
   const maskedSender = maskEmailAddress(senderEmail);
   const maskedRecipient = maskEmailAddress(toParsed.email || ctx.fromEmail);
+  const effectiveBodyText =
+    cleanReplyText ||
+    (attachments.length > 0 ? `[Attached ${attachments.length} file(s)]` : "");
+
   const sealedEnvelope = await sealThreadEnvelope(
-    { external_email: senderEmail, body_text: cleanReplyText },
+    {
+      external_email: senderEmail,
+      body_text: cleanReplyText,
+      attachments: attachments.length > 0 ? attachments : undefined,
+    },
     finalThreadId
   );
 
+  const remoteCreatedIso =
+    typeof evtData.created_at === "string" && Number.isFinite(Date.parse(evtData.created_at))
+      ? new Date(evtData.created_at).toISOString()
+      : new Date().toISOString();
+
+  const insertPayload: Record<string, any> = {
+    ticket_id: matchedTicketId,
+    thread_id: finalThreadId,
+    direction: "inbound",
+    in_reply_to: inReplyTo || null,
+    recipient_hash: recipientHash,
+    sealed_envelope: sealedEnvelope,
+    sender_user_id: null,
+    from_name: senderParsed.name || maskedSender,
+    from_email: maskedSender,
+    reply_to: maskedSender,
+    to_email: maskedRecipient,
+    subject: rawSubject,
+    body_text: "[Inbound Reply Sealed]",
+    body_html: null,
+    provider: options?.isResend ? "RESEND" : "INBOUND_WEBHOOK",
+    provider_message_id: incomingMsgId || `inbound_${crypto.randomUUID().slice(0, 12)}`,
+    status: "RECEIVED",
+    error_message: null,
+    created_at: remoteCreatedIso,
+  };
+
   const { data: inboundRow } = await adminClient
     .from("keeper_email_dispatches")
-    .insert({
-      ticket_id: matchedTicketId,
-      thread_id: finalThreadId,
-      direction: "inbound",
-      in_reply_to: inReplyTo || null,
-      recipient_hash: recipientHash,
-      sealed_envelope: sealedEnvelope,
-      sender_user_id: null,
-      from_name: senderParsed.name || maskedSender,
-      from_email: maskedSender,
-      reply_to: maskedSender,
-      to_email: maskedRecipient,
-      subject: rawSubject,
-      body_text: "[Inbound Reply Sealed]",
-      body_html: null,
-      provider: isResendEvent ? "RESEND" : "INBOUND_WEBHOOK",
-      provider_message_id: incomingMsgId || `inbound_${crypto.randomUUID().slice(0, 12)}`,
-      status: "RECEIVED",
-      error_message: null,
-    })
+    .insert(insertPayload)
     .select("id")
     .maybeSingle();
 
@@ -1029,8 +1186,8 @@ async function handleInboundEmailWebhook(
                 {
                   id: inboundRow?.id || crypto.randomUUID(),
                   author: `${senderParsed.name || maskedSender} (Email Reply)`,
-                  text: cleanReplyText,
-                  time: new Date().toISOString(),
+                  text: effectiveBodyText,
+                  time: remoteCreatedIso,
                   via: "email_inbound",
                   thread_id: finalThreadId,
                 },
@@ -1045,8 +1202,8 @@ async function handleInboundEmailWebhook(
                   to_email: maskedRecipient,
                   subject: rawSubject,
                   status: "RECEIVED",
-                  provider: isResendEvent ? "RESEND" : "INBOUND_WEBHOOK",
-                  sent_at: new Date().toISOString(),
+                  provider: options?.isResend ? "RESEND" : "INBOUND_WEBHOOK",
+                  sent_at: remoteCreatedIso,
                 },
               ],
             },
@@ -1058,15 +1215,188 @@ async function handleInboundEmailWebhook(
     }
   }
 
-  return new Response(
-    JSON.stringify({
-      ok: true,
-      thread_id: finalThreadId,
-      ticket_id: matchedTicketId,
-      dispatch_id: inboundRow?.id || null,
-    }),
-    { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-  );
+  return {
+    ok: true,
+    thread_id: finalThreadId,
+    ticket_id: matchedTicketId,
+    dispatch_id: inboundRow?.id || null,
+  };
+}
+
+async function syncRecentResendInboundEmails(
+  adminClient: any,
+  ctx: Awaited<ReturnType<typeof resolveMailerContext>>,
+  options?: { force?: boolean }
+): Promise<InboundSyncSummary> {
+  if (!ctx.resendApiKey) {
+    return { status: "no_api_key", synced_count: 0, total_remote: 0 };
+  }
+  const nowMs = Date.now();
+  if (!options?.force && nowMs - lastInboundSyncAtMs < 8000) {
+    return { status: "ok", synced_count: 0, total_remote: 0 };
+  }
+  lastInboundSyncAtMs = nowMs;
+
+  try {
+    const listRes = await fetch("https://api.resend.com/emails/receiving?limit=25", {
+      method: "GET",
+      headers: { Authorization: `Bearer ${ctx.resendApiKey}` },
+    });
+    const listJson = await listRes.json().catch(() => ({}));
+    if (!listRes.ok) {
+      const errName = String(listJson?.name || "").toLowerCase();
+      const errMsg = String(listJson?.message || listJson?.error || `HTTP ${listRes.status}`);
+      if (
+        listRes.status === 401 ||
+        listRes.status === 403 ||
+        errName === "restricted_api_key" ||
+        /only has permission to send|restricted/i.test(errMsg)
+      ) {
+        return {
+          status: "send_only_api_key",
+          synced_count: 0,
+          total_remote: 0,
+          detail:
+            "Saved Resend API key only has Sending Access. Generate a Full Access API key in Resend and enable Domain Receiving (MX) on sanctuaryos.net to sync replies.",
+        };
+      }
+      return { status: "error", synced_count: 0, total_remote: 0, detail: errMsg };
+    }
+
+    const items = Array.isArray(listJson?.data) ? listJson.data : [];
+    if (items.length === 0) {
+      return { status: "empty_inbox", synced_count: 0, total_remote: 0 };
+    }
+
+    const remoteIds = items.map((it: any) => String(it?.id || "").trim()).filter(Boolean);
+    const { data: existingRows } = await adminClient
+      .from("keeper_email_dispatches")
+      .select("provider_message_id")
+      .in("provider_message_id", remoteIds);
+    const existingSet = new Set(
+      (existingRows || []).map((r: any) => String(r?.provider_message_id || "").trim()).filter(Boolean)
+    );
+
+    const pendingItems = [...items]
+      .filter((it: any) => it?.id && !existingSet.has(String(it.id).trim()))
+      .reverse();
+
+    let syncedCount = 0;
+    for (const item of pendingItems) {
+      const emailId = String(item.id).trim();
+      let detailData: Record<string, any> = { ...item };
+      try {
+        const detailRes = await fetch(
+          `https://api.resend.com/emails/receiving/${encodeURIComponent(emailId)}`,
+          {
+            method: "GET",
+            headers: { Authorization: `Bearer ${ctx.resendApiKey}` },
+          }
+        );
+        if (detailRes.ok) {
+          const detailJson = await detailRes.json().catch(() => ({}));
+          detailData = { ...detailData, ...detailJson };
+        }
+      } catch {
+        // Fall back to list metadata
+      }
+      const attachments = await fetchResendReceivedAttachments(ctx.resendApiKey, emailId);
+      const ing = await ingestInboundEmailRecord(adminClient, ctx, detailData, {
+        isResend: true,
+        attachments,
+      });
+      if (ing.ok && !ing.ignored && !ing.already_ingested) {
+        syncedCount += 1;
+      }
+    }
+
+    return {
+      status: "ok",
+      synced_count: syncedCount,
+      total_remote: items.length,
+    };
+  } catch (err: any) {
+    return {
+      status: "error",
+      synced_count: 0,
+      total_remote: 0,
+      detail: err?.message || "Failed to query Resend Receiving API",
+    };
+  }
+}
+
+async function handleInboundEmailWebhook(
+  req: Request,
+  adminClient: any,
+  corsHeaders: Record<string, string>
+): Promise<Response> {
+  const ctx = await resolveMailerContext(adminClient);
+  const rawBody = await req.text();
+  const payload = JSON.parse(rawBody || "{}");
+  const isResendEvent = payload?.type === "email.received";
+  let evtData: Record<string, any> = isResendEvent ? payload?.data || {} : payload || {};
+
+  if (ctx.inboundWebhookSecret) {
+    const isVerified = await verifyInboundWebhookSignature(req, rawBody, ctx.inboundWebhookSecret);
+    if (!isVerified) {
+      return new Response(
+        JSON.stringify({ ok: false, error: "Invalid inbound webhook signature" }),
+        { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+  } else if (isResendEvent && evtData?.email_id && ctx.resendApiKey) {
+    // Authenticate without webhook secret by querying Resend's authenticated Receiving API directly
+    const rxRes = await fetch(
+      `https://api.resend.com/emails/receiving/${encodeURIComponent(String(evtData.email_id))}`,
+      {
+        method: "GET",
+        headers: { Authorization: `Bearer ${ctx.resendApiKey}` },
+      }
+    );
+    if (!rxRes.ok) {
+      return new Response(
+        JSON.stringify({ ok: false, error: "Unable to verify inbound Resend email via API" }),
+        { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+    const rxJson = await rxRes.json().catch(() => ({}));
+    evtData = { ...rxJson, email_id: String(evtData.email_id) };
+  } else {
+    return new Response(
+      JSON.stringify({ ok: false, error: "Inbound webhook secret not configured" }),
+      { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+    );
+  }
+
+  let attachments: ThreadAttachmentMeta[] = [];
+  if (isResendEvent && evtData?.email_id && ctx.resendApiKey) {
+    try {
+      const rxRes = await fetch(
+        `https://api.resend.com/emails/receiving/${encodeURIComponent(String(evtData.email_id))}`,
+        {
+          method: "GET",
+          headers: { Authorization: `Bearer ${ctx.resendApiKey}` },
+        }
+      );
+      if (rxRes.ok) {
+        const rxJson = await rxRes.json().catch(() => ({}));
+        evtData = { ...evtData, ...rxJson };
+      }
+    } catch {
+      // Fall back to webhook event fields
+    }
+    attachments = await fetchResendReceivedAttachments(ctx.resendApiKey, String(evtData.email_id));
+  }
+
+  const res = await ingestInboundEmailRecord(adminClient, ctx, evtData, {
+    isResend: isResendEvent,
+    attachments,
+  });
+
+  return new Response(JSON.stringify(res), {
+    status: 200,
+    headers: { ...corsHeaders, "Content-Type": "application/json" },
+  });
 }
 
 Deno.serve(async (req: Request) => {
@@ -1078,19 +1408,38 @@ Deno.serve(async (req: Request) => {
   if (req.method === "GET" || req.method === "HEAD") {
     const reqUrl = new URL(req.url);
     const assetMatch = reqUrl.pathname.match(/\/assets\/([a-z0-9._-]+\.png)$/i);
-    const assetKey = assetMatch?.[1] || reqUrl.searchParams.get("asset") || "";
-    const assetB64 = EMAIL_PNG_ASSETS[assetKey];
-    if (assetB64) {
-      const bytes = decodeBase64Bytes(assetB64);
-      return new Response(req.method === "HEAD" ? null : bytes, {
-        status: 200,
-        headers: {
-          "Content-Type": "image/png",
-          "Content-Length": String(bytes.byteLength),
-          "Cache-Control": "public, max-age=31536000, immutable",
-          "Access-Control-Allow-Origin": "*",
-        },
-      });
+    const rawKey = assetMatch?.[1] || reqUrl.searchParams.get("asset") || "";
+    const assetKey = /^[a-z0-9._-]+\.png$/i.test(rawKey) ? rawKey : "";
+    if (assetKey) {
+      let bytes = LIVE_ASSET_BYTE_CACHE.get(assetKey) || null;
+      if (!bytes) {
+        const supabaseUrl = Deno.env.get("SUPABASE_URL") ?? "";
+        const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
+        if (supabaseUrl && supabaseServiceKey) {
+          const admin = createClient(supabaseUrl, supabaseServiceKey);
+          const { data: assetRow } = await admin
+            .from("keeper_email_assets")
+            .select("base64_data")
+            .eq("name", assetKey)
+            .maybeSingle();
+          const b64 = String(assetRow?.base64_data || "");
+          if (b64) {
+            bytes = decodeBase64Bytes(b64);
+            LIVE_ASSET_BYTE_CACHE.set(assetKey, bytes);
+          }
+        }
+      }
+      if (bytes) {
+        return new Response(req.method === "HEAD" ? null : bytes, {
+          status: 200,
+          headers: {
+            "Content-Type": "image/png",
+            "Content-Length": String(bytes.byteLength),
+            "Cache-Control": "public, max-age=31536000, immutable",
+            "Access-Control-Allow-Origin": "*",
+          },
+        });
+      }
     }
     return new Response("Not Found", {
       status: 404,
@@ -1368,12 +1717,50 @@ Deno.serve(async (req: Request) => {
 
     if (body.action === "check_email_status") {
       const ctx = await resolveMailerContext(adminClient);
+      let receivingApiStatus: "ready" | "empty" | "send_only_api_key" | "error" | "not_configured" =
+        ctx.resendApiKey ? "error" : "not_configured";
+      let receivingDetail = "";
+      let receivingSampleCount = 0;
+
+      if (ctx.resendApiKey) {
+        try {
+          const probeRes = await fetch("https://api.resend.com/emails/receiving?limit=5", {
+            method: "GET",
+            headers: { Authorization: `Bearer ${ctx.resendApiKey}` },
+            signal: AbortSignal.timeout(3500),
+          });
+          const probeJson = await probeRes.json().catch(() => ({}));
+          if (probeRes.ok) {
+            const list = Array.isArray(probeJson?.data) ? probeJson.data : [];
+            receivingSampleCount = list.length;
+            receivingApiStatus = list.length > 0 ? "ready" : "empty";
+          } else {
+            const errName = String(probeJson?.name || "").toLowerCase();
+            const errMsg = String(probeJson?.message || probeJson?.error || `HTTP ${probeRes.status}`);
+            receivingDetail = errMsg;
+            receivingApiStatus =
+              probeRes.status === 401 ||
+              probeRes.status === 403 ||
+              errName === "restricted_api_key" ||
+              /only has permission to send|restricted/i.test(errMsg)
+                ? "send_only_api_key"
+                : "error";
+          }
+        } catch (probeErr: any) {
+          receivingDetail = probeErr?.message || "Probe failed";
+          receivingApiStatus = "error";
+        }
+      }
+
       return new Response(
         JSON.stringify({
           ok: true,
           resend_configured: Boolean(ctx.resendApiKey),
           webhook_configured: Boolean(ctx.webhookUrl && isSafeHttpsRelayUrl(ctx.webhookUrl)),
           inbound_configured: Boolean(ctx.inboundWebhookSecret),
+          receiving_api_status: receivingApiStatus,
+          receiving_sample_count: receivingSampleCount,
+          receiving_detail: receivingDetail || undefined,
           from_email: ctx.fromEmail,
           from_name: ctx.fromName,
           reply_to: ctx.replyTo,
@@ -1382,6 +1769,108 @@ Deno.serve(async (req: Request) => {
           status: 200,
           headers: { ...corsHeaders, "Content-Type": "application/json" },
         }
+      );
+    }
+
+    if (body.action === "sync_inbound_emails") {
+      const ctx = await resolveMailerContext(adminClient);
+      const inboundSync = await syncRecentResendInboundEmails(adminClient, ctx, { force: true });
+      return new Response(
+        JSON.stringify({
+          ok: true,
+          inbound_sync: inboundSync,
+        }),
+        {
+          status: 200,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        }
+      );
+    }
+
+    if (body.action === "fetch_email_attachment") {
+      const providerMsgId = sanitizeHeaderLine(body.provider_message_id, 256);
+      const attachmentId = sanitizeHeaderLine(body.attachment_id, 256);
+      const attachmentFilename = sanitizeHeaderLine(body.filename, 240);
+      if (!providerMsgId) {
+        return new Response(
+          JSON.stringify({ ok: false, error: "Missing provider_message_id" }),
+          { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+      const ctx = await resolveMailerContext(adminClient);
+      if (!ctx.resendApiKey) {
+        return new Response(
+          JSON.stringify({ ok: false, error: "Resend API key is not configured" }),
+          { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+      const receivedList = await fetchResendReceivedAttachments(ctx.resendApiKey, providerMsgId);
+      const targetAtt =
+        receivedList.find((att) => attachmentId && att.id === attachmentId) ||
+        receivedList.find((att) => attachmentFilename && att.filename === attachmentFilename) ||
+        receivedList[0];
+      if (!targetAtt?.download_url) {
+        return new Response(
+          JSON.stringify({ ok: false, error: "Attachment download URL unavailable" }),
+          { status: 404, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+      let parsedUrl: URL;
+      try {
+        parsedUrl = new URL(targetAtt.download_url);
+      } catch {
+        return new Response(
+          JSON.stringify({ ok: false, error: "Invalid attachment download URL" }),
+          { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+      const host = parsedUrl.hostname.toLowerCase();
+      const isTrustedResendCdn =
+        parsedUrl.protocol === "https:" &&
+        (host === "resend.app" ||
+          host.endsWith(".resend.app") ||
+          host === "resend.com" ||
+          host.endsWith(".resend.com"));
+      if (!isTrustedResendCdn) {
+        return new Response(
+          JSON.stringify({ ok: false, error: "Untrusted attachment CDN host" }),
+          { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+      const attRes = await fetch(parsedUrl.toString(), {
+        method: "GET",
+        signal: AbortSignal.timeout(8000),
+      });
+      if (!attRes.ok) {
+        return new Response(
+          JSON.stringify({ ok: false, error: `Attachment fetch failed (HTTP ${attRes.status})` }),
+          { status: 502, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+      const buf = await attRes.arrayBuffer();
+      if (buf.byteLength > 8_000_000) {
+        return new Response(
+          JSON.stringify({ ok: false, error: "Attachment exceeds 8 MB transfer limit" }),
+          { status: 413, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+      const mime =
+        String(
+          targetAtt.content_type ||
+            attRes.headers.get("content-type") ||
+            "application/octet-stream"
+        )
+          .split(";")[0]
+          .trim() || "application/octet-stream";
+      return new Response(
+        JSON.stringify({
+          ok: true,
+          filename: targetAtt.filename || "attachment",
+          content_type: mime,
+          size: buf.byteLength,
+          data_url: `data:${mime};base64,${arrayBufferToBase64(buf)}`,
+        }),
+        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
@@ -1460,6 +1949,11 @@ Deno.serve(async (req: Request) => {
       const reqThreadId = sanitizeHeaderLine(body.thread_id, 64);
       const reqDispatchId = sanitizeHeaderLine(body.dispatch_id, 64);
       const reqTicketId = sanitizeHeaderLine(body.ticket_id, 64);
+      const ctx = await resolveMailerContext(adminClient);
+      const inboundSync = await syncRecentResendInboundEmails(adminClient, ctx, {
+        force: Boolean(body.force_sync),
+      });
+
       let resolvedThreadId = reqThreadId || "";
       let resolvedTicketId = reqTicketId || "";
 
@@ -1503,6 +1997,82 @@ Deno.serve(async (req: Request) => {
           if (opened?.external_email && !resolvedExternalEmail) {
             resolvedExternalEmail = opened.external_email;
           }
+          let attachments: ThreadAttachmentMeta[] = Array.isArray(opened?.attachments)
+            ? opened!.attachments!
+            : [];
+          const shouldRefreshResend =
+            String(row.provider || "").toUpperCase() === "RESEND" &&
+            String(row.direction || "").toLowerCase() === "inbound" &&
+            Boolean(row.provider_message_id) &&
+            Boolean(ctx.resendApiKey) &&
+            (attachments.length === 0 || attachments.some((a) => !a.data_url));
+          if (shouldRefreshResend) {
+            const refreshed = await fetchResendReceivedAttachments(
+              ctx.resendApiKey,
+              String(row.provider_message_id)
+            );
+            if (refreshed.length > 0) {
+              const prevByKey = new Map<string, ThreadAttachmentMeta>();
+              attachments.forEach((prevAtt) => {
+                if (prevAtt.id) prevByKey.set(`id:${prevAtt.id}`, prevAtt);
+                if (prevAtt.filename) prevByKey.set(`fn:${prevAtt.filename}`, prevAtt);
+              });
+              attachments = refreshed.map((fresh) => {
+                const match =
+                  (fresh.id ? prevByKey.get(`id:${fresh.id}`) : undefined) ||
+                  (fresh.filename ? prevByKey.get(`fn:${fresh.filename}`) : undefined);
+                return match?.data_url ? { ...fresh, data_url: match.data_url } : fresh;
+              });
+            }
+          }
+          attachments = await Promise.all(
+            attachments.map(async (att) => {
+              const mime = String(att.content_type || "").toLowerCase().split(";")[0].trim();
+              if (
+                mime.startsWith("image/") &&
+                !att.data_url &&
+                att.download_url &&
+                (!att.size || att.size <= 2_500_000)
+              ) {
+                try {
+                  const parsed = new URL(att.download_url);
+                  const h = parsed.hostname.toLowerCase();
+                  if (
+                    parsed.protocol === "https:" &&
+                    (h === "resend.app" ||
+                      h.endsWith(".resend.app") ||
+                      h === "resend.com" ||
+                      h.endsWith(".resend.com"))
+                  ) {
+                    const imgRes = await fetch(parsed.toString(), {
+                      method: "GET",
+                      signal: AbortSignal.timeout(4500),
+                    });
+                    if (imgRes.ok) {
+                      const imgBuf = await imgRes.arrayBuffer();
+                      if (imgBuf.byteLength > 0 && imgBuf.byteLength <= 2_500_000) {
+                        const resolvedMime =
+                          String(att.content_type || imgRes.headers.get("content-type") || "image/png")
+                            .split(";")[0]
+                            .trim() || "image/png";
+                        return {
+                          ...att,
+                          content_type: resolvedMime,
+                          size: imgBuf.byteLength,
+                          data_url: `data:${resolvedMime};base64,${arrayBufferToBase64(imgBuf)}`,
+                        };
+                      }
+                    }
+                  }
+                } catch {
+                  // Fall back to fresh download_url
+                }
+              }
+              return att;
+            })
+          );
+          const resolvedBodyText =
+            opened?.body_text !== undefined ? opened.body_text : String(row.body_text || "");
           return {
             id: row.id,
             thread_id: rowThread,
@@ -1512,7 +2082,8 @@ Deno.serve(async (req: Request) => {
             from_email: row.from_email,
             to_email: row.to_email,
             subject: row.subject,
-            body_text: opened?.body_text || row.body_text,
+            body_text: resolvedBodyText,
+            attachments,
             status: row.status,
             provider: row.provider,
             provider_message_id: row.provider_message_id,
@@ -1533,6 +2104,7 @@ Deno.serve(async (req: Request) => {
             : messages[0]?.to_email || "",
           subject: messages[0]?.subject || "",
           messages,
+          inbound_sync: inboundSync,
         }),
         { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );

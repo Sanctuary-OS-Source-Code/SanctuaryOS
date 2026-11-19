@@ -739,25 +739,35 @@ pub async fn analyze_crash_autopsy(
 }
 
 #[tauri::command]
-pub fn clear_old_logs(docs_path: String, state: tauri::State<'_, AppState>) {
+pub async fn clear_old_logs(
+    docs_path: String,
+    state: tauri::State<'_, AppState>,
+) -> Result<(), String> {
     let game_schema = state
         .active_schema
         .lock()
         .unwrap_or_else(|e| e.into_inner())
         .clone();
-    let config = crate::commands::state_ops::get_saved_coordinates();
-    let path =
-        crate::utils::resolve_effective_docs_path_with_override(&docs_path, &config, &game_schema);
-    if !crate::utils::is_safe_workspace_target_dir(&path) {
-        return;
-    }
-
-    let allowed = [path.clone()];
-    for (_rel_name, log_path, _mtime) in collect_exception_log_files(&path, &game_schema) {
-        if crate::utils::ensure_strict_descendant_of_roots(&log_path, &allowed).is_ok() {
-            let _ = fs::remove_file(log_path);
+    tauri::async_runtime::spawn_blocking(move || {
+        let config = crate::commands::state_ops::get_saved_coordinates();
+        let path = crate::utils::resolve_effective_docs_path_with_override(
+            &docs_path,
+            &config,
+            &game_schema,
+        );
+        if !crate::utils::is_safe_workspace_target_dir(&path) {
+            return;
         }
-    }
+
+        let allowed = [path.clone()];
+        for (_rel_name, log_path, _mtime) in collect_exception_log_files(&path, &game_schema) {
+            if crate::utils::ensure_strict_descendant_of_roots(&log_path, &allowed).is_ok() {
+                let _ = fs::remove_file(log_path);
+            }
+        }
+    })
+    .await
+    .map_err(|e| e.to_string())
 }
 
 fn is_safe_telemetry_relative(rel: &str) -> bool {
@@ -927,7 +937,7 @@ pub async fn read_workspace_telemetry_log(
     .map_err(|e| e.to_string())?
 }
 
-#[tauri::command]
+#[tauri::command(async)]
 pub fn write_os_log(
     app_handle: tauri::AppHandle,
     message: String,

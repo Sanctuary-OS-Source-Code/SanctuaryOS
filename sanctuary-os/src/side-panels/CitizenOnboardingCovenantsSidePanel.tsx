@@ -290,11 +290,11 @@ export function CitizenOnboardingCovenantsSidePanel({
             icon: t("icon_gpp_bad", "gpp_bad"),
             title: t(
               "auth_tour_stage_3_i2_title",
-              "Tier-5 Quarantine & Secure Shred"
+              "Tier-6 Quarantine & Secure Shred"
             ),
             desc: t(
               "auth_tour_stage_3_b2",
-              "Quarantine Lockdown isolates confirmed Tier 5 threats immediately until a {Citizen}-signed Secure Shred clears the file."
+              "Quarantine Lockdown isolates confirmed Tier 6 threats immediately until a {Citizen}-signed Secure Shred clears the file."
             ),
           },
           {

@@ -124,7 +124,7 @@ export function WebArchitectureView({
             ),
             desc: t(
               "dir_arch_p2_b2",
-              "Community Game Spokes (schema.sql — 52 tables) are 100% owned by each game's Wayfinder with zero email/credential bleed and unilateral Cut the Cord severance"
+              "Community Game Spokes (schema.sql — 61 tables) are 100% owned by each game's Wayfinder with zero email/credential bleed and unilateral Cut the Cord severance"
             ),
           },
           {
@@ -222,7 +222,7 @@ export function WebArchitectureView({
         ),
         summary: t(
           "dir_arch_p4_summary",
-          "Enforces strict separation between Spoke and Core Hub clearances, hardware-backed WebAuthn Passkey gates, and full-OS Tier 5 Malware quarantine."
+          "Enforces strict separation between Spoke and Core Hub clearances, hardware-backed WebAuthn Passkey gates, and full-OS Tier 6 Malware quarantine."
         ),
         cards: [
           {
@@ -266,7 +266,7 @@ export function WebArchitectureView({
             ),
             desc: t(
               "dir_arch_p4_c4_desc",
-              "Merges Bytecode Hound Core + Spoke rules with Zlib/Zstd decompression to lock the OS shell on Tier 5 Malware and enforce a {Citizen}-signed Secure Shred."
+              "Merges Bytecode Hound Core + Spoke rules with Zlib/Zstd decompression to lock the OS shell on Tier 6 Malware and enforce a {Citizen}-signed Secure Shred."
             ),
           },
         ],
@@ -435,35 +435,47 @@ export function WebProtocolsView({
         icon: t("icon_check_circle", "check_circle"),
       },
       {
-        badge: t("sd_proto_tier12_badge", "TIERS 1–2 • EXPLICIT / ILLICIT"),
-        title: t(
-          "sd_proto_tier12_title",
-          "Adult (NSFW) & Illicit Themes — Local Allowed, Public Scrubbed"
+        badge: t("sd_proto_tier1_badge", "TIER 1 • LEGAL / DMCA HOLD"),
+        title: t("sd_proto_tier1_title", "Statutory IP & Spoke-Routed DMCA Safe Harbor"),
+        desc: t(
+          "sd_proto_tier1_desc",
+          "Applied upon valid 17 U.S.C. § 512 takedown notices or verified creator ownership disputes. Immediately suppresses public Nexus visibility and routes the notice directly to the sovereign Partner Spoke Hub (48h SLA) while Keepers Core appends a minimal compliance audit record (public.dmca_compliance_notices). Never deletes files from {Citizen} drives; counter-notices follow the 10–14 business day § 512(g)(3) restoration window."
         ),
-        desc: t("sd_proto_tier12_desc", "Permitted in local Vaults, Personal Rig transfers, and decentralized Static Edge manifests. Automatically scrubbed from public Nexus feeds and stripped from confirmed Cloud {Blueprints} (trg_purge_flagged_hash_from_blueprints). Equipping in the active {Blueprint} engages a non-destructive Support Lock on Community {Mod} Support with 1-click active-{Blueprint} unequip while Keeper OS Bug Reports remain open."),
+        colorClass:
+          "border-[color-mix(in_srgb,var(--warning)_45%,transparent)] text-[var(--warning)]",
+        textColor: "text-[var(--warning)]",
+        icon: t("icon_gavel", "gavel"),
+      },
+      {
+        badge: t("sd_proto_tier23_badge", "TIERS 2–3 • EXPLICIT / ILLICIT"),
+        title: t(
+          "sd_proto_tier23_title",
+          "Explicit (T2) & Illicit Content (T3) — Local Allowed, Public Scrubbed"
+        ),
+        desc: t("sd_proto_tier23_desc", "Permitted in local Vaults, Personal Rig transfers, and decentralized Static Edge manifests. Automatically scrubbed from public Nexus feeds and stripped from confirmed Cloud {Blueprints} (trg_purge_flagged_hash_from_blueprints). Equipping in the active {Blueprint} engages a non-destructive Support Lock on Community {Mod} Support with 1-click active-{Blueprint} unequip while Keeper OS Bug Reports remain open."),
         colorClass:
           "border-[color-mix(in_srgb,var(--info)_45%,transparent)] text-[var(--info)]",
         textColor: "text-[var(--info)]",
         icon: t("icon_visibility_off", "visibility_off"),
       },
       {
-        badge: t("sd_proto_tier34_badge", "TIERS 3–4 • SEVERE / RESTRICTED"),
-        title: t("sd_proto_tier34_title", "Extreme Violence & Taboo Content — Active {Blueprint} Support Lock"),
-        desc: t("sd_proto_tier34_desc", "Permitted strictly within isolated local Vaults. Scrubbed from all public feeds and confirmed Cloud {Blueprints}. Equipping any Tier 3–4 {mod} inside the active {Blueprint} engages a non-destructive Support Lock on Community {Mod} Support (1-click active-{Blueprint} unequip without deleting {Vault} files), while Keeper OS Bug Reports remain accessible with zero {mod} telemetry."),
+        badge: t("sd_proto_tier45_badge", "TIERS 4–5 • SEVERE / PROHIBITED"),
+        title: t("sd_proto_tier45_title", "Extreme Violence (T4) & Taboo / Prohibited (T5) — Support Lock"),
+        desc: t("sd_proto_tier45_desc", "Permitted strictly within isolated local Vaults. Scrubbed from all public feeds and confirmed Cloud {Blueprints}. Equipping any Tier 1–5 or Unknown {mod} inside the active {Blueprint} engages a non-destructive Support Lock on Community {Mod} Support (1-click active-{Blueprint} unequip without deleting {Vault} files), while Keeper OS Bug Reports remain accessible with zero {mod} telemetry."),
         colorClass:
-          "border-[color-mix(in_srgb,var(--warning)_45%,transparent)] text-[var(--warning)]",
-        textColor: "text-[var(--warning)]",
+          "border-[color-mix(in_srgb,var(--danger)_45%,transparent)] text-[var(--danger)]",
+        textColor: "text-[var(--danger)]",
         icon: t("icon_lock", "lock"),
       },
       {
-        badge: t("sd_proto_tier5_badge", "TIER 5 • CONFIRMED MALWARE"),
+        badge: t("sd_proto_tier6_badge", "TIER 6 • CONFIRMED MALWARE"),
         title: t(
-          "sd_proto_tier5_title",
+          "sd_proto_tier6_title",
           "Zero-Choice OS Lockdown & Destructive Secure Shred"
         ),
         desc: t(
-          "sd_proto_tier5_desc",
-          "Malicious payloads, webhook exfiltrators, credential stealers, or unauthorized executables detected via SHA-256 DNA or Dual-Tier Rust Heuristics. Immediately halts game launch, isolates the file in Quarantine, locks the OS shell, and requires a Secure Shred signature."
+          "sd_proto_tier6_desc",
+          "Malicious payloads, webhook exfiltrators, credential stealers, or unauthorized executables (compliance_tier = 6) detected via SHA-256 DNA or Dual-Tier Rust Heuristics. Immediately halts game launch, isolates the file in Quarantine, locks the OS shell, and requires a {Citizen}-signed Secure Shred."
         ),
         colorClass:
           "border-[color-mix(in_srgb,var(--danger)_50%,transparent)] text-[var(--danger)]",
@@ -499,7 +511,7 @@ export function WebProtocolsView({
         ),
         desc: t(
           "sd_proto_nuclear_desc",
-          "Sanctuary OS never tracks Hardware IDs on normal users. Clicking the System Preferences subtitle 5 times reveals the Nuclear Override for isolated local sandbox testing—engaging it records a one-way hardware hash in hardware_bans and permanently severs cloud network access."
+          "Sanctuary OS never tracks Hardware IDs on normal users. Clicking the System Preferences subtitle 5 times reveals the offline Nuclear Override toggle for isolated testing—engaging it severs cloud telemetry and stores an irreversible opt-in ledger only if explicitly submitted, while toggling it back OFF offline cleanly restores normal operation."
         ),
         colorClass:
           "border-[color-mix(in_srgb,var(--accent)_45%,transparent)] text-[var(--accent)]",
@@ -511,14 +523,14 @@ export function WebProtocolsView({
     const protocolDomains = [
       {
         icon: t("icon_hub", "hub"),
-        badge: t("sd_proto_d1_badge", "DOMAIN 1 • 7 PROTOCOLS"),
+        badge: t("sd_proto_d1_badge", "DOMAIN 1 • 10 PROTOCOLS"),
         title: t(
           "sd_proto_d1_title",
-          "System Foundation, Hub-and-Spoke & Bilateral Sync"
+          "Foundation, Federation & Sovereignty Protocols"
         ),
         desc: t(
           "sd_proto_d1_desc",
-          "Core kernel protocols governing first-boot reconnaissance, SANCTUARY-UPLINK:// spoke onboarding, Cut the Cord severance, 1-file standalone forks, and two-way .md directive sync."
+          "Cross-platform binary reconnaissance, Deck Overdrive & Proton resolution, Liquid Glass Optics, Universal Master Schema (27 presets), Code-Switch (7,300+ strings), Cut the Cord, sanctuary.fork.json forks, Zero-Copy Exodus, and Mirror Uplink."
         ),
         rules: [
           {
@@ -534,7 +546,7 @@ export function WebProtocolsView({
             ),
             desc: t(
               "sd_proto_d1_r2_desc",
-              "1-click onboarding handshake on game-gateway that validates all 52 tables in schema.sql, seeds global_network_status, and auto-provisions the Founding Wayfinder."
+              "1-click onboarding handshake on game-gateway that validates all 61 tables in schema.sql, seeds global_network_status, and auto-provisions the Founding Wayfinder."
             ),
           },
           {
@@ -552,11 +564,11 @@ export function WebProtocolsView({
             icon: t("icon_call_split", "call_split"),
             title: t(
               "sd_proto_d1_r4_title",
-              "Single-File Standalone Fork (src/supabase.ts)"
+              "Zero-Conflict Standalone Fork (sanctuary.fork.json)"
             ),
             desc: t(
               "sd_proto_d1_r4_desc",
-              "Allows any community to fork Sanctuary OS against a single schema.sql Supabase project by editing only SANCTUARY_CONFIG in src/supabase.ts without Edge Functions."
+              "Allows any community to fork Sanctuary OS against a single 61-table schema.sql Supabase project using sanctuary.fork.json + npm run fork:configure without upstream merge conflicts."
             ),
           },
           {
@@ -567,40 +579,72 @@ export function WebProtocolsView({
             ),
             desc: t(
               "sd_proto_d1_r5_desc",
-              "Allows self-hosting a complete multi-game Hub (schema_os.sql + game-gateway Edge Function) connected to multiple independent child Spoke databases (schema.sql)."
+              "Allows self-hosting a complete multi-game Hub (schema_os.sql 28 tables + game-gateway Edge Function) connected to multiple independent child Spoke databases (schema.sql)."
             ),
           },
           {
             icon: t("icon_sync", "sync"),
             title: t(
               "sd_proto_d1_r6_title",
-              "Bilateral Directives Sync & System Version Ripper"
+              "Bilateral Directives Sync & Binary Version Ripper"
             ),
             desc: t(
               "sd_proto_d1_r6_desc",
-              "Two-way sync between local .md docs and Keepers Core (public.system_directives), plus in-process Rust pelite PE header version extraction and declarative Game Schemas."
+              "Two-way sync between local .md docs and Keepers Core (public.system_directives), plus in-process Rust pelite PE / Info.plist / manifest version extraction across 27 presets."
+            ),
+          },
+          {
+            icon: t("icon_sports_esports", "sports_esports"),
+            title: t("sd_proto_d1_r7_title", "Deck Overdrive & Gatekeeper Clearance"),
+            desc: t(
+              "sd_proto_d1_r7_desc",
+              "Unifies Steam Deck Gamescope/hidraw 60 FPS Virtual Pointer & Proton compatdata prefix launching alongside macOS Touch ID WebAuthn and com.apple.quarantine clearing."
+            ),
+          },
+          {
+            icon: t("icon_auto_awesome", "auto_awesome"),
+            title: t("sd_proto_d1_r8_title", "Liquid Glass Optics & Per-Space Themes"),
+            desc: t(
+              "sd_proto_d1_r8_desc",
+              "1:1 physical-pixel WebGL2 refraction with 7 bundled wallpapers, custom Spoke {Chameleon} packs, and responsive mobile liquid glass pills."
+            ),
+          },
+          {
+            icon: t("icon_translate", "translate"),
+            title: t("sd_proto_d1_r9_title", "Code-Switch Lexicon Engine V2"),
+            desc: t(
+              "sd_proto_d1_r9_desc",
+              "Auto-synced 7,300+-key Standard English baseline with Sparse Delta Override packs, 21 Dynamic {Glossary} Tokens, and Guided Icon Overrides."
+            ),
+          },
+          {
+            icon: t("icon_move_to_inbox", "move_to_inbox"),
+            title: t("sd_proto_d1_r10_title", "Zero-Copy Exodus"),
+            desc: t(
+              "sd_proto_d1_r10_desc",
+              "Out-of-tree MO2, Vortex, and staging setup importer with ByteHound screening, OS hardlink absorption, and automatic {Blueprint} profile reconstruction."
             ),
           },
         ],
       },
       {
         icon: t("icon_inventory_2", "inventory_2"),
-        badge: t("sd_proto_d2_badge", "DOMAIN 2 • 6 PROTOCOLS"),
-        title: t("sd_proto_d2_title", "{Vault} Airgap, Static Edge & {Mod} Management"),
-        desc: t("sd_proto_d2_desc", "Zero-copy symlink projection, decentralized creator manifest polling, multi-file parent suite grouping, 3-Tile {Mod} Studio, and the 2-column {Citizen}'s Workbench."),
+        badge: t("sd_proto_d2_badge", "DOMAIN 2 • 10 PROTOCOLS"),
+        title: t("sd_proto_d2_title", "{Vault} Airgap, Static Edge & {Mod} Pipeline"),
+        desc: t("sd_proto_d2_desc", "Differential Rayon VFS projection, Static Edge polling, suite grouping, 3-Tile {Mod} Studio, Live-Wire Workbench, Browser Autoloader, Quartermaster, Rosetta Protocol, and Cloud-Sync Sentinel."),
         rules: [
           {
             icon: t("icon_inventory_2", "inventory_2"),
-            title: t("sd_proto_d2_r1_title", "Symlink Airgap 2.5"),
-            desc: t("sd_proto_d2_r1_desc", "Projects active {mods} from the isolated {Vault}/{Mods}/ archive into the live game directory via zero-copy OS symlinks in milliseconds."),
+            title: t("sd_proto_d2_r1_title", "Symlink Airgap 2.5 (Differential VFS)"),
+            desc: t("sd_proto_d2_r1_desc", "Projects active {mods} from {Vault}/{Mods}/ into live game directories via differential Rayon NTFS hardlink/junction & POSIX symlink reconciliation."),
           },
           {
             icon: t("icon_cloud_done", "cloud_done"),
             title: t(
               "sd_proto_d2_r2_title",
-              "Decentralized Static Edge Polling"
+              "Decentralized Static Edge & Direct Push"
             ),
-            desc: t("sd_proto_d2_r2_desc", "Binds a {mod}'s SHA-256 lineage in .sanctuary_cache.db and polls creator .sanctuary.manifest.json & .sanctuary.override.json endpoints directly via HTTP GET during Radar Sweeps."),
+            desc: t("sd_proto_d2_r2_desc", "Binds SHA-256 lineage in .sanctuary_cache.db, polls .sanctuary.manifest.json & .sanctuary.override.json via HTTP GET, and pushes Ed25519-signed manifests to 6 providers including S3/R2."),
           },
           {
             icon: t("icon_folder_open", "folder_open"),
@@ -610,31 +654,63 @@ export function WebProtocolsView({
           {
             icon: t("icon_view_quilt", "view_quilt"),
             title: t("sd_proto_d2_r4_title", "Unified 3-Tile {Mod} Studio"),
-            desc: t("sd_proto_d2_r4_desc", "Standardized 3-step publishing workflow (Details & Versions, Files & Folders, Rules & Upload) shared across {Mason} Workshop and Architect Console."),
+            desc: t("sd_proto_d2_r4_desc", "Standardized 3-step publishing workflow (Details & Versions, Files & Folders, Rules & Upload) with Stable/Beta/Alpha channels shared across {Mason} Workshop and Architect Console."),
           },
           {
             icon: t("icon_construction", "construction"),
-            title: t("sd_proto_d2_r5_title", "2-Column {Citizen}'s Workbench & Timeline Diff"),
+            title: t("sd_proto_d2_r5_title", "2-Column Live-Wire Workbench & Timeline Diff"),
             desc: t(
               "sd_proto_d2_r5_desc",
-              "60 FPS Visual Config Editor with category pills, Min/Max range steppers, No-Code Template Builder, and side-by-side Visual + Raw Monaco Timeline Diff."
+              "60 FPS Visual Config Editor with lossless TOML/YAML/JSONC round-trips, category pills, range steppers, No-Code Template Builder, and [In-Game Engine Edit] Monaco diffs."
             ),
           },
           {
             icon: t("icon_public", "public"),
             title: t(
               "sd_proto_d2_r6_title",
-              "Integrated Side Browser Interception"
+              "Browser Autoloader, Direct HTTPS & Deep Links"
             ),
-            desc: t("sd_proto_d2_r6_desc", "Intercepts archive containers, schema-supported {mod} modules, and .sanctuary.override.json downloads inside the built-in browser and routes them straight into the {Vault} scanner."),
+            desc: t("sd_proto_d2_r6_desc", "Guided (1 of N) Side Browser queue alongside direct SHA-256 HTTPS transfers, tri-OS sanctuary:// / nxm:// / ror2mm:// / curseforge:// Deep Links, and local DPAPI BYO-API-Key Broker."),
+          },
+          {
+            icon: t("icon_history", "history"),
+            title: t("sd_proto_d2_r7_title", "Echo Archive & Rollback Lineage"),
+            desc: t(
+              "sd_proto_d2_r7_desc",
+              "Retains local previous_hashes archives so rollback swaps to verified prior versions execute offline with zero re-downloads."
+            ),
+          },
+          {
+            icon: t("icon_rule_folder", "rule_folder"),
+            title: t("sd_proto_d2_r8_title", "The Quartermaster (FOMOD & BAIN Wizard)"),
+            desc: t(
+              "sd_proto_d2_r8_desc",
+              "Guided .fomod (ModuleConfig.xml UTF-8/UTF-16LE, <gameDependency>) and BAIN installer wizard with non-destructive reconfiguration inside ModDossier."
+            ),
+          },
+          {
+            icon: t("icon_swap_horiz", "swap_horiz"),
+            title: t("sd_proto_d2_r9_title", "The Rosetta Protocol & Lockfile Hydration"),
+            desc: t(
+              "sd_proto_d2_r9_desc",
+              "Translates Modrinth .mrpack, CurseForge manifests, Nexus collections, and .wabbajack archives into deterministic .sanctuary-blueprint.lock.json 1-click hydration plans."
+            ),
+          },
+          {
+            icon: t("icon_cloud_off", "cloud_off"),
+            title: t("sd_proto_d2_r10_title", "Cloud-Sync Folder Sentinel"),
+            desc: t(
+              "sd_proto_d2_r10_desc",
+              "Detects active OneDrive, Dropbox, iCloud Drive, and Google Drive reparse locks on {Vault}, Staging, and game targets before symlink/hardlink projection can conflict."
+            ),
           },
         ],
       },
       {
         icon: t("icon_radar", "radar"),
-        badge: t("sd_proto_d3_badge", "DOMAIN 3 • 7 PROTOCOLS"),
-        title: t("sd_proto_d3_title", "Stability, Load Order & Atomic Logic"),
-        desc: t("sd_proto_d3_desc", "Schema-driven topological load order compilation, Casual vs. Advanced Conflict Radar, Highlander flavors, Twin bonds, Deep Yeet 2.0 cascades, Homestead Lab, and {Backups} hardlinks."),
+        badge: t("sd_proto_d3_badge", "DOMAIN 3 • 9 PROTOCOLS"),
+        title: t("sd_proto_d3_title", "Stability, Load Order & Sandbox Protocols"),
+        desc: t("sd_proto_d3_desc", "Topological LOOT/DAG load order compilation, SQLite-cached Conflict Radar 2.0, Highlander/Twin cohesion, Deep Yeet cascades, Homestead Lab, Creator Airlock, Save Doctor, and Time Capsule hardlinks."),
         rules: [
           {
             icon: t("icon_layers", "layers"),
@@ -644,119 +720,144 @@ export function WebProtocolsView({
             ),
             desc: t(
               "sd_proto_d3_r1_desc",
-              "Compiles priority via folder_priority (dynamic manifest + Sanctuary1–3 folders), manifest_list, numeric_prefix, or timestamp with DFS cycle breaking."
+              "Compiles priority via folder_priority (dynamic manifest + schema priority folders), manifest_list, numeric_prefix, or timestamp with DFS cycle breaking and external LOOT rules."
             ),
           },
           {
             icon: t("icon_radar", "radar"),
             title: t(
               "sd_proto_d3_r2_title",
-              "Conflict Radar (Casual vs. Advanced Mode)"
+              "Conflict Radar 2.0 (SQLite Cached TOCs)"
             ),
             desc: t(
               "sd_proto_d3_r2_desc",
-              "Casual Mode provides 1-click 'Pick a Winner' resolution for Severity 3 Tuning Overlaps; Advanced Mode unlocks directional Must Load After/Before rules."
+              "Rayon analyzer parsing TES4/BSA/BA2/LSPK/PAK/UTOC/RDAR/RPF7/JSON/XML with SQLite caching, Casual 'Pick a Winner' overrides, and Advanced Must Load After/Before rules."
             ),
           },
           {
             icon: t("icon_swap_horiz", "swap_horiz"),
             title: t(
               "sd_proto_d3_r3_title",
-              "The Highlander Rule & Twin Cohesion"
+              "The Highlander Rule"
             ),
             desc: t(
               "sd_proto_d3_r3_desc",
-              "Automatically evicts rival Flavor files when equipping a chosen Flavor, and bidirectionally links companion module and script Twins."
+              "Enforces mutually exclusive Flavor/slot groups (highlander_group_id) with explicit Swap, Keep Both, or Cancel confirmation prompts."
             ),
+          },
+          {
+            icon: t("icon_link", "link"),
+            title: t(
+              "sd_proto_d3_r4_title",
+              "Nuclear Family Cohesion (Twins & Groups)"
+            ),
+            desc: t("sd_proto_d3_r4_desc", "Bidirectionally links companion modules, script twins, and shared-stem artifact_groups across deployment and toggles."),
           },
           {
             icon: t("icon_account_tree", "account_tree"),
             title: t(
-              "sd_proto_d3_r4_title",
+              "sd_proto_d3_r5_title",
               "Chain-Link Dependencies & Deep Yeet 2.0"
             ),
-            desc: t("sd_proto_d3_r4_desc", "Auto-equips required master {mods} when enabling an add-on, and halts for {Citizen} confirmation to cleanly cascade-unequip orphaned child {mods} on removal."),
+            desc: t("sd_proto_d3_r5_desc", "Auto-equips required master {mods} on enable, and halts for {Citizen} confirmation to cleanly cascade-unequip orphaned child {mods} on removal."),
           },
           {
             icon: t("icon_science", "science"),
-            title: t(
-              "sd_proto_d3_r5_title",
-              "Homestead Lab (100% Nuke & 1v1 Arena)"
+            title: t("sd_proto_d3_r6_title", "Homestead Lab & Groundhog Sandbox"),
+            desc: t(
+              "sd_proto_d3_r6_desc",
+              "Isolates primary saves while booting 100% Nuke or 1v1 sandbox tests, correlating crash logs in <10ms against SQLite Radar chunks, with strict opt-in OFF cloud certificates."
             ),
-            desc: t("sd_proto_d3_r5_desc", "Strips active symlinks to test suspect {mods} or 1v1 conflicts in an isolated sandbox save while harvesting and PII-scrubbing crash logs."),
           },
           {
             icon: t("icon_history", "history"),
-            title: t("sd_proto_d3_r6_title", "Hardlink {Backups} & Differential Rollback"),
+            title: t("sd_proto_d3_r7_title", "Time Capsule (World & Engine Lanes)"),
             desc: t(
-              "sd_proto_d3_r6_desc",
-              "Snapshots World State (Saves/Settings) and Engine Core (Binaries) using zero-bloat OS hardlinks and restores modified bytes via differential comparison."
+              "sd_proto_d3_r7_desc",
+              "Rayon CoW OS hardlink snapshots with explicit .delta_manifest.json lane isolation, storage-cap pruning, and strictly additive World-lane save restoration."
+            ),
+          },
+          {
+            icon: t("icon_vpn_key", "vpn_key"),
+            title: t("sd_proto_d3_r8_title", "Creator Airlock (External Tool Runner)"),
+            desc: t(
+              "sd_proto_d3_r8_desc",
+              "Launches external authoring suites inside Homestead's save-airgapped sandbox via host or Proton and restores live saves on exit (distinct from Open {Mason} Workshop)."
+            ),
+          },
+          {
+            icon: t("icon_medical_services", "medical_services"),
+            title: t("sd_proto_d3_r9_title", "Save Doctor & Crash Autopsy"),
+            desc: t(
+              "sd_proto_d3_r9_desc",
+              "Records per-save mod DNA manifests (.sanctuary-save-manifest.json) and performs pre-launch missing-mod alerts + instant exception diagnosis."
             ),
           },
         ],
       },
       {
         icon: t("icon_shield", "shield"),
-        badge: t("sd_proto_d4_badge", "DOMAIN 4 • 6 PROTOCOLS"),
+        badge: t("sd_proto_d4_badge", "DOMAIN 4 • 8 PROTOCOLS"),
         title: t(
           "sd_proto_d4_title",
-          "Security, FIDO2 Passkeys & Quarantine Lockdown"
+          "Zero-Knowledge Security, DMCA & Shield Protocols"
         ),
         desc: t(
           "sd_proto_d4_desc",
-          "Hardware WebAuthn FIDO2 gates, Dual-Tier Rust Heuristics, Full-OS Malware Quarantine Lockdown with Secure Shred, DEFCON 1 pre-patch shield, and decoupled hardware_bans."
+          "Hardware WebAuthn FIDO2 gates, Echo Suppressor alert sync, Dual-Tier Rust Heuristics, Tier 6 Malware Lockdown, Spoke-routed Tier 1 DMCA Safe Harbor, Tiers 2–5 isolation, DEFCON 1 pre-patch shield, and bidirectional Nuclear Override."
         ),
         rules: [
           {
             icon: t("icon_passkey", "passkey"),
-            title: t("sd_proto_d4_r1_title", "FIDO2 Passkey & TOTP Security {Vault}"),
-            desc: t("sd_proto_d4_r1_desc", "Requires hardware-bound WebAuthn Passkeys or TOTP verification for all Elevated Clearances (Verified {Mason} through Keeper) inside the right-hand Security {Vault} drawer."),
+            title: t("sd_proto_d4_r1_title", "Zero-Knowledge Seal (FIDO2 & TOTP)"),
+            desc: t("sd_proto_d4_r1_desc", "Requires hardware-bound WebAuthn Passkeys, Touch ID, or TOTP verification + OWASP 600k blinding for Elevated Clearances inside the Security {Vault} drawer."),
+          },
+          {
+            icon: t("icon_notifications_off", "notifications_off"),
+            title: t("sd_proto_d4_r2_title", "Echo Suppressor (Encrypted Alert Sync)"),
+            desc: t("sd_proto_d4_r2_desc", "Synchronizes encrypted alert dismissals across Desktop, Steam Deck, and Web so notices fire once per account; Pocket Radar sync remains strict opt-in OFF."),
+          },
+          {
+            icon: t("icon_cleaning_services", "cleaning_services"),
+            title: t("sd_proto_d4_r3_title", "Ghost Scrubber (In-Memory PII Scrubbing)"),
+            desc: t("sd_proto_d4_r3_desc", "Scrubs OS usernames, paths, IPs, MACs, SIDs, and HWIDs purely in-memory on read (never mutating live game logs) before telemetry leaves the rig."),
           },
           {
             icon: t("icon_security", "security"),
-            title: t(
-              "sd_proto_d4_r2_title",
-              "Dual-Tier Multi-Format Heuristic Scanner"
-            ),
+            title: t("sd_proto_d4_r4_title", "Bytecode Hound Dual-Tier Heuristics"),
             desc: t(
-              "sd_proto_d4_r2_desc",
-              "Merges global Core Heuristics and community Spoke Heuristics to scan archives, raw binaries, UTF-16LE strings, and Python bytecode symbol chains."
+              "sd_proto_d4_r4_desc",
+              "Merges global Core and community Spoke signatures with Zlib/Zstd stream & bytecode inspection across executables, archives, and masquerading extensions."
             ),
           },
           {
             icon: t("icon_gpp_bad", "gpp_bad"),
             title: t(
-              "sd_proto_d4_r3_title",
-              "Full-OS Quarantine Lockdown & Secure Shred"
+              "sd_proto_d4_r5_title",
+              "Zero-Choice Lockdown & Secure Shred (Tier 6)"
             ),
-            desc: t("sd_proto_d4_r3_desc", "Confirmed Tier 5 Malware locks the OS shell, displays Triggered By & Detection Source attribution, and requires a {Citizen} signature for multi-pass Secure Shredding."),
+            desc: t("sd_proto_d4_r5_desc", "Confirmed Tier 6 Malware locks the OS shell, displays Triggered By & Detection Source attribution, and requires a {Citizen} signature for multi-pass Secure Shredding."),
           },
           {
             icon: t("icon_visibility_off", "visibility_off"),
             title: t(
-              "sd_proto_d4_r4_title",
-              "Florida Compliance Tiers 1–4 & Auto-Purge"
+              "sd_proto_d4_r6_title",
+              "Compliance Tiers 1–5 Surface Isolation & Support Lock"
             ),
-            desc: t("sd_proto_d4_r4_desc", "Permits Tiers 1–4 in local Vaults while scrubbing public Nexus feeds and stripping flagged hashes from Cloud {Blueprints} automatically."),
+            desc: t("sd_proto_d4_r6_desc", "Permits Tiers 2–5 in local Vaults while stripping Tiers 1–5 from public Nexus feeds and Cloud {Blueprints}, and applies non-destructive Community {Mod} Support Lock."),
           },
           {
             icon: t("icon_cell_tower", "cell_tower"),
             title: t(
-              "sd_proto_d4_r5_title",
-              "DEFCON 1 Pre-Patch Network Shield"
+              "sd_proto_d4_r7_title",
+              "DEFCON 1 Pre-Patch Shield & Bidirectional Nuclear Override"
             ),
-            desc: t("sd_proto_d4_r5_desc", "Real-time listener on global_network_status that intercepts game launches during breaking engine patches to prompt an emergency {Backups} backup."),
+            desc: t("sd_proto_d4_r7_desc", "Monitors global_network_status to seal saves before breaking patches; 5-click System Preferences Nuclear Override toggles offline airgap mode bidirectionally without permanent lockouts."),
           },
           {
-            icon: t("icon_policy", "policy"),
-            title: t(
-              "sd_proto_d4_r6_title",
-              "Nuclear Override & Decoupled hardware_bans"
-            ),
-            desc: t(
-              "sd_proto_d4_r6_desc",
-              "Revealed by clicking the System Preferences subtitle 5 times; bypasses local quarantine while recording a one-way hash in hardware_bans to sever cloud access."
-            ),
+            icon: t("icon_gavel", "gavel"),
+            title: t("sd_proto_d4_r8_title", "Spoke-Routed DMCA Safe Harbor (Tier 1)"),
+            desc: t("sd_proto_d4_r8_desc", "Immediately suppresses public visibility on valid 17 U.S.C. § 512 notices (Tier 1) and routes notice resolution to the sovereign Partner Spoke under a 48h SLA while logging minimal statutory compliance records in Keepers Core (public.dmca_compliance_notices)."),
           },
         ],
       },
@@ -859,7 +960,7 @@ export function WebProtocolsView({
             label={
               customProtoCompTab?.label
                 ? td(customProtoCompTab.label)
-                : t("dir_pr_t2_lbl", "TIERS 0–5")
+                : t("dir_pr_t2_lbl", "TIERS 0–6")
             }
             number={
               customProtoCompTab?.value
@@ -1084,7 +1185,7 @@ export function WebProtocolsView({
           </div>
         )}
 
-        {/* Tab 2: Compliance Tiers 0–5 & Heuristics Defense Matrix (Single-Column Stacked Cards: Unselected Compact & Dimmed, Selected Expands In-Place) */}
+        {/* Tab 2: Compliance Tiers 0–6 & Heuristics Defense Matrix (Single-Column Stacked Cards: Unselected Compact & Dimmed, Selected Expands In-Place) */}
         {protoTab === "compliance" && (
           <div className="flex flex-col gap-3.5 w-full">
             {effectiveComplianceTiers.map((tier: any, cIdx: any) => {

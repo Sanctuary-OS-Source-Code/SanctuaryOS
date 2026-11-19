@@ -154,7 +154,8 @@ export function VaultGrid(props: any) {
       }
     });
 
-    localConflictsMemo.forEach((lc: any) => {
+    if (Array.isArray(localConflictsMemo) && localConflictsMemo.length > 0) {
+      localConflictsMemo.forEach((lc: any) => {
       const mObjClean = String(mObj.name || "").toUpperCase();
       const mObjDisp = String(mObj.displayName || "").toUpperCase();
 
@@ -179,7 +180,8 @@ export function VaultGrid(props: any) {
           if (targetRank == 3) targetTier3.push({ name: matchObj.displayName || matchObj.name, rawName: matchObj.name, note: lc.resolution_note || "Local Scan Detects Tuning Overlap" });
         }
       }
-    });
+      });
+    }
   }, [uppercaseEquippedMods, localConflictsMemo, areArchetypes]);
 
   const { cardComputations, missingReqsByMod } = React.useMemo(() => {
@@ -430,8 +432,7 @@ export function VaultGrid(props: any) {
     return { cardComputations: map, missingReqsByMod: reqsByMod };
   }, [
     paginatedMods,
-    playSets,
-    activePlaySetIndex,
+    cleanedActiveSet,
     equippedDisplayMods,
     modListIndex,
     dependencyGraph,

@@ -698,14 +698,17 @@ export function DirectivesEditorSidePanel({
                                 <CustomDropdown
                                   disableTint={true}
                                   value={
-                                    card.status === "completed"
-                                      ? "completed"
-                                      : card.status === "in_testing"
-                                        ? "in_testing"
-                                        : "in_progress"
+                                    card.status === "planned"
+                                      ? "planned"
+                                      : card.status === "completed"
+                                        ? "completed"
+                                        : card.status === "in_testing"
+                                          ? "in_testing"
+                                          : "in_progress"
                                   }
                                   options={(
                                     [
+                                      "planned",
                                       "in_progress",
                                       "in_testing",
                                       "completed",
@@ -727,11 +730,13 @@ export function DirectivesEditorSidePanel({
                                       t
                                     );
                                     const cardStatusKey =
-                                      picked === "in_progress"
-                                        ? "active"
-                                        : picked === "in_testing"
-                                          ? "in_testing"
-                                          : "completed";
+                                      picked === "planned"
+                                        ? "planned"
+                                        : picked === "in_progress"
+                                          ? "active"
+                                          : picked === "in_testing"
+                                            ? "in_testing"
+                                            : "completed";
                                     updateBuilderCard(
                                       activeBuilderTabIdx,
                                       cardIdx,
@@ -892,11 +897,13 @@ export function DirectivesEditorSidePanel({
                                                 t
                                               );
                                               const nextStatus: RoadmapMilestoneStatus =
-                                                curStatus === "in_progress"
-                                                  ? "in_testing"
-                                                  : curStatus === "in_testing"
-                                                    ? "completed"
-                                                    : "in_progress";
+                                                curStatus === "planned"
+                                                  ? "in_progress"
+                                                  : curStatus === "in_progress"
+                                                    ? "in_testing"
+                                                    : curStatus === "in_testing"
+                                                      ? "completed"
+                                                      : "planned";
                                               const nextMeta =
                                                 getRoadmapStatusMeta(
                                                   nextStatus,
@@ -915,7 +922,9 @@ export function DirectivesEditorSidePanel({
                                                           nextStatus,
                                                         pending:
                                                           nextStatus ===
-                                                          "in_progress",
+                                                          "in_progress" ||
+                                                          nextStatus ===
+                                                          "planned",
                                                         icon: nextMeta.icon,
                                                       }
                                                     )
@@ -1183,6 +1192,7 @@ export function DirectivesEditorSidePanel({
                                             )}
                                             options={(
                                               [
+                                                "planned",
                                                 "in_progress",
                                                 "in_testing",
                                                 "completed",
@@ -1213,7 +1223,8 @@ export function DirectivesEditorSidePanel({
                                                 {
                                                   roadmapStatus: picked,
                                                   pending:
-                                                    picked === "in_progress",
+                                                    picked === "in_progress" ||
+                                                    picked === "planned",
                                                   icon: meta.icon,
                                                 }
                                               );

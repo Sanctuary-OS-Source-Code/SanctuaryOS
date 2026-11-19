@@ -57,6 +57,41 @@ function ModCardInner({ mod, gameVersion, isInActiveSet, onSelect: _onSelect, on
   const showImages = useStore((state: any) => state.showImages);
   const [confirmMode, setConfirmMode] = useState<'casualty' | 'dlc' | 'tier3' | 'broken' | 'flavor_swap' | null>(null);
   const delayedConfirmMode = confirmMode;
+  const [isToggling, setIsToggling] = useState(false);
+  const pendingToggleRef = React.useRef(false);
+  const toggleTimerRef = React.useRef<any>(null);
+
+  React.useEffect(() => {
+    if (toggleTimerRef.current) {
+      clearTimeout(toggleTimerRef.current);
+      toggleTimerRef.current = null;
+    }
+    pendingToggleRef.current = false;
+    setIsToggling(false);
+    setConfirmMode(null);
+  }, [isInActiveSet]);
+
+  React.useEffect(() => {
+    return () => {
+      if (toggleTimerRef.current) {
+        clearTimeout(toggleTimerRef.current);
+        toggleTimerRef.current = null;
+      }
+    };
+  }, []);
+
+  const triggerToggle = React.useCallback((e: any, force: boolean = false, keepBoth: boolean = false) => {
+    if (pendingToggleRef.current) return;
+    pendingToggleRef.current = true;
+    setIsToggling(true);
+    if (toggleTimerRef.current) clearTimeout(toggleTimerRef.current);
+    toggleTimerRef.current = setTimeout(() => {
+      pendingToggleRef.current = false;
+      setIsToggling(false);
+      toggleTimerRef.current = null;
+    }, 260);
+    onToggleSet(e, force, keepBoth);
+  }, [onToggleSet]);
 
   let rawDLC: string[] = parseStringArray(mod.requiredDLC);
   if (mod.flavors) {
@@ -219,6 +254,7 @@ function ModCardInner({ mod, gameVersion, isInActiveSet, onSelect: _onSelect, on
 
   const handleToggleClick = (e: React.MouseEvent) => {
     e.stopPropagation();
+    if (pendingToggleRef.current) return;
     if (!isInActiveSet) {
       if (isSwappedState && casualtyList.length > 0) { setConfirmMode('flavor_swap'); return; }
       if (isNemesisEquipped) { setConfirmMode('casualty'); return; }
@@ -228,7 +264,7 @@ function ModCardInner({ mod, gameVersion, isInActiveSet, onSelect: _onSelect, on
     }
     if (isInActiveSet && isFlavorSwap && casualtyList.length > 0) { setConfirmMode('flavor_swap'); return; }
     if (isInActiveSet && casualtyList.length > 0) { setConfirmMode('casualty'); return; }
-    onToggleSet(e, true, false);
+    triggerToggle(e, true, false);
   };
 
   const chipClass =
@@ -508,8 +544,11 @@ function ModCardInner({ mod, gameVersion, isInActiveSet, onSelect: _onSelect, on
                 {!mod.status?.includes('QUARANTINED') && !mod.status?.includes('ARCHIVED') && (
                   <button
                     type="button"
+                    disabled={isToggling}
                     onClick={handleToggleClick}
                     className={`relative group/actionbtn w-7 h-7 rounded-lg glass-surface border flex items-center justify-center transition-all cursor-pointer pointer-events-auto ${
+                      isToggling ? 'opacity-50 pointer-events-none' : ''
+                    } ${
                       isShadowed
                         ? isSwappedState
                           ? 'border-[color-mix(in_srgb,var(--text)_12%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_24%,transparent)] text-[var(--accent)]'
@@ -852,37 +891,37 @@ function ModCardInner({ mod, gameVersion, isInActiveSet, onSelect: _onSelect, on
                   <div className="absolute top-0 left-3.5 right-3.5 h-px bg-gradient-to-r from-transparent via-[color-mix(in_srgb,var(--text)_10%,transparent)] to-transparent pointer-events-none" />
                   {delayedConfirmMode === 'tier3' ? (
                   <>
-                    <button type="button" onClick={(e) => { e.stopPropagation(); onToggleSet(e, false); setConfirmMode(null); }} className="flex-1 glass-surface min-w-0 py-2 rounded-xl border border-[color-mix(in_srgb,var(--text)_12%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_24%,transparent)] text-[var(--warning)] font-black text-[9.5px] uppercase tracking-wider transition-all px-2.5 min-h-[34px] flex items-center justify-center gap-1.5 leading-tight whitespace-normal text-center break-words cursor-pointer">
+                    <button type="button" disabled={isToggling} onClick={(e) => { e.stopPropagation(); triggerToggle(e, false); setConfirmMode(null); }} className="flex-1 glass-surface min-w-0 py-2 rounded-xl border border-[color-mix(in_srgb,var(--text)_12%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_24%,transparent)] text-[var(--warning)] font-black text-[9.5px] uppercase tracking-wider transition-all px-2.5 min-h-[34px] flex items-center justify-center gap-1.5 leading-tight whitespace-normal text-center break-words cursor-pointer disabled:opacity-50">
                       <span className="material-symbols-outlined !text-[13px] shrink-0">{t("icon_warning", "warning")}</span>
                       <span>{t("btn_ignore_conflict", "Ignore Conflict")}</span>
                     </button>
                   </>
                 ) : delayedConfirmMode === 'broken' || delayedConfirmMode === 'dlc' ? (
                   <>
-                    <button type="button" onClick={(e) => { e.stopPropagation(); onToggleSet(e, true); setConfirmMode(null); }} className="flex-1 glass-surface min-w-0 py-2 rounded-xl border border-[color-mix(in_srgb,var(--text)_12%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_24%,transparent)] text-[var(--danger)] font-black text-[9.5px] uppercase tracking-wider transition-all px-2.5 min-h-[34px] flex items-center justify-center gap-1.5 leading-tight whitespace-normal text-center break-words cursor-pointer">
+                    <button type="button" disabled={isToggling} onClick={(e) => { e.stopPropagation(); triggerToggle(e, true); setConfirmMode(null); }} className="flex-1 glass-surface min-w-0 py-2 rounded-xl border border-[color-mix(in_srgb,var(--text)_12%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_24%,transparent)] text-[var(--danger)] font-black text-[9.5px] uppercase tracking-wider transition-all px-2.5 min-h-[34px] flex items-center justify-center gap-1.5 leading-tight whitespace-normal text-center break-words cursor-pointer disabled:opacity-50">
                       <span className="material-symbols-outlined !text-[13px] shrink-0">{t("icon_warning", "warning")}</span>
                       <span>{t("btn_equip_anyway", "Proceed Anyway")}</span>
                     </button>
                     {mod.isParent && delayedConfirmMode === 'broken' && (
-                      <button type="button" onClick={(e) => { e.stopPropagation(); onToggleSet(e, true); setConfirmMode(null); }} className="flex-1 glass-surface min-w-0 py-2 rounded-xl border border-[color-mix(in_srgb,var(--text)_12%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_28%,transparent)] text-[var(--text)] font-black text-[9.5px] uppercase tracking-wider transition-all px-2.5 min-h-[34px] flex items-center justify-center gap-1.5 leading-tight whitespace-normal text-center break-words cursor-pointer">
+                      <button type="button" disabled={isToggling} onClick={(e) => { e.stopPropagation(); triggerToggle(e, true); setConfirmMode(null); }} className="flex-1 glass-surface min-w-0 py-2 rounded-xl border border-[color-mix(in_srgb,var(--text)_12%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_28%,transparent)] text-[var(--text)] font-black text-[9.5px] uppercase tracking-wider transition-all px-2.5 min-h-[34px] flex items-center justify-center gap-1.5 leading-tight whitespace-normal text-center break-words cursor-pointer disabled:opacity-50">
                         <span>{t("btn_add_not_broken", "Add Not Corrupted")}</span>
                       </button>
                     )}
                   </>
                 ) : delayedConfirmMode === 'flavor_swap' ? (
                   <>
-                    <button type="button" onClick={(e) => { e.stopPropagation(); onToggleSet(e, true, false); setConfirmMode(null); }} className="flex-1 glass-surface min-w-0 py-2 rounded-xl border border-[color-mix(in_srgb,var(--text)_12%,transparent)] font-black text-[9.5px] uppercase tracking-wider px-2.5 min-h-[34px] flex items-center justify-center gap-1.5 leading-tight whitespace-normal text-center break-words transition-all cursor-pointer text-[var(--accent)] hover:border-[color-mix(in_srgb,var(--text)_24%,transparent)]">
+                    <button type="button" disabled={isToggling} onClick={(e) => { e.stopPropagation(); triggerToggle(e, true, false); setConfirmMode(null); }} className="flex-1 glass-surface min-w-0 py-2 rounded-xl border border-[color-mix(in_srgb,var(--text)_12%,transparent)] font-black text-[9.5px] uppercase tracking-wider px-2.5 min-h-[34px] flex items-center justify-center gap-1.5 leading-tight whitespace-normal text-center break-words transition-all cursor-pointer disabled:opacity-50 text-[var(--accent)] hover:border-[color-mix(in_srgb,var(--text)_24%,transparent)]">
                       <span className="material-symbols-outlined !text-[13px] shrink-0">{t("icon_swap_horiz", "swap_horiz")}</span>
                       <span>{t("btn_swap_mods", "Swap {Mods}")}</span>
                     </button>
-                    <button type="button" onClick={(e) => { e.stopPropagation(); onToggleSet(e, true, true); setConfirmMode(null); }} className="flex-1 glass-surface min-w-0 py-2 rounded-xl border border-[color-mix(in_srgb,var(--text)_12%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_24%,transparent)] text-[var(--subtext)] hover:text-[var(--warning)] font-black text-[9.5px] uppercase tracking-wider transition-all px-2.5 min-h-[34px] flex items-center justify-center gap-1.5 leading-tight whitespace-normal text-center break-words cursor-pointer">
+                    <button type="button" disabled={isToggling} onClick={(e) => { e.stopPropagation(); triggerToggle(e, true, true); setConfirmMode(null); }} className="flex-1 glass-surface min-w-0 py-2 rounded-xl border border-[color-mix(in_srgb,var(--text)_12%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_24%,transparent)] text-[var(--subtext)] hover:text-[var(--warning)] font-black text-[9.5px] uppercase tracking-wider transition-all px-2.5 min-h-[34px] flex items-center justify-center gap-1.5 leading-tight whitespace-normal text-center break-words cursor-pointer disabled:opacity-50">
                       <span className="material-symbols-outlined !text-[13px] shrink-0 text-[var(--warning)]">{t("icon_layers", "layers")}</span>
                       <span>{t("btn_keep_both", "Keep Both")}</span>
                     </button>
                   </>
                 ) : (
                   <>
-                    <button type="button" onClick={(e) => { e.stopPropagation(); onToggleSet(e, true, false); setConfirmMode(null); }} className="flex-1 glass-surface min-w-0 py-2 rounded-xl border border-[color-mix(in_srgb,var(--text)_12%,transparent)] font-black text-[9.5px] uppercase tracking-wider px-2.5 min-h-[34px] flex items-center justify-center gap-1.5 leading-tight whitespace-normal text-center break-words transition-all cursor-pointer text-[var(--danger)] hover:border-[color-mix(in_srgb,var(--text)_24%,transparent)]">
+                    <button type="button" disabled={isToggling} onClick={(e) => { e.stopPropagation(); triggerToggle(e, true, false); setConfirmMode(null); }} className="flex-1 glass-surface min-w-0 py-2 rounded-xl border border-[color-mix(in_srgb,var(--text)_12%,transparent)] font-black text-[9.5px] uppercase tracking-wider px-2.5 min-h-[34px] flex items-center justify-center gap-1.5 leading-tight whitespace-normal text-center break-words transition-all cursor-pointer disabled:opacity-50 text-[var(--danger)] hover:border-[color-mix(in_srgb,var(--text)_24%,transparent)]">
                       <span className="material-symbols-outlined !text-[13px] shrink-0">{t("icon_delete", "delete")}</span>
                       <span>{t("btn_purge_confirm", "{Remove} {Mods}")}</span>
                     </button>

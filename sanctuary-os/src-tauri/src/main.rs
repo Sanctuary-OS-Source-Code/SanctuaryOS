@@ -238,6 +238,8 @@ fn main() {
     }
 
     std::thread::spawn(|| {
+        // Yield startup CPU & disk I/O to window creation and WebView2 first-paint hydration
+        std::thread::sleep(std::time::Duration::from_millis(1200));
         ensure_windows_aumid_registered();
         let initial_prefs = commands::state_ops::get_protocol_handler_preferences();
         #[cfg(target_os = "linux")]

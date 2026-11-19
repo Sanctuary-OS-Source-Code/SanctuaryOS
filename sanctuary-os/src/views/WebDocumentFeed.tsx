@@ -20,10 +20,14 @@ import bundledRoadmapDoc from "../../../Phase Roadmap.md?raw";
 import bundledForkingGuide from "../../../Sanctuary OS Forking & Architecture Guide.md?raw";
 import bundledArchitectureDoc from "../../../Master Architecture & Feature Document.md?raw";
 import bundledProtocolList from "../../../Master Protocol List.md?raw";
+import docDmcaSop from "../../../Docs/dmca_and_ownership_dispute_sop.md?raw";
 import docPartnerSpokePitch from "../../../Docs/executive_partner_spoke_pitch_matrix.md?raw";
+import docAppealsSop from "../../../Docs/moderation_appeals_and_remediation_sop.md?raw";
 import docCompetitorComparison from "../../../Docs/modding_ecosystem_competitor_comparison.md?raw";
 import docWhySwitch from "../../../Docs/public_comparison_page_why_switch_to_sanctuary_os.md?raw";
+import docSpokeMigrationTrademark from "../../../Docs/spoke_schema_migration_and_trademark_policy.md?raw";
 import docTechnicalDeepDive from "../../../Docs/technical_deep_dive_formats_malware_cloud_traps.md?raw";
+import docMasonSpokeGovernance from "../../../Docs/verified_mason_and_spoke_governance_sop.md?raw";
 import docMigrationGuide from "../../../Docs/zero_reinstall_player_creator_migration_guide.md?raw";
 import {
   syncDirectivesBidirectional,
@@ -416,7 +420,7 @@ export default function WebDocumentFeed({
               directivesMap.master_protocols?.summary ||
               t(
                 "sd_card_proto_desc",
-                "Interactive directory of all 30 Sanctuary OS operational protocols across 4 domains, Florida Compliance Tiers 0–5, Bytecode Hound Core + Spoke Heuristic Antivirus rules, and the 6-Tier Role Clearance Hierarchy."
+                "Interactive directory of all 37 Sanctuary OS operational protocols across 4 domains, Compliance Tiers 0–6 (including Spoke-routed Legal/DMCA Tier 1 & Tier 6 Malware), Bytecode Hound heuristics, and the 6-Tier Role Clearance Hierarchy."
               )
           ),
           icon: t("icon_policy", "policy"),
@@ -551,7 +555,7 @@ export default function WebDocumentFeed({
       directivesMap.master_protocols?.summary ||
       t(
         "sd_card_proto_desc",
-        "Interactive directory of all 30 Sanctuary OS operational protocols across 4 domains, Florida Compliance Tiers 0–5, Bytecode Hound Core + Spoke Heuristic Antivirus rules, and the 6-Tier Role Clearance Hierarchy."
+        "Interactive directory of all 37 Sanctuary OS operational protocols across 4 domains, Compliance Tiers 0–6 (including Spoke-routed Legal/DMCA Tier 1 & Tier 6 Malware), Bytecode Hound heuristics, and the 6-Tier Role Clearance Hierarchy."
       ),
     "protocol clearance matrix governance security compliance"
   );
@@ -617,6 +621,54 @@ export default function WebDocumentFeed({
         ),
         icon: t("icon_hub", "hub"),
         content: docPartnerSpokePitch,
+      },
+      {
+        id: "dmca_ownership_sop",
+        title: t("sd_wp_dmca_sop_title", "DMCA Safe Harbor & Ownership Dispute SOP (Tier 1)"),
+        badge: t("sd_wp_badge_governance", "GOVERNANCE"),
+        subtitle: t("sd_wp_dmca_sop_sub", "Spoke-Routed § 512 Fulfillment & Core Audit Log"),
+        summary: t(
+          "sd_wp_dmca_sop_desc",
+          "Covers Tier 1 Legal/DMCA hold suppression, automated Partner Spoke forwarding under the 48h SLA, Keepers Core dmca_compliance_notices logging, and 10–14 business day counter-notices."
+        ),
+        icon: t("icon_gavel", "gavel"),
+        content: docDmcaSop,
+      },
+      {
+        id: "moderation_appeals_sop",
+        title: t("sd_wp_appeals_sop_title", "Moderation Appeals & False-Positive Quarantine SOP"),
+        badge: t("sd_wp_badge_governance", "GOVERNANCE"),
+        subtitle: t("sd_wp_appeals_sop_sub", "Tiers 1–5 Review & Tier 6 Heuristic Remediation"),
+        summary: t(
+          "sd_wp_appeals_sop_desc",
+          "Step-by-step due-process escalation ladder (Architect, Oversight, Wayfinder, Keepers Core) for contested compliance flags and Bytecode Hound false-positive quarantines."
+        ),
+        icon: t("icon_balance", "balance"),
+        content: docAppealsSop,
+      },
+      {
+        id: "verified_mason_spoke_sop",
+        title: t("sd_wp_mason_spoke_sop_title", "Verified {Mason} Onboarding (18+ Zero-ID) & Spoke Succession SOP"),
+        badge: t("sd_wp_badge_governance", "GOVERNANCE"),
+        subtitle: t("sd_wp_mason_spoke_sop_sub", "Zero-ID FIDO2 Vetting & Abandoned Spoke Protocol"),
+        summary: t(
+          "sd_wp_mason_spoke_sop_desc",
+          "Explains privacy-preserving 18+ Mason verification without government IDs alongside the Abandoned Spoke Protocol protecting 100% community DB ownership."
+        ),
+        icon: t("icon_verified_user", "verified_user"),
+        content: docMasonSpokeGovernance,
+      },
+      {
+        id: "spoke_migration_trademark",
+        title: t("sd_wp_migration_trademark_title", "Spoke Schema Migrations & Fork / Trademark Policy"),
+        badge: t("sd_wp_badge_governance", "GOVERNANCE"),
+        subtitle: t("sd_wp_migration_trademark_sub", "SQL Upgrade Runbook & GNU GPLv3 Branding"),
+        summary: t(
+          "sd_wp_migration_trademark_desc",
+          "Step-by-step SQL migration runbook (migrations/spoke/0003) paired with GPLv3 fork freedom and Sanctuary OS anti-impersonation trademark requirements."
+        ),
+        icon: t("icon_schema", "schema"),
+        content: docSpokeMigrationTrademark,
       },
     ],
     [t]

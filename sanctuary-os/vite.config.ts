@@ -292,6 +292,32 @@ function devLexiconSyncPlugin() {
         return true;
       };
 
+      const normalizeCoreLexiconForDisk = (
+        rawId: string,
+        dict: Record<string, any>
+      ): Record<string, any> => {
+        const next: Record<string, any> = { ...dict };
+        if (rawId === 'en-default' || rawId === 'en-sanctuary') {
+          next._meta_lang = 'en';
+        }
+        const metaKeys: string[] = [];
+        const termKeys: string[] = [];
+        const restKeys: string[] = [];
+        for (const k of Object.keys(next)) {
+          if (k.startsWith('_meta')) metaKeys.push(k);
+          else if (k.startsWith('term_')) termKeys.push(k);
+          else restKeys.push(k);
+        }
+        metaKeys.sort((a, b) => a.localeCompare(b));
+        termKeys.sort((a, b) => a.localeCompare(b));
+        restKeys.sort((a, b) => a.localeCompare(b));
+        const sorted: Record<string, any> = {};
+        for (const k of [...metaKeys, ...termKeys, ...restKeys]) {
+          sorted[k] = next[k];
+        }
+        return sorted;
+      };
+
       server.middlewares.use('/__update-lexicon', (req: any, res: any) => {
         if (!verifyDevMiddlewareRequest(req, res)) return;
         if (req.method === 'POST') {
@@ -311,7 +337,7 @@ function devLexiconSyncPlugin() {
                   res.end('Forbidden');
                   return;
                 }
-                writeJsonIfChanged(filePath, content);
+                writeJsonIfChanged(filePath, normalizeCoreLexiconForDisk(rawId, content));
               }
               res.statusCode = 200;
               res.end('OK');
@@ -365,7 +391,7 @@ function devLexiconSyncPlugin() {
                 res.end(JSON.stringify({ error: 'Forbidden' }));
                 return;
               }
-              updated = writeJsonIfChanged(targetPath, content);
+              updated = writeJsonIfChanged(targetPath, normalizeCoreLexiconForDisk(rawId, content));
             } else if (kind === 'core_themes') {
               const targetPath = path.resolve(__dirname, 'src/data/core_themes.json');
               updated = writeJsonIfChanged(targetPath, content);
@@ -563,6 +589,43 @@ export default defineConfig(async () => ({
         path.resolve(__dirname, "..", "schema_os.sql"),
       ],
     },
+  },
+  optimizeDeps: {
+    include: [
+      "react",
+      "react-dom",
+      "react-dom/client",
+      "zustand",
+      "zustand/react/shallow",
+      "@supabase/supabase-js",
+      "@tauri-apps/api/app",
+      "@tauri-apps/api/core",
+      "@tauri-apps/api/dpi",
+      "@tauri-apps/api/event",
+      "@tauri-apps/api/path",
+      "@tauri-apps/api/webview",
+      "@tauri-apps/api/webviewWindow",
+      "@tauri-apps/api/window",
+      "@tauri-apps/plugin-clipboard-manager",
+      "@tauri-apps/plugin-dialog",
+      "@tauri-apps/plugin-fs",
+      "@tauri-apps/plugin-notification",
+      "@tauri-apps/plugin-opener",
+      "@tauri-apps/plugin-process",
+      "@tauri-apps/plugin-updater",
+      "react-markdown",
+      "remark-breaks",
+      "remark-gfm",
+      "@tiptap/core",
+      "@tiptap/extension-image",
+      "@tiptap/extension-link",
+      "@tiptap/pm/state",
+      "@tiptap/pm/view",
+      "@tiptap/react",
+      "@tiptap/starter-kit",
+      "tiptap-markdown",
+      "nspell",
+    ],
   },
   build: {
     chunkSizeWarningLimit: 600,

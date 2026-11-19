@@ -1,7 +1,8 @@
 import React from 'react';
 import { useLexicon } from '../LexiconContext';
 import { isDesktop } from '../utils/envUtils';
-import { EmptyState, HoverTooltip } from '../shared';
+import { EmptyState, HoverTooltip, VAULT_CHIP_CLASS } from '../shared';
+import { UniversalCard } from '../components/universal/UniversalCard';
 import {
   isWorkspacePinned,
   isWorkspaceSetupConfigured,
@@ -18,6 +19,7 @@ interface LandingWorkspaceGridProps {
   emptyIcon?: string;
   emptyTitle?: string;
   emptySubtitle?: string;
+  gridClassName?: string;
 }
 
 export function LandingWorkspaceGrid({
@@ -31,11 +33,12 @@ export function LandingWorkspaceGrid({
   emptyIcon,
   emptyTitle,
   emptySubtitle,
+  gridClassName = 'grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 w-full',
 }: LandingWorkspaceGridProps) {
   const { t } = useLexicon();
 
   return (
-    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+    <div className={gridClassName}>
       {loading ? (
         <EmptyState
           icon={t('icon_sync', 'sync')}
@@ -62,80 +65,56 @@ export function LandingWorkspaceGrid({
               activeWorkspaceId
             );
             const isPinned = isWorkspacePinned(game, pinnedIds);
+            const statusText = isActive
+              ? t('active', 'Active')
+              : isWorkspaceConfigured
+                ? t('workspace_badge_configured', 'Configured')
+                : t('workspace_badge_not_setup', 'Not Setup');
+            const statusIcon = isActive || isWorkspaceConfigured
+              ? t('icon_check_circle', 'check_circle')
+              : t('icon_pending', 'pending');
+            const statusIconColor = isActive
+              ? 'text-[var(--accent)]'
+              : isWorkspaceConfigured
+                ? 'text-[var(--success)]'
+                : 'text-[var(--subtext)]';
+            const schemaCode = String(game.schema_id || '').toUpperCase();
 
             return (
-              <div
+              <UniversalCard
                 key={game.id || game.schema_id}
-                role="button"
-                tabIndex={0}
+                layout="vertical"
+                isActive={isActive}
+                statusColor={isActive ? 'success' : undefined}
+                icon={t('icon_sports_esports', 'sports_esports')}
+                bannerTopLabel={t('workspace_card_overline', 'Game Workspace')}
+                bannerTopRightLabel={schemaCode || undefined}
+                bannerBottomLabel={`${game.name} • ${statusText}`}
+                title={game.name}
+                subtitle={
+                  <span className="text-[10px] font-mono tracking-widest uppercase">
+                    {schemaCode}
+                  </span>
+                }
                 onClick={() => onNavigateToGame(game.schema_id || game.id)}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter' || e.key === ' ') {
-                    e.preventDefault();
-                    onNavigateToGame(game.schema_id || game.id);
-                  }
-                }}
-                className={`relative glass-panel p-5 rounded-2xl flex flex-col gap-3.5 border text-left group cursor-pointer transition-all duration-300 hover:-translate-y-0.5 ${
-                  isActive
-                    ? 'border-[color-mix(in_srgb,var(--accent)_45%,transparent)] hover:border-[color-mix(in_srgb,var(--accent)_65%,transparent)]'
-                    : 'border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:border-[color-mix(in_srgb,var(--accent)_45%,transparent)]'
-                }`}
-              >
-                {/* Top Row: Icon Box on Left + Status Badge & Pin Button on Right */}
-                <div className="flex justify-between items-start gap-3 relative z-10">
-                  <div
-                    className={`w-11 h-11 rounded-xl glass-surface border border-[var(--glass-card-icon-border,rgba(255,255,255,0.22))] bg-[var(--glass-card-icon-bg,rgba(255,255,255,0.08))] shadow-[var(--glass-card-icon-shadow)] flex items-center justify-center shrink-0 transition-colors duration-300 ${
-                      isActive
-                        ? 'text-[var(--accent)]'
-                        : 'text-[var(--subtext)] group-hover:text-[var(--accent)]'
-                    }`}
-                  >
-                    {game.icon ? (
-                      <img
-                        src={game.icon}
-                        alt=""
-                        className="w-6 h-6 object-contain drop-shadow-sm"
-                      />
-                    ) : (
-                      <span className="material-symbols-outlined !text-[22px]">
-                        {t('icon_sports_esports', 'sports_esports')}
+                className="w-full h-full"
+                imageOverlay={
+                  <div className="absolute top-3 left-3 right-3 flex items-center justify-between gap-2 z-30">
+                    <span className={`${VAULT_CHIP_CLASS} pointer-events-none`}>
+                      <span className={`material-symbols-outlined !text-[12px] ${statusIconColor}`}>
+                        {statusIcon}
                       </span>
-                    )}
-                  </div>
-
-                  <div className="flex items-center gap-1.5 shrink-0">
-                    {isActive ? (
-                      <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[var(--text)] text-[9px] font-black uppercase tracking-wider whitespace-nowrap">
-                        <span className="material-symbols-outlined !text-[12px] text-[var(--accent)]">
-                          {t('icon_check_circle', 'check_circle')}
-                        </span>
-                        <span>{t('active', 'Active')}</span>
-                      </span>
-                    ) : isWorkspaceConfigured ? (
-                      <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[var(--text)] text-[9px] font-black uppercase tracking-wider whitespace-nowrap">
-                        <span className="material-symbols-outlined !text-[12px] text-[var(--success)]">
-                          {t('icon_check_circle', 'check_circle')}
-                        </span>
-                        <span>
-                          {t('workspace_badge_configured', 'Configured')}
-                        </span>
-                      </span>
-                    ) : (
-                      <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[var(--text)] text-[9px] font-black uppercase tracking-wider whitespace-nowrap">
-                        <span className="material-symbols-outlined !text-[12px] text-[var(--subtext)]">
-                          {t('icon_pending', 'pending')}
-                        </span>
-                        <span>
-                          {t('workspace_badge_not_setup', 'Not Setup')}
-                        </span>
-                      </span>
-                    )}
+                      <span>{statusText}</span>
+                    </span>
 
                     {onTogglePin && (
                       <button
                         type="button"
-                        onClick={(e) => onTogglePin(game, e)}
-                        className="h-6 w-6 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_24%,transparent)] flex items-center justify-center transition-all relative group/pin cursor-pointer"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onTogglePin(game, e);
+                        }}
+                        className="h-6 w-6 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_24%,transparent)] flex items-center justify-center transition-all relative group/pin cursor-pointer pointer-events-auto"
                       >
                         <span
                           className={`material-symbols-outlined !text-[13px] transition-colors ${
@@ -161,52 +140,40 @@ export function LandingWorkspaceGrid({
                       </button>
                     )}
                   </div>
-                </div>
-
-                {/* Middle Block: Overline + Prominent Title + Concise Description */}
-                <div className="flex flex-col gap-1 relative z-10 mt-0.5">
-                  <span
-                    className={`text-[10px] font-black uppercase tracking-[0.2em] transition-colors ${
-                      isActive
-                        ? 'text-[var(--accent)]'
-                        : 'text-[var(--subtext)] opacity-75'
-                    }`}
-                  >
-                    {t('workspace_card_overline', 'Game Workspace')}
-                  </span>
-                  <h3 className="text-lg font-black text-[var(--text)] tracking-tight leading-snug group-hover:text-[var(--accent)] transition-colors duration-300 truncate m-0">
-                    {game.name}
-                  </h3>
-                  <p className="text-[11px] font-medium text-[var(--subtext)] opacity-80 leading-relaxed m-0">
-                    {isActive
-                      ? t(
-                          'workspace_card_desc_active',
-                          'Currently active environment for {mod} deployment, diagnostics, and backups.'
-                        )
-                      : t(
-                          'workspace_card_desc_available',
-                          'Select to mount this game workspace and load its {vault}, {blueprints}, and tools.'
-                        )}
-                  </p>
-                </div>
-
-                {/* Bottom Footer Row: Schema Code + Action Label */}
-                <div className="pt-3 mt-auto border-t border-[color-mix(in_srgb,var(--text)_8%,transparent)] flex items-center justify-between gap-2 relative z-10">
-                  <span className="text-[10px] font-mono font-bold uppercase tracking-widest text-[var(--subtext)] opacity-70 truncate">
-                    {game.schema_id}
-                  </span>
-                  <span className="text-[10px] font-black uppercase tracking-widest flex items-center gap-1 shrink-0 text-[var(--text)] opacity-80 group-hover:text-[var(--accent)] group-hover:opacity-100 transition-colors duration-300">
-                    <span>
-                      {isActive
-                        ? t('workspace_btn_enter', 'Enter Workspace')
-                        : t('launch', 'Launch')}
+                }
+                footer={
+                  <div className="flex items-center justify-between w-full gap-2">
+                    <span className="text-[10px] font-black capitalize tracking-widest opacity-60 text-[var(--subtext)] flex items-center gap-1.5 truncate">
+                      <span className="material-symbols-outlined !text-[12px]">
+                        {t('icon_sports_esports', 'sports_esports')}
+                      </span>
+                      <span className="truncate font-mono">{schemaCode}</span>
                     </span>
-                    <span className="material-symbols-outlined !text-[14px]">
-                      {t('icon_arrow_forward', 'arrow_forward')}
+                    <span className="text-[10px] font-black capitalize tracking-widest text-[var(--text)] opacity-80 group-hover/card:opacity-100 group-hover/card:text-[var(--accent)] transition-colors flex items-center gap-1 shrink-0">
+                      <span>
+                        {isActive
+                          ? t('workspace_btn_enter', 'Enter Workspace')
+                          : t('launch', 'Launch')}
+                      </span>
+                      <span className="material-symbols-outlined !text-sm">
+                        {t('icon_arrow_forward', 'arrow_forward')}
+                      </span>
                     </span>
-                  </span>
-                </div>
-              </div>
+                  </div>
+                }
+              >
+                <p className="text-xs text-[var(--subtext)] leading-relaxed font-medium opacity-85 line-clamp-3 mt-1">
+                  {isActive
+                    ? t(
+                        'workspace_card_desc_active',
+                        'Currently active environment for {mod} deployment, diagnostics, and backups.'
+                      )
+                    : t(
+                        'workspace_card_desc_available',
+                        'Select to mount this game workspace and load its {vault}, {blueprints}, and tools.'
+                      )}
+                </p>
+              </UniversalCard>
             );
           })}
         </>

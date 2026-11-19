@@ -102,13 +102,13 @@ fn load_unsealed_provider_key(provider: &str) -> Option<String> {
     unseal_byo_key_from_map(&map, &master_key, &norm).ok().flatten()
 }
 
-#[tauri::command]
+#[tauri::command(async)]
 pub fn get_byo_api_key_status() -> Result<HashMap<String, bool>, String> {
     let map = load_sealed_map();
     Ok(build_status_map(&map))
 }
 
-#[tauri::command]
+#[tauri::command(async)]
 pub fn set_byo_api_key(provider: String, api_key: String) -> Result<HashMap<String, bool>, String> {
     let path = byo_vault_path()?;
     let mut map = load_sealed_map();
@@ -120,7 +120,7 @@ pub fn set_byo_api_key(provider: String, api_key: String) -> Result<HashMap<Stri
     Ok(build_status_map(&map))
 }
 
-#[tauri::command]
+#[tauri::command(async)]
 pub fn clear_byo_api_key(provider: String) -> Result<HashMap<String, bool>, String> {
     set_byo_api_key(provider, String::new())
 }

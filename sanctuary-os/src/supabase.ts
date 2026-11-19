@@ -161,7 +161,19 @@ export function parseUplinkBundle(rawBundle: string): any | null {
         const padded = b64 + "=".repeat((4 - (b64.length % 4)) % 4);
         const parsed = JSON.parse(atob(padded));
         if (parsed && typeof parsed.supabase_url === "string" && typeof parsed.supabase_anon_key === "string") {
-            return parsed;
+            const cleanUrl = parsed.supabase_url.trim().replace(/\/+$/, "");
+            const cleanKey = parsed.supabase_anon_key.trim();
+            const isAllowedUrl =
+                /^https:\/\/[^/\s]+/i.test(cleanUrl) ||
+                /^http:\/\/(?:localhost|127\.0\.0\.1)(?::\d+)?$/i.test(cleanUrl);
+            if (!cleanUrl || !cleanKey || !isAllowedUrl) {
+                return null;
+            }
+            return {
+                ...parsed,
+                supabase_url: cleanUrl,
+                supabase_anon_key: cleanKey,
+            };
         }
     } catch {}
     return null;
@@ -396,6 +408,38 @@ let currentSpokeUrl = "";
 let currentSpokeKey = "";
 const spokeClientCache = new Map<string, SupabaseClient>();
 
+const PLACEHOLDER_WORKSPACE_IDS = new Set([
+    "",
+    "default",
+    "default_schema",
+    "default_workspace",
+    "web",
+]);
+
+export function findWorkspaceByIdentifier(
+    workspaces: any[] | null | undefined,
+    rawId?: string | null,
+): any | undefined {
+    const clean = String(rawId || "").trim().toLowerCase();
+    if (!clean || PLACEHOLDER_WORKSPACE_IDS.has(clean) || !Array.isArray(workspaces)) {
+        return undefined;
+    }
+    return workspaces.find((w: any) => {
+        if (!w || typeof w !== "object") return false;
+        return [w.id, w.schema_id, w.game_id].some((candidate) => {
+            const norm = String(candidate || "").trim().toLowerCase();
+            return Boolean(norm) && !PLACEHOLDER_WORKSPACE_IDS.has(norm) && norm === clean;
+        });
+    });
+}
+
+export function hasValidSpokeHttpUrl(ws: any): boolean {
+    if (!ws || typeof ws !== "object") return false;
+    const url = String(ws.supabase_url || "").trim();
+    const key = String(ws.supabase_anon_key || "").trim();
+    return /^https?:\/\/[^/\s]+\.[^/\s]+/i.test(url) && key.length > 0;
+}
+
 export function getActiveGameClient(): SupabaseClient {
     // In Standalone Fork Mode, the Auth DB and the Game Spoke DB are the exact same Supabase instance
     if (isStandaloneFork) {
@@ -405,17 +449,15 @@ export function getActiveGameClient(): SupabaseClient {
     const state = useStore.getState();
     const activeWsId = state.activeWorkspaceId;
     const workspaces = state.workspaces || [];
-    const activeWs = workspaces.find((w: any) => w.id === activeWsId);
+    const activeWs = findWorkspaceByIdentifier(workspaces, activeWsId);
     const session = state.session;
     const token = session?.access_token || "";
 
-    // If no workspace is active (e.g. on the Hub), return null
+    // If no workspace is active or it has no valid Spoke HTTPS endpoint, return null
     if (
         !activeWs ||
-        !activeWs.supabase_url ||
-        !activeWs.supabase_anon_key ||
         activeWsId === 'default_workspace' ||
-        !/^https?:\/\//i.test(String(activeWs.supabase_url).trim())
+        !hasValidSpokeHttpUrl(activeWs)
     ) {
         return null as unknown as SupabaseClient; // Handled by proxy traps
     }
@@ -797,7 +839,7 @@ async function executeStandaloneDirectRpc(fnName: string, args: any = {}) {
             let modId = String(args?.p_mod_id || args?.mod_id || '').trim();
             const dnaHash = String(args?.p_dna_hash || args?.dna_hash || '').trim().toLowerCase();
             const modName = String(args?.p_mod_name || args?.mod_name || '').trim() || 'Unindexed Flagged Artifact';
-            const requestedTier = Math.min(4, Math.max(1, Math.round(Number(args?.p_tier || args?.tier || 1))));
+            const requestedTier = Math.min(5, Math.max(1, Math.round(Number(args?.p_tier || args?.tier || 1))));
             const cleanReason = String(args?.p_reason || args?.reason || '').trim() || `Flagged Tier ${requestedTier} for Compliance Review`;
 
             if (!modId && dnaHash) {
@@ -835,12 +877,12 @@ async function executeStandaloneDirectRpc(fnName: string, args: any = {}) {
                 .select('id, status, compliance_tier')
                 .eq('id', modId)
                 .maybeSingle();
-            const nextStatus = Number(existing?.compliance_tier ?? 0) === 5 && String(existing?.status || '').toLowerCase() === 'blacklisted'
+            const nextStatus = Number(existing?.compliance_tier ?? 0) === 6 && String(existing?.status || '').toLowerCase() === 'blacklisted'
                 ? 'blacklisted'
-                : Number(existing?.compliance_tier ?? 0) >= 1 && Number(existing?.compliance_tier ?? 0) <= 4 && String(existing?.status || '').toLowerCase() === 'verified'
+                : Number(existing?.compliance_tier ?? 0) >= 1 && Number(existing?.compliance_tier ?? 0) <= 5 && String(existing?.status || '').toLowerCase() === 'verified'
                     ? 'verified'
                     : 'pending';
-            const nextTier = Number(existing?.compliance_tier ?? 0) === 5 ? 5 : requestedTier;
+            const nextTier = Number(existing?.compliance_tier ?? 0) === 6 ? 6 : requestedTier;
             const { data: updated, error: updErr } = await rawAuthClient
                 .from('mods')
                 .update({
@@ -1109,10 +1151,14 @@ function createSpokeGatewayQuery(
 
         const activeWsId = state.activeWorkspaceId;
         const workspaces = state.workspaces || [];
-        const activeWs = workspaces.find((w: any) => w.id === activeWsId);
+        const activeWs = findWorkspaceByIdentifier(workspaces, activeWsId);
         const targetGameId = activeWs?.game_id || activeWs?.schema_id || activeWs?.id || activeWsId;
 
-        if (!targetGameId || targetGameId === 'default_workspace') {
+        if (
+            !targetGameId ||
+            targetGameId === 'default_workspace' ||
+            (activeWs && !hasValidSpokeHttpUrl(activeWs))
+        ) {
             return {
                 data: op === 'select' && !spec.singleMode ? [] : null,
                 error: null,
@@ -1384,7 +1430,10 @@ export const supabase = new Proxy({} as SupabaseClient, {
                 const state = useStore.getState();
                 const activeWsId = state.activeWorkspaceId;
                 const workspaces = state.workspaces || [];
-                const activeWs = workspaces.find((w: any) => w.id === activeWsId);
+                const activeWs = findWorkspaceByIdentifier(workspaces, activeWsId);
+                const explicitTargetWs = args?.p_game_id
+                    ? findWorkspaceByIdentifier(workspaces, args.p_game_id)
+                    : activeWs;
 
                 if (isInterceptedRpc) {
                     const token = args?.p_token || state.session?.access_token || '';
@@ -1415,9 +1464,13 @@ export const supabase = new Proxy({} as SupabaseClient, {
 
                     let targetGameId = args?.p_game_id || activeWs?.game_id || activeWs?.schema_id || activeWs?.id || activeWsId;
 
-                    // If on the dummy default workspace or a workspace with no configured database, return empty mock response
-                    if (((targetGameId === 'default_workspace' || !activeWs) && !args?.p_game_id) || (!args?.p_game_id && !getActiveGameClient())) {
-                        return { data: [], error: null }; // Mock response since there is no Game DB to query
+                    // If on the dummy default workspace, an unconfigured Spoke (e.g. a Keeper sandbox row without an HTTPS URL), or no active Game DB, skip gateway call cleanly
+                    if (
+                        ((targetGameId === 'default_workspace' || !activeWs) && !args?.p_game_id) ||
+                        (!args?.p_game_id && !getActiveGameClient()) ||
+                        (explicitTargetWs && !hasValidSpokeHttpUrl(explicitTargetWs))
+                    ) {
+                        return { data: [], error: null };
                     }
 
                     const actionMap: Record<string, string> = {
@@ -1607,16 +1660,19 @@ export async function getSpokeClientById(targetSpokeId?: string): Promise<Supaba
         return null;
     }
 
-    if (wsId === state.activeWorkspaceId) {
+    if (wsId.toLowerCase() === String(state.activeWorkspaceId || '').trim().toLowerCase()) {
         const direct = getActiveGameClient();
         if (direct) return direct;
     }
 
     try {
-        const localMatch = (state.workspaces || []).find(
-            (w: any) => (w?.id === wsId || w?.schema_id === wsId) && w?.supabase_url && w?.supabase_anon_key
-        );
+        const matchedLocal = findWorkspaceByIdentifier(state.workspaces || [], wsId);
+        const localMatch = matchedLocal && hasValidSpokeHttpUrl(matchedLocal) ? matchedLocal : null;
+        if (matchedLocal && !localMatch) {
+            return null;
+        }
 
+        const normCacheKey = wsId.toLowerCase();
         let creds = localMatch
             ? {
                 id: String(localMatch.id || wsId),
@@ -1624,29 +1680,29 @@ export async function getSpokeClientById(targetSpokeId?: string): Promise<Supaba
                 supabase_url: String(localMatch.supabase_url),
                 supabase_anon_key: String(localMatch.supabase_anon_key),
             }
-            : spokeCredentialsCache.get(wsId) || null;
+            : spokeCredentialsCache.get(normCacheKey) || null;
 
         if (!creds) {
             const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(wsId);
             let query = supabaseAuth
                 .from('sanctuary_games')
                 .select('id, schema_id, supabase_url, supabase_anon_key');
-            query = isUuid ? query.eq('id', wsId) : query.eq('schema_id', wsId);
+            query = isUuid ? query.eq('id', wsId) : query.ilike('schema_id', wsId);
             const { data: game } = await query.maybeSingle();
-            if (game?.supabase_url && game?.supabase_anon_key) {
+            if (game && hasValidSpokeHttpUrl(game)) {
                 creds = {
                     id: String(game.id || wsId),
                     schema_id: String(game.schema_id || wsId),
                     supabase_url: String(game.supabase_url),
                     supabase_anon_key: String(game.supabase_anon_key),
                 };
-                spokeCredentialsCache.set(wsId, creds);
-                if (creds.schema_id) spokeCredentialsCache.set(creds.schema_id, creds);
-                if (creds.id) spokeCredentialsCache.set(creds.id, creds);
+                spokeCredentialsCache.set(normCacheKey, creds);
+                if (creds.schema_id) spokeCredentialsCache.set(creds.schema_id.toLowerCase(), creds);
+                if (creds.id) spokeCredentialsCache.set(creds.id.toLowerCase(), creds);
             }
         }
 
-        if (creds?.supabase_url && creds?.supabase_anon_key) {
+        if (creds && hasValidSpokeHttpUrl(creds)) {
             const cleanUrl = String(creds.supabase_url).trim().replace(/\/+$/, '');
             const cleanKey = String(creds.supabase_anon_key).trim();
             if (cleanUrl === authUrl.trim().replace(/\/+$/, '')) {
@@ -1807,9 +1863,10 @@ export async function submitThreatManifestToSpoke(
         let lastError: any = null;
 
         // 1. Prefer authenticated gateway upsert (uses scoped Spoke Gateway Token and works even before workspace hydration)
+        const matchedWs = findWorkspaceByIdentifier(state.workspaces || [], wsId);
         const targetGameId =
-            state.workspaces?.find((w: any) => w.id === wsId)?.game_id ||
-            state.workspaces?.find((w: any) => w.id === wsId)?.schema_id ||
+            matchedWs?.game_id ||
+            matchedWs?.schema_id ||
             wsId;
         if (state.session?.access_token && !isStandaloneFork) {
             let rpcRes = await (supabase as any).rpc('secure_upsert_cloud_file', {

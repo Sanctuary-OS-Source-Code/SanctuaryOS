@@ -56,9 +56,9 @@ Inside **Your Vault**, every mod lives safely inside your isolated Vault archive
 - **Autonomous Self-Healing & 3-Mode Cloud Visibility:**
   - After every settled Vault scan, Blueprints automatically heal renamed or moved files via SHA-256 DNA matching and prune deleted ghosts without manual popups. When syncing to the cloud, pick from 3 clear visibility modes: **Public Verified** / **Nexus Listing**, **Unlisted • Uplink Code (`SNCXXX`)**, or **Private • Account Only**.
 - **Beam to Rig & Browser Autoloader (`1 of N`):**
-  - **Beam to Rig** transfers complete, un-scrubbed Blueprints—including local/Tier 1–4 mods, priority tiers, and conflict waivers—between your Desktop PC and Steam Deck using concurrent **GZIP + Zero-PII AES-256-GCM** streaming (`Leave in Cloud` with per-rig `Complete on This Rig` vs. `Shred After Deploy`), routing any missing downloads straight into **Browser Autoloader (`1 of N`)**.
-- **Pocket Radar (Mobile & Web Companion):**
-  - Open **Pocket Radar** on your phone or browser to check your encrypted Desktop Vault, Critical Failure, System Alert, and Update counts—including **Edge Pulse** static updates—and queue fixes remotely.
+  - **Beam to Rig** transfers complete, un-scrubbed Blueprints—including local/Tier 1–5 mods, priority tiers, and conflict waivers—between your Desktop PC and Steam Deck using concurrent **GZIP + Zero-PII AES-256-GCM** streaming (`Leave in Cloud` with per-rig `Complete on This Rig` vs. `Shred After Deploy`), routing any missing downloads straight into **Browser Autoloader (`1 of N`)**.
+- **Pocket Radar (Mobile & Web Companion — Strict Opt-In OFF Default):**
+  - Cloud Vault companion syncing is **OFF by default** for maximum local-first privacy. When explicitly opted in inside Settings, open **Pocket Radar** on your phone or browser to check your encrypted Desktop Vault, Critical Failure, System Alert, and Update counts—including **Edge Pulse** static updates—and stage Blueprint queues remotely.
 
 ## Stage 5: Conflict Radar 2.0, Priority Compiler & Groundhog Sandbox
 
@@ -81,17 +81,17 @@ Configure mod settings visually, sync live in-game config changes, and seal mult
 - **Time Capsule (Parallel CoW Snapshots):**
   - Streams **World State** (purple) and **Engine Core** (pink) snapshots across all CPU cores using zero-byte OS hardlinks (sealing a 78 GB game installation in ~9 seconds), enforces delta-aware **Time Capsule Storage Limits**, catches missed or offline game patches on next Desktop open (**DEFCON 1 Shield**), and performs **strictly additive** World State save restores followed by a **Post-Restore Summary** drawer.
 
-## Stage 7: Creator Airlock, Zero-Knowledge Seal & Zero-Choice Lockdown
+## Stage 7: Open Mason Workshop, Zero-Knowledge Seal & Zero-Choice Lockdown
 
 Every Citizen inherits local creator tooling, backed by zero-knowledge auth, hardware passkeys, and multi-format bytecode inspection:
 
-- **Creator Airlock (Inherited by All Citizens):** Access **Dev Sandbox**, **Mason IDE**, **Unified 3-Tile Artifact Studio**, **Theme Forge** (6 optical sliders + Content-Addressed `<= 250 KB` WebP / External HTTPS wallpapers), **Lexicon Visual Studio**, **Notepad**, and **Edge Direct Push**—with Verified Mason clearance unlocking direct cloud publishing to **The Nexus**.
-- **Zero-Knowledge Seal & Gatekeeper Clearance:** Protects accounts with **600,000-iteration PBKDF2 + Bcrypt** stretching and **600k Blinded Email Aliases**, unlocking Elevated Hubs via Windows Hello, **Gatekeeper Clearance** (macOS Touch ID + `com.apple.quarantine` stripping), a **12-hour Device-Bound Passkey Seal**, or a **Live Phone/PC Companion Passkey Handshake** via W3C Web Push, backed by **Ghost Scrubber** Zero-PII log sanitization.
-- **Bytecode Hound & Zero-Choice Lockdown:** Inspects archives, Zlib/Zstd binary streams, scripts, `.pyc` bytecode, and native plugins against Core + Spoke heuristics, locking the OS shell under **Zero-Choice Lockdown** on Tier 5 Malware until Citizen-signed **Secure Shred**.
+- **Open Mason Workshop (Inherited by All Citizens):** Access **Dev Sandbox**, **Mason IDE**, **Unified 3-Tile Artifact Studio**, **Theme Forge** (6 optical sliders + Content-Addressed `<= 250 KB` WebP / External HTTPS wallpapers), **Lexicon Visual Studio**, **Notepad**, and **Edge Direct Push**—with Verified Mason clearance unlocking direct cloud publishing to **The Nexus** (distinct from **Creator Airlock**, Homestead Lab's save-airgapped external-tool launcher).
+- **Zero-Knowledge Seal & Gatekeeper Clearance:** Protects accounts with **600,000-iteration PBKDF2 + Bcrypt** stretching and **600k Blinded Email Aliases**, unlocking Elevated Hubs via Windows Hello, **Gatekeeper Clearance** (macOS Touch ID + `com.apple.quarantine` stripping), a **12-hour Device-Bound Passkey Seal**, or a **Live Phone/PC Companion Passkey Handshake** via W3C Web Push, backed by **Ghost Scrubber** in-memory PII log sanitization.
+- **Bytecode Hound & Zero-Choice Lockdown (`Tier 6 Malware`):** Inspects archives, Zlib/Zstd binary streams, scripts, `.pyc` bytecode, and native plugins against Core + Spoke heuristics, locking the OS shell under **Zero-Choice Lockdown** on **Tier 6 Malware** until Citizen-signed **Secure Shred**.
 
 ## Stage 8: Edge Pulse & Edge Direct Push (Static Hosting)
 
-Independent Masons and Compliance Tier 1–4 creators can distribute live update alerts, Highlander slot rules, and multi-file suite grouping with zero server costs:
+Independent Masons and **Compliance Tier 2–5** creators (or self-hosted Tier 0) can distribute live update alerts, Highlander slot rules, and multi-file suite grouping with zero server costs:
 
 - **Edge Pulse & 6-Provider Edge Direct Push:** Sanctuary's bounded concurrent Rust poller checks remote `.sanctuary.manifest.json` and multi-mod `catalog.json` endpoints with `ETag` / `304` caching, while creators can push releases in 1 click via **Edge Direct Push** to **GitHub Repo / Cloudflare Pages**, **GitHub Gist**, **GitLab / Codeberg**, **Neocities**, **Personal WebDAV / HTTP PUT**, or a **Local Synced Folder** with automatic `previous_hashes` lineage rollover.
 
@@ -99,8 +99,8 @@ Independent Masons and Compliance Tier 1–4 creators can distribute live update
 
 Configure any game engine and translate or theme the entire operating system in minutes:
 
-- **Universal Master Schema & Schema Forge (7 Engine Presets):** 4-tab visual studio (`Identity & Paths`, `Extensions & Routes`, `Load Order & Tiers`, `Logs & Backups`) supporting multi-folder asset trees, secondary `install_routes`, structured XML/manifest compilers, declarative `conflict_analyzers`, and an interactive **Schema Codex**.
-- **Code-Switch (Sparse Delta Packs & 1-Click Auto-Translate):** Backed by an auto-extracted **`6,166`-key `en-default.json` baseline**, custom packs store only lightweight **Sparse Delta Overrides**, update OS-wide nouns dynamically via **21 `{Glossary}` Tokens**, and include a **2-Step Creation Wizard**, Source-First UI String Browser, Guided Icon Overrides, and **1-Click Neural Auto-Translate across 28+ languages**.
+- **Universal Master Schema & Schema Forge (27 Engine Presets):** 4-tab visual studio (`Identity & Paths`, `Extensions & Routes`, `Load Order & Tiers`, `Logs & Backups`) supporting multi-folder asset trees, secondary `install_routes`, Overwrite capture & `ini_mutations`, structured XML/manifest compilers, declarative `conflict_analyzers`, and an interactive **Schema Codex** (paired with DB-driven Spoke `public.taxonomy` categories and `public.known_exception_rules`).
+- **Code-Switch (Sparse Delta Packs & 1-Click Auto-Translate):** Backed by an auto-extracted **`7,400+`-key `en-default.json` baseline**, custom packs store only lightweight **Sparse Delta Overrides**, update OS-wide nouns dynamically via **21 `{Glossary}` Tokens**, and include a **2-Step Creation Wizard**, Source-First UI String Browser, Guided Icon Overrides, and **1-Click Neural Auto-Translate across 28+ languages**.
 
 ## Stage 10: Command Center Support Desk, Sovereign Covenants & Cut the Cord
 
@@ -124,7 +124,7 @@ Track open support tickets, audit transparent monthly server ledgers, or launch 
 8. **Time Capsule & Live-Wire Workbench:** Multi-threaded `rayon` Copy-on-Write snapshots (`World State` & `Engine Core`), additive save slot extraction & restoration, storage-cap pruning, **DEFCON 1 Shield**, and 60 FPS 2-column visual config editing with **Live-Wire Diff** timelines.
 9. **Liquid Glass Optics, Zero-Knowledge Seal & Zero-Choice Lockdown:** 1:1 physical-pixel WebGL2 refraction, `<= 250 KB` content-addressed WebP wallpapers + external HTTPS URLs, OWASP 600k Zero-Knowledge Auth, **Gatekeeper Clearance** Touch ID & Companion Handshakes, **Ghost Scrubber**, and **Bytecode Hound** **Zero-Choice Lockdown**.
 10. **Edge Pulse & Edge Direct Push:** Bounded concurrent Rust polling (`ETag` / `304` cached `.sanctuary.manifest.json` & `catalog.json`), 6-provider 1-click **Edge Direct Push**, and automatic `previous_hashes` lineage rollover.
-11. **Universal Master Schema & Code-Switch:** **Schema Forge** with 7 engine presets, multi-folder asset trees, secondary `install_routes`, `6,166`-key auto-extracted baseline, 21 `{Glossary}` tokens, Source-First Studio, and **1-Click Neural Auto-Translate (28+ languages)**.
+11. **Universal Master Schema & Code-Switch:** **Schema Forge** with **27** engine presets, multi-folder asset trees, secondary `install_routes`, **`7,300+`**-key auto-extracted baseline, 21 `{Glossary}` tokens, Source-First Studio, DB-driven categories/exception rules, and **1-Click Neural Auto-Translate (28+ languages)**.
 12. **Sovereign Covenants, Cut the Cord & Mirror Uplink:** Sub-second Elevated Hubs, 100% Wayfinder-isolated community donations, itemized monthly Cost vs. Spending ledgers, **Cut the Cord** severance, cryptographic **`SRK1` Spoke Relink Tokens**, and **Mirror Uplink** bilateral sync.
 
 ---
@@ -133,11 +133,11 @@ Track open support tickets, audit transparent monthly server ledgers, or launch 
 
 Sanctuary OS enforces a strict separation between **Game Spoke Roles (`userRole`)** and **Core OS Hub Roles (`osRole`)** across 6 distinct clearance tiers—with all 5 Elevated Command Hubs loading in **under a second** into full landing-page overviews:
 
-## Tier 1: Citizen (Base Clearance + Creator Airlock Inheritance)
+## Tier 1: Citizen (Base Clearance + Open Mason Workshop Inheritance)
 
 - **Scope:** Local Machine + Active Game Spoke (`userRole = 'citizen'`).
-- **9 Core Sectors:** Full offline and online access to **Command Center**, **Vault**, **The Nexus** (Tier-0 catalog), **Blueprints** + **Patch Fire Drill**, **Comm-Link**, **Conflict Radar 2.0**, **Groundhog Sandbox**, **Live-Wire Workbench**, and **Time Capsule**.
-- **Inherited Creator Airlock:** Local `Dev Sandbox`, `Mason IDE`, `Unified 3-Tile Artifact Studio`, `Theme Forge`, `Lexicon Visual Studio`, `Notepad`, local JSON export/import, and **Edge Direct Push** (`.sanctuary.manifest.json`, `.sanctuary.override.json` & `catalog.json` across 6 providers).
+- **9 Core Sectors:** Full offline and online access to **Command Center**, **Vault**, **The Nexus** (Tier-0 catalog), **Blueprints** + **Patch Fire Drill**, **Comm-Link**, **Conflict Radar 2.0**, **Groundhog Sandbox** (with save-airgapped **Creator Airlock** for external tools; Lab cloud verification certificates remain strict **opt-in OFF** by default), **Live-Wire Workbench**, and **Time Capsule**.
+- **Inherited Open Mason Workshop:** Local `Dev Sandbox`, `Mason IDE`, `Unified 3-Tile Artifact Studio`, `Theme Forge`, `Lexicon Visual Studio`, `Notepad`, local JSON export/import, and **Edge Direct Push** (`.sanctuary.manifest.json`, `.sanctuary.override.json` & `catalog.json` across 6 providers).
 - **Scout Queue & Support:** Share Blueprints (`Public`, `Unlisted`, `Private`), submit passing Tier-0 mod discoveries (`_lab_cert_proof`) to the **Scout Queue**, open **Community Mod Support** whenever your **active Blueprint** contains only verified Tier-0 mods (never deleting local Vault files), or file unrestricted **OS Bug Reports** (`keeper_tickets`) directly to Foundry Keepers with zero mod telemetry.
 
 ## Tier 2: Verified Mason (Verified Mod Creator)
@@ -146,7 +146,7 @@ Sanctuary OS enforces a strict separation between **Game Spoke Roles (`userRole`
 - **Verified Fast-Lane & Nexus Publishing:** Bypasses crowd Scout thresholds to submit verified Tier-0 mods, Lexicons, Chameleons (`<= 250 KB` WebP or external HTTPS URLs), and Workbench Templates directly to Architect review.
 - **Public Showcase & Creator Identity:** Manage your public Mason Profile, featured releases, **The Highlander Rule** Exclusive Slots, dependency trees, and multi-range game compatibility rules.
 - **Comm-Link Broadcasts & Support:** Publish rich Markdown release announcements and polling dispatches to followers, and submit creator diagnostic dossiers.
-- **0%-Cut Supporter Bridge & Edge Pulse:** Link Patreon, Ko-fi, or custom membership perks with **0% Sanctuary cut** (plus Zero-PII E2EE Multi-Rig perk sync) and ship Tier 1–4 creations responsibly via **Edge Pulse** static manifests.
+- **0%-Cut Supporter Bridge & Edge Pulse:** Link Patreon, Ko-fi, or custom membership perks with **0% Sanctuary cut** (plus Zero-PII E2EE Multi-Rig perk sync) and ship Tier 2–5 or self-hosted Tier 0 creations cleanly via **Edge Pulse** static manifests.
 
 ## Tier 3: Architect (Tier-0 Registry & Conflict Moderator)
 
@@ -154,29 +154,29 @@ Sanctuary OS enforces a strict separation between **Game Spoke Roles (`userRole`
 - **Strict Tier-0 Registry Curation:** Unlocks the **Architect Console** (strictly isolated to **Public Verified** Tier 0 `Stable`, unflagged records)—including 3-Tile Artifact Studio curation, suite/dependency trees, **The Highlander Rule** Exclusive Slots, and multi-range game version rules.
 - **Verified Mason & Scout Queue Triage:** Review `unverified` / `under_review` community submissions inside the **Verified Mason Queue** and **Scout Queue**, run deep **Check Hash** verification, and approve clean Tier-0 records.
 - **Conflict Matrix & Known Exception Rules:** Author global Severity 1–4 conflict directives, curate interactive **Workbench Templates**, and publish database-driven **Known Exception Rules** tied to **Crash Autopsy** failure diagnostics.
-- **Claimable Support Desk & Escalation:** Claim and resolve encrypted **Tier-0 Citizen Support** tickets (`Claimed` exclusive ownership) using **Ghost Scrubber** PII-scrubbed crash logs and Active Blueprint snapshots. Architects cannot issue bans or confirm Tier 1–4 classifications; any Tier 1–4 or suspicious flag routes into **Oversight Command -> Compliance** as **`Pending`** and hides flagged public items until reviewed.
+- **Claimable Support Desk & Escalation:** Claim and resolve encrypted **Tier-0 Citizen Support** tickets (`Claimed` exclusive ownership) using **Ghost Scrubber** PII-scrubbed crash logs and Active Blueprint snapshots. Architects cannot issue bans or confirm Tier 1–5 classifications; any Tier 1–5 or suspicious flag routes into **Oversight Command -> Compliance** as **`Pending`** and hides flagged public items until reviewed.
 
 ## Tier 4: Oversight (Spoke Security & System Administrator)
 
 - **Scope:** Active Game Spoke (`userRole = 'oversight'`). Protected by **Zero-Knowledge Seal**.
-- **Tier 1–4 & Pending Flag Confirmation:** Unlocks **Oversight Command** as the exclusive reviewer of escalated Tier 1–4 (**Public Scrubbed** / **Active Blueprint Support Lock**) entries, sensitive reports, and **`Pending`** community flags (`has_pending_flag` auto-hides public entries until Oversight/Wayfinder confirms or dismisses).
-- **Bytecode Hound (Spoke Rules) & Zero-Choice Lockdown:** Author game-specific heuristic regex signatures (`heuristic_signatures`), blacklist Tier 5 Malware SHA-256 hashes under **Zero-Choice Lockdown**, and manage **DEFCON 1 Shield** pre-patch lockdowns.
-- **Game Patches, DLC Catalogs & Mass Triage:** Register official engine patch versions and database-driven DLC catalogs (`dlc_registry`), run **Mass Update** multi-range compatibility sweeps, and link orphaned creator releases in **Mason Linker**.
+- **Tier 1 DMCA / Tiers 2–5 & Pending Flag Confirmation:** Unlocks **Oversight Command** as the exclusive reviewer of forwarded **Tier 1 Legal/DMCA** notices, escalated **Tiers 2–5** (**Public Scrubbed** / **Active Blueprint Support Lock**) entries, sensitive reports, and **`Pending`** community flags (`has_pending_flag` auto-hides public entries until Oversight/Wayfinder confirms or dismisses).
+- **Bytecode Hound (Spoke Rules) & Zero-Choice Lockdown (`Tier 6 Malware`):** Author game-specific heuristic regex signatures (`heuristic_signatures`), blacklist **Tier 6 Malware** SHA-256 hashes under **Zero-Choice Lockdown**, and manage **DEFCON 1 Shield** pre-patch lockdowns.
+- **Game Patches, DLC Catalogs & Mass Triage (`Oversight`-Only):** Register official engine patch versions, database-driven DLC catalogs (`dlc_registry`), and `public.taxonomy` Categories, run **Mass Update** multi-range compatibility sweeps, and link orphaned creator releases in **Mason Linker**.
 - **Spoke Identity & Audit Governance:** Grant/revoke roles up to `architect` in the Identity Matrix and inspect read/export-only `audit_logs`.
 
 ## Tier 5: Wayfinder (Community Manager & Spoke Sovereign)
 
 - **Scope:** Full Sovereign Authority over the Active Game Spoke (`userRole = 'wayfinder'`). Protected by **Zero-Knowledge Seal**.
 - **Full Identity Matrix & Compliance Control:** Appoint and manage all Spoke roles up to `oversight` and peer `wayfinder`, and retain full compliance authority over community moderation.
-- **Sovereign Uplink, Sovereign Covenants & Cut the Cord:** Rotate Spoke Gateway Tokens (`spk_gw_*`) in 1 click, export/re-import secret-free `SANCTUARY-UPLINK://` bundles, inspect **Sovereign Covenants**, or execute irreversible **Cut the Cord** severance cleanly with 100% database ownership intact.
+- **Sovereign Uplink, Sovereign Covenants & Cut the Cord:** Rotate Spoke Gateway Tokens (`spk_gw_*`) in 1 click, export/re-import secret-free `SANCTUARY-UPLINK://` bundles, inspect **Sovereign Covenants**, or execute irreversible **Cut the Cord** severance cleanly with 100% database ownership intact (`sanctuary.fork.json` / `npm run fork:configure` for Standalone).
 - **Schema Forge & Spoke Branding/Lexicons:** Customize **Universal Master Schema** JSON (`sanctuary_schemas`), ship Spoke Chameleons & Lexicon delta packs, and customize DB-driven **Title Area** branding in Standalone forks.
 - **0%-Cut Donations, Cost Ledgers & The Dispatch:** Publish transparent monthly Server Cost vs. Donation ledgers in the non-custodial Spoke Donation Hub and issue top-banner community polls.
-- **Mass Update, Audit Trails & Keepers Uplink:** Execute in-hub Registry batch updates, audit Spoke moderation trails, and coordinate directly with Core Keepers.
+- **Audit Trails & Keepers Uplink:** Inspect full Spoke moderation trails, manage DB/migration readiness (`migrations/spoke/`), oversee Partner Spoke `48h` DMCA SLA fulfillment, and coordinate directly with Core Keepers.
 
 ## Tier 6: Keeper (Core OS Hub & Sanctuary Foundry Developer)
 
 - **Scope:** Global Sanctuary OS Hub (`osRole = 'keeper'`). Protected by **Zero-Knowledge Seal**.
-- **Partner Spoke Onboarding & Dev Cloaking:** Unlocks **Keepers Core** on both the Landing Page and mounted workspaces—evaluating Partner Spoke applications, validating `schema.sql`, toggling `Keepers-Only` dev workspaces, and managing extreme Hub severance or **Nuclear Override** HW bans.
+- **Partner Spoke Onboarding & Dev Cloaking:** Unlocks **Keepers Core** on both the Landing Page and mounted workspaces—evaluating Partner Spoke applications, validating `schema.sql`, toggling `Keepers-Only` dev workspaces, maintaining immutable `dmca_compliance_notices` Spoke-DMCA audit logs, and managing extreme Hub severance or threat ledgers.
 - **Bytecode Hound (Core Rules) & Threat Manifests:** Maintain global antivirus rules (`keeper_heuristic_signatures`) and triage **Ghost Scrubber** Threat Manifests submitted from quarantined drops.
 - **Master Default Schema, Aesthetics & Lexicons:** Govern `default.json`, Core Title Area & subtitles, global Chameleon themes, and official Keepers Lexicons (`en-default` / `en-sanctuary`).
 - **OS Bug Reports (`keeper_tickets`), News & Mirror Uplink:** Resolve cross-platform **OS Bug Reports** (100% exempt from Spoke mod locks and mod telemetry), publish Foundry Release Notes, and run **Mirror Uplink** bilateral `system_directives` and legal covenant sync without app rebuilds.
@@ -185,13 +185,13 @@ Sanctuary OS enforces a strict separation between **Game Spoke Roles (`userRole`
 
 # Part 4: Edge Pulse Guide (`.sanctuary.manifest.json` / `catalog.json` & Lineage Hash Rollover)
 
-For **Compliance Tier 1–4** creators and independent **Masons** who distribute outside the public Nexus catalog, **Edge Pulse** includes a **$0-cost Concurrent Decentralized Poller & DNA Lineage Engine**. This allows any mod to behave like a fully synced mod—complete with `Stable` status, automatic update notifications, multi-file **Nuclear Family Cohesion** grouping, **The Highlander Rule** Exclusive Slots, Required DLC / Dependency / Conflict checks, and in-place file replacement—from a **one-time drag-and-drop**.
+For **Compliance Tier 2–5** creators and independent **Masons** who distribute outside the public Nexus catalog, **Edge Pulse** includes a **$0-cost Concurrent Decentralized Poller & DNA Lineage Engine**. This allows any mod to behave like a fully synced mod—complete with `Stable` status, automatic update notifications, multi-file **Nuclear Family Cohesion** grouping, **The Highlander Rule** Exclusive Slots, Required DLC / Dependency / Conflict checks, and in-place file replacement—from a **one-time drag-and-drop**.
 
-*(You can also open this interactive walkthrough at any time inside Sanctuary OS by clicking **Static Polling Guide** in the **Creator Airlock → Sandbox** header or inside the **Rules & Upload** tab of any Sandbox artifact.)*
+*(You can also open this interactive walkthrough at any time inside Sanctuary OS by clicking **Static Polling Guide** in the **Open Mason Workshop → Sandbox** header or inside the **Rules & Upload** tab of any Sandbox artifact.)*
 
-## Step 1: Stage Your Mod in Creator Airlock
+## Step 1: Stage Your Mod in Open Mason Workshop
 
-1. Drop your mod files, scripts, and optional config files into `Vault/Dev/Sandbox/` (or click **Import** inside **Creator Airlock → Sandbox**).
+1. Drop your mod files, scripts, and optional config files into `Vault/Dev/Sandbox/` (or click **Import** inside **Open Mason Workshop → Sandbox**).
 2. Click your mod card to open the **3-Tile Artifact Studio**:
    - **Tile 1 (`Details & Versions`):** Enter your mod's **Name**, **Mason Version** (e.g., `1.0.0`), **Safety Tier** (`0` through `4`), **Issue & Cause Details** (optional), **Download URL**, and compatible **Game Versions**.
    - **Tile 2 (`Files & Folders`):** Link any companion script/module (**Twin**) or optional (**Add-on / Flavor**) modules, and attach any config files you want preserved across updates.
@@ -243,25 +243,25 @@ When you build a new version (`v1.1.0`):
 
 ## 5.1 Universal Master Schema & Schema Forge (Multi-Game Engine Blueprints)
 
-A **Master Schema JSON** (`v12`) is the engine blueprint that makes Sanctuary OS 100% game-agnostic across Windows, macOS, and Linux / SteamOS:
+A **Master Schema JSON** (`sanctuary_schemas`) is the engine blueprint that makes Sanctuary OS 100% game-agnostic across Windows, macOS, and Linux / SteamOS:
 
-1. **7 Built-In Game Architecture Presets & Safe Defaults:**
-   - Choose from **The Sims 4**, **Cyberpunk 2077**, **Skyrim SE / Fallout 4**, **Grand Theft Auto V**, **Baldur's Gate 3**, **Stardew Valley**, or **Universal**, or click **Populate Safe Defaults**—validated live against the **Keepers Core Default Schema (`default.json`)**.
+1. **27 Built-In Game Architecture Presets & Safe Defaults:**
+   - Choose from **27 Built-In Engine Presets** (Creation Engine, Unreal, Source, Unity/BepInEx, REDEngine, RAGE, RimWorld, Factorio, Sims, Divinity/BG3, Witcher 3, Elden Ring, Minecraft, Terraria, Universal, and more), or click **Populate Safe Defaults**—validated live against the **Keepers Core Default Schema (`default.json`)**.
 2. **Cross-Platform Executables, Paths & Vanilla Isolation (`Tab 1 — Identity & Paths`):**
    - Supports Windows `.exe` (including DX11/x64 variants), macOS `.app` bundles, **Deck Overdrive** Proton `compatdata/<AppID>/pfx/` auto-mapping, `shared_vanilla_dir` link tracking, `preserve_archive_structure`, and `preserve_auxiliary_assets`.
 3. **Extensions, Config Formats, Install Routes & Conflict Analyzers (`Tab 2 — Extensions & Routes`):**
-   - Configure `supported` deployable extensions, `archive_containers`, `editable_config_formats` / `config_extensions` (monitored by **Live-Wire Workbench**), secondary `install_routes`, `mod_categories`, and declarative **`conflict_analyzers`** (`virtual_fs_path`, `archive_member`, `binary_chunk_index`, and `json_xml_key`).
+   - Configure `supported` deployable extensions, `archive_containers`, `editable_config_formats` / `config_extensions` (monitored by **Live-Wire Workbench**), secondary `install_routes`, `deployment` (`runtime_output_capture`, `ini_mutations`, `profile_isolated_dirs`, `post_deploy_hooks`), and declarative **`conflict_analyzers`** (`virtual_fs_path`, `archive_member`, `binary_chunk_index`, and `json_xml_key`). Mod categories (`public.taxonomy`, managed in Oversight -> Game Management) and diagnostic rules (`public.known_exception_rules`, managed in Architect Console) live cleanly in Spoke database tables rather than hardcoded inside Master Schema JSON.
 4. **Priority Compiler & Structured Manifests (`Tab 3 — Load Order & Tiers`):**
-   - Choose `folder_priority`, `numeric_prefix`, `manifest_list` (with structured header/entry/footer XML or text templates such as `modsettings.lsx`), or `timestamp`.
+   - Choose `folder_priority`, `numeric_prefix`, `manifest_list` (with declarative multi-block header/entry/footer templates and external **LOOT** YAML/CRC32 rules), or `timestamp`.
 5. **Crash Autopsy Matchers, Time Capsule & Save Airgap (`Tab 4 — Logs & Backups`):**
-   - Configure **Crash Autopsy** matchers, pinned **Known Error Rules**, `time_capsule` folder/file targets, and `save_airgap_targets` protected by **Save Doctor** and **Homestead Save Airgap**.
+   - Configure **Crash Autopsy** matchers, `time_capsule` folder/file targets, and `save_airgap_targets` protected by **Save Doctor**, **Creator Airlock**, and **Homestead Save Airgap**.
 
 ## 5.2 Code-Switch (Sparse Delta Packs, `{Glossary}` Tokens & 1-Click Auto-Translate)
 
 Every string, button, tooltip, and icon in Sanctuary OS routes through **Code-Switch**:
 
 1. **Guided 2-Step Creation & Sparse Delta Override Packs:**
-   - Choose **Vocabulary / Theme** or **Language Translation** (28+ languages) in the 2-step creation drawer. Every custom pack stores only **Sparse Delta Overrides** that inherit automatically from the auto-extracted **`6,166`-key `en-default.json` baseline**—meaning zero bloat and zero missing-string placeholders.
+   - Choose **Vocabulary / Theme** or **Language Translation** (28+ languages) in the 2-step creation drawer. Every custom pack stores only **Sparse Delta Overrides** that inherit automatically from the auto-extracted **`7,400+`-key `en-default.json` baseline**—meaning zero bloat and zero missing-string placeholders.
 2. **4-Tab Source-First Visual Studio:**
    - **Tab 1 (`Core Vocabulary`):** Edit all **21 Dynamic `{Glossary}` Tokens** (`{Mod}`, `{Vault}`, `{Blueprint}`, `{Mason}`, `{Citizen}`, `{Lab}`, `{Backups}`, `{Settings}`, etc.) with live real-sentence casing and `"a"`/`"an"` grammar previews.
    - **Tab 2 (`UI Strings`):** Browse strings by section with Default English source text always visible directly above every input, plus `All / Customized / Untranslated` status pills.
@@ -404,7 +404,7 @@ Every string, button, tooltip, and icon in Sanctuary OS routes through **Code-Sw
               "id": "walk_4_c3",
               "icon": "tag",
               "title": "6-Digit Cloud Uplink (SNCXXX)",
-              "desc": "Generates a 6-character share code (SNCXXX) or publishes your {Blueprint} to The Nexus while auto-stripping flagged Tier 1–4 hashes."
+              "desc": "Generates a 6-character share code (SNCXXX) or publishes your {Blueprint} to The Nexus while auto-stripping flagged Tier 1–5 hashes."
             }
           ]
         },
@@ -473,12 +473,12 @@ Every string, button, tooltip, and icon in Sanctuary OS routes through **Code-Sw
           "badge": "7. Hubs & Security",
           "title": "Zero-Knowledge Seal & Bytecode Hound",
           "footerMeta": "Bytecode Hound, FIDO2 Passkeys & Zero-Choice Lockdown",
-          "desc": "Every {Citizen} inherits the local Creator Airlock, while hardware FIDO2 Passkeys and the Bytecode Hound Heuristic Scanner protect the OS.",
+          "desc": "Every {Citizen} inherits the Open {Mason} Workshop, while hardware FIDO2 Passkeys and the Bytecode Hound Heuristic Scanner protect the OS.",
           "subCards": [
             {
               "id": "walk_7_c1",
               "icon": "handyman",
-              "title": "Creator Airlock ({Citizen} Tier)",
+              "title": "Open {Mason} Workshop ({Citizen} Tier)",
               "desc": "All {Citizens} can use Dev Sandbox, {Mason} IDE, 3-Tile {Mod} Studio, Theme Forge (6 Liquid Glass sliders), and Static Edge Release Packaging."
             },
             {
@@ -530,20 +530,20 @@ Every string, button, tooltip, and icon in Sanctuary OS routes through **Code-Sw
           "overline": "STAGE 9 OF 10",
           "badge": "9. Schema & Lexicon",
           "title": "Universal Master Schema & Code-Switch",
-          "footerMeta": "7 Engine Presets • 21 {Glossary} Tokens • Guided Icon Builder",
-          "desc": "Configure any game engine across Windows, macOS, and Linux / SteamOS with Schema Forge, and hot-swap all 1,700+ OS strings and icons with Code-Switch.",
+          "footerMeta": "27 Engine Presets • 21 {Glossary} Tokens • Guided Icon Builder",
+          "desc": "Configure any game engine across Windows, macOS, and Linux / SteamOS with Schema Forge, and hot-swap all 7,300+ OS strings and icons with Code-Switch.",
           "subCards": [
             {
               "id": "walk_9_c1",
               "icon": "schema",
-              "title": "7 Engine Presets & Schema Forge",
-              "desc": "Load built-in engine architecture presets—complete with declarative install_routes, load-order strategies, and mod_categories—or author a custom Universal schema."
+              "title": "27 Engine Presets & Schema Forge",
+              "desc": "Load built-in engine architecture presets—complete with declarative install_routes, DAG load-order & container TOC analyzers, and database-driven public.taxonomy Categories—or author a custom Universal schema."
             },
             {
               "id": "walk_9_c2",
               "icon": "translate",
               "title": "21 Dynamic {Glossary} Tokens & Parity Alert",
-              "desc": "Editing {Mod}, {Vault}, or {Blueprint} updates 1,700+ strings with automatic Title/lower/UPPER casing, a/an grammar, and live cloud updates without rebuilding the app."
+              "desc": "Editing {Mod}, {Vault}, or {Blueprint} updates 7,300+ strings with automatic Title/lower/UPPER casing, a/an grammar, and live cloud updates without rebuilding the app."
             },
             {
               "id": "walk_9_c3",
@@ -676,7 +676,7 @@ Every string, button, tooltip, and icon in Sanctuary OS routes through **Code-Sw
               "id": "mod_3_c1",
               "icon": "fingerprint",
               "title": "Global Drop-Zone & DNA Match",
-              "desc": "Drag and drop supported {mod} binaries, .zip, .rar, .7z, .tar.zst, or .sanctuary.override.json files anywhere into Sanctuary OS. Duplicate SHA-256 hashes are automatically intercepted."
+              "desc": "Drag and drop supported {mod} binaries, .zip, .rar, .7z, .mrpack, .wabbajack, JSON bundles, or .sanctuary.override.json files anywhere into Sanctuary OS. Duplicate SHA-256 hashes are automatically intercepted."
             },
             {
               "id": "mod_3_c2",
@@ -873,7 +873,7 @@ Every string, button, tooltip, and icon in Sanctuary OS routes through **Code-Sw
             {
               "id": "mod_8_c4",
               "icon": "construction",
-              "title": "Live-Wire Workbench & Creator Airlock",
+              "title": "Live-Wire Workbench & Open {Mason} Workshop",
               "desc": "Edit {mod} .json/.ini/.cfg files with safe visual toggles and sliders synced live with a Monaco Raw Code Diff editor—plus full local Sandbox & Export Release tools for all {Citizens}."
             }
           ]
@@ -910,7 +910,7 @@ Every string, button, tooltip, and icon in Sanctuary OS routes through **Code-Sw
               "id": "mod_9_c4",
               "icon": "gpp_bad",
               "title": "Zero-Choice Lockdown",
-              "desc": "If Tier 5 Malware is detected, Sanctuary isolates the file in Quarantine, locks the workspace shell, displays the exact trigger & source in the side panel, and overwrites the file with zeros upon your Secure Shred signature."
+              "desc": "If Tier 6 Malware is detected, Sanctuary isolates the file in Quarantine, locks the workspace shell, displays the exact trigger & source in the side panel, and overwrites the file with zeros upon your Secure Shred signature."
             }
           ]
         },
@@ -921,7 +921,7 @@ Every string, button, tooltip, and icon in Sanctuary OS routes through **Code-Sw
           "badge": "10. Edge Pulse",
           "title": "Edge Pulse & Catalog Distribution",
           "footerMeta": ".SANCTUARY.MANIFEST.JSON • CATALOG.JSON • EDGE DIRECT PUSH",
-          "desc": "Zero-server update distribution for independent {Masons} and Tier 1–4 creators—supporting 1-click Edge Direct Push, automatic SHA-256 lineage rollover, and in-place {Vault} upgrades.",
+          "desc": "Zero-server update distribution for independent {Masons} and Tier 2–5 creators (or self-hosted Tier 0)—supporting 1-click Edge Direct Push, automatic SHA-256 lineage rollover, and in-place {Vault} upgrades.",
           "tip": "Use a single catalog.json URL across your entire {mod} portfolio so {Citizens} receive update pings for every {mod} from one static file.",
           "subCards": [
             {
@@ -956,8 +956,8 @@ Every string, button, tooltip, and icon in Sanctuary OS routes through **Code-Sw
           "overline": "MODULE 11 OF 12",
           "badge": "11. Schema & Lexicon",
           "title": "Universal Master Schema & Code-Switch",
-          "footerMeta": "7 ENGINE PRESETS • 21 {GLOSSARY} TOKENS • ICON OVERRIDES",
-          "desc": "Schema Forge & Lexicon Studio for engineering cross-platform game schemas (Windows, macOS & Linux / SteamOS) and hot-swapping all 1,700+ OS localization strings, dynamic glossary tokens, and Material icons.",
+          "footerMeta": "27 ENGINE PRESETS • 21 {GLOSSARY} TOKENS • ICON OVERRIDES",
+          "desc": "Schema Forge & Lexicon Studio for engineering cross-platform game schemas (Windows, macOS & Linux / SteamOS) and hot-swapping all 7,300+ OS localization strings, dynamic glossary tokens, and Material icons.",
           "tip": "Click the book icon (Schema Codex / Lexicon Codex) in the studio header at any time for an interactive field-by-field reference.",
           "subCards": [
             {
@@ -969,14 +969,14 @@ Every string, button, tooltip, and icon in Sanctuary OS routes through **Code-Sw
             {
               "id": "mod_11_c2",
               "icon": "category",
-              "title": "Game-Agnostic {Mod} Categories & Exception Rules",
-              "desc": "Define custom per-game {mod} categories and regex/keyword exception log diagnostic matchers directly inside the Master Schema JSON."
+              "title": "Database Taxonomy & Exception Rule Tables",
+              "desc": "Manage per-game {mod} categories in Spoke public.taxonomy (Oversight Game Management) and regex/keyword crash-log diagnostic rules in Spoke public.known_exception_rules (Architect Console)—automatically synced to offline desktop caches."
             },
             {
               "id": "mod_11_c3",
               "icon": "translate",
               "title": "21 Dynamic {Glossary} Tokens & Smart Grammar",
-              "desc": "Change {Mod}, {Vault}, or {Blueprint} once in Tab 1 to interpolate across 1,700+ strings with automatic casing and indefinite article ('a'/'an') grammar."
+              "desc": "Change {Mod}, {Vault}, or {Blueprint} once in Tab 1 to interpolate across 7,300+ strings with automatic casing and indefinite article ('a'/'an') grammar."
             },
             {
               "id": "mod_11_c4",
@@ -1006,7 +1006,7 @@ Every string, button, tooltip, and icon in Sanctuary OS routes through **Code-Sw
               "id": "mod_12_c2",
               "icon": "link_off",
               "title": "Unilateral 'Cut the Cord' Severance",
-              "desc": "Complete the phrase-locked Cut the Cord safeguard in Wayfinder Operations to revoke all Spoke Gateway Tokens and purge your sealed Vault credential from the Hub while keeping 100% of your community's 52-table Supabase database."
+              "desc": "Complete the phrase-locked Cut the Cord safeguard in Wayfinder Operations to revoke all Spoke Gateway Tokens and purge your sealed Vault credential from the Hub while keeping 100% of your community's 61-table Supabase database."
             },
             {
               "id": "mod_12_c3",
@@ -1098,7 +1098,7 @@ Every string, button, tooltip, and icon in Sanctuary OS routes through **Code-Sw
               "id": "role_mas_s4",
               "icon": "volunteer_activism",
               "title": "0%-Cut Supporter Bridge & Static Manifests",
-              "desc": "Connect Patreon, Ko-fi, or custom supporter links with 0% Sanctuary cut, and publish Tier 1–4 {mods} responsibly via decentralized Static Edge manifests."
+              "desc": "Connect Patreon, Ko-fi, or custom supporter links with 0% Sanctuary cut, and publish Tier 2–5 or self-hosted Tier 0 {mods} cleanly via decentralized Static Edge manifests."
             }
           ]
         },
@@ -1122,7 +1122,7 @@ Every string, button, tooltip, and icon in Sanctuary OS routes through **Code-Sw
               "id": "role_arc_s2",
               "icon": "dynamic_feed",
               "title": "Verified {Mason} & Scout Queue Triage",
-              "desc": "Review unknown/unverified community submissions in Dedicated Queues, run Check Hash verification, and escalate Tier 1–4 flags cleanly to Oversight."
+              "desc": "Review unknown/unverified community submissions in Dedicated Queues, run Check Hash verification, and escalate Tier 1–5 flags cleanly to Oversight."
             },
             {
               "id": "role_arc_s3",
@@ -1145,20 +1145,20 @@ Every string, button, tooltip, and icon in Sanctuary OS routes through **Code-Sw
           "badge": "FIDO2 PASSKEY",
           "title": "Oversight",
           "footerMeta": "Tier 4 • Spoke Security Admin",
-          "desc": "Unlocks Oversight Command: Tier 1–4 & Pending Flag Confirmation, Spoke Heuristic Signatures, Tier 5 Malware blacklisting, DEFCON 1 override, Game/DLC patch registration, Mass Batch Updater, {Mason} Linker, and Spoke Identity Matrix (up to Architect).",
+          "desc": "Unlocks Oversight Command: Tier 1 DMCA / Tiers 2–5 & Pending Flag Confirmation, Spoke Heuristic Signatures, Tier 6 Malware blacklisting, DEFCON 1 override, Game/DLC patch registration, Mass Batch Updater, {Mason} Linker, and Spoke Identity Matrix (up to Architect).",
           "status": "passkey",
           "subCards": [
             {
               "id": "role_ovr_s1",
               "icon": "security",
-              "title": "Tier 1–4 Compliance & Pending Flag Review",
-              "desc": "Exclusive reviewer for escalated Tier 1–4 records and Pending community flags—auto-hidden publicly until confirmed or cleared."
+              "title": "Tier 1–5 Compliance, DMCA & Pending Flag Review",
+              "desc": "Exclusive reviewer for Tier 1 Legal/DMCA notices forwarded to the Spoke, escalated Tiers 2–5 records, and Pending community flags—auto-hidden publicly until confirmed or cleared."
             },
             {
               "id": "role_ovr_s2",
               "icon": "gpp_bad",
-              "title": "Spoke Heuristics, Tier 5 Blacklists & DEFCON 1",
-              "desc": "Author game-specific antivirus signatures, blacklist Tier 5 Malware SHA-256 hashes, and engage DEFCON 1 pre-patch shields."
+              "title": "Spoke Heuristics, Tier 6 Blacklists & DEFCON 1",
+              "desc": "Author game-specific antivirus signatures, blacklist Tier 6 Malware SHA-256 hashes, and engage DEFCON 1 pre-patch shields."
             },
             {
               "id": "role_ovr_s3",
@@ -1199,8 +1199,8 @@ Every string, button, tooltip, and icon in Sanctuary OS routes through **Code-Sw
             {
               "id": "role_way_s3",
               "icon": "manage_accounts",
-              "title": "Full Identity Matrix & Tier 1–4 Authority",
-              "desc": "Appoint Oversight admins and peer Wayfinders, confirm or dismiss compliance flags, and run in-hub Mass Update compatibility sweeps."
+              "title": "Full Identity Matrix & Tier 1–5 Authority",
+              "desc": "Appoint Oversight admins and peer Wayfinders, fulfill Tier 1 DMCA / Tiers 2–5 compliance governance within the Spoke SLA, and oversee Oversight compatibility operations."
             },
             {
               "id": "role_way_s4",
@@ -1255,6 +1255,6 @@ Every string, button, tooltip, and icon in Sanctuary OS routes through **Code-Sw
       ]
     }
   ],
-  "_bodySig": 300999705
+  "_bodySig": 2496110310
 }
 -->

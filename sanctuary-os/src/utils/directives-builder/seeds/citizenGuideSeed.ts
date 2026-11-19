@@ -2,7 +2,7 @@ import type { DirectiveBuilderSchema, DirectiveBuilderCard } from "../types";
 import { CURRENT_DIRECTIVE_SCHEMA_VERSION } from "../types";
 
 export function buildCitizenGuideSchema(
-  t: (key: string, fallback?: string) => string,
+  t: (key: string, fallback: string) => string,
   g: (txt: string) => string,
   elevatedRolesCards: DirectiveBuilderCard[]
 ): DirectiveBuilderSchema {
@@ -180,7 +180,7 @@ export function buildCitizenGuideSchema(
                   title: t("dir_walk_s4_c3_name", "6-Digit Cloud Uplink (SNCXXX)"),
                   desc: t(
                     "dir_walk_s4_c3_desc",
-                    "Generates a 6-character share code (SNCXXX) or publishes your {Blueprint} to The Nexus while auto-stripping flagged Tier 1–4 hashes."
+                    "Generates a 6-character share code (SNCXXX) or publishes your {Blueprint} to The Nexus while auto-stripping flagged Tier 1–5 hashes."
                   ),
                 },
               ],
@@ -276,13 +276,13 @@ export function buildCitizenGuideSchema(
               footerMeta: t("dir_walk_s7_sub", "Bytecode Hound, FIDO2 Passkeys & Zero-Choice Lockdown"),
               desc: t(
                 "dir_walk_s7_desc",
-                "Every {Citizen} inherits the local Creator Airlock, while hardware FIDO2 Passkeys and the Bytecode Hound Heuristic Scanner protect the OS."
+                "Every {Citizen} inherits the Open {Mason} Workshop, while hardware FIDO2 Passkeys and the Bytecode Hound Heuristic Scanner protect the OS."
               ),
               subCards: [
                 {
                   id: "walk_7_c1",
                   icon: t("icon_handyman", "handyman"),
-                  title: t("dir_walk_s7_c1_name", "Creator Airlock ({Citizen} Tier)"),
+                  title: t("dir_walk_s7_c1_name", "Open {Mason} Workshop ({Citizen} Tier)"),
                   desc: t(
                     "dir_walk_s7_c1_desc",
                     "All {Citizens} can use Dev Sandbox, {Mason} IDE, 3-Tile {Mod} Studio, Theme Forge (6 Liquid Glass sliders), and Static Edge Release Packaging."
@@ -355,16 +355,16 @@ export function buildCitizenGuideSchema(
               overline: "STAGE 9 OF 10",
               badge: t("dir_walk_s9_short", "9. Schema & Lexicon"),
               title: t("dir_walk_s9_title", "Universal Master Schema & Code-Switch"),
-              footerMeta: t("dir_walk_s9_sub", "7 Engine Presets • 21 {Glossary} Tokens • Guided Icon Builder"),
+              footerMeta: t("dir_walk_s9_sub", "27 Engine Presets • 21 {Glossary} Tokens • Guided Icon Builder"),
               desc: t(
                 "dir_walk_s9_desc",
-                "Configure any game engine across Windows, macOS, and Linux / SteamOS with Schema Forge, and hot-swap all 1,700+ OS strings and icons with Code-Switch."
+                "Configure any game engine across Windows, macOS, and Linux / SteamOS with Schema Forge, and hot-swap all 7,300+ OS strings and icons with Code-Switch."
               ),
               subCards: [
                 {
                   id: "walk_9_c1",
                   icon: t("icon_schema", "schema"),
-                  title: t("dir_walk_s9_c1_name", "7 Engine Presets & Schema Forge"),
+                  title: t("dir_walk_s9_c1_name", "27 Engine Presets & Schema Forge"),
                   desc: t(
                     "dir_walk_s9_c1_desc",
                     "Load built-in engine architecture presets—complete with declarative install_routes, DAG load-order & container TOC analyzers, and database-driven public.taxonomy Categories—or author a custom Universal schema."
@@ -376,7 +376,7 @@ export function buildCitizenGuideSchema(
                   title: t("dir_walk_s9_c2_name", "21 Dynamic {Glossary} Tokens & Parity Alert"),
                   desc: t(
                     "dir_walk_s9_c2_desc",
-                    "Editing {Mod}, {Vault}, or {Blueprint} updates 1,700+ strings with automatic Title/lower/UPPER casing, a/an grammar, and live cloud updates without rebuilding the app."
+                    "Editing {Mod}, {Vault}, or {Blueprint} updates 7,300+ strings with automatic Title/lower/UPPER casing, a/an grammar, and live cloud updates without rebuilding the app."
                   ),
                 },
                 {
@@ -816,7 +816,7 @@ export function buildCitizenGuideSchema(
                 {
                   id: "mod_8_c4",
                   icon: t("icon_construction", "construction"),
-                  title: g("Live-Wire Workbench & Creator Airlock"),
+                  title: g("Live-Wire Workbench & Open {Mason} Workshop"),
                   desc: g(
                     "Edit {mod} .json/.ini/.cfg files with safe visual toggles and sliders synced live with a Monaco Raw Code Diff editor—plus full local Sandbox & Export Release tools for all {Citizens}."
                   ),
@@ -866,7 +866,7 @@ export function buildCitizenGuideSchema(
                   icon: t("icon_gpp_bad", "gpp_bad"),
                   title: g("Zero-Choice Lockdown"),
                   desc: g(
-                    "If Tier 5 Malware is detected, Sanctuary isolates the file in Quarantine, locks the workspace shell, displays the exact trigger & source in the side panel, and overwrites the file with zeros upon your Secure Shred signature."
+                    "If Tier 6 Malware is detected, Sanctuary isolates the file in Quarantine, locks the workspace shell, displays the exact trigger & source in the side panel, and overwrites the file with zeros upon your Secure Shred signature."
                   ),
                 },
               ],
@@ -879,7 +879,7 @@ export function buildCitizenGuideSchema(
               title: g("Edge Pulse & Catalog Distribution"),
               footerMeta: g(".SANCTUARY.MANIFEST.JSON • CATALOG.JSON • EDGE DIRECT PUSH"),
               desc: g(
-                "Zero-server update distribution for independent {Masons} and Tier 1–4 creators—supporting 1-click Edge Direct Push, automatic SHA-256 lineage rollover, and in-place {Vault} upgrades."
+                "Zero-server update distribution for independent {Masons} and Tier 2–5 creators (or self-hosted Tier 0)—supporting 1-click Edge Direct Push, automatic SHA-256 lineage rollover, and in-place {Vault} upgrades."
               ),
               tip: g(
                 "Use a single catalog.json URL across your entire {mod} portfolio so {Citizens} receive update pings for every {mod} from one static file."
@@ -925,9 +925,9 @@ export function buildCitizenGuideSchema(
               overline: "MODULE 11 OF 12",
               badge: g("11. Schema & Lexicon"),
               title: g("Universal Master Schema & Code-Switch"),
-              footerMeta: g("7 ENGINE PRESETS • 21 {GLOSSARY} TOKENS • ICON OVERRIDES"),
+              footerMeta: g("27 ENGINE PRESETS • 21 {GLOSSARY} TOKENS • ICON OVERRIDES"),
               desc: g(
-                "Schema Forge & Lexicon Studio for engineering cross-platform game schemas (Windows, macOS & Linux / SteamOS) and hot-swapping all 1,700+ OS localization strings, dynamic glossary tokens, and Material icons."
+                "Schema Forge & Lexicon Studio for engineering cross-platform game schemas (Windows, macOS & Linux / SteamOS) and hot-swapping all 7,300+ OS localization strings, dynamic glossary tokens, and Material icons."
               ),
               tip: g(
                 "Click the book icon (Schema Codex / Lexicon Codex) in the studio header at any time for an interactive field-by-field reference."
@@ -944,9 +944,9 @@ export function buildCitizenGuideSchema(
                 {
                   id: "mod_11_c2",
                   icon: t("icon_category", "category"),
-                  title: g("Game-Agnostic {Mod} Categories & Exception Rules"),
+                  title: g("Database Taxonomy & Exception Rule Tables"),
                   desc: g(
-                    "Define custom per-game {mod} categories and regex/keyword exception log diagnostic matchers directly inside the Master Schema JSON."
+                    "Manage per-game {mod} categories in Spoke public.taxonomy (Oversight Game Management) and regex/keyword crash-log diagnostic rules in Spoke public.known_exception_rules (Architect Console)—automatically synced to offline desktop caches."
                   ),
                 },
                 {
@@ -954,7 +954,7 @@ export function buildCitizenGuideSchema(
                   icon: t("icon_translate", "translate"),
                   title: g("21 Dynamic {Glossary} Tokens & Smart Grammar"),
                   desc: g(
-                    "Change {Mod}, {Vault}, or {Blueprint} once in Tab 1 to interpolate across 1,700+ strings with automatic casing and indefinite article ('a'/'an') grammar."
+                    "Change {Mod}, {Vault}, or {Blueprint} once in Tab 1 to interpolate across 7,300+ strings with automatic casing and indefinite article ('a'/'an') grammar."
                   ),
                 },
                 {
@@ -994,7 +994,7 @@ export function buildCitizenGuideSchema(
                   icon: t("icon_link_off", "link_off"),
                   title: g("Unilateral 'Cut the Cord' Severance"),
                   desc: g(
-                    "Complete the phrase-locked Cut the Cord safeguard in Wayfinder Operations to revoke all Spoke Gateway Tokens and purge your sealed Vault credential from the Hub while keeping 100% of your community's 52-table Supabase database."
+                    "Complete the phrase-locked Cut the Cord safeguard in Wayfinder Operations to revoke all Spoke Gateway Tokens and purge your sealed Vault credential from the Hub while keeping 100% of your community's 61-table Supabase database."
                   ),
                 },
                 {

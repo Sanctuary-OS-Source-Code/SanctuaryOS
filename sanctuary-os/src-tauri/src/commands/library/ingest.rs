@@ -119,7 +119,7 @@ pub(super) fn quarantine_detected_threat(
             "status": "QUARANTINED",
             "isLocalOverride": false,
             "isVirtual": false,
-            "compliance_tier": 5,
+            "compliance_tier": 6,
             "original_exists": manifest.original_exists,
             "original_shredded": manifest.original_shredded,
             "original_path": manifest.original_path,
@@ -1452,7 +1452,7 @@ pub async fn move_mod_to_priority_folder(
 }
 
 #[tauri::command]
-pub fn import_to_sandbox(
+pub async fn import_to_sandbox(
     files: Vec<String>,
     vault_path: String,
     state: tauri::State<'_, AppState>,
@@ -1461,7 +1461,11 @@ pub fn import_to_sandbox(
     if vault_path.trim().is_empty() {
         return Err("VAULT_NOT_CONFIGURED".into());
     }
-    let game_schema = state.active_schema.lock().unwrap().clone();
+    let game_schema = state
+        .active_schema
+        .lock()
+        .unwrap_or_else(|e| e.into_inner())
+        .clone();
     let malware_override = sec_state
         .malware_protocol_overridden
         .load(std::sync::atomic::Ordering::SeqCst);
@@ -1476,162 +1480,166 @@ pub fn import_to_sandbox(
         HashSet::new()
     };
 
-    let vault_root = crate::utils::get_vault_root_dir(&vault_path);
-    let dev_lane = vault_root.join("Dev").join("Sandbox");
-    if !dev_lane.exists() {
-        let _ = fs::create_dir_all(&dev_lane);
-    }
+    tauri::async_runtime::spawn_blocking(move || -> Result<usize, String> {
+        let vault_root = crate::utils::get_vault_root_dir(&vault_path);
+        let dev_lane = vault_root.join("Dev").join("Sandbox");
+        if !dev_lane.exists() {
+            let _ = fs::create_dir_all(&dev_lane);
+        }
 
-    let heuristic_sigs = get_heuristic_signatures(vault_path).unwrap_or_default();
-    let compiled_sigs = CompiledSignatures::new(&heuristic_sigs);
+        let heuristic_sigs = get_heuristic_signatures(vault_path).unwrap_or_default();
+        let compiled_sigs = CompiledSignatures::new(&heuristic_sigs);
 
-    let scan_file_threat = |target_file: &Path| -> bool {
-        if malware_override {
-            return false;
-        }
-        let file_hash = calculate_hash(target_file).unwrap_or_default().to_lowercase();
-        if !file_hash.is_empty() && malware_hashes_set.contains(&file_hash) {
-            return true;
-        }
-        if !file_hash.is_empty() && tier2_hashes_set.contains(&file_hash) {
-            return false;
-        }
-        check_heuristic_malware_detailed(target_file, &compiled_sigs).is_some()
-    };
-
-    let mut imported = 0;
-    for file in files {
-        let source = PathBuf::from(&file);
-        if !source.exists() || !crate::utils::is_safe_user_file_path(&source) {
-            continue;
-        }
-        if source.is_dir() {
-            for entry in walkdir::WalkDir::new(&source)
-                .follow_links(false)
-                .into_iter()
-                .filter_map(|e| e.ok())
-            {
-                let ep = entry.path();
-                if entry.file_type().is_symlink() || crate::utils::is_symlink_or_reparse_point(ep) {
-                    return Err("Directory rejected: contains unsafe symlink.".into());
-                }
-                if entry.file_type().is_file()
-                    && !crate::utils::is_macos_or_os_metadata_path(ep)
-                    && scan_file_threat(ep)
-                {
-                    return Err("MALWARE".into());
-                }
+        let scan_file_threat = |target_file: &Path| -> bool {
+            if malware_override {
+                return false;
             }
-        } else if scan_file_threat(&source) {
-            return Err("MALWARE".into());
-        }
+            let file_hash = calculate_hash(target_file).unwrap_or_default().to_lowercase();
+            if !file_hash.is_empty() && malware_hashes_set.contains(&file_hash) {
+                return true;
+            }
+            if !file_hash.is_empty() && tier2_hashes_set.contains(&file_hash) {
+                return false;
+            }
+            check_heuristic_malware_detailed(target_file, &compiled_sigs).is_some()
+        };
 
-        if let Some(name) = source.file_name() {
-            let stem = source
-                .file_stem()
-                .unwrap_or_default()
-                .to_string_lossy()
-                .to_string();
-            let folder_key = if stem.is_empty() {
-                name.to_string_lossy().to_string()
-            } else {
-                stem.clone()
-            };
-            if !crate::utils::is_safe_single_filename(&folder_key) {
+        let mut imported = 0;
+        for file in files {
+            let source = PathBuf::from(&file);
+            if !source.exists() || !crate::utils::is_safe_user_file_path(&source) {
                 continue;
             }
-            let mod_folder = dev_lane.join(&folder_key);
-            if crate::utils::ensure_strict_descendant_of_roots(&mod_folder, &[dev_lane.clone()])
-                .is_err()
-            {
-                continue;
-            }
-            if !mod_folder.exists() {
-                let _ = fs::create_dir_all(&mod_folder);
-            }
-
             if source.is_dir() {
                 for entry in walkdir::WalkDir::new(&source)
                     .follow_links(false)
                     .into_iter()
                     .filter_map(|e| e.ok())
                 {
-                    if !entry.file_type().is_file() {
-                        continue;
-                    }
                     let ep = entry.path();
-                    if crate::utils::is_macos_or_os_metadata_path(ep) {
-                        continue;
+                    if entry.file_type().is_symlink() || crate::utils::is_symlink_or_reparse_point(ep) {
+                        return Err("Directory rejected: contains unsafe symlink.".into());
                     }
-                    let Ok(rel) = ep.strip_prefix(&source) else {
-                        continue;
-                    };
-                    if rel.as_os_str().is_empty() {
-                        continue;
-                    }
-                    let dest = mod_folder.join(rel);
-                    if crate::utils::ensure_strict_descendant_of_roots(&dest, &[dev_lane.clone()])
-                        .is_err()
+                    if entry.file_type().is_file()
+                        && !crate::utils::is_macos_or_os_metadata_path(ep)
+                        && scan_file_threat(ep)
                     {
-                        continue;
-                    }
-                    if let Some(parent) = dest.parent() {
-                        let _ = fs::create_dir_all(parent);
-                    }
-                    if fs::copy(ep, &dest).is_ok() {
-                        imported += 1;
+                        return Err("MALWARE".into());
                     }
                 }
-                continue;
+            } else if scan_file_threat(&source) {
+                return Err("MALWARE".into());
             }
 
-            let ext = source
-                .extension()
-                .unwrap_or_default()
-                .to_string_lossy()
-                .to_lowercase();
-            let is_archive =
-                crate::game_logic::is_archive_container_extension(&ext, &game_schema);
-            if is_archive {
-                let extracted_count = if let Ok(extraction) =
-                    crate::utils::extract_archive_bounded_to_dir(
-                        &source,
-                        &mod_folder,
-                        Some(&folder_key),
-                        &game_schema,
-                        MAX_ARCHIVE_ENTRY_BYTES,
-                        MAX_ARCHIVE_TOTAL_BYTES,
-                    ) {
-                    extraction.files.len()
+            if let Some(name) = source.file_name() {
+                let stem = source
+                    .file_stem()
+                    .unwrap_or_default()
+                    .to_string_lossy()
+                    .to_string();
+                let folder_key = if stem.is_empty() {
+                    name.to_string_lossy().to_string()
                 } else {
-                    extract_sandbox_zip_in_place(&source, &mod_folder, &game_schema)
+                    stem.clone()
                 };
-                if extracted_count > 0 {
-                    for entry in walkdir::WalkDir::new(&mod_folder)
+                if !crate::utils::is_safe_single_filename(&folder_key) {
+                    continue;
+                }
+                let mod_folder = dev_lane.join(&folder_key);
+                if crate::utils::ensure_strict_descendant_of_roots(&mod_folder, &[dev_lane.clone()])
+                    .is_err()
+                {
+                    continue;
+                }
+                if !mod_folder.exists() {
+                    let _ = fs::create_dir_all(&mod_folder);
+                }
+
+                if source.is_dir() {
+                    for entry in walkdir::WalkDir::new(&source)
                         .follow_links(false)
                         .into_iter()
                         .filter_map(|e| e.ok())
                     {
-                        if entry.file_type().is_file() && scan_file_threat(entry.path()) {
-                            let _ = fs::remove_dir_all(&mod_folder);
-                            return Err("MALWARE".into());
+                        if !entry.file_type().is_file() {
+                            continue;
+                        }
+                        let ep = entry.path();
+                        if crate::utils::is_macos_or_os_metadata_path(ep) {
+                            continue;
+                        }
+                        let Ok(rel) = ep.strip_prefix(&source) else {
+                            continue;
+                        };
+                        if rel.as_os_str().is_empty() {
+                            continue;
+                        }
+                        let dest = mod_folder.join(rel);
+                        if crate::utils::ensure_strict_descendant_of_roots(&dest, &[dev_lane.clone()])
+                            .is_err()
+                        {
+                            continue;
+                        }
+                        if let Some(parent) = dest.parent() {
+                            let _ = fs::create_dir_all(parent);
+                        }
+                        if fs::copy(ep, &dest).is_ok() {
+                            imported += 1;
                         }
                     }
-                    imported += extracted_count;
+                    continue;
                 }
-            } else {
-                let dest = mod_folder.join(name);
-                if crate::utils::ensure_strict_descendant_of_roots(&dest, &[dev_lane.clone()])
-                    .is_ok()
-                    && fs::copy(&source, &dest).is_ok()
-                {
-                    imported += 1;
+
+                let ext = source
+                    .extension()
+                    .unwrap_or_default()
+                    .to_string_lossy()
+                    .to_lowercase();
+                let is_archive =
+                    crate::game_logic::is_archive_container_extension(&ext, &game_schema);
+                if is_archive {
+                    let extracted_count = if let Ok(extraction) =
+                        crate::utils::extract_archive_bounded_to_dir(
+                            &source,
+                            &mod_folder,
+                            Some(&folder_key),
+                            &game_schema,
+                            MAX_ARCHIVE_ENTRY_BYTES,
+                            MAX_ARCHIVE_TOTAL_BYTES,
+                        ) {
+                        extraction.files.len()
+                    } else {
+                        extract_sandbox_zip_in_place(&source, &mod_folder, &game_schema)
+                    };
+                    if extracted_count > 0 {
+                        for entry in walkdir::WalkDir::new(&mod_folder)
+                            .follow_links(false)
+                            .into_iter()
+                            .filter_map(|e| e.ok())
+                        {
+                            if entry.file_type().is_file() && scan_file_threat(entry.path()) {
+                                let _ = fs::remove_dir_all(&mod_folder);
+                                return Err("MALWARE".into());
+                            }
+                        }
+                        imported += extracted_count;
+                    }
+                } else {
+                    let dest = mod_folder.join(name);
+                    if crate::utils::ensure_strict_descendant_of_roots(&dest, &[dev_lane.clone()])
+                        .is_ok()
+                        && fs::copy(&source, &dest).is_ok()
+                    {
+                        imported += 1;
+                    }
                 }
             }
         }
-    }
 
-    Ok(imported)
+        Ok(imported)
+    })
+    .await
+    .map_err(|e| e.to_string())?
 }
 
 #[tauri::command]

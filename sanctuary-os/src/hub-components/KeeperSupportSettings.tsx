@@ -1,7 +1,7 @@
 import { useStore } from "../store";
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import { useLexicon } from "../LexiconContext";
-import { supabase } from "../supabase";
+import { supabaseAuth } from "../supabase";
 import { SidePanel, CustomDropdown, EmptyState, PanelHeaderGroup, PanelHeaderButton, VAULT_CHIP_CLASS } from "../shared";
 import { UniversalCard } from "../components/universal/UniversalCard";
 import { LiquidGlassAlertCard } from "../components/BlueprintPatchReadiness";
@@ -26,6 +26,7 @@ interface SupportCategory {
     description: string;
     is_active: boolean;
     ticket_destination: 'mod_author' | 'architect' | 'oversight' | 'wayfinder' | 'keepers_core';
+    support_domain?: 'spoke' | 'platform' | 'compliance' | 'partner_apps';
     escalation_path: 'none' | 'standard' | 'urgent';
     requires_target_mod: boolean;
     requires_target_user: boolean;
@@ -40,16 +41,20 @@ export interface KeeperSupportSettingsProps {
     embedded?: boolean;
     externalSearch?: string;
     statusFilter?: "all" | "active" | "inactive";
+    supportDomain?: "spoke" | "platform" | "compliance";
     openCatRef?: React.MutableRefObject<(() => void) | null>;
     onCountsChange?: (count: number) => void;
+    onSavedCategories?: () => void;
 }
 
 export default function KeeperSupportSettings({
     embedded = false,
     externalSearch = "",
     statusFilter = "all",
+    supportDomain,
     openCatRef,
-    onCountsChange
+    onCountsChange,
+    onSavedCategories,
 }: KeeperSupportSettingsProps = {}) {
     const { t } = useLexicon();
     const [categories, setCategories] = useState<SupportCategory[]>([]);
@@ -60,7 +65,7 @@ export default function KeeperSupportSettings({
 
     const fetchData = async () => {
         setLoading(true);
-        const { data: cats } = await supabase.from('keeper_support_categories').select('*').order('category_name');
+        const { data: cats } = await supabaseAuth.from('keeper_support_categories').select('*').order('category_name');
         if (cats) setCategories(cats);
         setLoading(false);
     };
@@ -73,15 +78,26 @@ export default function KeeperSupportSettings({
         if (openCatRef) openCatRef.current = () => openEditor();
     });
 
+    const domainCategories = useMemo(() => {
+        if (!supportDomain) {
+            return categories.filter((c) => (c.support_domain || "platform") !== "partner_apps");
+        }
+        return categories.filter((c) => (c.support_domain || "platform") === supportDomain);
+    }, [categories, supportDomain]);
+
     useEffect(() => {
         if (onCountsChange) {
-            onCountsChange(categories.length);
+            onCountsChange(domainCategories.length);
         }
-    }, [categories.length]);
+    }, [domainCategories.length]);
 
     const openEditor = (cat?: SupportCategory) => {
         if (cat) {
-            setEditingCat({ ...cat, ticket_destination: 'keepers_core' });
+            setEditingCat({
+                ...cat,
+                ticket_destination: 'keepers_core',
+                support_domain: cat.support_domain || supportDomain || 'platform',
+            });
         } else {
             setEditingCat({
                 category_code: "",
@@ -89,6 +105,7 @@ export default function KeeperSupportSettings({
                 description: "",
                 is_active: true,
                 ticket_destination: 'keepers_core',
+                support_domain: supportDomain || 'platform',
                 escalation_path: 'standard',
                 requires_target_mod: false,
                 requires_target_user: false,
@@ -106,25 +123,25 @@ export default function KeeperSupportSettings({
             id: "overview",
             label: t("overview", "Overview") || "Overview",
             icon: t("icon_dashboard", "dashboard"),
-            number: categories.length.toString(),
+            number: domainCategories.length.toString(),
         },
         {
             id: "ACTIVE",
             label: t("support_active_only", "Active Only") || "Active",
             icon: t("icon_category", "category"),
-            number: categories.filter(c => c.is_active).length.toString(),
+            number: domainCategories.filter(c => c.is_active).length.toString(),
         },
         {
             id: "INACTIVE",
             label: t("support_inactive_only", "Inactive Only") || "Inactive",
             icon: t("icon_block", "block"),
-            number: categories.filter(c => !c.is_active).length.toString(),
+            number: domainCategories.filter(c => !c.is_active).length.toString(),
         }
     ];
 
     const effectiveSearch = embedded ? externalSearch : searchQuery;
 
-    const filteredCategories = categories
+    const filteredCategories = domainCategories
         .filter(c => {
             if (embedded) {
                 if (statusFilter === "active" && !c.is_active) return false;
@@ -262,8 +279,8 @@ export default function KeeperSupportSettings({
     );
 
     const renderLanding = () => {
-        const activeCats = categories.filter(c => c.is_active);
-        const inactiveCats = categories.filter(c => !c.is_active);
+        const activeCats = domainCategories.filter(c => c.is_active);
+        const inactiveCats = domainCategories.filter(c => !c.is_active);
 
         return (
             <HubOverviewLanding>
@@ -305,7 +322,10 @@ export default function KeeperSupportSettings({
                     cat={editingCat}
                     isOpen={!!editingCat}
                     onClose={() => setEditingCat(null)}
-                    onSaved={fetchData}
+                    onSaved={() => {
+                        fetchData();
+                        onSavedCategories?.();
+                    }}
                 />
             </>
         );
@@ -390,7 +410,7 @@ function CategoryEditorPanel({ cat, isOpen, onClose, onSaved }: { cat: SupportCa
         setIsSaving(true);
         try {
             if (draft.id) {
-                const { error } = await supabase.from('keeper_support_categories').update(draft).eq('id', draft.id);
+                const { error } = await supabaseAuth.from('keeper_support_categories').update(draft).eq('id', draft.id);
                 if (error) throw error;
                 await logArchitectAction(
                     "Updated Keeper Support Category",
@@ -402,7 +422,7 @@ function CategoryEditorPanel({ cat, isOpen, onClose, onSaved }: { cat: SupportCa
                     computeAuditDiff(cat, draft)
                 );
             } else {
-                const { error } = await supabase.from('keeper_support_categories').insert([draft]);
+                const { error } = await supabaseAuth.from('keeper_support_categories').insert([draft]);
                 if (error) throw error;
                 await logArchitectAction(
                     "Created Keeper Support Category",
@@ -428,7 +448,7 @@ function CategoryEditorPanel({ cat, isOpen, onClose, onSaved }: { cat: SupportCa
         if (!draft.id) return;
         setIsSaving(true);
         try {
-            const { error } = await supabase.from('keeper_support_categories').delete().eq('id', draft.id);
+            const { error } = await supabaseAuth.from('keeper_support_categories').delete().eq('id', draft.id);
             if (error) throw error;
             await logArchitectAction(
                 "Deleted Keeper Support Category",
@@ -533,12 +553,19 @@ function CategoryEditorPanel({ cat, isOpen, onClose, onSaved }: { cat: SupportCa
                     className="font-mono"
                 />
 
-                <div className="flex gap-4 w-full">
-                    <div className="flex flex-col gap-2 flex-1 relative z-20">
-                        <label className="text-[9px] font-black capitalize tracking-widest text-[var(--subtext)]">{t("support_destination", "Destination")}</label>
-                        <div className="w-full glass-surface rounded-xl px-4 py-3 text-[var(--subtext)] text-sm font-bold font-mono uppercase opacity-50 select-none">
-                            {t("sidebar_keepers_core", "Keepers Core")}
-                        </div>
+                <div className="flex flex-col sm:flex-row gap-4 w-full">
+                    <div className="flex flex-col gap-2 flex-1 relative z-30">
+                        <label className="text-[9px] font-black capitalize tracking-widest text-[var(--subtext)]">{t("support_section_domain", "Support Section")}</label>
+                        <CustomDropdown
+                            disableTint={true}
+                            value={draft.support_domain || "platform"}
+                            onChange={(val: string[]) => setDraft({ ...draft, support_domain: (val[0] as any) || "platform" })}
+                            options={[
+                                { id: "spoke", label: t("keepers_tab_spoke_support", "Spoke Support") },
+                                { id: "platform", label: t("keepers_tab_platform_support", "Platform Support") },
+                                { id: "compliance", label: t("keepers_tab_compliance_contact", "Compliance & Contact") },
+                            ]}
+                        />
                     </div>
                     <div className="flex flex-col gap-2 flex-1 relative z-20">
                         <label className="text-[9px] font-black capitalize tracking-widest text-[var(--subtext)]">{t("support_escalation", "Escalation")}</label>

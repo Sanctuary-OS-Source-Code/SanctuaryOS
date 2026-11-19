@@ -1339,7 +1339,7 @@ export default function Blueprints({
                 title={t("staging_empty_cloud_title", "No Active Payload Waiting for PC")}
                 subtitle={t(
                   "matrix_rig_transfer_desc",
-                  "Bypass public Tier 0 restrictions using Zero-PII AES-256-GCM encryption. Sends all {mods} in this {Blueprint} (including Tier 1–4, Unknown/Local {mods}, and Load Order rules) directly to your personal Signature Queue on your Steam Deck or other rigs."
+                  "Bypass public Tier 0 restrictions using Zero-PII AES-256-GCM encryption. Sends all {mods} in this {Blueprint} (including Tier 1–5, Unknown/Local {mods}, and Load Order rules) directly to your personal Signature Queue on your Steam Deck or other rigs."
                 )}
                 action={
                   (playSets || []).length > 0 ? (

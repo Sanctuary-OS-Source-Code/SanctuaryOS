@@ -110,7 +110,7 @@ const PORTABLE_MOD_KEYS = [
 
 export function sanitizeComplianceTierForLocal(tier: unknown): number {
   const num = Number(tier ?? 0);
-  if (num === 5) return 5;
+  if (num === 6) return 6;
   return 0;
 }
 

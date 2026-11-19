@@ -212,13 +212,13 @@ pub async fn resolve_dna_match(
     .map_err(|e| e.to_string())?
 }
 
-#[tauri::command]
+#[tauri::command(async)]
 pub fn save_master_cache(vault_path: String, content: String) -> Result<String, String> {
     crate::utils::set_vault_kv(&vault_path, "master_registry_cache", &content);
     Ok("Saved".into())
 }
 
-#[tauri::command]
+#[tauri::command(async)]
 pub fn load_master_cache(vault_path: String) -> Result<String, String> {
     if let Some((raw, _)) = crate::utils::get_vault_kv(&vault_path, "master_registry_cache") {
         if !raw.trim().is_empty() {

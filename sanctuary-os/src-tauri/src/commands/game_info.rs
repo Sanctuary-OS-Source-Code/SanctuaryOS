@@ -711,7 +711,7 @@ fn sanitize_heuristic_signatures(sigs: Vec<HeuristicSignature>) -> (Vec<Heuristi
     (sanitized, changed)
 }
 
-#[tauri::command]
+#[tauri::command(async)]
 pub fn get_heuristic_signatures(vault_path: String) -> Result<Vec<HeuristicSignature>, String> {
     if let Some((content, _)) = crate::utils::get_vault_kv(&vault_path, "malware_signatures") {
         if let Ok(sigs) = serde_json::from_str::<Vec<HeuristicSignature>>(&content) {
@@ -857,7 +857,7 @@ pub fn get_heuristic_signatures(vault_path: String) -> Result<Vec<HeuristicSigna
     Ok(defaults)
 }
 
-#[tauri::command]
+#[tauri::command(async)]
 pub fn save_heuristic_signatures(
     vault_path: String,
     signatures: Vec<HeuristicSignature>,
@@ -1113,7 +1113,7 @@ where
     Err(err_msg.into())
 }
 
-#[tauri::command]
+#[tauri::command(async)]
 pub fn save_file_with_history(
     app: tauri::AppHandle,
     path: String,
@@ -1196,7 +1196,7 @@ pub fn save_file_with_history(
     Ok("Saved successfully".into())
 }
 
-#[tauri::command]
+#[tauri::command(async)]
 pub fn save_file_silently(path: String, content: String) -> Result<String, String> {
     let target = std::path::Path::new(&path);
     if !crate::utils::is_safe_user_file_path(target) {
@@ -1214,7 +1214,7 @@ pub fn save_file_silently(path: String, content: String) -> Result<String, Strin
     Ok("Saved successfully".into())
 }
 
-#[tauri::command]
+#[tauri::command(async)]
 pub fn get_file_history(app: tauri::AppHandle, path: String) -> Result<Vec<HistoryEntry>, String> {
     let mut history = Vec::new();
     let mut seen_timestamps = std::collections::HashSet::new();
@@ -1247,7 +1247,7 @@ pub fn get_file_history(app: tauri::AppHandle, path: String) -> Result<Vec<Histo
     Ok(history)
 }
 
-#[tauri::command]
+#[tauri::command(async)]
 pub fn toggle_pin_version(
     app: tauri::AppHandle,
     path: String,
@@ -1263,7 +1263,7 @@ pub fn toggle_pin_version(
     )
 }
 
-#[tauri::command]
+#[tauri::command(async)]
 pub fn delete_version(app: tauri::AppHandle, path: String, timestamp: u64) -> Result<(), String> {
     let mut deleted = false;
     for file_history_dir in get_candidate_history_dirs(&app, &path) {
@@ -1281,7 +1281,7 @@ pub fn delete_version(app: tauri::AppHandle, path: String, timestamp: u64) -> Re
     }
 }
 
-#[tauri::command]
+#[tauri::command(async)]
 pub fn rename_version(
     app: tauri::AppHandle,
     path: String,

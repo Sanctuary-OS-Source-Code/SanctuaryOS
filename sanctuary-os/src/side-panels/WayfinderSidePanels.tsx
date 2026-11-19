@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { supabase, supabaseAuth, RESOLVED_SANCTUARY_CONFIG } from "../supabase";
+import { supabase, supabaseAuth, RESOLVED_SANCTUARY_CONFIG, findWorkspaceByIdentifier } from "../supabase";
 import { useLexicon } from "../LexiconContext";
 import { useStore } from "../store";
 import {
@@ -32,9 +32,7 @@ export function ServerHealthSidePanel({
   const workspaces = useStore((state: any) => state.workspaces);
   const activeWorkspaceId = useStore((state: any) => state.activeWorkspaceId);
   const session = useStore((state: any) => state.session);
-  const activeWs = (workspaces || []).find(
-    (w: any) => w.id === activeWorkspaceId
-  );
+  const activeWs = findWorkspaceByIdentifier(workspaces, activeWorkspaceId);
 
   const [uplinkUrl, setUplinkUrl] = useState("");
   const [uplinkAnonKey, setUplinkAnonKey] = useState("");
@@ -797,9 +795,7 @@ export function WayfinderDonationSetupSidePanel({
   const canManageSpokeDonations = userRole === "wayfinder";
   const workspaces = useStore((state: any) => state.workspaces);
   const activeWorkspaceId = useStore((state: any) => state.activeWorkspaceId);
-  const activeWs = (workspaces || []).find(
-    (w: any) => w.id === activeWorkspaceId
-  );
+  const activeWs = findWorkspaceByIdentifier(workspaces, activeWorkspaceId);
 
   const [activeSubTab, setActiveSubTab] = useState<"report" | "checkout">(
     "report"

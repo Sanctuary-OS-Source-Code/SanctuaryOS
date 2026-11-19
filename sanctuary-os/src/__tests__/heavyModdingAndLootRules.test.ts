@@ -25,7 +25,7 @@ import { GAME_ARCHITECTURE_PRESETS } from "../utils/gameArchitecturePresets";
 import { getSafeSchema } from "../store";
 import { evalCondition } from "../app-modals/FomodInstallerSidePanel";
 
-describe("Section 7: Creation Engine, Unreal & Heavy-Modding Parity", () => {
+describe("Creation Engine, Unreal & Heavy-Modding Parity", () => {
   it("equips Creation Engine presets with runtime output capture, INI archive invalidation, and LOOT sources", () => {
     for (const id of ["skyrim", "fallout4", "starfield", "fnv", "oblivion"]) {
       const preset = GAME_ARCHITECTURE_PRESETS[id];

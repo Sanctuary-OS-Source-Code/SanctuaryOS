@@ -25,8 +25,8 @@ import sims4Bundled from "../data/schemas/sims4.json";
 import { GAME_ARCHITECTURE_PRESETS } from "../utils/gameArchitecturePresets";
 import { getSafeSchema } from "../store";
 
-describe("Section 8: Package/Life-Sim, Colony & Modloader Parity", () => {
-  it("synchronizes default.json and root schema.json at v8 with neutral Section 8 defaults", () => {
+describe("Package/Life-Sim, Colony & Modloader Parity", () => {
+  it("synchronizes default.json and root schema.json at v8 with neutral modloader/grouping defaults", () => {
     expect(defaultBundled).toEqual(rootSchemaJson);
     expect(defaultBundled.schema_version).toBe(8);
     expect(defaultBundled.paths.discover_steam_workshop).toBe(false);
@@ -72,7 +72,7 @@ describe("Section 8: Package/Life-Sim, Colony & Modloader Parity", () => {
     }
   });
 
-  it("preserves and coerces Section 8 fields inside getSafeSchema without stripping", () => {
+  it("preserves and coerces package-group, workshop, and isolation fields inside getSafeSchema without stripping", () => {
     const hydrated = getSafeSchema(
       {
         id: "sims4",

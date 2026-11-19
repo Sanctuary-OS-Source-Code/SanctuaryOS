@@ -1,9 +1,12 @@
 use crate::commands::state_ops::*;
 use crate::state::*;
 use crate::utils::*;
-use std::io::Write;
+use std::collections::HashSet;
 use std::path::{Path, PathBuf};
 use super::airgap_journal::*;
+use super::differential_vfs::{
+    plan_structure_nodes, reconcile_routed_deployment, reconcile_vfs_deployment, DeploymentPlan,
+};
 
 pub fn cleanup_routed_links(vault_path: &str) {
     if vault_path.trim().is_empty() {
@@ -452,9 +455,6 @@ pub async fn deploy_playset_bulk(
             false,
         );
 
-        cleanup_routed_links(&vault_path);
-        crate::utils::safe_wipe_mods_dir_with_vault(&mods_dir, Some(&vault_path), &game_schema);
-
         crate::game_logic::generate_manifest_if_needed(&game_schema, &mods_dir);
 
         let mut vault_rel_index: std::collections::HashMap<String, PathBuf> =
@@ -490,8 +490,6 @@ pub async fn deploy_playset_bulk(
             &saved_coords,
             &game_schema,
         ));
-        let routed_records: std::sync::Mutex<Vec<RoutedFileRecord>> =
-            std::sync::Mutex::new(Vec::new());
         let _ = super::workshop_and_hooks::activate_profile_isolated_dirs(
             &game_schema,
             &vault_path,
@@ -500,7 +498,6 @@ pub async fn deploy_playset_bulk(
             &docs_root,
             &mods_dir,
         );
-        let deployed_links: std::sync::Mutex<Vec<String>> = std::sync::Mutex::new(Vec::new());
         let shared_with_vanilla = crate::utils::dir_looks_like_shared_game_folder(
             &mods_dir,
             &saved_coords.live_path,
@@ -523,49 +520,11 @@ pub async fn deploy_playset_bulk(
             })
             .unwrap_or_default();
 
-        let journal_lock = std::sync::Mutex::new(());
         let vault_deploy_journal = (!vault_path.trim().is_empty())
             .then(|| PathBuf::from(&vault_path).join(".sanctuary_deploy_journal.jsonl"));
         let mods_deploy_journal = mods_dir.join(".sanctuary_deploy_journal.jsonl");
         let routed_wal_path = (!vault_path.trim().is_empty())
             .then(|| PathBuf::from(&vault_path).join(".sanctuary_routed_links.jsonl"));
-
-        let append_deploy_journal = |dst: &Path| {
-            let line = format!("{}\n", dst.to_string_lossy());
-            let _jl = journal_lock.lock();
-            for jpath in [vault_deploy_journal.as_ref(), Some(&mods_deploy_journal)]
-                .into_iter()
-                .flatten()
-            {
-                if let Ok(mut f) = std::fs::OpenOptions::new()
-                    .create(true)
-                    .append(true)
-                    .open(jpath)
-                {
-                    let _ = f.write_all(line.as_bytes());
-                }
-            }
-        };
-
-        let record_routed_entry = |rec: RoutedFileRecord| {
-            if let Ok(mut guard) = routed_records.lock() {
-                if !guard.iter().any(|r| r.target_path == rec.target_path) {
-                    if let Some(ref wpath) = routed_wal_path {
-                        if let Ok(json_line) = serde_json::to_string(&rec) {
-                            let _jl = journal_lock.lock();
-                            if let Ok(mut f) = std::fs::OpenOptions::new()
-                                .create(true)
-                                .append(true)
-                                .open(wpath)
-                            {
-                                let _ = writeln!(f, "{}", json_line);
-                            }
-                        }
-                    }
-                    guard.push(rec);
-                }
-            }
-        };
 
         fn populate_vault_index(
             base_dir: &Path,
@@ -654,54 +613,50 @@ pub async fn deploy_playset_bulk(
             }
         }
 
-        let link_with_overwrite = |src: &Path, dst: &Path, allow_write: bool| -> bool {
-            append_deploy_journal(dst);
-            let dst_exists = dst.exists() || std::fs::symlink_metadata(dst).is_ok();
-            if dst_exists {
-                let bak_path = PathBuf::from(format!(
-                    "{}.sanctuary_vanilla_bak",
-                    dst.to_string_lossy()
-                ));
-                let is_link = crate::utils::is_symlink_or_reparse_point(dst);
-                let already_deployed_in_pass = deployed_links
-                    .lock()
-                    .map(|dl| {
-                        let d_str = dst.to_string_lossy();
-                        dl.iter().any(|x| x.eq_ignore_ascii_case(&d_str))
-                    })
-                    .unwrap_or(false);
-
-                if shared_with_vanilla && !is_link && !already_deployed_in_pass && !bak_path.exists() {
-                    let _ = std::fs::rename(dst, &bak_path);
-                } else if asset_last_wins {
-                    let _ = crate::utils::remove_file_clearing_readonly(dst);
-                } else {
-                    return false;
-                }
-            }
-            let ext_low = src
-                .extension()
-                .and_then(|e| e.to_str())
-                .map(|s| s.to_lowercase())
-                .unwrap_or_default();
-            let is_mutable_cfg = config_exts.contains(&ext_low) || editable_exts.contains(&ext_low);
-            crate::utils::deploy_file_link_batched(src, dst, allow_write, is_mutable_cfg, false).is_ok()
-        };
-
-        let ordered_deploy_entries: std::sync::Mutex<Vec<crate::load_order_engine::OrderedDeployEntry>> =
-            std::sync::Mutex::new(Vec::new());
+        let mut deployment_plan = DeploymentPlan::default();
+        let mut ordered_deploy_entries: Vec<crate::load_order_engine::OrderedDeployEntry> =
+            Vec::new();
         let mods_allowed_roots = [mods_dir.clone()];
 
-        let record_deployed_path = |p: &Path| {
-            if let Ok(mut dl) = deployed_links.lock() {
-                let p_str = p.to_string_lossy().to_string();
-                if !dl.contains(&p_str) {
-                    dl.push(p_str);
+        let try_plan_route = |plan: &mut DeploymentPlan,
+                              source: &Path,
+                              rel_hint: &str,
+                              prefix: Option<&str>,
+                              allow_write: bool,
+                              is_mutable_cfg: bool|
+         -> bool {
+            let Some((mut target_file, _base_root, preserve_vanilla, apply_prefix)) =
+                resolve_route_for_file(
+                    source,
+                    rel_hint,
+                    &install_routes,
+                    &live_root,
+                    &docs_root,
+                    &mods_dir,
+                )
+            else {
+                return false;
+            };
+            if apply_prefix {
+                if let (Some(pfx), Some(fname)) = (
+                    prefix.filter(|p| !p.is_empty()),
+                    target_file.file_name().and_then(|n| n.to_str()),
+                ) {
+                    target_file = target_file.with_file_name(format!("{}{}", pfx, fname));
                 }
             }
+            plan.record_route(
+                source.to_path_buf(),
+                target_file,
+                preserve_vanilla,
+                allow_write,
+                is_mutable_cfg,
+                asset_last_wins,
+            );
+            true
         };
 
-        // Phase 2: Materialize links deterministically in sorted load order
+        // Phase 2: Build deterministic VFS + Routed DeploymentPlan in sorted load order
         let count: usize = sorted_mods
             .into_iter()
             .enumerate()
@@ -730,16 +685,19 @@ pub async fn deploy_playset_bulk(
                         serde_json::from_value::<Vec<StructureNode>>(structure_val.clone())
                     {
                         if !nodes.is_empty() {
-                            let linked = process_structure_nodes(
+                            let planned = plan_structure_nodes(
+                                &mut deployment_plan,
                                 &game_schema,
                                 &nodes,
                                 &mods_dir,
+                                &mods_dir,
                                 &vault_mods_lane,
                                 &folders_to_check,
-                                Some(&deployed_links),
+                                mod_allow_write,
+                                asset_last_wins,
                             );
-                            if linked > 0 {
-                                return linked;
+                            if planned > 0 {
+                                return planned;
                             }
                         }
                     }
@@ -900,33 +858,42 @@ pub async fn deploy_playset_bulk(
                         return 0;
                     }
 
-                    let is_mutable_cfg = config_exts.contains(&ext_lower) || editable_exts.contains(&ext_lower);
-                    if let Some(rec) = route_file_with_prefix_and_mode_inner(
+                    let is_mutable_cfg =
+                        config_exts.contains(&ext_lower) || editable_exts.contains(&ext_lower);
+                    if try_plan_route(
+                        &mut deployment_plan,
                         &source,
                         &m.path,
-                        &install_routes,
-                        &live_root,
-                        &docs_root,
-                        &mods_dir,
                         computed_prefix.as_deref(),
                         mod_allow_write,
                         is_mutable_cfg,
-                        false,
                     ) {
-                        record_routed_entry(rec);
-                        if let Ok(mut oe) = ordered_deploy_entries.lock() {
-                            let fname = source.file_name().and_then(|n| n.to_str()).unwrap_or_default().to_string();
-                            let stem = source.file_stem().and_then(|s| s.to_str()).unwrap_or(&fname).to_string();
-                            oe.push(crate::load_order_engine::OrderedDeployEntry {
-                                rel_path: m.target_path.clone().unwrap_or_else(|| fname.clone()).replace('\\', "/"),
-                                file_name: fname,
-                                stem,
-                                metadata: crate::load_order_engine::extract_metadata_for_path(&source, &game_schema),
-                                tier_folder: detected_tier_folder.clone(),
-                                tier_priority: tier_prio,
-                                deployed_path: None,
-                            });
-                        }
+                        let fname = source
+                            .file_name()
+                            .and_then(|n| n.to_str())
+                            .unwrap_or_default()
+                            .to_string();
+                        let stem = source
+                            .file_stem()
+                            .and_then(|s| s.to_str())
+                            .unwrap_or(&fname)
+                            .to_string();
+                        ordered_deploy_entries.push(crate::load_order_engine::OrderedDeployEntry {
+                            rel_path: m
+                                .target_path
+                                .clone()
+                                .unwrap_or_else(|| fname.clone())
+                                .replace('\\', "/"),
+                            file_name: fname,
+                            stem,
+                            metadata: crate::load_order_engine::extract_metadata_for_path(
+                                &source,
+                                &game_schema,
+                            ),
+                            tier_folder: detected_tier_folder.clone(),
+                            tier_priority: tier_prio,
+                            deployed_path: None,
+                        });
                         return 1;
                     }
                 }
@@ -1007,10 +974,10 @@ pub async fn deploy_playset_bulk(
                     return 0;
                 }
 
-                // Directory-rooted mod unit: deploy full nested tree preserving relative subpaths
+                // Directory-rooted mod unit: plan full nested tree preserving relative subpaths
                 if source.is_dir() {
                     let hidden_set = collect_effective_hidden_set(&source, &m.hidden_files);
-                    let mut dir_linked = 0usize;
+                    let mut dir_planned = 0usize;
                     let mut collected_plugin_entries = false;
                     for entry in walkdir::WalkDir::new(&source)
                         .into_iter()
@@ -1051,21 +1018,17 @@ pub async fn deploy_playset_bulk(
                             m.path.trim_matches('/'),
                             rel_in_mod.to_string_lossy().replace('\\', "/")
                         );
-                        let is_mutable_cfg = config_exts.contains(&ext_lower) || editable_exts.contains(&ext_lower);
-                        if let Some(rec) = route_file_with_prefix_and_mode_inner(
+                        let is_mutable_cfg =
+                            config_exts.contains(&ext_lower) || editable_exts.contains(&ext_lower);
+                        if try_plan_route(
+                            &mut deployment_plan,
                             file_path,
                             &rel_route_hint,
-                            &install_routes,
-                            &live_root,
-                            &docs_root,
-                            &mods_dir,
                             computed_prefix.as_deref(),
                             mod_allow_write,
                             is_mutable_cfg,
-                            false,
                         ) {
-                            record_routed_entry(rec);
-                            dir_linked += 1;
+                            dir_planned += 1;
                             continue;
                         }
 
@@ -1097,105 +1060,119 @@ pub async fn deploy_playset_bulk(
                         {
                             continue;
                         }
-                        if let Some(parent) = dest.parent() {
-                            let _ = std::fs::create_dir_all(parent);
-                            let mut cur = Some(parent);
-                            while let Some(dir_anc) = cur {
-                                if dir_anc == mods_dir.as_path() || !dir_anc.starts_with(&mods_dir)
-                                {
-                                    break;
-                                }
-                                record_deployed_path(dir_anc);
-                                cur = dir_anc.parent();
-                            }
-                        }
-                        if link_with_overwrite(file_path, &dest, mod_allow_write) {
-                            record_deployed_path(&dest);
-                            dir_linked += 1;
-                            if !manifest_include_exts.is_empty()
-                                && manifest_include_exts
-                                    .iter()
-                                    .any(|ie| fname_lower.ends_with(ie))
-                            {
-                                if let Ok(mut oe) = ordered_deploy_entries.lock() {
-                                    let fname = dest
-                                        .file_name()
-                                        .and_then(|n| n.to_str())
-                                        .unwrap_or_default()
-                                        .to_string();
-                                    let stem = dest
-                                        .file_stem()
-                                        .and_then(|s| s.to_str())
-                                        .unwrap_or(&fname)
-                                        .to_string();
-                                    let d_rel = dest
-                                        .strip_prefix(&mods_dir)
-                                        .map(|r| r.to_string_lossy().replace('\\', "/"))
-                                        .unwrap_or_else(|_| fname.clone());
-                                    oe.push(crate::load_order_engine::OrderedDeployEntry {
-                                        rel_path: d_rel,
-                                        file_name: fname,
-                                        stem,
-                                        metadata: crate::load_order_engine::extract_metadata_for_path(
-                                            file_path,
-                                            &game_schema,
-                                        ),
-                                        tier_folder: detected_tier_folder.clone(),
-                                        tier_priority: tier_prio,
-                                        deployed_path: Some(dest.clone()),
-                                    });
-                                    collected_plugin_entries = true;
-                                }
-                            }
+                        deployment_plan.record_vfs_file(
+                            file_path.to_path_buf(),
+                            dest.clone(),
+                            mod_allow_write,
+                            is_mutable_cfg,
+                            asset_last_wins,
+                            &mods_dir,
+                        );
+                        dir_planned += 1;
+                        if !manifest_include_exts.is_empty()
+                            && manifest_include_exts
+                                .iter()
+                                .any(|ie| fname_lower.ends_with(ie))
+                        {
+                            let fname = dest
+                                .file_name()
+                                .and_then(|n| n.to_str())
+                                .unwrap_or_default()
+                                .to_string();
+                            let stem = dest
+                                .file_stem()
+                                .and_then(|s| s.to_str())
+                                .unwrap_or(&fname)
+                                .to_string();
+                            let d_rel = dest
+                                .strip_prefix(&mods_dir)
+                                .map(|r| r.to_string_lossy().replace('\\', "/"))
+                                .unwrap_or_else(|_| fname.clone());
+                            ordered_deploy_entries.push(
+                                crate::load_order_engine::OrderedDeployEntry {
+                                    rel_path: d_rel,
+                                    file_name: fname,
+                                    stem,
+                                    metadata: crate::load_order_engine::extract_metadata_for_path(
+                                        file_path,
+                                        &game_schema,
+                                    ),
+                                    tier_folder: detected_tier_folder.clone(),
+                                    tier_priority: tier_prio,
+                                    deployed_path: Some(dest),
+                                },
+                            );
+                            collected_plugin_entries = true;
                         }
                     }
-                    if dir_linked > 0 && !collected_plugin_entries {
-                        if let Ok(mut oe) = ordered_deploy_entries.lock() {
-                            let d_name = source.file_name().and_then(|n| n.to_str()).unwrap_or_default().to_string();
-                            let d_rel = target.strip_prefix(&mods_dir).map(|r| r.to_string_lossy().replace('\\', "/")).unwrap_or_else(|_| d_name.clone());
-                            oe.push(crate::load_order_engine::OrderedDeployEntry {
-                                rel_path: d_rel,
-                                file_name: d_name.clone(),
-                                stem: d_name,
-                                metadata: crate::load_order_engine::extract_metadata_for_path(&source, &game_schema),
-                                tier_folder: detected_tier_folder.clone(),
-                                tier_priority: tier_prio,
-                                deployed_path: Some(target.clone()),
-                            });
-                        }
+                    if dir_planned > 0 && !collected_plugin_entries {
+                        let d_name = source
+                            .file_name()
+                            .and_then(|n| n.to_str())
+                            .unwrap_or_default()
+                            .to_string();
+                        let d_rel = target
+                            .strip_prefix(&mods_dir)
+                            .map(|r| r.to_string_lossy().replace('\\', "/"))
+                            .unwrap_or_else(|_| d_name.clone());
+                        ordered_deploy_entries.push(crate::load_order_engine::OrderedDeployEntry {
+                            rel_path: d_rel,
+                            file_name: d_name.clone(),
+                            stem: d_name,
+                            metadata: crate::load_order_engine::extract_metadata_for_path(
+                                &source,
+                                &game_schema,
+                            ),
+                            tier_folder: detected_tier_folder.clone(),
+                            tier_priority: tier_prio,
+                            deployed_path: Some(target),
+                        });
                     }
-                    return usize::from(dir_linked > 0);
+                    return usize::from(dir_planned > 0);
                 }
 
-                if let Some(parent) = target.parent() {
-                    let _ = std::fs::create_dir_all(parent);
-                    let mut cur = Some(parent);
-                    while let Some(dir_anc) = cur {
-                        if dir_anc == mods_dir.as_path() || !dir_anc.starts_with(&mods_dir) {
-                            break;
-                        }
-                        record_deployed_path(dir_anc);
-                        cur = dir_anc.parent();
-                    }
-                }
+                let ext_lower_single = source
+                    .extension()
+                    .and_then(|e| e.to_str())
+                    .map(|s| s.to_lowercase())
+                    .unwrap_or_default();
+                let is_mutable_single = config_exts.contains(&ext_lower_single)
+                    || editable_exts.contains(&ext_lower_single);
+                deployment_plan.record_vfs_file(
+                    source.clone(),
+                    target.clone(),
+                    mod_allow_write,
+                    is_mutable_single,
+                    asset_last_wins,
+                    &mods_dir,
+                );
 
-                if link_with_overwrite(&source, &target, mod_allow_write) {
-                    record_deployed_path(&target);
-                }
-                if let Ok(mut oe) = ordered_deploy_entries.lock() {
-                    let fname = target.file_name().and_then(|n| n.to_str()).unwrap_or_default().to_string();
-                    let stem = target.file_stem().and_then(|s| s.to_str()).unwrap_or(&fname).to_string();
-                    let d_rel = target.strip_prefix(&mods_dir).map(|r| r.to_string_lossy().replace('\\', "/")).unwrap_or_else(|_| fname.clone());
-                    oe.push(crate::load_order_engine::OrderedDeployEntry {
-                        rel_path: d_rel,
-                        file_name: fname,
-                        stem,
-                        metadata: crate::load_order_engine::extract_metadata_for_path(&source, &game_schema),
-                        tier_folder: detected_tier_folder.clone(),
-                        tier_priority: tier_prio,
-                        deployed_path: Some(target.clone()),
-                    });
-                }
+                let fname = target
+                    .file_name()
+                    .and_then(|n| n.to_str())
+                    .unwrap_or_default()
+                    .to_string();
+                let stem = target
+                    .file_stem()
+                    .and_then(|s| s.to_str())
+                    .unwrap_or(&fname)
+                    .to_string();
+                let d_rel = target
+                    .strip_prefix(&mods_dir)
+                    .map(|r| r.to_string_lossy().replace('\\', "/"))
+                    .unwrap_or_else(|_| fname.clone());
+                ordered_deploy_entries.push(crate::load_order_engine::OrderedDeployEntry {
+                    rel_path: d_rel,
+                    file_name: fname,
+                    stem,
+                    metadata: crate::load_order_engine::extract_metadata_for_path(
+                        &source,
+                        &game_schema,
+                    ),
+                    tier_folder: detected_tier_folder.clone(),
+                    tier_priority: tier_prio,
+                    deployed_path: Some(target.clone()),
+                });
 
                 // Schema-configured twin extensions only (zero game-specific fallbacks)
                 if let Some(ext) = source.extension().and_then(|e| e.to_str()) {
@@ -1224,9 +1201,14 @@ pub async fn deploy_playset_bulk(
                         let twin_source = source.with_extension(&other_ext);
                         if twin_source.exists() {
                             let twin_target = target.with_extension(&other_ext);
-                            if link_with_overwrite(&twin_source, &twin_target, mod_allow_write) {
-                                record_deployed_path(&twin_target);
-                            }
+                            deployment_plan.record_vfs_file(
+                                twin_source,
+                                twin_target,
+                                mod_allow_write,
+                                false,
+                                asset_last_wins,
+                                &mods_dir,
+                            );
                         }
                     }
                 }
@@ -1256,32 +1238,33 @@ pub async fn deploy_playset_bulk(
                                 sib_name.to_string_lossy()
                             )
                         };
-                        if let Some(rec) = route_file_with_prefix_and_mode_inner(
+                        if try_plan_route(
+                            &mut deployment_plan,
                             &sib_source,
                             &sib_rel_hint,
-                            &install_routes,
-                            &live_root,
-                            &docs_root,
-                            &mods_dir,
                             computed_prefix.as_deref(),
                             mod_allow_write,
                             sib_mutable,
-                            false,
                         ) {
-                            record_routed_entry(rec);
                             continue;
                         }
                         if let Some(target_parent) = target.parent() {
                             let sib_target = target_parent.join(sib_name);
-                            if !sib_target.exists()
+                            if !deployment_plan.contains_vfs_target(&sib_target)
                                 && crate::utils::ensure_strict_descendant_of_roots(
                                     &sib_target,
                                     &mods_allowed_roots,
                                 )
                                 .is_ok()
-                                && link_with_overwrite(&sib_source, &sib_target, mod_allow_write)
                             {
-                                record_deployed_path(&sib_target);
+                                deployment_plan.record_vfs_file(
+                                    sib_source,
+                                    sib_target,
+                                    mod_allow_write,
+                                    sib_mutable,
+                                    false,
+                                    &mods_dir,
+                                );
                             }
                         }
                     }
@@ -1339,28 +1322,25 @@ pub async fn deploy_playset_bulk(
                                 }
 
                                 let rel_sub_str = rel_sub.to_string_lossy().replace('\\', "/");
-                                let is_mutable_cfg = config_exts.contains(&ext_lower) || editable_exts.contains(&ext_lower);
-                                if let Some(rec) = route_file_with_prefix_and_mode_inner(
+                                let is_mutable_cfg = config_exts.contains(&ext_lower)
+                                    || editable_exts.contains(&ext_lower);
+                                if try_plan_route(
+                                    &mut deployment_plan,
                                     path,
                                     &rel_sub_str,
-                                    &install_routes,
-                                    &live_root,
-                                    &docs_root,
-                                    &mods_dir,
                                     None,
                                     mod_allow_write,
                                     is_mutable_cfg,
-                                    false,
                                 ) {
-                                    record_routed_entry(rec);
                                     continue;
                                 }
 
                                 // Skip sibling primary mod binaries in the same folder that were NOT in the active playset,
                                 // while deploying all auxiliary assets (.dds, .nif, .pex, .wem, .json, configs, subfolders, etc.)
-                                let is_separate_primary_mod_binary = !supported_exts_lower.is_empty()
-                                    && supported_exts_lower.contains(&ext_lower)
-                                    && !config_exts.contains(&ext_lower);
+                                let is_separate_primary_mod_binary =
+                                    !supported_exts_lower.is_empty()
+                                        && supported_exts_lower.contains(&ext_lower)
+                                        && !config_exts.contains(&ext_lower);
                                 if is_separate_primary_mod_binary {
                                     continue;
                                 }
@@ -1377,24 +1357,14 @@ pub async fn deploy_playset_bulk(
                                 {
                                     continue;
                                 }
-                                if asset_last_wins || (!dest.exists() && std::fs::symlink_metadata(&dest).is_err()) {
-                                    if let Some(dest_parent) = dest.parent() {
-                                        let _ = std::fs::create_dir_all(dest_parent);
-                                        let mut cur = Some(dest_parent);
-                                        while let Some(dir_anc) = cur {
-                                            if dir_anc == mods_dir.as_path()
-                                                || !dir_anc.starts_with(&mods_dir)
-                                            {
-                                                break;
-                                            }
-                                            record_deployed_path(dir_anc);
-                                            cur = dir_anc.parent();
-                                        }
-                                    }
-                                    if link_with_overwrite(path, &dest, mod_allow_write) {
-                                        record_deployed_path(&dest);
-                                    }
-                                }
+                                deployment_plan.record_vfs_file(
+                                    path.to_path_buf(),
+                                    dest,
+                                    mod_allow_write,
+                                    is_mutable_cfg,
+                                    asset_last_wins,
+                                    &mods_dir,
+                                );
                             }
                         }
                     }
@@ -1403,29 +1373,6 @@ pub async fn deploy_playset_bulk(
                 1
             })
             .sum();
-
-        if let Ok(guard) = routed_records.lock() {
-            if !guard.is_empty() {
-                if let Ok(json) = serde_json::to_string_pretty(&*guard) {
-                    crate::utils::set_vault_kv(&vault_path, "routed_links", &json);
-                }
-            }
-        }
-
-        if let Ok(entries) = ordered_deploy_entries.lock() {
-            let written_manifests = crate::load_order_engine::apply_load_order_outputs(
-                &game_schema,
-                &mods_dir,
-                &docs_root,
-                &live_root,
-                &entries,
-            );
-            for wp in written_manifests {
-                if wp.starts_with(&mods_dir) {
-                    record_deployed_path(&wp);
-                }
-            }
-        }
 
         if let Ok(entries) = std::fs::read_dir(&vault_mods_lane) {
             for entry in entries.flatten() {
@@ -1450,24 +1397,21 @@ pub async fn deploy_playset_bulk(
                         }
                         if config_exts.contains(&ext_lower) {
                             let dest = mods_dir.join(file_name);
-                            let already_deployed_by_subfolder = deployed_links
-                                .lock()
-                                .map(|dl| {
-                                    dl.iter().any(|existing| {
-                                        Path::new(existing)
-                                            .file_name()
-                                            .and_then(|n| n.to_str())
-                                            .map_or(false, |n| n.eq_ignore_ascii_case(file_name))
-                                    })
-                                })
-                                .unwrap_or(false);
-                            if !already_deployed_by_subfolder
-                                && !dest.exists()
-                                && std::fs::symlink_metadata(&dest).is_err()
+                            let vanilla_blocking = shared_with_vanilla
+                                && (dest.exists() || std::fs::symlink_metadata(&dest).is_ok())
+                                && !crate::utils::is_symlink_or_reparse_point(&dest);
+                            if !deployment_plan.contains_vfs_filename(file_name)
+                                && !deployment_plan.contains_vfs_target(&dest)
+                                && !vanilla_blocking
                             {
-                                if link_with_overwrite(&path, &dest, false) {
-                                    record_deployed_path(&dest);
-                                }
+                                deployment_plan.record_vfs_file(
+                                    path,
+                                    dest,
+                                    false,
+                                    true,
+                                    false,
+                                    &mods_dir,
+                                );
                             }
                         }
                     }
@@ -1475,16 +1419,50 @@ pub async fn deploy_playset_bulk(
             }
         }
 
-        if let Ok(dl) = deployed_links.lock() {
-            if !dl.is_empty() {
-                if let Ok(json) = serde_json::to_string_pretty(&*dl) {
-                    let _ = crate::utils::atomic_write_bytes(
-                        &mods_dir.join(".sanctuary_deployed_links.json"),
-                        json.as_bytes(),
-                    );
-                    crate::utils::set_vault_kv(&vault_path, "deployed_links", &json);
+        // Phase 3: Differential reconciliation across Routed + VFS targets using single buffered WAL handles + Rayon
+        let _routed_records = reconcile_routed_deployment(
+            &vault_path,
+            &deployment_plan,
+            routed_wal_path.as_deref(),
+        );
+        let mut deployed_links = reconcile_vfs_deployment(
+            &mods_dir,
+            &vault_path,
+            &vault_mods_lane,
+            &game_schema,
+            shared_with_vanilla,
+            &deployment_plan,
+        );
+
+        let written_manifests = crate::load_order_engine::apply_load_order_outputs(
+            &game_schema,
+            &mods_dir,
+            &docs_root,
+            &live_root,
+            &ordered_deploy_entries,
+        );
+        let mut deployed_keys: HashSet<String> = deployed_links
+            .iter()
+            .map(|p| crate::utils::normalize_path_key(Path::new(p)))
+            .collect();
+        for wp in written_manifests {
+            if wp.starts_with(&mods_dir) {
+                let k = crate::utils::normalize_path_key(&wp);
+                if deployed_keys.insert(k) {
+                    deployed_links.push(wp.to_string_lossy().to_string());
                 }
             }
+        }
+
+        if deployed_links.is_empty() {
+            let _ = std::fs::remove_file(mods_dir.join(".sanctuary_deployed_links.json"));
+            crate::utils::delete_vault_kv(&vault_path, "deployed_links");
+        } else if let Ok(json) = serde_json::to_string_pretty(&deployed_links) {
+            let _ = crate::utils::atomic_write_bytes(
+                &mods_dir.join(".sanctuary_deployed_links.json"),
+                json.as_bytes(),
+            );
+            crate::utils::set_vault_kv(&vault_path, "deployed_links", &json);
         }
         let _ = super::runtime_capture_and_ini::apply_schema_ini_mutations(
             &game_schema,

@@ -337,6 +337,20 @@ serve(async (req: Request) => {
             { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } }
           );
         }
+      } else if (pushType === "user_notification_batch") {
+        if (!callerUserId) {
+          return new Response(
+            JSON.stringify({ success: false, error: "Authentication required for batch push" }),
+            { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+          );
+        }
+        const authorizedBatch = await isAuthorizedHubOrSpokeStaff(callerUserId);
+        if (!authorizedBatch) {
+          return new Response(
+            JSON.stringify({ success: false, error: "Forbidden: Staff or internal trigger required for batch push" }),
+            { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+          );
+        }
       } else if (
         pushType !== "passkey_handshake" &&
         pushType !== "blueprint_staging" &&
@@ -366,7 +380,62 @@ serve(async (req: Request) => {
     let urgency: "very-low" | "low" | "normal" | "high" = "normal";
     let ttl = 86400;
 
-    if (pushType === "passkey_handshake") {
+    let batchDeliveries: Array<{ sub: any; payload: Record<string, any> }> | null = null;
+    if (pushType === "user_notification_batch") {
+      const items = Array.isArray(body.items) ? body.items.slice(0, 1000) : [];
+      const itemByUser = new Map<string, any>();
+      for (const rawItem of items) {
+        const uid = String(rawItem?.user_id || "").trim();
+        if (uid && !itemByUser.has(uid)) {
+          itemByUser.set(uid, rawItem);
+        }
+      }
+      const userIds = Array.from(itemByUser.keys());
+      const fetchedSubs: any[] = [];
+      for (let i = 0; i < userIds.length; i += 200) {
+        const chunk = userIds.slice(i, i + 200);
+        const { data } = await supabase
+          .from("pwa_push_subscriptions")
+          .select("*")
+          .in("user_id", chunk);
+        if (Array.isArray(data)) {
+          fetchedSubs.push(...data);
+        }
+      }
+      urgency = "high";
+      batchDeliveries = [];
+      for (const sub of fetchedSubs) {
+        const item = itemByUser.get(String(sub?.user_id || ""));
+        if (!item) continue;
+        const category = mapNotifTypeToCategory(item.notif_type);
+        if (!shouldSendForCategory(sub.prefs, category, targetSpoke || "global")) {
+          continue;
+        }
+        const subSpoke =
+          targetSpoke ||
+          sanitizeSpokeSlug(sub?.prefs?.default_spoke) ||
+          (Array.isArray(sub?.subscribed_spokes)
+            ? sanitizeSpokeSlug(
+                sub.subscribed_spokes.find((s: string) => s && s !== "global")
+              )
+            : "");
+        batchDeliveries.push({
+          sub,
+          payload: {
+            title: sanitizeText(item.title || "Sanctuary OS", 80),
+            body: sanitizeText(item.body || "You have a new notification.", 160),
+            actionTypeId: category.toUpperCase(),
+            tag: String(item.unique_id || `notif_${Date.now()}`),
+            url: buildDefaultSpokePath(subSpoke, "open_notifications=1"),
+            data: {
+              actionTypeId: category.toUpperCase(),
+              spokeId: targetSpoke || "global",
+            },
+          },
+        });
+      }
+      subscriptions = batchDeliveries.map((d) => d.sub);
+    } else if (pushType === "passkey_handshake") {
       const handshakeToken = String(body.handshake_token || "").trim();
       if (handshakeToken.length < 16) {
         return new Response(
@@ -503,12 +572,23 @@ serve(async (req: Request) => {
     } else if (pushType === "broadcast") {
       const spokeId = targetSpoke || "global";
       const category = mapNotifTypeToCategory(body.broadcast_type);
-      const { data } = await supabase
-        .from("pwa_push_subscriptions")
-        .select("*")
-        .contains("subscribed_spokes", [spokeId]);
+      const pagedSubs: any[] = [];
+      let offset = 0;
+      const PAGE_SIZE = 1000;
+      while (offset < 250_000) {
+        const { data, error: pgErr } = await supabase
+          .from("pwa_push_subscriptions")
+          .select("*")
+          .contains("subscribed_spokes", [spokeId])
+          .order("endpoint", { ascending: true })
+          .range(offset, offset + PAGE_SIZE - 1);
+        if (pgErr || !Array.isArray(data) || data.length === 0) break;
+        pagedSubs.push(...data);
+        if (data.length < PAGE_SIZE) break;
+        offset += PAGE_SIZE;
+      }
 
-      subscriptions = (data || []).filter((sub: any) =>
+      subscriptions = pagedSubs.filter((sub: any) =>
         shouldSendForCategory(sub.prefs, category, spokeId)
       );
       urgency =
@@ -526,82 +606,83 @@ serve(async (req: Request) => {
       };
     }
 
-    if (excludeEndpoint) {
-      subscriptions = subscriptions.filter(
-        (sub: any) => sub.endpoint !== excludeEndpoint
-      );
-    }
-
-    subscriptions = subscriptions.filter(
-      (sub: any) =>
+    const deliveryList: Array<{ sub: any; payload?: Record<string, any> }> = (
+      batchDeliveries || subscriptions.map((sub: any) => ({ sub }))
+    ).filter(({ sub }) => {
+      if (excludeEndpoint && sub?.endpoint === excludeEndpoint) return false;
+      return (
         sub?.endpoint &&
         sub?.p256dh &&
         sub?.auth &&
         isAllowedWebPushEndpoint(String(sub.endpoint))
-    );
+      );
+    });
 
     let sentCount = 0;
     const staleEndpoints: string[] = [];
+    const PUSH_CONCURRENCY = 40;
 
-    await Promise.all(
-      subscriptions.map(async (sub: any) => {
-        if (!sub?.endpoint || !sub?.p256dh || !sub?.auth) return;
-        const subSpoke =
-          targetSpoke ||
-          sanitizeSpokeSlug(sub?.prefs?.default_spoke) ||
-          (Array.isArray(sub?.subscribed_spokes)
-            ? sanitizeSpokeSlug(
-                sub.subscribed_spokes.find((s: string) => s && s !== "global")
-              )
-            : "");
-        const fallbackSubUrl =
-          pushType === "passkey_handshake"
-            ? buildDefaultSpokePath(subSpoke, "open_passkey_handshake=1")
-            : buildDefaultSpokePath(subSpoke, "open_notifications=1");
-        const subUrl =
-          pushType === "passkey_handshake"
-            ? fallbackSubUrl
-            : sanitizeRelativePushUrl(body.url, fallbackSubUrl);
-        const perSubPayload = {
-          ...notifPayload,
-          url: subUrl,
-        };
-        try {
-          await webpush.sendNotification(
-            {
-              endpoint: sub.endpoint,
-              keys: {
-                p256dh: sub.p256dh,
-                auth: sub.auth,
+    for (let i = 0; i < deliveryList.length; i += PUSH_CONCURRENCY) {
+      const chunk = deliveryList.slice(i, i + PUSH_CONCURRENCY);
+      await Promise.all(
+        chunk.map(async ({ sub, payload: overridePayload }) => {
+          const subSpoke =
+            targetSpoke ||
+            sanitizeSpokeSlug(sub?.prefs?.default_spoke) ||
+            (Array.isArray(sub?.subscribed_spokes)
+              ? sanitizeSpokeSlug(
+                  sub.subscribed_spokes.find((s: string) => s && s !== "global")
+                )
+              : "");
+          const fallbackSubUrl =
+            pushType === "passkey_handshake"
+              ? buildDefaultSpokePath(subSpoke, "open_passkey_handshake=1")
+              : buildDefaultSpokePath(subSpoke, "open_notifications=1");
+          const subUrl =
+            pushType === "passkey_handshake"
+              ? fallbackSubUrl
+              : sanitizeRelativePushUrl(body.url, fallbackSubUrl);
+          const perSubPayload = overridePayload || {
+            ...notifPayload,
+            url: subUrl,
+          };
+          try {
+            await webpush.sendNotification(
+              {
+                endpoint: sub.endpoint,
+                keys: {
+                  p256dh: sub.p256dh,
+                  auth: sub.auth,
+                },
               },
-            },
-            JSON.stringify(perSubPayload),
-            {
-              TTL: ttl,
-              urgency,
-            }
-          );
-          sentCount++;
-        } catch (err: any) {
-          const status = Number(err?.statusCode || 0);
-          if (status === 404 || status === 410) {
-            staleEndpoints.push(sub.endpoint);
-          } else {
-            console.warn(
-              "Web push delivery error:",
-              status,
-              err?.message || err
+              JSON.stringify(perSubPayload),
+              {
+                TTL: ttl,
+                urgency,
+              }
             );
+            sentCount++;
+          } catch (err: any) {
+            const status = Number(err?.statusCode || 0);
+            if (status === 404 || status === 410) {
+              staleEndpoints.push(sub.endpoint);
+            } else {
+              console.warn(
+                "Web push delivery error:",
+                status,
+                err?.message || err
+              );
+            }
           }
-        }
-      })
-    );
+        })
+      );
+    }
 
-    if (staleEndpoints.length > 0) {
+    for (let i = 0; i < staleEndpoints.length; i += 200) {
       await supabase
         .from("pwa_push_subscriptions")
         .delete()
-        .in("endpoint", staleEndpoints);
+        .in("endpoint", staleEndpoints.slice(i, i + 200));
     }
 
     return new Response(

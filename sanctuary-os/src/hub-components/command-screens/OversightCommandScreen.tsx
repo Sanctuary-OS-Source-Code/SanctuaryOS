@@ -9,6 +9,18 @@ import {
   CommandComplianceReviewSidePanel,
   CommandReportResolutionSidePanel,
 } from "../../side-panels/HubCommandQuickPanels";
+import {
+  DmcaAllNoticesSidePanel,
+  DmcaLaneLeadCard,
+  DmcaNoticeCard,
+  DmcaNoticeReviewSidePanel,
+  fetchDmcaQueueNotices,
+  type ResolvedDmcaTargetEntry,
+} from "../compliance/DmcaOversightQueueSection";
+import {
+  partitionDmcaNoticesByLane,
+  type DmcaLaneId,
+} from "../compliance/dmcaQueueHelpers";
 import { EmptyState, VAULT_CHIP_CLASS } from "../../shared";
 import {
   CommandScreenLayout,
@@ -45,6 +57,8 @@ interface OversightCommandSnapshot {
   stats: {
     complianceFlags: number;
     pendingCompliance: number;
+    dmcaActive: number;
+    dmcaOverdue: number;
     supportTickets: number;
     malwareTotal: number;
     pendingManifests: number;
@@ -64,12 +78,17 @@ interface OversightCommandSnapshot {
   recentMalware: any[];
   recentCompliance: any[];
   recentReports: any[];
+  dmcaNotices: any[];
+  dmcaGamesMap: Record<string, any>;
+  dmcaResolvedTargetsMap: Record<string, ResolvedDmcaTargetEntry>;
 }
 
 const DEFAULT_OVERSIGHT_SNAPSHOT: OversightCommandSnapshot = {
   stats: {
     complianceFlags: 0,
     pendingCompliance: 0,
+    dmcaActive: 0,
+    dmcaOverdue: 0,
     supportTickets: 0,
     malwareTotal: 0,
     pendingManifests: 0,
@@ -89,6 +108,9 @@ const DEFAULT_OVERSIGHT_SNAPSHOT: OversightCommandSnapshot = {
   recentMalware: [],
   recentCompliance: [],
   recentReports: [],
+  dmcaNotices: [],
+  dmcaGamesMap: {},
+  dmcaResolvedTargetsMap: {},
 };
 
 export function OversightCommandScreen({
@@ -121,6 +143,8 @@ export function OversightCommandScreen({
   const [selectedManifest, setSelectedManifest] = useState<any | null>(null);
   const [selectedComplianceMod, setSelectedComplianceMod] = useState<any | null>(null);
   const [selectedReport, setSelectedReport] = useState<any | null>(null);
+  const [selectedDmcaNotice, setSelectedDmcaNotice] = useState<any | null>(null);
+  const [allDmcaLane, setAllDmcaLane] = useState<DmcaLaneId | null>(null);
 
   const refreshOversightDashboard = useCallback(async () => {
     const [
@@ -143,6 +167,7 @@ export function OversightCommandScreen({
       auditLogsRes,
       latestPatchRes,
       dlcCountRes,
+      dmcaQueueRes,
     ] = await Promise.all([
       supabase
         .from("system_broadcasts")
@@ -163,7 +188,7 @@ export function OversightCommandScreen({
           count: "exact",
         })
         .gte("compliance_tier", 1)
-        .lte("compliance_tier", 4)
+        .lte("compliance_tier", 5)
         .order("updated_at", { ascending: false })
         .limit(6),
       spokeOversightFrom("mods")
@@ -171,13 +196,13 @@ export function OversightCommandScreen({
           count: "exact",
         })
         .gte("compliance_tier", 1)
-        .lte("compliance_tier", 4)
+        .lte("compliance_tier", 5)
         .in("status", ["pending", "under_review", "unverified"])
         .order("updated_at", { ascending: false })
         .limit(6),
       spokeOversightFrom("mods")
         .select("id", { count: "exact", head: true })
-        .eq("compliance_tier", 5),
+        .eq("compliance_tier", 6),
       supabase
         .from("malware_reports")
         .select("*", { count: "exact" })
@@ -236,6 +261,7 @@ export function OversightCommandScreen({
         .order("release_date", { ascending: false })
         .limit(1),
       supabase.from("dlc_registry").select("id", { count: "exact", head: true }),
+      fetchDmcaQueueNotices().catch(() => null),
     ]);
 
     const matchesOversightAudience = (p: any) => {
@@ -330,6 +356,8 @@ export function OversightCommandScreen({
         complianceFlags:
           complianceModsRes?.count ?? (complianceModsRes?.data?.length || 0),
         pendingCompliance: pendingComplianceCount,
+        dmcaActive: dmcaQueueRes?.activeCount ?? 0,
+        dmcaOverdue: dmcaQueueRes?.overdueCount ?? 0,
         supportTickets: oversightTickets.length,
         malwareTotal: tier5Count + pendingManifests,
         pendingManifests,
@@ -349,6 +377,9 @@ export function OversightCommandScreen({
       recentMalware: (malwareReportsRes?.data || []).slice(0, 3),
       recentCompliance: prioritizedCompliance.slice(0, 3),
       recentReports: unifiedReports.slice(0, 3),
+      dmcaNotices: dmcaQueueRes?.notices || [],
+      dmcaGamesMap: dmcaQueueRes?.gamesMap || {},
+      dmcaResolvedTargetsMap: dmcaQueueRes?.resolvedTargetsMap || {},
     };
 
     setSnapshot(nextSnapshot);
@@ -370,6 +401,23 @@ export function OversightCommandScreen({
     recentCompliance,
     recentReports,
   } = snapshot;
+
+  const dmcaLanes = partitionDmcaNoticesByLane(snapshot.dmcaNotices || [], t);
+  const leadDmcaLane: DmcaLaneId =
+    dmcaLanes.urgent.length > 0
+      ? "urgent"
+      : dmcaLanes.pending.length > 0
+        ? "pending"
+        : "settled";
+  const leadDmcaCount =
+    leadDmcaLane === "urgent"
+      ? dmcaLanes.urgent.length
+      : leadDmcaLane === "pending"
+        ? dmcaLanes.pending.length
+        : dmcaLanes.settled.length;
+  const inlineDmcaNotices = (
+    dmcaLanes.active.length > 0 ? dmcaLanes.active : dmcaLanes.settled
+  ).slice(0, 2);
 
   return (
     <CommandScreenLayout>
@@ -455,6 +503,47 @@ export function OversightCommandScreen({
               jumpTooltip={t("wf_tab_dispatch", "{Dispatches}")}
             />
             <SystemBroadcastsGrid broadcasts={broadcasts} setViewingPost={setViewingPost} />
+          </div>
+
+          {/* DMCA & Legal Compliance -> Opens DmcaNoticeReviewSidePanel Directly */}
+          <div className="flex flex-col gap-4">
+            <CommandScreenSectionHeading
+              icon={t("icon_gavel", "gavel")}
+              iconColorClass={
+                (stats.dmcaOverdue || 0) > 0
+                  ? "text-[var(--danger)]"
+                  : (stats.dmcaActive || 0) > 0
+                    ? "text-[var(--warning)]"
+                    : "text-[var(--success)]"
+              }
+              title={t("dmca_tab_label", "DMCA & Legal")}
+              subtitle={t(
+                "oversight_dmca_sub",
+                "Statutory § 512 takedown & counter-notice compliance queue (48h SLA)"
+              )}
+              onJump={() => {
+                if (setComplianceFilter) setComplianceFilter("dmca");
+                setTab("compliance");
+              }}
+              jumpTooltip={`${t("dmca_tab_label", "DMCA & Legal")} (${stats.dmcaActive || 0})`}
+            />
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 w-full">
+              <DmcaLaneLeadCard
+                lane={leadDmcaLane}
+                count={leadDmcaCount}
+                overdueCount={stats.dmcaOverdue || 0}
+                onClick={() => setAllDmcaLane(leadDmcaLane)}
+              />
+              {inlineDmcaNotices.map((notice: any) => (
+                <DmcaNoticeCard
+                  key={notice.id}
+                  notice={notice}
+                  resolvedTargetsMap={snapshot.dmcaResolvedTargetsMap || {}}
+                  gamesMap={snapshot.dmcaGamesMap || {}}
+                  onSelect={setSelectedDmcaNotice}
+                />
+              ))}
+            </div>
           </div>
 
           {/* Support Queue -> Opens TicketDossierSidePanel Directly */}
@@ -578,7 +667,7 @@ export function OversightCommandScreen({
               icon={t("icon_policy", "policy")}
               iconColorClass="text-[var(--warning)]"
               title={t("tab_compliance", "Compliance")}
-              subtitle={t("oversight_compliance_sub", "Pending & Active Tier 1–4 {Mods} — click to confirm, adjust, or clear")}
+              subtitle={t("oversight_compliance_sub", "Pending & Active Tier 1–5 {Mods} — click to confirm, adjust, or clear")}
               onJump={() => {
                 if (setComplianceFilter) {
                   setComplianceFilter(stats.pendingCompliance > 0 ? "pending" : "overview");
@@ -984,6 +1073,27 @@ export function OversightCommandScreen({
         report={selectedReport}
         onCompleted={refreshOversightDashboard}
         onOpenFullReports={() => setTab("reports")}
+      />
+
+      <DmcaAllNoticesSidePanel
+        isOpen={Boolean(allDmcaLane)}
+        onClose={() => setAllDmcaLane(null)}
+        initialLane={allDmcaLane || "urgent"}
+        notices={snapshot.dmcaNotices || []}
+        resolvedTargetsMap={snapshot.dmcaResolvedTargetsMap || {}}
+        gamesMap={snapshot.dmcaGamesMap || {}}
+        onSelectNotice={setSelectedDmcaNotice}
+        onRefresh={refreshOversightDashboard}
+      />
+
+      <DmcaNoticeReviewSidePanel
+        notice={selectedDmcaNotice}
+        isOpen={Boolean(selectedDmcaNotice)}
+        onClose={() => setSelectedDmcaNotice(null)}
+        resolvedTargetsMap={snapshot.dmcaResolvedTargetsMap || {}}
+        gamesMap={snapshot.dmcaGamesMap || {}}
+        onRefresh={refreshOversightDashboard}
+        onTriageCompleted={refreshOversightDashboard}
       />
     </CommandScreenLayout>
   );

@@ -60,7 +60,7 @@ function encodeBase64UrlJson(obj: Record<string, any>): string {
   return btoa(bin).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
 }
 
-describe("Section 5 — Zero-Conflict Fork CLI, Schema Pull Safety & CI Workflows", () => {
+describe("Zero-Conflict Fork CLI, Schema Pull Safety & CI Workflows", () => {
   it("validates fork configs, uplink bundles, and applies tauri.conf overlay immutably", async () => {
     const { configureFork } = await loadNodeHelpers();
     const validPubkey = btoa("untrusted comment: minisign public key: EXAMPLE00001\nRWTSamplePublicKeyBytes12345678901234567890=");

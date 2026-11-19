@@ -268,7 +268,7 @@ export default function AssetPreviewSidebar({
       } else if (localReportState.assetType === "mod") {
         const { error: repErr } = await supabase.rpc("flag_mod_for_compliance", {
           p_mod_id: normalizedId,
-          p_tier: Math.min(4, Math.max(1, Number(localReportState.complianceTier || 1))),
+          p_tier: Math.min(5, Math.max(1, Number(localReportState.complianceTier || 1))),
           p_reason: localReportState.reason.trim(),
         });
         if (repErr) throw repErr;

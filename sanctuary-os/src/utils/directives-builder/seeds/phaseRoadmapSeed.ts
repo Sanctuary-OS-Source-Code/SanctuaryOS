@@ -2,24 +2,128 @@ import type { DirectiveBuilderSchema, DirectiveBuilderCard } from "../types";
 import { CURRENT_DIRECTIVE_SCHEMA_VERSION } from "../types";
 
 export function buildPhaseRoadmapSchema(
-  t: (key: string, fallback?: string) => string,
+  t: (key: string, fallback: string) => string,
   g: (txt: string) => string,
   elevatedRolesCards: DirectiveBuilderCard[]
 ): DirectiveBuilderSchema {
     const roadmapCards: DirectiveBuilderCard[] = [
       {
+        id: "phase_16",
+        icon: t("icon_verified", "verified"),
+        overline: g("PHASE 16 (V1.0.0 GA) • PLANNED"),
+        badge: g("PLANNED"),
+        title: g("Global GA — Reproducible Signed Builds & Sovereign Ecosystem"),
+        footerMeta: g(
+          "Notarized Multi-OS Signing • Audited Crypto • Spoke SLA & Abandonment Automation • V1.0 Spec Freeze"
+        ),
+        desc: g(
+          "General Availability release delivering reproducible Authenticode EV / notarized Apple / GPG-signed desktop binaries, third-party cryptographic and VFS security audits, automated Keepers Core Spoke DMCA/abandonment tooling, and the frozen v1.0 Master Schema specification."
+        ),
+        status: "planned",
+        subCards: [
+          {
+            id: "phase_16_m1",
+            icon: t("icon_verified_user", "verified_user"),
+            roadmapStatus: "planned",
+            title: g("Reproducible Multi-OS Code Signing & Notarization"),
+            desc: g(
+              "Production Windows Authenticode EV / Azure Trusted Signing, notarized Apple Universal .dmg binaries, and GPG-signed Linux AppImage/DEB releases with build provenance attestations."
+            ),
+          },
+          {
+            id: "phase_16_m2",
+            icon: t("icon_security", "security"),
+            roadmapStatus: "planned",
+            title: g("External Cryptography & VFS Security Audit"),
+            desc: g(
+              "Independent third-party verification of Split-Custody HKDF-SHA256 / AES-256-GCM envelopes, Ed25519 manifests, WebAuthn FIDO2 gates, and Rust extraction/path-traversal sandboxing."
+            ),
+          },
+          {
+            id: "phase_16_m3",
+            icon: t("icon_gavel", "gavel"),
+            roadmapStatus: "planned",
+            title: g("Partner Spoke SLA & Succession Automation"),
+            desc: g(
+              "In-hub UI tooling for 48h Spoke DMCA compliance logs, automated Abandoned Spoke / Wayfinder Succession handoffs, and zero-downtime spoke schema migrations."
+            ),
+          },
+          {
+            id: "phase_16_m4",
+            icon: t("icon_public", "public"),
+            roadmapStatus: "planned",
+            title: g("Global Lexicon Registry & V1.0 Stability Freeze"),
+            desc: g(
+              "Public community translation pack index, frozen v1.0 sanctuary_schemas contract, and production multi-region Core Hub Federation SLA guarantees."
+            ),
+          },
+        ],
+      },
+      {
+        id: "phase_15",
+        icon: t("icon_upcoming", "upcoming"),
+        overline: g("PHASE 15 (V0.7.0 BETA) • PLANNED"),
+        badge: g("PLANNED"),
+        title: g("Beta Stabilization — 27-Preset Soak, Fire Drill & Opt-In Controls"),
+        footerMeta: g(
+          "Real-Game E2E Soak • Automated Patch Fire Drill • Opt-In Telemetry Granularity • 50k-Mod Performance Budgets"
+        ),
+        desc: g(
+          "Pre-GA public beta stabilization delivering real-game end-to-end soak verification across all 27 engine presets, automated Patch Fire Drill & Groundhog bisect orchestration, granular opt-in cloud mirroring controls, and in-hub Spoke SQL migration runners."
+        ),
+        status: "planned",
+        subCards: [
+          {
+            id: "phase_15_m1",
+            icon: t("icon_sports_esports", "sports_esports"),
+            roadmapStatus: "planned",
+            title: g("27-Preset Real-Game End-to-End Soak Suite"),
+            desc: g(
+              "Cross-platform storefront verification (Steam, GOG, Epic, Xbox Store, Proton) testing real binary version ripping, hardlink/junction deployment, and runtime Overwrite capture."
+            ),
+          },
+          {
+            id: "phase_15_m2",
+            icon: t("icon_local_fire_department", "local_fire_department"),
+            roadmapStatus: "planned",
+            title: g("Patch Fire Drill & Groundhog Bisect Polish"),
+            desc: g(
+              "Automated pre-patch dry-run staging simulation and interactive 1-click binary search mod isolation sweeps inside Homestead Lab."
+            ),
+          },
+          {
+            id: "phase_15_m3",
+            icon: t("icon_tune", "tune"),
+            roadmapStatus: "planned",
+            title: g("Granular Opt-In Cloud Mirroring Controls"),
+            desc: g(
+              "Unified per-device consent dashboard governing opt-in Lab verification certificates, Pocket Radar encrypted staging queues, and optional Zero-PII Threat Manifest uploads."
+            ),
+          },
+          {
+            id: "phase_15_m4",
+            icon: t("icon_speed", "speed"),
+            roadmapStatus: "planned",
+            title: g("In-Hub Spoke Migrator & 60 FPS Scale Budgets"),
+            desc: g(
+              "Interactive Wayfinder migrations/spoke/ version upgrader (v1 -> v3+), WebGL2 Low-Power / Reduced-Motion presets, and 50,000+-mod UI frame budgets."
+            ),
+          },
+        ],
+      },
+      {
         id: "phase_14",
         icon: t("icon_science", "science"),
-        overline: g("PHASE 14 (V0.6.0) • NOVEMBER 2026 — ACTIVE ERA"),
+        overline: g("PHASE 14 (V0.6.0-DEV.15) • NOVEMBER 2026 — ACTIVE ERA"),
         badge: g("ACTIVE PHASE"),
         title: g(
           "Universal Multi-Engine Expansion, Patch Fire Drill & Deck Overdrive"
         ),
         footerMeta: g(
-          "Creator Airlock • Zero-Copy Exodus • The Rosetta Protocol • Patch Fire Drill • Groundhog Sandbox • Deck Overdrive • Jump Gate"
+          "Creator Airlock • Quartermaster • Zero-Copy Exodus • Rosetta Protocol • Save Doctor • 27 Presets • Differential VFS"
         ),
         desc: g(
-          "Full multi-engine expansion featuring Creator Airlock external tool save isolation, The Quartermaster guided package wizard, Zero-Copy Exodus out-of-tree setup migration, The Rosetta Protocol modlist translation, Save Doctor lockouts, Patch Fire Drill simulations, Groundhog Sandbox verification, Deck Overdrive Steam Deck controls, Code-Switch auto-translation, Echo Suppressor alert sync, Crash Autopsy, Pocket Radar, Browser Autoloader, Jump Gate palette, Live-Wire Diff, and the Ironclad Gauntlet test suite."
+          "Major v0.6.0 expansion shipping Creator Airlock external tool save isolation, The Quartermaster guided package wizard, Zero-Copy Exodus MO2/Vortex migration, The Rosetta Protocol modlist translation + lockfile hydration, Save Doctor, Cloud-Sync Folder Sentinel, Deck Overdrive, Code-Switch (7,300+ strings), Crash Autopsy, Conflict Radar 2.0 (multi-engine binary TOCs + LOOT), Differential Rayon VFS, Million-Citizen Cloud Scale, and the Ironclad Gauntlet test suite—while Patch Fire Drill & Groundhog Sandbox finalize for v0.7.0."
         ),
         status: "active",
         subCards: [
@@ -28,7 +132,7 @@ export function buildPhaseRoadmapSchema(
             icon: t("icon_check_circle", "check_circle"),
             title: g("Creator Airlock"),
             desc: g(
-              "Launches external authoring, asset-editing, and modding tools inside a Save-Airgapped {Lab} session with automatic post-exit save restoration—physically isolating primary saves during edits."
+              "Launches external authoring, asset-editing, and modding tools inside a Save-Airgapped {Lab} session with automatic post-exit save restoration—physically isolating primary saves during edits (distinct from the in-app Open {Mason} Workshop)."
             ),
             pending: false,
           },
@@ -37,7 +141,7 @@ export function buildPhaseRoadmapSchema(
             icon: t("icon_check_circle", "check_circle"),
             title: g("The Quartermaster"),
             desc: g(
-              "Intercepts multi-variant .fomod (ModuleConfig.xml UTF-8/UTF-16LE) and BAIN archives on drop or download via a Guided Package Installer drawer with conditional flag evaluation."
+              "Intercepts multi-variant .fomod (ModuleConfig.xml UTF-8/UTF-16LE, <gameDependency>/<fommDependency>) and BAIN archives on drop or download via a Guided Package Installer drawer with 1-click reconfiguration."
             ),
             pending: false,
           },
@@ -46,16 +150,16 @@ export function buildPhaseRoadmapSchema(
             icon: t("icon_check_circle", "check_circle"),
             title: g("Zero-Copy Exodus"),
             desc: g(
-              "Zero-reinstall out-of-tree migration via {Blueprints} -> Migrate External Manager: auto-detects MO2, Vortex, and staging directories, screens with ByteHound, absorbs files via OS hardlinks, reconstructs {Blueprint} profiles, and relocates Master {Vault} roots."
+              "Zero-reinstall out-of-tree migration via {Blueprints} -> Migrate External Manager or Cartographer setup: auto-detects MO2, Vortex, and staging directories, screens with ByteHound, absorbs files via OS hardlinks, and reconstructs {Blueprint} profiles."
             ),
             pending: false,
           },
           {
             id: "phase_14_m4",
             icon: t("icon_check_circle", "check_circle"),
-            title: g("The Rosetta Protocol"),
+            title: g("The Rosetta Protocol & Lockfile Hydration"),
             desc: g(
-              "Cross-platform curated modlist and collection translator compiling .mrpack, CurseForge manifest.json, Nexus collection.json (with modRules), and .wabbajack archives across Drag & Drop and {Blueprint} import, binding local SHA-256 matches and queuing missing items cleanly."
+              "Cross-platform modlist translator compiling .mrpack, CurseForge manifest.json, Nexus collection.json, and .wabbajack archives alongside 1-click parallel .sanctuary-blueprint.lock.json hydration and BSDiff/xdelta binary patching."
             ),
             pending: false,
           },
@@ -73,7 +177,7 @@ export function buildPhaseRoadmapSchema(
             icon: t("icon_science", "science"),
             title: g("Patch Fire Drill"),
             desc: g(
-              "Simulates any upstream game patch across all {Blueprints} with 1:1 deduplicated {mod} counts, transitive Atomic Logic dependency cascades, local Echo Archive Auto-Swap detection, 1-click dependency acquisition, and 1-click Clone Ready {Blueprint} generation."
+              "Simulates any upstream game patch across all {Blueprints} with 1:1 deduplicated {mod} counts, transitive Atomic Logic dependency cascades, local Echo Archive Auto-Swap detection, and Clone Ready {Blueprint} generation (full headless soak finalizing in v0.7.0)."
             ),
             pending: false,
             roadmapStatus: "in_testing",
@@ -83,127 +187,134 @@ export function buildPhaseRoadmapSchema(
             icon: t("icon_science", "science"),
             title: g("Groundhog Sandbox"),
             desc: g(
-              "Immortal save-verify-and-rewind {Lab} airgap featuring an externalized save mirror, read-only Golden Baseline test saves with disposable working copies, Stage 4 magic-byte save corruption auditing, 100% passive anti-cheat-safe 4-stage timers, pause-menu suspension, and native fullscreen PCM audio chimes."
+              "Save-verify-and-rewind {Lab} airgap featuring an externalized save mirror, read-only Golden Baseline test saves, strict opt-in OFF cloud verification certificates, anti-cheat-safe timers, and fullscreen PCM chimes (full automated bisect finalizing in v0.7.0)."
             ),
             pending: false,
             roadmapStatus: "in_testing",
           },
           {
             id: "phase_14_m8",
-            icon: t("icon_extension", "extension"),
-            title: g("Universal Master Schema"),
+            icon: t("icon_check_circle", "check_circle"),
+            title: g("Universal Master Schema (27 Presets)"),
             desc: g(
-              "100% engine-agnostic Master Schema v2 powering ordered XML/JSON/text manifest compilers, multi-folder asset tree preservation, Copy-on-Write staging, and declarative virtual_fs_path, archive_member, binary_chunk_index, and json_xml_key conflict analyzers."
+              "100% engine-agnostic sanctuary_schemas across 27 built-in presets, Overwrite runtime capture, ini_mutations, profile_isolated_dirs, post_deploy_hooks, and declarative virtual_fs_path, archive_member, binary_chunk_index (TES4/BSA/BA2/LSPK/PAK/UTOC/RDAR/RPF7), and json_xml_key analyzers."
             ),
             pending: false,
-            roadmapStatus: "in_testing",
           },
           {
             id: "phase_14_m9",
-            icon: t("icon_sports_esports", "sports_esports"),
+            icon: t("icon_check_circle", "check_circle"),
             title: g("Deck Overdrive"),
             desc: g(
-              "Full-OS Steam Deck controller engine and Proton prefix auto-resolver: unifies Gamescope XWayland surface binding, decodes 64-byte hidraw packets into a 60 FPS {Chameleon} Virtual Pointer + 2D Spatial Focus engine, and translates Steam libraryfolders.vdf / compatdata prefixes across internal drives and SD cards."
+              "Full-OS Steam Deck controller engine and Proton prefix auto-resolver: unifies Gamescope XWayland surface binding, decodes 64-byte hidraw packets into a 60 FPS {Chameleon} Virtual Pointer + 2D Spatial Focus engine, and launches Windows tools/script extenders inside Proton prefixes."
             ),
             pending: false,
-            roadmapStatus: "in_testing",
           },
           {
             id: "phase_14_m10",
-            icon: t("icon_translate", "translate"),
-            title: g("Code-Switch"),
+            icon: t("icon_check_circle", "check_circle"),
+            title: g("Code-Switch (7,400+ Keys)"),
             desc: g(
-              "Lexicon Engine V2 with an automated Standard English source scanner, lightweight Sparse Delta Override packs, a Source-First 4-tab Visual Studio, Guided Icon Overrides, and 1-click neural auto-translation across 28+ languages with {Glossary} placeholder masking."
+              "Lexicon Engine V2 with automated 7,400+-key Standard English extraction (7,409 keys), Sparse Delta Override packs, Source-First 4-tab Visual Studio, Guided Icon Overrides, and 1-click neural auto-translation with {Glossary} placeholder masking."
             ),
             pending: false,
-            roadmapStatus: "in_testing",
           },
           {
             id: "phase_14_m11",
-            icon: t("icon_filter_1", "filter_1"),
+            icon: t("icon_check_circle", "check_circle"),
             title: g("The Highlander Rule"),
             desc: g(
               "Enforces single-winner exclusive slots (highlander_group_id) with explicit Swap, Keep Both, or Cancel alerts on {Vault} cards and Dossiers so rival {mods} never vanish silently."
             ),
             pending: false,
-            roadmapStatus: "in_testing",
           },
           {
             id: "phase_14_m12",
-            icon: t("icon_notifications_off", "notifications_off"),
+            icon: t("icon_check_circle", "check_circle"),
             title: g("Echo Suppressor"),
             desc: g(
               "Zero-PII AES-256-GCM cross-device notification deduplication and per-Spoke alert muting across Windows, Steam Deck, and Mobile PWA, paired with 7-Domain {Settings} and the Per-Space {Chameleons} & {Lexicons} Matrix."
             ),
             pending: false,
-            roadmapStatus: "in_testing",
           },
           {
             id: "phase_14_m13",
-            icon: t("icon_troubleshoot", "troubleshoot"),
+            icon: t("icon_check_circle", "check_circle"),
             title: g("Crash Autopsy"),
             desc: g(
-              "Citizen-facing {Lab} Known Error showcase (Corrupted / Unstable / Unrelated) with Architect-pinned diagnostic rules, schema-driven log matchers, and instant crash-log paste decoding across Desktop and Web."
+              "Citizen-facing {Lab} Known Error showcase (Corrupted / Unstable / Unrelated) backed by SQLite <10ms exception correlation, Architect-pinned public.known_exception_rules, and instant crash-log paste decoding."
             ),
             pending: false,
-            roadmapStatus: "in_testing",
           },
           {
             id: "phase_14_m14",
-            icon: t("icon_install_mobile", "install_mobile"),
-            title: g("Pocket Radar"),
+            icon: t("icon_check_circle", "check_circle"),
+            title: g("Pocket Radar (Opt-In Companion)"),
             desc: g(
-              "Mobile PWA and Web Vault Companion with optional encrypted sync of active {Blueprint} DNA hashes so {Citizens} spot broken {mods} remotely, pair with Beam to Rig transfers, and browse with responsive mobile filter pills."
+              "Mobile PWA and Web Vault Companion with strict opt-in OFF by default for encrypted active-{Blueprint} DNA sync, pairing with Beam to Rig transfers and responsive mobile filter pills."
             ),
             pending: false,
-            roadmapStatus: "in_testing",
           },
           {
             id: "phase_14_m15",
-            icon: t("icon_cloud_download", "cloud_download"),
-            title: g("Browser Autoloader"),
+            icon: t("icon_check_circle", "check_circle"),
+            title: g("Browser Autoloader, Direct HTTPS & Deep Links"),
             desc: g(
-              "Adds a Guided Update Queue (1 of N) stepper bar to the Side Panel Browser that opens each {Mason}'s official download page sequentially and auto-advances the instant the Rust download interceptor verifies the archive."
+              "Guided Update Queue (1 of N) in Side Panel Browser alongside direct SHA-256 HTTPS streaming, tri-OS Deep Links (sanctuary://, nxm://, ror2mm://, curseforge://), and optional local DPAPI BYO-API-Key Broker."
             ),
             pending: false,
-            roadmapStatus: "in_testing",
           },
           {
             id: "phase_14_m16",
-            icon: t("icon_bolt", "bolt"),
+            icon: t("icon_check_circle", "check_circle"),
             title: g("Jump Gate"),
             desc: g(
-              "Global Ctrl+K / Cmd+K Liquid Glass command palette across Desktop, Web, and Mobile PWA for jumping to installed {Vault} {mods}, toggling {Blueprint} items, navigating all 18 OS views, switching {Chameleons} & {Lexicons}, and firing quick actions."
+              "Global Ctrl+K / Cmd+K Liquid Glass command palette across Desktop, Web, and Mobile PWA for jumping to installed {Vault} {mods}, toggling {Blueprint} items, navigating all OS views, switching {Chameleons} & {Lexicons}, and firing quick actions."
             ),
             pending: false,
-            roadmapStatus: "in_testing",
           },
           {
             id: "phase_14_m17",
-            icon: t("icon_radar", "radar"),
-            title: g("Conflict Radar 2.0"),
+            icon: t("icon_check_circle", "check_circle"),
+            title: g("Conflict Radar 2.0 & LOOT Compiler"),
             desc: g(
-              "5-Tier Severity Matrix (S1–S5), strategy-aware Load Order & Priority Tier inspector with searchable {Blueprint} Scan Scope, 1-click 'Set Winner' resolution, and directional Must Load After/Before rules."
+              "5-Tier Severity Matrix (S1–S5), external LOOT YAML/CRC32 rules, bidirectional DAG load ordering with 1-click 'Set Winner' resolution, and SQLite Conflict Radar key caching."
             ),
             pending: false,
-            roadmapStatus: "in_testing",
           },
           {
             id: "phase_14_m18",
-            icon: t("icon_difference", "difference"),
+            icon: t("icon_check_circle", "check_circle"),
             title: g("Live-Wire Diff"),
             desc: g(
-              "Automatically captures live in-game .cfg/.ini/.json/.toml modifications intercepted by the Rust Config Watcher as timestamped [In-Game Engine Edit] snapshots inside the {Citizen}'s Workbench Diff Timeline."
+              "Lossless TOML/YAML/JSONC round-trip config preservation capturing live in-game .cfg/.ini/.json/.toml/.yaml/.xml edits intercepted by the Rust Config Watcher as [In-Game Engine Edit] snapshots."
             ),
             pending: false,
-            roadmapStatus: "in_testing",
           },
           {
             id: "phase_14_m19",
-            icon: t("icon_verified", "verified"),
+            icon: t("icon_check_circle", "check_circle"),
             title: g("Ironclad Gauntlet"),
             desc: g(
-              "Automated Vitest + Cargo Test regression suite covering the Topological Load Order Engine, Bytecode Hound heuristic scanner (including Zlib/Zstd streams), Dynamic {Glossary} Token interpolation, and System Directive parsing."
+              "CI-enforced Vitest + Cargo Test regression gauntlet (15+ Vitest suites & 87+ Rust tests across Load Order, Rosetta, Anarchy, Crypto/Uplink, 27 Presets/Lexicons, Differential VFS, Binary TOCs, FOMOD, Time Capsule Lanes, and Doc/Directive Parity)."
+            ),
+            pending: false,
+          },
+          {
+            id: "phase_14_m20",
+            icon: t("icon_check_circle", "check_circle"),
+            title: g("Cloud-Sync Folder Sentinel"),
+            desc: g(
+              "Detects active OneDrive, Dropbox, iCloud Drive, and Google Drive sync locks on {Vault}, Staging, and target game directories before symlink/hardlink projection can corrupt data."
+            ),
+            pending: false,
+          },
+          {
+            id: "phase_14_m21",
+            icon: t("icon_check_circle", "check_circle"),
+            title: g("Differential VFS, Scale Architecture & Compliance Tiers 0–6"),
+            desc: g(
+              "Differential Rayon VFS deployment with WAL safety for 50k-mod libraries, batched statement-level pwa-web-push & counter_shards for million-citizen scale, 61 Spoke / 28 Hub tables with versioned migrations, Spoke-routed Tier 1 DMCA Hold + Tiers 2–5 Restricted + Tier 6 Malware, and 7 Governance SOPs."
             ),
             pending: false,
           },
@@ -230,7 +341,7 @@ export function buildPhaseRoadmapSchema(
             icon: t("icon_check_circle", "check_circle"),
             title: g("Schema Forge"),
             desc: g(
-              "7 multi-game architecture presets, Windows (.exe) & macOS (.app) coordinate mapping, secondary install_routes, database-driven public.taxonomy Categories, and live config_extensions syncing."
+              "27 multi-game architecture presets, Windows (.exe) & macOS (.app) coordinate mapping, secondary install_routes, database-driven public.taxonomy Categories, and live config_extensions syncing."
             ),
             pending: false,
           },
@@ -317,7 +428,7 @@ export function buildPhaseRoadmapSchema(
             icon: t("icon_check_circle", "check_circle"),
             title: g("Sanctuary V6 & Liquid Glass Engine"),
             desc: g(
-              "4-layer 3D Refractive Liquid Glass Engine, revamped Default Themes + 'Plumbob Crystal' Partner Chameleon, and Chameleon Theme Forge 2.0."
+              "4-layer 3D Refractive Liquid Glass Engine, revamped Default {Chameleons}, Partner Spoke {Chameleon} packs, and Chameleon Theme Forge 2.0."
             ),
           },
           {
@@ -426,13 +537,13 @@ export function buildPhaseRoadmapSchema(
         overline: g("PHASE 10 • MAY 10 – MAY 16, 2026"),
         badge: g("COMPLETED"),
         title: g(
-          "Post-Alpha Revamp, Visual Protocol Manager & Senior Architect Mass Update"
+          "Post-Alpha Revamp, Visual Protocol Manager & Oversight Mass Update"
         ),
         footerMeta: g(
           "Dev Sandbox, Visual Protocol Schema, Theme Forge & Mass Triage"
         ),
         desc: g(
-          "Launched the isolated Dev Sandbox & 'Sync to Network' creator pipeline, visual database-schema Protocol Manager, Folder Structure builder, Senior Architect Mass Update console, The Nexus registry, and Chameleon Theme Forge."
+          "Launched the isolated Dev Sandbox & 'Sync to Network' creator pipeline, visual database-schema Protocol Manager, Folder Structure builder, Oversight Mass Update console, The Nexus registry, and Chameleon Theme Forge."
         ),
         status: "completed",
         subCards: [
@@ -455,9 +566,9 @@ export function buildPhaseRoadmapSchema(
           {
             id: "phase_10_m7",
             icon: t("icon_check_circle", "check_circle"),
-            title: g("Senior Architect Mass Update & Filters"),
+            title: g("Oversight Mass Update & Filters"),
             desc: g(
-              "Bulk post-patch triage console for Senior Architects alongside 'Game Version', 'Currently Eligible', and 'Exclude Unowned DLC' filters."
+              "Bulk post-patch triage console for Oversight Command alongside 'Game Version', 'Currently Eligible', and 'Exclude Unowned DLC' filters."
             ),
           },
           {
@@ -498,7 +609,7 @@ export function buildPhaseRoadmapSchema(
           "Proving Grounds Simulation, macOS Universal Pipeline & Command Hubs"
         ),
         desc: g(
-          "Transitioned Homestead Proving Grounds into a live simulation laboratory with real-time log monitoring, deployed the Senior Architect & Wayfinder Command Hubs, automated signed macOS Universal (.dmg) builds, and enforced Florida Compliance Tiers 1–4."
+          "Transitioned Homestead Proving Grounds into a live simulation laboratory with real-time log monitoring, deployed the Oversight & Wayfinder Command Hubs, automated signed macOS Universal (.dmg) builds, and enforced Compliance Tiers 0–6."
         ),
         status: "completed",
         subCards: [
@@ -529,7 +640,7 @@ export function buildPhaseRoadmapSchema(
           {
             id: "phase_9_m8",
             icon: t("icon_check_circle", "check_circle"),
-            title: g("Florida Compliance Tiers 1–4"),
+            title: g("Compliance Tiers 0–6 Matrix"),
             desc: g(
               "Automated public feed scrubbing and Cloud {Blueprint} hash purge triggers protecting public discovery while preserving local {Vault} freedom."
             ),
@@ -579,9 +690,9 @@ export function buildPhaseRoadmapSchema(
           {
             id: "phase_8_m8",
             icon: t("icon_check_circle", "check_circle"),
-            title: g("Tier 5 Malware Scanner & Secure Shred"),
+            title: g("Tier 6 Malware Scanner & Secure Shred"),
             desc: g(
-              "Byte-level heuristic malware scanner, {Citizen}-signed zero-fill Secure Shredding, and the privacy-first hardware_bans Nuclear Override."
+              "Byte-level heuristic malware scanner, {Citizen}-signed zero-fill Secure Shredding, and the offline-toggleable Nuclear Override."
             ),
           },
         ],
@@ -773,7 +884,7 @@ export function buildPhaseRoadmapSchema(
             icon: t("icon_check_circle", "check_circle"),
             title: g("Priority Tier Folders & Dynamic Load Manifests"),
             desc: g(
-              "Multi-tier override directories (Sanctuary1–Sanctuary3) paired with automated load-order manifest priority depth compilation."
+              "Multi-tier override directories (schema priority folders Tiers 1–3) paired with automated load-order manifest priority depth compilation."
             ),
           },
           {
@@ -937,15 +1048,15 @@ export function buildPhaseRoadmapSchema(
     return {
       slug: "phase_roadmap",
       _schemaVersion: CURRENT_DIRECTIVE_SCHEMA_VERSION,
-      title: g("Engineering Phase Roadmap (Phase 14 → Phase 1)"),
+      title: g("Engineering Phase Roadmap (Phase 16 → Phase 1)"),
       summary: g(
-        "Interactive reverse-chronological engineering timeline tracking Sanctuary OS from Phase 14 (V0.6.0 Agnostic Multi-Engine Expansion) and Phase 13 (V5.8 Multi-Engine Studios & Bilateral Cloud Sync) down to Phase 1."
+        "Interactive reverse-chronological engineering timeline tracking Sanctuary OS from planned Phase 16 (V1.0.0 GA) & Phase 15 (V0.7.0 Beta), through active Phase 14 (V0.6.0-Dev.15 Multi-Engine Expansion, Differential VFS & Scale Architecture), down to Phase 1."
       ),
       tabs: [
         {
           id: "all",
           icon: t("icon_timeline", "timeline"),
-          label: g("14 Phases"),
+          label: g("16 Phases"),
           value: g("Full Timeline"),
           cards: roadmapCards,
         },

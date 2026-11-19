@@ -1,3 +1,4 @@
+import React from 'react';
 import { useLexicon } from '../LexiconContext';
 import MarkdownRenderer from '../shared-components/MarkdownRenderer';
 import {
@@ -148,10 +149,10 @@ export function LandingApplicationDrawers({
   setPartnerInfraReadiness,
   partnerVision,
   setPartnerVision,
-  activePartnerStep,
-  setActivePartnerStep,
-  maxPartnerStep,
-  setMaxPartnerStep,
+  activePartnerStep: _activePartnerStep,
+  setActivePartnerStep: _setActivePartnerStep,
+  maxPartnerStep: _maxPartnerStep,
+  setMaxPartnerStep: _setMaxPartnerStep,
   activePartnerCovenant,
   setActivePartnerCovenant,
   covenantViewMode,
@@ -189,18 +190,219 @@ export function LandingApplicationDrawers({
   setKeeperExperience,
   keeperMotivation,
   setKeeperMotivation,
-  activeKeeperStep,
-  setActiveKeeperStep,
-  maxKeeperStep,
-  setMaxKeeperStep,
-  sessionEmail,
+  activeKeeperStep: _activeKeeperStep,
+  setActiveKeeperStep: _setActiveKeeperStep,
+  maxKeeperStep: _maxKeeperStep,
+  setMaxKeeperStep: _setMaxKeeperStep,
+  sessionEmail: _sessionEmail,
 }: LandingApplicationDrawersProps) {
   const { t } = useLexicon();
+
+  const partnerMissingReasons: string[] = React.useMemo(() => {
+    const missing: string[] = [];
+    if (!partnerGate1 || !partnerGate2 || !partnerGate3) {
+      missing.push(
+        t('landing_partner_missing_readiness', '3 Readiness Commitments')
+      );
+    }
+    if (!partnerGate4) {
+      missing.push(
+        t(
+          'partner_covenants_title',
+          'Partners Agreement & Compliance Protocol'
+        )
+      );
+    }
+    if (!partnerGameTitle.trim()) {
+      missing.push(
+        t('landing_partner_game_title', 'Target Game Title & Engine')
+      );
+    }
+    if (!partnerExtensions.trim()) {
+      missing.push(
+        t(
+          'landing_partner_extensions',
+          'Primary {Mod} File Formats / Extensions'
+        )
+      );
+    }
+    if (!partnerLeadContact.trim()) {
+      missing.push(
+        t(
+          'landing_partner_lead_contact',
+          'Lead Wayfinder Handle & Direct Contact (Discord / Email)'
+        )
+      );
+    }
+    const visLen = partnerVision.trim().length;
+    if (visLen < 50) {
+      missing.push(
+        `${t(
+          'landing_partner_vision',
+          'Workspace Scope, Install Routing & Governance Plan'
+        )} (${visLen}/50)`
+      );
+    }
+    return missing;
+  }, [
+    partnerGate1,
+    partnerGate2,
+    partnerGate3,
+    partnerGate4,
+    partnerGameTitle,
+    partnerExtensions,
+    partnerLeadContact,
+    partnerVision,
+    t,
+  ]);
+
+  const partnerSubmitTooltipTitle =
+    partnerMissingReasons.length > 0
+      ? t('form_incomplete_tooltip_title', 'Complete Required Fields to Submit')
+      : t('landing_partner_submit_btn', 'Submit Partner Spoke Dossier');
+  const partnerSubmitTooltipSub =
+    partnerMissingReasons.length > 0
+      ? `${t('form_missing_prefix', 'Missing:')} ${partnerMissingReasons.slice(0, 4).join(' • ')}${
+          partnerMissingReasons.length > 4
+            ? ` (+${partnerMissingReasons.length - 4})`
+            : ''
+        }`
+      : undefined;
+
+  const keeperMissingReasons: string[] = React.useMemo(() => {
+    const missing: string[] = [];
+    if (!keeperHandle.trim()) {
+      missing.push(t('landing_keeper_handle_label', 'Your Name or Handle'));
+    }
+    if (!keeperContact.trim()) {
+      missing.push(
+        t('landing_keeper_contact_label', 'Direct Email or Discord')
+      );
+    }
+    const expLen = keeperExperience.trim().length;
+    if (expLen < 40) {
+      missing.push(
+        `${t(
+          'landing_keeper_missing_exp_short',
+          'Experience & Shipped Projects (40+ chars)'
+        )} (${expLen}/40)`
+      );
+    }
+    if (!keeperGate1 || !keeperGate2 || !keeperGate3) {
+      missing.push(
+        t('landing_keeper_missing_gates', '3 Foundry Standards Commitments')
+      );
+    }
+    return missing;
+  }, [
+    keeperHandle,
+    keeperContact,
+    keeperExperience,
+    keeperGate1,
+    keeperGate2,
+    keeperGate3,
+    t,
+  ]);
+
+  const keeperSubmitTooltipTitle =
+    keeperMissingReasons.length > 0
+      ? t('form_incomplete_tooltip_title', 'Complete Required Fields to Submit')
+      : t('landing_keeper_submit_btn', 'Submit Application to Sanctuary Foundry');
+  const keeperSubmitTooltipSub =
+    keeperMissingReasons.length > 0
+      ? `${t('form_missing_prefix', 'Missing:')} ${keeperMissingReasons.join(' • ')}`
+      : undefined;
+
+  const keeperRoleOptions = React.useMemo(
+    () => [
+      {
+        id: 'Systems & Backend Engineer (Rust / Tauri)',
+        icon: t('icon_terminal', 'terminal'),
+        dept: t('landing_keeper_role_systems_dept', 'Core Engineering'),
+        title: t(
+          'landing_keeper_role_systems_title',
+          'Systems & Backend Engineer (Rust / Tauri)'
+        ),
+        desc: t(
+          'landing_keeper_role_systems_desc',
+          'Native desktop runtime, SQLite state engine, symlink/hardlink deployment, archive extraction, and Windows/macOS parity.'
+        ),
+      },
+      {
+        id: 'Frontend & Graphics Engineer (TypeScript / React / WebGL2)',
+        icon: t('icon_code', 'code'),
+        dept: t('landing_keeper_role_frontend_dept', 'UI & Graphics'),
+        title: t(
+          'landing_keeper_role_frontend_title',
+          'Frontend & Graphics Engineer (TypeScript / React / WebGL2)'
+        ),
+        desc: t(
+          'landing_keeper_role_frontend_desc',
+          '3D WebGL2 Liquid Glass surfaces, Chameleon theme engine, Mobile PWA, and high-concurrency UI architecture.'
+        ),
+      },
+      {
+        id: 'Malware & Reverse-Engineering Analyst (Heuristics)',
+        icon: t('icon_shield_lock', 'shield_lock'),
+        dept: t('landing_keeper_role_security_dept', 'Threat Intelligence'),
+        title: t(
+          'landing_keeper_role_security_title',
+          'Malware & Reverse-Engineering Analyst (Heuristics)'
+        ),
+        desc: t(
+          'landing_keeper_role_security_desc',
+          'Bytecode/binary inspection, Base64/hex deobfuscation, Zlib/Zstd stream analysis, and global heuristic threat signatures.'
+        ),
+      },
+      {
+        id: 'Multi-Game Schema & Tooling Architect',
+        icon: t('icon_architecture', 'architecture'),
+        dept: t('landing_keeper_role_schema_dept', 'Game Integration'),
+        title: t(
+          'landing_keeper_role_schema_title',
+          'Multi-Game Schema & Tooling Architect'
+        ),
+        desc: t(
+          'landing_keeper_role_schema_desc',
+          'Mapping game folder structures, load-order engines, config formats, and authoring Master Schemas & Workbench templates.'
+        ),
+      },
+      {
+        id: 'Platform Support & Technical Triage Specialist',
+        icon: t('icon_support_agent', 'support_agent'),
+        dept: t('landing_keeper_role_support_dept', 'Support & Triage'),
+        title: t(
+          'landing_keeper_role_support_title',
+          'Platform Support & Technical Triage Specialist'
+        ),
+        desc: t(
+          'landing_keeper_role_support_desc',
+          'Investigating Sanctuary OS bug reports, analyzing diagnostic logs, assisting {Citizens}, and handling direct human inquiries.'
+        ),
+      },
+      {
+        id: 'Partner Spoke Relations & Documentation Lead',
+        icon: t('icon_handshake', 'handshake'),
+        dept: t('landing_keeper_role_spokes_dept', 'Operations & Docs'),
+        title: t(
+          'landing_keeper_role_spokes_title',
+          'Partner Spoke Relations & Documentation Lead'
+        ),
+        desc: t(
+          'landing_keeper_role_spokes_desc',
+          'Onboarding Partner Game Communities, verifying Spoke readiness, and authoring plain-English {Citizen} Guides & Directives.'
+        ),
+      },
+    ],
+    [t]
+  );
+  const selectedKeeperRole =
+    keeperRoleOptions.find((r) => r.id === keeperFocus) || keeperRoleOptions[0];
 
   return (
     <>
       {/* =====================================================================
-          DRAWER 3: PARTNER GAME SPOKE APPLICATION (CHAT-LIKE GUIDED FLOW)
+          DRAWER 3: PARTNER GAME SPOKE APPLICATION (UNIFIED SIDEPANEL)
          ===================================================================== */}
       <SidePanel
         isOpen={isPartnerDrawerOpen}
@@ -214,7 +416,7 @@ export function LandingApplicationDrawers({
           'New Game Workspace Qualification & Onboarding Pipeline'
         )}
         icon={t('icon_handshake', 'handshake')}
-        widthClass="w-[90vw] md:w-[700px]"
+        widthClass="w-[92vw] md:w-[740px]"
         headerActions={
           <PanelHeaderGroup>
             <PanelHeaderButton
@@ -228,10 +430,10 @@ export function LandingApplicationDrawers({
                   ? t('icon_sync', 'sync')
                   : t('icon_rocket_launch', 'rocket_launch')
               }
-              tooltip={t(
-                'landing_partner_submit_btn',
-                'Submit Partner Spoke Dossier'
-              )}
+              variant="accent"
+              disabled={isSubmittingPartner || partnerMissingReasons.length > 0}
+              tooltip={partnerSubmitTooltipTitle}
+              tooltipSubtitle={partnerSubmitTooltipSub}
               onClick={handleSubmitPartnerApplication}
             />
           </PanelHeaderGroup>
@@ -254,7 +456,7 @@ export function LandingApplicationDrawers({
             )}
             variant="accent"
           >
-            <div className="grid grid-cols-2 gap-3 w-full">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 w-full">
               <StatBox
                 label={t(
                   'landing_partner_game_title',
@@ -263,595 +465,442 @@ export function LandingApplicationDrawers({
                 value={partnerGameTitle.trim() || '--'}
                 icon={t('icon_sports_esports', 'sports_esports')}
                 iconColorClass="text-[var(--accent)]"
-                colorClass="text-[var(--accent)]"
               />
               <StatBox
-                label={t('step_progress', 'Step Progress')}
-                value={`${Math.min(activePartnerStep + 1, 4)} / 4`}
-                icon={t('icon_checklist', 'checklist')}
-                iconColorClass="text-[var(--success)]"
-                colorClass="text-[var(--text)]"
+                label={t('partner_agreement_title', 'Partners Agreement')}
+                value={
+                  partnerGate4
+                    ? t('partner_covenants_agreed_badge', 'Agreed & Verified')
+                    : t('partner_covenants_review_badge', 'Review Required')
+                }
+                icon={
+                  partnerGate4
+                    ? t('icon_verified', 'verified')
+                    : t('icon_gavel', 'gavel')
+                }
+                iconColorClass={
+                  partnerGate4 ? 'text-[var(--success)]' : 'text-[var(--warning)]'
+                }
               />
             </div>
           </SidePanelHeroCard>
 
-          {/* STEP 1: READINESS GATE & COVENANTS */}
-          {activePartnerStep > 0 ? (
-            <div
-              onClick={() => setActivePartnerStep(0)}
-              className="glass-panel p-4 rounded-2xl border border-[color-mix(in_srgb,var(--accent)_25%,transparent)] flex items-center justify-between cursor-pointer group hover:border-[var(--accent)] transition-all"
-            >
-              <div className="flex flex-col gap-0.5 min-w-0 pr-4">
-                <span className="text-[10px] font-black text-[var(--accent)] uppercase tracking-widest flex items-center gap-1.5">
-                  <span className="material-symbols-outlined !text-xs">
-                    {t('icon_check_circle', 'check_circle')}
-                  </span>
-                  {t('step_completed', 'Step Completed')}
-                </span>
-                <h4 className="text-sm font-black text-[var(--text)] truncate">
-                  {t(
-                    'landing_partner_gate_hdr',
-                    'Step 1: Partner Spoke Readiness Check'
-                  )}
-                </h4>
-                <p className="text-xs text-[var(--subtext)] opacity-80 truncate font-mono">
-                  {t(
-                    'landing_partner_badge',
-                    'Readiness-Gated Dossier • Anti-Spam Verified'
-                  )}
-                </p>
-              </div>
-              <span className="material-symbols-outlined text-[var(--subtext)] opacity-40 group-hover:opacity-100 group-hover:text-[var(--accent)] transition-all">
-                {t('icon_edit', 'edit')}
-              </span>
+          <UniversalGroup
+            title={t(
+              'landing_partner_group_readiness',
+              'Readiness & Spoke Covenants'
+            )}
+            icon={t('icon_gavel', 'gavel')}
+          >
+            <p className="text-xs text-[var(--subtext)] leading-relaxed m-0 no-text-case">
+              {t(
+                'landing_partner_gate_desc',
+                'To prevent spam and clarify what a Partner Spoke is, confirm all three operational requirements below to unlock the application dossier:'
+              )}
+            </p>
+
+            <div className="flex flex-col gap-2.5">
+              <SidePanelPillToggle
+                label={t(
+                  'landing_partner_gate_1_title',
+                  'Game Workspace — Not a Personal Creator Badge'
+                )}
+                description={t(
+                  'landing_partner_gate_1_desc',
+                  'I understand that a Partner Spoke is a dedicated Game Workspace (e.g. Skyrim, GTA V, Stardew Valley) governed by community Wayfinders & Architects—not an individual creator verification badge or mod help desk.'
+                )}
+                icon={t('icon_dns', 'dns')}
+                checked={partnerGate1}
+                onChange={setPartnerGate1}
+              />
+              <SidePanelPillToggle
+                label={t(
+                  'landing_partner_gate_2_title',
+                  'Active Moderation & Schema Commitment'
+                )}
+                description={t(
+                  'landing_partner_gate_2_desc',
+                  "We have a committed team (or established community) ready to maintain our game's Master Schema (extensions, install routes, load order) and moderate {Mod} submissions."
+                )}
+                icon={t('icon_groups', 'groups')}
+                checked={partnerGate2}
+                onChange={setPartnerGate2}
+              />
+              <SidePanelPillToggle
+                label={t(
+                  'landing_partner_gate_3_title',
+                  'Anti-Malware & 0% Fee Charter Compliance'
+                )}
+                description={t(
+                  'landing_partner_gate_3_desc',
+                  "Our spoke will uphold Sanctuary OS's cryptographic hash verification, zero-malware tolerance, and non-custodial 0% platform fee policy."
+                )}
+                icon={t('icon_shield', 'shield')}
+                checked={partnerGate3}
+                onChange={setPartnerGate3}
+              />
             </div>
-          ) : (
-            <div className="glass-panel border-2 border-[var(--accent)] rounded-3xl p-6 md:p-8 flex flex-col gap-5 relative overflow-hidden animate-in zoom-in-95 duration-300 shadow-[0_20px_50px_rgba(0,0,0,0.5)]">
-              <div className="flex flex-col gap-2">
-                <span className="text-[10px] font-black text-[var(--accent)] uppercase tracking-widest px-3 py-1 rounded-full border border-[color-mix(in_srgb,var(--accent)_25%,transparent)] w-max">
-                  {`${t('step', 'STEP')} 1 / 4`}
+
+            {/* REQUIRED PARTNER SPOKE COVENANTS CONTAINER */}
+            <div className="glass-surface rounded-2xl p-4 border border-[color-mix(in_srgb,var(--text)_12%,transparent)] flex flex-col gap-3.5 mt-1">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <div className="flex items-center gap-2">
+                  <span className="material-symbols-outlined !text-[18px] text-[var(--accent)]">
+                    {t('icon_gavel', 'gavel')}
+                  </span>
+                  <span className="text-xs font-black uppercase tracking-wider text-[var(--text)]">
+                    {t(
+                      'partner_covenants_title',
+                      'Partners Agreement & Compliance Protocol'
+                    )}
+                  </span>
+                </div>
+                <span
+                  className={`text-[10px] font-black uppercase tracking-widest px-2.5 py-0.5 rounded-lg glass-surface border bg-transparent flex items-center gap-1 ${
+                    partnerGate4
+                      ? 'border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[var(--success)]'
+                      : 'border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[var(--warning)]'
+                  }`}
+                >
+                  <span className="material-symbols-outlined !text-[12px]">
+                    {partnerGate4
+                      ? t('icon_verified', 'verified')
+                      : t('icon_menu_book', 'menu_book')}
+                  </span>
+                  <span>
+                    {partnerGate4
+                      ? t('partner_covenants_agreed_badge', 'Agreed & Verified')
+                      : t('partner_covenants_review_badge', 'Review Required')}
+                  </span>
                 </span>
-                <h3 className="text-xl font-black text-[var(--text)] tracking-tight mt-1">
-                  {t(
-                    'landing_partner_gate_hdr',
-                    'Step 1: Partner Spoke Readiness Check'
-                  )}
-                </h3>
-                <p className="text-xs text-[var(--subtext)] opacity-80">
-                  {t(
-                    'landing_partner_gate_desc',
-                    'To prevent spam and clarify what a Partner Spoke is, confirm all three operational requirements below to unlock the application dossier:'
-                  )}
-                </p>
               </div>
 
-              <div className="flex flex-col gap-2.5">
-                <SidePanelPillToggle
-                  label={t(
-                    'landing_partner_gate_1_title',
-                    'Game Workspace — Not a Personal Creator Badge'
-                  )}
-                  description={t(
-                    'landing_partner_gate_1_desc',
-                    'I understand that a Partner Spoke is a dedicated Game Workspace (e.g. Skyrim, GTA V, Stardew Valley) governed by community Wayfinders & Architects—not an individual creator verification badge or mod help desk.'
-                  )}
-                  icon={t('icon_dns', 'dns')}
-                  checked={partnerGate1}
-                  onChange={setPartnerGate1}
-                />
-                <SidePanelPillToggle
-                  label={t(
-                    'landing_partner_gate_2_title',
-                    'Active Moderation & Schema Commitment'
-                  )}
-                  description={t(
-                    'landing_partner_gate_2_desc',
-                    "We have a committed team (or established community) ready to maintain our game's Master Schema (extensions, install routes, load order) and moderate {Mod} submissions."
-                  )}
-                  icon={t('icon_groups', 'groups')}
-                  checked={partnerGate2}
-                  onChange={setPartnerGate2}
-                />
-                <SidePanelPillToggle
-                  label={t(
-                    'landing_partner_gate_3_title',
-                    'Anti-Malware & 0% Fee Charter Compliance'
-                  )}
-                  description={t(
-                    'landing_partner_gate_3_desc',
-                    "Our spoke will uphold Sanctuary OS's cryptographic hash verification, zero-malware tolerance, and non-custodial 0% platform fee policy."
-                  )}
-                  icon={t('icon_shield', 'shield')}
-                  checked={partnerGate3}
-                  onChange={setPartnerGate3}
-                />
+              <p className="text-[11px] text-[var(--subtext)] opacity-85 leading-relaxed m-0 no-text-case">
+                {t(
+                  'partner_covenants_desc',
+                  'Inspect the binding Sanctuary OS Partners Agreement and Compliance Protocol governing Spoke sovereignty, 0% non-custodial donations, heuristic malware enforcement, and cryptographic {mod} integrity.'
+                )}
+              </p>
 
-                {/* REQUIRED PARTNER SPOKE COVENANTS CONTAINER */}
-                <div className="glass-surface rounded-2xl p-4 border border-[color-mix(in_srgb,var(--accent)_28%,transparent)] flex flex-col gap-3.5 mt-1">
-                  <div className="flex flex-wrap items-center justify-between gap-2">
-                    <div className="flex items-center gap-2">
-                      <span className="material-symbols-outlined !text-[18px] text-[var(--accent)]">
-                        {t('icon_gavel', 'gavel')}
-                      </span>
-                      <span className="text-xs font-black uppercase tracking-wider text-[var(--text)]">
-                        {t(
-                          'partner_covenants_title',
-                          'Partners Agreement & Compliance Protocol'
-                        )}
-                      </span>
-                    </div>
-                    <span
-                      className={`text-[10px] font-black uppercase tracking-widest px-2.5 py-0.5 rounded-full border bg-transparent flex items-center gap-1 ${partnerGate4
-                        ? 'border-[color-mix(in_srgb,var(--success)_40%,transparent)] text-[var(--success)]'
-                        : 'border-[color-mix(in_srgb,var(--warning)_40%,transparent)] text-[var(--warning)]'
-                        }`}
-                    >
-                      <span className="material-symbols-outlined !text-[12px]">
-                        {partnerGate4
-                          ? t('icon_verified', 'verified')
-                          : t('icon_menu_book', 'menu_book')}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setReviewedPartnersDoc(true);
+                    setActivePartnerCovenant('PartnersAgreement');
+                  }}
+                  className={`p-3.5 rounded-2xl glass-panel border text-left flex flex-col gap-2 cursor-pointer transition-all group ${
+                    reviewedPartnersDoc || partnerGate4
+                      ? 'border-[color-mix(in_srgb,var(--text)_18%,transparent)] hover:border-[var(--success)]'
+                      : 'border-[color-mix(in_srgb,var(--text)_14%,transparent)] hover:border-[var(--accent)]'
+                  }`}
+                >
+                  <div className="flex items-center justify-between gap-2 w-full">
+                    <span className="text-[10px] font-mono font-bold uppercase tracking-wider text-[var(--accent)] flex items-center gap-1.5">
+                      <span className="material-symbols-outlined !text-[15px]">
+                        {t('icon_handshake', 'handshake')}
                       </span>
                       <span>
-                        {partnerGate4
-                          ? t('partner_covenants_agreed_badge', 'Agreed & Verified')
-                          : t('partner_covenants_review_badge', 'Review Required')}
+                        {t('partner_agreement_badge', 'Spoke Charter')}
+                      </span>
+                    </span>
+                    <span
+                      className={`text-[9px] font-black uppercase tracking-widest px-2 py-0.5 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] bg-transparent flex items-center gap-1 ${
+                        reviewedPartnersDoc || partnerGate4
+                          ? 'text-[var(--success)]'
+                          : 'text-[var(--accent)]'
+                      }`}
+                    >
+                      <span className="material-symbols-outlined !text-[11px]">
+                        {reviewedPartnersDoc || partnerGate4
+                          ? t('icon_check_circle', 'check_circle')
+                          : t('icon_open_in_new', 'open_in_new')}
+                      </span>
+                      <span>
+                        {reviewedPartnersDoc || partnerGate4
+                          ? t('verified', 'Verified')
+                          : t('btn_view', 'View')}
                       </span>
                     </span>
                   </div>
-
-                  <p className="text-[11px] text-[var(--subtext)] opacity-85 leading-relaxed">
-                    {t(
-                      'partner_covenants_desc',
-                      'Inspect the binding Sanctuary OS Partners Agreement and Compliance Protocol governing Spoke sovereignty, 0% non-custodial donations, heuristic malware enforcement, and cryptographic {mod} integrity.'
-                    )}
-                  </p>
-
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setReviewedPartnersDoc(true);
-                        setActivePartnerCovenant('PartnersAgreement');
-                      }}
-                      className={`p-3.5 rounded-2xl glass-panel border text-left flex flex-col gap-2 cursor-pointer transition-all group ${reviewedPartnersDoc || partnerGate4
-                        ? 'border-[color-mix(in_srgb,var(--success)_40%,transparent)] hover:border-[var(--success)]'
-                        : 'border-[color-mix(in_srgb,var(--accent)_35%,transparent)] hover:border-[var(--accent)]'
-                        }`}
-                    >
-                      <div className="flex items-center justify-between gap-2 w-full">
-                        <span className="text-[10px] font-mono font-bold uppercase tracking-wider text-[var(--accent)] flex items-center gap-1.5">
-                          <span className="material-symbols-outlined !text-[15px]">
-                            {t('icon_handshake', 'handshake')}
-                          </span>
-                          <span>
-                            {t('partner_agreement_badge', 'Spoke Charter')}
-                          </span>
-                        </span>
-                        <span
-                          className={`text-[9px] font-black uppercase tracking-widest px-2 py-0.5 rounded-full border bg-transparent flex items-center gap-1 ${reviewedPartnersDoc || partnerGate4
-                            ? 'border-[color-mix(in_srgb,var(--success)_40%,transparent)] text-[var(--success)]'
-                            : 'border-[color-mix(in_srgb,var(--accent)_35%,transparent)] text-[var(--accent)]'
-                            }`}
-                        >
-                          <span className="material-symbols-outlined !text-[11px]">
-                            {reviewedPartnersDoc || partnerGate4
-                              ? t('icon_check_circle', 'check_circle')
-                              : t('icon_open_in_new', 'open_in_new')}
-                          </span>
-                          <span>
-                            {reviewedPartnersDoc || partnerGate4
-                              ? t('verified', 'Verified')
-                              : t('btn_view', 'View')}
-                          </span>
-                        </span>
-                      </div>
-                      <div className="flex flex-col gap-0.5">
-                        <span className="text-xs font-black text-[var(--text)] group-hover:text-[var(--accent)] transition-colors">
-                          {t('partner_agreement_title', 'Partners Agreement')}
-                        </span>
-                        <span className="text-[10px] font-mono text-[var(--subtext)] opacity-80 leading-relaxed">
-                          {t(
-                            'partner_agreement_desc',
-                            'Bilateral Sovereignty (Cut the Cord), 0% non-custodial donations, Spoke maintenance duties, and brand boundaries.'
-                          )}
-                        </span>
-                      </div>
-                    </button>
-
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setReviewedComplianceDoc(true);
-                        setActivePartnerCovenant('ComplianceProtocol');
-                      }}
-                      className={`p-3.5 rounded-2xl glass-panel border text-left flex flex-col gap-2 cursor-pointer transition-all group ${reviewedComplianceDoc || partnerGate4
-                        ? 'border-[color-mix(in_srgb,var(--success)_40%,transparent)] hover:border-[var(--success)]'
-                        : 'border-[color-mix(in_srgb,var(--accent)_35%,transparent)] hover:border-[var(--accent)]'
-                        }`}
-                    >
-                      <div className="flex items-center justify-between gap-2 w-full">
-                        <span className="text-[10px] font-mono font-bold uppercase tracking-wider text-[var(--accent)] flex items-center gap-1.5">
-                          <span className="material-symbols-outlined !text-[15px]">
-                            {t('icon_verified_user', 'verified_user')}
-                          </span>
-                          <span>
-                            {t('compliance_protocol_badge', 'Safety & Privacy')}
-                          </span>
-                        </span>
-                        <span
-                          className={`text-[9px] font-black uppercase tracking-widest px-2 py-0.5 rounded-full border bg-transparent flex items-center gap-1 ${reviewedComplianceDoc || partnerGate4
-                            ? 'border-[color-mix(in_srgb,var(--success)_40%,transparent)] text-[var(--success)]'
-                            : 'border-[color-mix(in_srgb,var(--accent)_35%,transparent)] text-[var(--accent)]'
-                            }`}
-                        >
-                          <span className="material-symbols-outlined !text-[11px]">
-                            {reviewedComplianceDoc || partnerGate4
-                              ? t('icon_check_circle', 'check_circle')
-                              : t('icon_open_in_new', 'open_in_new')}
-                          </span>
-                          <span>
-                            {reviewedComplianceDoc || partnerGate4
-                              ? t('verified', 'Verified')
-                              : t('btn_view', 'View')}
-                          </span>
-                        </span>
-                      </div>
-                      <div className="flex flex-col gap-0.5">
-                        <span className="text-xs font-black text-[var(--text)] group-hover:text-[var(--accent)] transition-colors">
-                          {t(
-                            'compliance_protocol_title',
-                            'Compliance Protocol'
-                          )}
-                        </span>
-                        <span className="text-[10px] font-mono text-[var(--subtext)] opacity-80 leading-relaxed">
-                          {t(
-                            'compliance_protocol_desc',
-                            'Zero-malware enforcement, SHA-256 {mod} verification, DMCA takedown compliance, and GDPR/CCPA privacy standards.'
-                          )}
-                        </span>
-                      </div>
-                    </button>
+                  <div className="flex flex-col gap-0.5">
+                    <span className="text-xs font-black text-[var(--text)] group-hover:text-[var(--accent)] transition-colors">
+                      {t('partner_agreement_title', 'Partners Agreement')}
+                    </span>
+                    <span className="text-[10px] font-mono text-[var(--subtext)] opacity-80 leading-relaxed">
+                      {t(
+                        'partner_agreement_desc',
+                        'Bilateral Sovereignty (Cut the Cord), 0% non-custodial donations, Spoke maintenance duties, and brand boundaries.'
+                      )}
+                    </span>
                   </div>
+                </button>
 
-                  <SidePanelPillToggle
-                    label={t(
-                      'partner_covenants_agree_label',
-                      'I have read and agree to the Partners Agreement & Compliance Protocol'
-                    )}
-                    description={t(
-                      'partner_covenants_agree_desc',
-                      'Required before continuing: Review and accept both the Sanctuary OS Partners Agreement and Compliance Protocol to unlock and submit the Spoke application dossier.'
-                    )}
-                    icon={t('icon_verified', 'verified')}
-                    checked={partnerGate4}
-                    onChange={(nextVal: boolean) => {
-                      setPartnerGate4(nextVal);
-                      if (nextVal) {
-                        setReviewedPartnersDoc(true);
-                        setReviewedComplianceDoc(true);
-                      }
-                    }}
-                  />
-                </div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setReviewedComplianceDoc(true);
+                    setActivePartnerCovenant('ComplianceProtocol');
+                  }}
+                  className={`p-3.5 rounded-2xl glass-panel border text-left flex flex-col gap-2 cursor-pointer transition-all group ${
+                    reviewedComplianceDoc || partnerGate4
+                      ? 'border-[color-mix(in_srgb,var(--text)_18%,transparent)] hover:border-[var(--success)]'
+                      : 'border-[color-mix(in_srgb,var(--text)_14%,transparent)] hover:border-[var(--accent)]'
+                  }`}
+                >
+                  <div className="flex items-center justify-between gap-2 w-full">
+                    <span className="text-[10px] font-mono font-bold uppercase tracking-wider text-[var(--accent)] flex items-center gap-1.5">
+                      <span className="material-symbols-outlined !text-[15px]">
+                        {t('icon_verified_user', 'verified_user')}
+                      </span>
+                      <span>
+                        {t('compliance_protocol_badge', 'Safety & Privacy')}
+                      </span>
+                    </span>
+                    <span
+                      className={`text-[9px] font-black uppercase tracking-widest px-2 py-0.5 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] bg-transparent flex items-center gap-1 ${
+                        reviewedComplianceDoc || partnerGate4
+                          ? 'text-[var(--success)]'
+                          : 'text-[var(--accent)]'
+                      }`}
+                    >
+                      <span className="material-symbols-outlined !text-[11px]">
+                        {reviewedComplianceDoc || partnerGate4
+                          ? t('icon_check_circle', 'check_circle')
+                          : t('icon_open_in_new', 'open_in_new')}
+                      </span>
+                      <span>
+                        {reviewedComplianceDoc || partnerGate4
+                          ? t('verified', 'Verified')
+                          : t('btn_view', 'View')}
+                      </span>
+                    </span>
+                  </div>
+                  <div className="flex flex-col gap-0.5">
+                    <span className="text-xs font-black text-[var(--text)] group-hover:text-[var(--accent)] transition-colors">
+                      {t('compliance_protocol_title', 'Compliance Protocol')}
+                    </span>
+                    <span className="text-[10px] font-mono text-[var(--subtext)] opacity-80 leading-relaxed">
+                      {t(
+                        'compliance_protocol_desc',
+                        'Zero-malware enforcement, SHA-256 {mod} verification, DMCA takedown compliance, and GDPR/CCPA privacy standards.'
+                      )}
+                    </span>
+                  </div>
+                </button>
               </div>
 
-              <div className="flex justify-end pt-2 border-t border-[color-mix(in_srgb,var(--text)_8%,transparent)]">
-                <ActionButton
-                  variant="primary"
-                  icon={t('icon_done', 'done')}
-                  label={t('confirm', 'Confirm')}
-                  disabled={
-                    !partnerGate1 ||
-                    !partnerGate2 ||
-                    !partnerGate3 ||
-                    !partnerGate4
+              <SidePanelPillToggle
+                label={t(
+                  'partner_covenants_agree_label',
+                  'I have read and agree to the Partners Agreement & Compliance Protocol'
+                )}
+                description={t(
+                  'partner_covenants_agree_desc',
+                  'Required before continuing: Review and accept both the Sanctuary OS Partners Agreement and Compliance Protocol to unlock and submit the Spoke application dossier.'
+                )}
+                icon={t('icon_verified', 'verified')}
+                checked={partnerGate4}
+                onChange={(nextVal: boolean) => {
+                  setPartnerGate4(nextVal);
+                  if (nextVal) {
+                    setReviewedPartnersDoc(true);
+                    setReviewedComplianceDoc(true);
                   }
-                  onClick={() => {
-                    setActivePartnerStep(1);
-                    setMaxPartnerStep((prev) => Math.max(prev, 1));
-                  }}
+                }}
+              />
+            </div>
+          </UniversalGroup>
+
+          <UniversalGroup
+            title={t(
+              'landing_partner_group_game',
+              'Game & Community Profile'
+            )}
+            icon={t('icon_sports_esports', 'sports_esports')}
+          >
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+              <UniversalInput
+                label={`${t('landing_partner_game_title', 'Target Game Title & Engine')} *`}
+                value={partnerGameTitle}
+                onChange={setPartnerGameTitle}
+                placeholder={t(
+                  'landing_partner_game_title_ph',
+                  'e.g. Fallout 4 (Creation Engine) / Terraria (tModLoader)'
+                )}
+              />
+              <UniversalInput
+                label={`${t('landing_partner_extensions', 'Primary {Mod} File Formats / Extensions')} *`}
+                value={partnerExtensions}
+                onChange={setPartnerExtensions}
+                placeholder={t(
+                  'landing_partner_extensions_ph',
+                  'e.g. .bin, .dat, .dll, .ini, .zip'
+                )}
+              />
+              <UniversalInput
+                label={`${t('landing_partner_lead_contact', 'Lead Wayfinder Handle & Direct Contact (Discord / Email)')} *`}
+                value={partnerLeadContact}
+                onChange={setPartnerLeadContact}
+                placeholder={t(
+                  'landing_partner_lead_contact_ph',
+                  'e.g. @wayfinder (Discord) & lead@community.org'
+                )}
+              />
+              <UniversalInput
+                label={t(
+                  'landing_partner_community_url',
+                  'Existing Community, Forum, or GitHub URL'
+                )}
+                value={partnerCommunityUrl}
+                onChange={setPartnerCommunityUrl}
+                placeholder={t(
+                  'landing_partner_community_url_ph',
+                  'https://discord.gg/... or https://github.com/...'
+                )}
+              />
+            </div>
+          </UniversalGroup>
+
+          <UniversalGroup
+            title={t(
+              'landing_partner_group_governance',
+              'Team, Infrastructure & Governance Plan'
+            )}
+            icon={t('icon_architecture', 'architecture')}
+          >
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+              <div className="flex flex-col justify-end gap-1.5">
+                <label className="text-[10px] font-black uppercase tracking-widest text-[var(--subtext)] opacity-75 px-1 leading-tight">
+                  {t(
+                    'landing_partner_team_size',
+                    'Active Moderation / Architect Team Size'
+                  )}
+                </label>
+                <CustomDropdown
+                  disableTint={true}
+                  value={partnerTeamSize}
+                  onChange={(v: string[]) =>
+                    setPartnerTeamSize(
+                      v[0] || '2-3 Moderators / Architects'
+                    )
+                  }
+                  options={[
+                    {
+                      id: 'Solo Founder (Recruiting Team)',
+                      label: t(
+                        'landing_partner_team_solo',
+                        'Solo Founder (Recruiting Team)'
+                      ),
+                    },
+                    {
+                      id: '2-3 Moderators / Architects',
+                      label: t(
+                        'landing_partner_team_small',
+                        '2–3 Moderators / Architects'
+                      ),
+                    },
+                    {
+                      id: '4-10 Established Staff',
+                      label: t(
+                        'landing_partner_team_medium',
+                        '4–10 Established Staff'
+                      ),
+                    },
+                    {
+                      id: '10+ Large Community Staff',
+                      label: t(
+                        'landing_partner_team_large',
+                        '10+ Large Community Staff'
+                      ),
+                    },
+                  ]}
+                />
+              </div>
+
+              <div className="flex flex-col justify-end gap-1.5">
+                <label className="text-[10px] font-black uppercase tracking-widest text-[var(--subtext)] opacity-75 px-1 leading-tight">
+                  {t(
+                    'landing_partner_infra_ready',
+                    'Supabase Spoke Infrastructure Readiness'
+                  )}
+                </label>
+                <CustomDropdown
+                  disableTint={true}
+                  value={partnerInfraReadiness}
+                  onChange={(v: string[]) =>
+                    setPartnerInfraReadiness(
+                      v[0] || 'Ready to Provision Dedicated Supabase Project'
+                    )
+                  }
+                  options={[
+                    {
+                      id: 'Ready to Provision Dedicated Supabase Project',
+                      label: t(
+                        'landing_partner_infra_ready_yes',
+                        'Ready to Provision Dedicated Supabase Project'
+                      ),
+                    },
+                    {
+                      id: 'Need Keeper Guidance on Uplink Bootstrap',
+                      label: t(
+                        'landing_partner_infra_ready_help',
+                        'Need Keeper Guidance on Uplink Bootstrap'
+                      ),
+                    },
+                  ]}
                 />
               </div>
             </div>
-          )}
 
-          {/* STEP 2: TARGET GAME, EXTENSIONS & LEAD CONTACT */}
-          {maxPartnerStep >= 1 &&
-            (activePartnerStep > 1 ? (
-              <div
-                onClick={() => setActivePartnerStep(1)}
-                className="glass-panel p-4 rounded-2xl border border-[color-mix(in_srgb,var(--accent)_25%,transparent)] flex items-center justify-between cursor-pointer group hover:border-[var(--accent)] transition-all"
-              >
-                <div className="flex flex-col gap-0.5 min-w-0 pr-4">
-                  <span className="text-[10px] font-black text-[var(--accent)] uppercase tracking-widest flex items-center gap-1.5">
-                    <span className="material-symbols-outlined !text-xs">
-                      {t('icon_check_circle', 'check_circle')}
-                    </span>
-                    {t('step_completed', 'Step Completed')}
-                  </span>
-                  <h4 className="text-sm font-black text-[var(--text)] truncate">
-                    {partnerGameTitle}
-                  </h4>
-                  <p className="text-xs text-[var(--subtext)] opacity-80 truncate font-mono">
-                    {`${partnerExtensions} • ${partnerLeadContact}`}
-                  </p>
-                </div>
-                <span className="material-symbols-outlined text-[var(--subtext)] opacity-40 group-hover:opacity-100 group-hover:text-[var(--accent)] transition-all">
-                  {t('icon_edit', 'edit')}
+            <div className="flex flex-col gap-1.5">
+              <div className="flex items-center justify-between gap-2 px-1">
+                <label className="text-[10px] font-black uppercase tracking-widest text-[var(--subtext)] opacity-75 leading-tight">
+                  {`${t('landing_partner_vision', 'Workspace Scope, Install Routing & Governance Plan')} *`}
+                </label>
+                <span
+                  className={`text-[10px] font-mono font-bold shrink-0 ${
+                    partnerVision.trim().length >= 50
+                      ? 'text-[var(--success)]'
+                      : 'text-[var(--warning)]'
+                  }`}
+                >
+                  {`${partnerVision.trim().length} / 50+ ${t('landing_partner_min_chars_hint', 'Minimum 50 characters required')}`}
                 </span>
               </div>
-            ) : activePartnerStep === 1 ? (
-              <div className="glass-panel border-2 border-[var(--accent)] rounded-3xl p-6 md:p-8 flex flex-col gap-5 relative overflow-hidden animate-in zoom-in-95 duration-300 shadow-[0_20px_50px_rgba(0,0,0,0.5)]">
-                <div className="flex flex-col gap-2">
-                  <span className="text-[10px] font-black text-[var(--accent)] uppercase tracking-widest px-3 py-1 rounded-full border border-[color-mix(in_srgb,var(--accent)_25%,transparent)] w-max">
-                    {`${t('step', 'STEP')} 2 / 4`}
-                  </span>
-                  <h3 className="text-xl font-black text-[var(--text)] tracking-tight mt-1">
-                    {t(
-                      'landing_partner_dossier_hdr',
-                      'Step 2: Spoke Technical & Community Dossier'
-                    )}
-                  </h3>
-                </div>
+              <UniversalTextArea
+                value={partnerVision}
+                onChange={setPartnerVision}
+                placeholder={t(
+                  'landing_partner_vision_ph',
+                  'Describe how mods are installed for this game, your existing community or tooling experience, and how your team plans to curate and verify {Mods}...'
+                )}
+                className="min-h-[160px] sm:min-h-[180px]"
+              />
+            </div>
+          </UniversalGroup>
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
-                  <UniversalInput
-                    label={`${t('landing_partner_game_title', 'Target Game Title & Engine')} *`}
-                    value={partnerGameTitle}
-                    onChange={setPartnerGameTitle}
-                    placeholder={t(
-                      'landing_partner_game_title_ph',
-                      'e.g. Fallout 4 (Creation Engine) / Terraria (tModLoader)'
-                    )}
-                  />
-                  <UniversalInput
-                    label={`${t('landing_partner_extensions', 'Primary {Mod} File Formats / Extensions')} *`}
-                    value={partnerExtensions}
-                    onChange={setPartnerExtensions}
-                    placeholder={t(
-                      'landing_partner_extensions_ph',
-                      'e.g. .bin, .dat, .dll, .ini, .zip'
-                    )}
-                  />
-                  <UniversalInput
-                    label={`${t('landing_partner_lead_contact', 'Lead Wayfinder Handle & Direct Contact (Discord / Email)')} *`}
-                    value={partnerLeadContact}
-                    onChange={setPartnerLeadContact}
-                    placeholder={t(
-                      'landing_partner_lead_contact_ph',
-                      'e.g. @wayfinder (Discord) & lead@community.org'
-                    )}
-                  />
-                  <UniversalInput
-                    label={t(
-                      'landing_partner_community_url',
-                      'Existing Community, Forum, or GitHub URL'
-                    )}
-                    value={partnerCommunityUrl}
-                    onChange={setPartnerCommunityUrl}
-                    placeholder={t(
-                      'landing_partner_community_url_ph',
-                      'https://discord.gg/... or https://github.com/...'
-                    )}
-                  />
-                </div>
-
-                <div className="flex justify-end pt-2 border-t border-[color-mix(in_srgb,var(--text)_8%,transparent)]">
-                  <ActionButton
-                    variant="primary"
-                    icon={t('icon_done', 'done')}
-                    label={t('confirm', 'Confirm')}
-                    disabled={
-                      !partnerGameTitle.trim() ||
-                      !partnerExtensions.trim() ||
-                      !partnerLeadContact.trim()
-                    }
-                    onClick={() => {
-                      setActivePartnerStep(2);
-                      setMaxPartnerStep((prev) => Math.max(prev, 2));
-                    }}
-                  />
-                </div>
-              </div>
-            ) : null)}
-
-          {/* STEP 3: TEAM SIZE, INFRASTRUCTURE & GOVERNANCE PLAN */}
-          {maxPartnerStep >= 2 &&
-            (activePartnerStep > 2 ? (
-              <div
-                onClick={() => setActivePartnerStep(2)}
-                className="glass-panel p-4 rounded-2xl border border-[color-mix(in_srgb,var(--accent)_25%,transparent)] flex items-center justify-between cursor-pointer group hover:border-[var(--accent)] transition-all"
-              >
-                <div className="flex flex-col gap-0.5 min-w-0 pr-4">
-                  <span className="text-[10px] font-black text-[var(--accent)] uppercase tracking-widest flex items-center gap-1.5">
-                    <span className="material-symbols-outlined !text-xs">
-                      {t('icon_check_circle', 'check_circle')}
-                    </span>
-                    {t('step_completed', 'Step Completed')}
-                  </span>
-                  <h4 className="text-sm font-black text-[var(--text)] truncate">
-                    {`${partnerTeamSize} • ${partnerInfraReadiness}`}
-                  </h4>
-                  <p className="text-xs text-[var(--subtext)] opacity-80 truncate font-mono">
-                    {partnerVision}
-                  </p>
-                </div>
-                <span className="material-symbols-outlined text-[var(--subtext)] opacity-40 group-hover:opacity-100 group-hover:text-[var(--accent)] transition-all">
-                  {t('icon_edit', 'edit')}
-                </span>
-              </div>
-            ) : activePartnerStep === 2 ? (
-              <div className="glass-panel border-2 border-[var(--accent)] rounded-3xl p-6 md:p-8 flex flex-col gap-5 relative overflow-hidden animate-in zoom-in-95 duration-300 shadow-[0_20px_50px_rgba(0,0,0,0.5)]">
-                <div className="flex flex-col gap-2">
-                  <span className="text-[10px] font-black text-[var(--accent)] uppercase tracking-widest px-3 py-1 rounded-full border border-[color-mix(in_srgb,var(--accent)_25%,transparent)] w-max">
-                    {`${t('step', 'STEP')} 3 / 4`}
-                  </span>
-                  <h3 className="text-xl font-black text-[var(--text)] tracking-tight mt-1">
-                    {t(
-                      'landing_partner_vision',
-                      'Workspace Scope, Install Routing & Governance Plan'
-                    )}
-                  </h3>
-                </div>
-
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
-                  <div className="flex flex-col justify-end gap-1.5">
-                    <label className="text-[10px] font-black uppercase tracking-widest text-[var(--subtext)] opacity-75 px-1 leading-tight">
-                      {t(
-                        'landing_partner_team_size',
-                        'Active Moderation / Architect Team Size'
-                      )}
-                    </label>
-                    <CustomDropdown
-                      disableTint={true}
-                      value={partnerTeamSize}
-                      onChange={(v: string[]) =>
-                        setPartnerTeamSize(
-                          v[0] || '2-3 Moderators / Architects'
-                        )
-                      }
-                      options={[
-                        {
-                          id: 'Solo Founder (Recruiting Team)',
-                          label: t(
-                            'landing_partner_team_solo',
-                            'Solo Founder (Recruiting Team)'
-                          ),
-                        },
-                        {
-                          id: '2-3 Moderators / Architects',
-                          label: t(
-                            'landing_partner_team_small',
-                            '2–3 Moderators / Architects'
-                          ),
-                        },
-                        {
-                          id: '4-10 Established Staff',
-                          label: t(
-                            'landing_partner_team_medium',
-                            '4–10 Established Staff'
-                          ),
-                        },
-                        {
-                          id: '10+ Large Community Staff',
-                          label: t(
-                            'landing_partner_team_large',
-                            '10+ Large Community Staff'
-                          ),
-                        },
-                      ]}
-                    />
-                  </div>
-
-                  <div className="flex flex-col justify-end gap-1.5">
-                    <label className="text-[10px] font-black uppercase tracking-widest text-[var(--subtext)] opacity-75 px-1 leading-tight">
-                      {t(
-                        'landing_partner_infra_ready',
-                        'Supabase Spoke Infrastructure Readiness'
-                      )}
-                    </label>
-                    <CustomDropdown
-                      disableTint={true}
-                      value={partnerInfraReadiness}
-                      onChange={(v: string[]) =>
-                        setPartnerInfraReadiness(
-                          v[0] ||
-                          'Ready to Provision Dedicated Supabase Project'
-                        )
-                      }
-                      options={[
-                        {
-                          id: 'Ready to Provision Dedicated Supabase Project',
-                          label: t(
-                            'landing_partner_infra_ready_yes',
-                            'Ready to Provision Dedicated Supabase Project'
-                          ),
-                        },
-                        {
-                          id: 'Need Keeper Guidance on Uplink Bootstrap',
-                          label: t(
-                            'landing_partner_infra_ready_help',
-                            'Need Keeper Guidance on Uplink Bootstrap'
-                          ),
-                        },
-                      ]}
-                    />
-                  </div>
-                </div>
-
-                <div className="flex flex-col gap-1.5">
-                  <div className="flex items-center justify-between gap-2">
-                    <label className="text-[10px] font-black uppercase tracking-widest text-[var(--subtext)]">
-                      {`${t('landing_partner_vision', 'Workspace Scope, Install Routing & Governance Plan')} *`}
-                    </label>
-                    <span
-                      className={`text-[10px] font-mono font-bold ${partnerVision.trim().length >= 50
-                        ? 'text-[var(--success)]'
-                        : 'text-[var(--warning)]'
-                        }`}
-                    >
-                      {`${partnerVision.trim().length} / 50+ ${t('landing_partner_min_chars_hint', 'Minimum 50 characters required')}`}
-                    </span>
-                  </div>
-                  <UniversalTextArea
-                    value={partnerVision}
-                    onChange={setPartnerVision}
-                    placeholder={t(
-                      'landing_partner_vision_ph',
-                      'Describe how mods are installed for this game, your existing community or tooling experience, and how your team plans to curate and verify {Mods}...'
-                    )}
-                    className="min-h-[160px] sm:min-h-[180px]"
-                  />
-                </div>
-
-                <div className="flex justify-end pt-2 border-t border-[color-mix(in_srgb,var(--text)_8%,transparent)]">
-                  <ActionButton
-                    variant="primary"
-                    icon={t('icon_done', 'done')}
-                    label={t('confirm', 'Confirm')}
-                    disabled={partnerVision.trim().length < 50}
-                    onClick={() => {
-                      setActivePartnerStep(3);
-                      setMaxPartnerStep((prev) => Math.max(prev, 3));
-                    }}
-                  />
-                </div>
-              </div>
-            ) : null)}
-
-          {/* STEP 4: REVIEW & SUBMIT PARTNER DOSSIER */}
-          {maxPartnerStep >= 3 && activePartnerStep === 3 && (
-            <div className="glass-panel border-2 border-[var(--accent)] rounded-3xl p-6 md:p-8 flex flex-col gap-5 relative overflow-hidden animate-in zoom-in-95 duration-300 shadow-[0_20px_50px_rgba(0,0,0,0.5)]">
-              <div className="flex flex-col gap-2">
-                <span className="text-[10px] font-black text-[var(--success)] uppercase tracking-widest px-3 py-1 rounded-full border border-[color-mix(in_srgb,var(--success)_30%,transparent)] w-max">
-                  {`${t('step', 'STEP')} 4 / 4`}
-                </span>
-                <h3 className="text-xl font-black text-[var(--text)] tracking-tight mt-1">
-                  {t(
+          <ActionButton
+            variant="primary"
+            className="w-full"
+            icon={
+              isSubmittingPartner
+                ? t('icon_sync', 'sync')
+                : t('icon_rocket_launch', 'rocket_launch')
+            }
+            label={
+              isSubmittingPartner
+                ? t('btn_submitting', 'Submitting...')
+                : t(
                     'landing_partner_submit_btn',
                     'Submit Partner Spoke Dossier'
-                  )}
-                </h3>
-              </div>
-
-              <div className="flex justify-end pt-2 border-t border-[color-mix(in_srgb,var(--text)_8%,transparent)]">
-                <ActionButton
-                  variant="primary"
-                  icon={t('icon_rocket_launch', 'rocket_launch')}
-                  label={
-                    isSubmittingPartner
-                      ? t('btn_submitting', 'Submitting...')
-                      : t(
-                        'landing_partner_submit_btn',
-                        'Submit Partner Spoke Dossier'
-                      )
-                  }
-                  onClick={handleSubmitPartnerApplication}
-                  disabled={isSubmittingPartner}
-                />
-              </div>
-            </div>
-          )}
+                  )
+            }
+            onClick={handleSubmitPartnerApplication}
+            disabled={isSubmittingPartner || partnerMissingReasons.length > 0}
+            tooltip={partnerSubmitTooltipTitle}
+            tooltipSubtitle={partnerSubmitTooltipSub}
+          />
         </div>
       </SidePanel>
 
@@ -1037,7 +1086,7 @@ export function LandingApplicationDrawers({
       </SidePanel>
 
       {/* =====================================================================
-          DRAWER 3D: APPLY TO SANCTUARY FOUNDRY SIDEPANEL (GUIDED ROLE APPLICATION)
+          DRAWER 3D: APPLY TO SANCTUARY FOUNDRY SIDEPANEL (UNIFIED SIDEPANEL)
          ===================================================================== */}
       <SidePanel
         isOpen={isKeeperAppDrawerOpen}
@@ -1048,7 +1097,7 @@ export function LandingApplicationDrawers({
           'Sanctuary Foundry Organization • Open Keeper Roles & Technical Application'
         )}
         icon={t('icon_admin_panel_settings', 'admin_panel_settings')}
-        widthClass="w-[90vw] md:w-[740px]"
+        widthClass="w-[92vw] md:w-[740px]"
         headerActions={
           <PanelHeaderGroup>
             <PanelHeaderButton
@@ -1062,10 +1111,10 @@ export function LandingApplicationDrawers({
                   ? t('icon_sync', 'sync')
                   : t('icon_rocket_launch', 'rocket_launch')
               }
-              tooltip={t(
-                'landing_keeper_submit_btn',
-                'Submit Application to Sanctuary Foundry'
-              )}
+              variant="accent"
+              disabled={isSubmittingKeeper || keeperMissingReasons.length > 0}
+              tooltip={keeperSubmitTooltipTitle}
+              tooltipSubtitle={keeperSubmitTooltipSub}
               onClick={handleSubmitKeeperApplication}
             />
           </PanelHeaderGroup>
@@ -1094,790 +1143,469 @@ export function LandingApplicationDrawers({
                 value={keeperFocus}
                 icon={t('icon_work', 'work')}
                 iconColorClass="text-[var(--accent)]"
-                colorClass="text-[var(--accent)]"
               />
               <StatBox
-                label={t('step_progress', 'Step Progress')}
-                value={`${Math.min(activeKeeperStep + 1, 3)} / 3`}
-                icon={t('icon_checklist', 'checklist')}
+                label={t(
+                  'landing_keeper_availability_label',
+                  'Weekly Availability'
+                )}
+                value={keeperAvailability}
+                icon={t('icon_schedule', 'schedule')}
                 iconColorClass="text-[var(--success)]"
-                colorClass="text-[var(--text)]"
               />
             </div>
           </SidePanelHeroCard>
 
-          {/* STEP 1: OPEN POSITION, COMMITMENT & FOUNDRY STANDARDS */}
-          {activeKeeperStep > 0 ? (
-            <div
-              onClick={() => setActiveKeeperStep(0)}
-              className="glass-panel p-4 rounded-2xl border border-[color-mix(in_srgb,var(--accent)_25%,transparent)] flex items-center justify-between cursor-pointer group hover:border-[var(--accent)] transition-all"
-            >
-              <div className="flex flex-col gap-0.5 min-w-0 pr-4">
-                <span className="text-[10px] font-black text-[var(--accent)] uppercase tracking-widest flex items-center gap-1.5">
-                  <span className="material-symbols-outlined !text-xs">
-                    {t('icon_check_circle', 'check_circle')}
-                  </span>
-                  {t('step_completed', 'Step Completed')}
-                </span>
-                <h4 className="text-sm font-black text-[var(--text)] truncate">
-                  {keeperFocus}
-                </h4>
-                <p className="text-xs text-[var(--subtext)] opacity-80 truncate font-mono">
-                  {`${keeperAvailability} • ${keeperExperienceLevel}`}
-                </p>
-              </div>
-              <span className="material-symbols-outlined text-[var(--subtext)] opacity-40 group-hover:opacity-100 group-hover:text-[var(--accent)] transition-all">
-                {t('icon_edit', 'edit')}
-              </span>
+          <UniversalGroup
+            title={t('landing_keeper_group_role', 'Role & Availability')}
+            icon={t('icon_work', 'work')}
+          >
+            <div className="flex flex-col gap-1.5">
+              <label className="text-[10px] font-black uppercase tracking-widest text-[var(--subtext)] opacity-75 px-1 leading-tight">
+                {t('landing_keeper_focus_label', 'Open Position / Role')}
+              </label>
+              <CustomDropdown
+                disableTint={true}
+                value={keeperFocus}
+                onChange={(v: string[]) =>
+                  setKeeperFocus(v[0] || keeperRoleOptions[0].id)
+                }
+                options={keeperRoleOptions.map((r) => ({
+                  id: r.id,
+                  label: r.title,
+                }))}
+              />
             </div>
-          ) : (
-            <div className="glass-panel border-2 border-[var(--accent)] rounded-3xl p-6 md:p-8 flex flex-col gap-5 relative overflow-hidden animate-in zoom-in-95 duration-300 shadow-[0_20px_50px_rgba(0,0,0,0.5)]">
-              <div className="flex flex-col gap-2">
-                <span className="text-[10px] font-black text-[var(--accent)] uppercase tracking-widest px-3 py-1 rounded-full border border-[color-mix(in_srgb,var(--accent)_25%,transparent)] w-max">
-                  {`${t('step', 'STEP')} 1 / 3`}
-                </span>
-                <h3 className="text-xl font-black text-[var(--text)] tracking-tight mt-1">
-                  {t(
-                    'landing_keeper_gate_hdr',
-                    'Step 1: Open Position, Commitment & Foundry Standards'
-                  )}
-                </h3>
-                <p className="text-xs text-[var(--subtext)] opacity-80 leading-relaxed">
-                  {t(
-                    'landing_keeper_gate_desc',
-                    'Sanctuary Foundry is the organization behind Sanctuary OS. Keepers are our developers, security analysts, schema architects, and support staff operating out of Keepers Core. Select a position and confirm all three standards below:'
-                  )}
-                </p>
-              </div>
 
-              {/* 6 Real Sanctuary Foundry Open Positions */}
-              <div className="flex flex-col gap-2">
-                <label className="text-[10px] font-black uppercase tracking-widest text-[var(--subtext)] opacity-75 px-1">
-                  {t('landing_keeper_focus_label', 'Open Position / Role')}
+            {selectedKeeperRole && (
+              <div className="glass-surface rounded-2xl p-3.5 border border-[color-mix(in_srgb,var(--text)_12%,transparent)] flex items-start gap-3">
+                <div className="w-9 h-9 rounded-xl glass-surface border border-[var(--glass-card-icon-border,rgba(255,255,255,0.22))] bg-[var(--glass-card-icon-bg,rgba(255,255,255,0.08))] flex items-center justify-center shrink-0 text-[var(--accent)]">
+                  <span className="material-symbols-outlined !text-[18px]">
+                    {selectedKeeperRole.icon}
+                  </span>
+                </div>
+                <div className="flex flex-col gap-1 min-w-0 flex-1 no-text-case">
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="text-xs font-black text-[var(--text)] truncate">
+                      {selectedKeeperRole.title}
+                    </span>
+                    <span className="px-2 py-0.5 rounded-lg bg-transparent glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[var(--accent)] text-[9px] font-black uppercase tracking-wider shrink-0">
+                      {selectedKeeperRole.dept}
+                    </span>
+                  </div>
+                  <p className="text-xs text-[var(--subtext)] leading-relaxed m-0">
+                    {selectedKeeperRole.desc}
+                  </p>
+                </div>
+              </div>
+            )}
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+              <div className="flex flex-col justify-end gap-1.5">
+                <label className="text-[10px] font-black uppercase tracking-widest text-[var(--subtext)] opacity-75 px-1 leading-tight">
+                  {t(
+                    'landing_keeper_availability_label',
+                    'Weekly Availability'
+                  )}
                 </label>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  {[
-                    {
-                      id: 'Systems & Backend Engineer (Rust / Tauri)',
-                      icon: t('icon_terminal', 'terminal'),
-                      dept: t(
-                        'landing_keeper_role_systems_dept',
-                        'Core Engineering'
-                      ),
-                      title: t(
-                        'landing_keeper_role_systems_title',
-                        'Systems & Backend Engineer (Rust / Tauri)'
-                      ),
-                      desc: t(
-                        'landing_keeper_role_systems_desc',
-                        'Native desktop runtime, SQLite state engine, symlink/hardlink deployment, archive extraction, and Windows/macOS parity.'
-                      ),
-                    },
-                    {
-                      id: 'Frontend & Graphics Engineer (TypeScript / React / WebGL2)',
-                      icon: t('icon_code', 'code'),
-                      dept: t(
-                        'landing_keeper_role_frontend_dept',
-                        'UI & Graphics'
-                      ),
-                      title: t(
-                        'landing_keeper_role_frontend_title',
-                        'Frontend & Graphics Engineer (TypeScript / React / WebGL2)'
-                      ),
-                      desc: t(
-                        'landing_keeper_role_frontend_desc',
-                        '3D WebGL2 Liquid Glass surfaces, Chameleon theme engine, Mobile PWA, and high-concurrency UI architecture.'
-                      ),
-                    },
-                    {
-                      id: 'Malware & Reverse-Engineering Analyst (Heuristics)',
-                      icon: t('icon_shield_lock', 'shield_lock'),
-                      dept: t(
-                        'landing_keeper_role_security_dept',
-                        'Threat Intelligence'
-                      ),
-                      title: t(
-                        'landing_keeper_role_security_title',
-                        'Malware & Reverse-Engineering Analyst (Heuristics)'
-                      ),
-                      desc: t(
-                        'landing_keeper_role_security_desc',
-                        'Bytecode/binary inspection, Base64/hex deobfuscation, Zlib/Zstd stream analysis, and global heuristic threat signatures.'
-                      ),
-                    },
-                    {
-                      id: 'Multi-Game Schema & Tooling Architect',
-                      icon: t('icon_architecture', 'architecture'),
-                      dept: t(
-                        'landing_keeper_role_schema_dept',
-                        'Game Integration'
-                      ),
-                      title: t(
-                        'landing_keeper_role_schema_title',
-                        'Multi-Game Schema & Tooling Architect'
-                      ),
-                      desc: t(
-                        'landing_keeper_role_schema_desc',
-                        'Mapping game folder structures, load-order engines, config formats, and authoring Master Schemas & Workbench templates.'
-                      ),
-                    },
-                    {
-                      id: 'Platform Support & Technical Triage Specialist',
-                      icon: t('icon_support_agent', 'support_agent'),
-                      dept: t(
-                        'landing_keeper_role_support_dept',
-                        'Support & Triage'
-                      ),
-                      title: t(
-                        'landing_keeper_role_support_title',
-                        'Platform Support & Technical Triage Specialist'
-                      ),
-                      desc: t(
-                        'landing_keeper_role_support_desc',
-                        'Investigating Sanctuary OS bug reports, analyzing diagnostic logs, assisting {Citizens}, and handling direct human inquiries.'
-                      ),
-                    },
-                    {
-                      id: 'Partner Spoke Relations & Documentation Lead',
-                      icon: t('icon_handshake', 'handshake'),
-                      dept: t(
-                        'landing_keeper_role_spokes_dept',
-                        'Operations & Docs'
-                      ),
-                      title: t(
-                        'landing_keeper_role_spokes_title',
-                        'Partner Spoke Relations & Documentation Lead'
-                      ),
-                      desc: t(
-                        'landing_keeper_role_spokes_desc',
-                        'Onboarding Partner Game Communities, verifying Spoke readiness, and authoring plain-English {Citizen} Guides & Directives.'
-                      ),
-                    },
-                  ].map((role) => {
-                    const active = keeperFocus === role.id;
-                    return (
-                      <button
-                        key={role.id}
-                        type="button"
-                        onClick={() => setKeeperFocus(role.id)}
-                        className={`p-3.5 rounded-2xl glass-surface border text-left flex flex-col gap-2 transition-all cursor-pointer ${active
-                          ? 'border-[var(--accent)] sa-glass-active'
-                          : 'border-[color-mix(in_srgb,var(--text)_12%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_24%,transparent)]'
-                          }`}
-                      >
-                        <div className="flex items-center justify-between gap-2 w-full">
-                          <div
-                            className={`w-8 h-8 rounded-xl glass-surface border flex items-center justify-center shrink-0 ${active
-                              ? 'border-[color-mix(in_srgb,var(--accent)_40%,transparent)] text-[var(--accent)]'
-                              : 'border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[var(--subtext)]'
-                              }`}
-                          >
-                            <span className="material-symbols-outlined !text-[18px]">
-                              {role.icon}
-                            </span>
-                          </div>
-                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[var(--text)] text-[9px] font-black uppercase tracking-wider shrink-0">
-                            <span
-                              className={`material-symbols-outlined !text-[11px] ${active
-                                ? 'text-[var(--accent)]'
-                                : 'text-[var(--subtext)]'
-                                }`}
-                            >
-                              {role.icon}
-                            </span>
-                            <span>{role.dept}</span>
-                          </span>
-                        </div>
-                        <span
-                          className={`text-xs font-black leading-snug ${active
-                            ? 'text-[var(--accent)]'
-                            : 'text-[var(--text)]'
-                            }`}
-                        >
-                          {role.title}
-                        </span>
-                        <p className="text-[10px] text-[var(--subtext)] opacity-80 leading-relaxed m-0">
-                          {role.desc}
-                        </p>
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-
-              {/* 2-Column Aligned Dropdowns: Weekly Availability & Experience Level */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
-                <div className="flex flex-col justify-end gap-1.5">
-                  <label className="text-[10px] font-black uppercase tracking-widest text-[var(--subtext)] opacity-75 px-1 leading-tight">
-                    {t(
-                      'landing_keeper_availability_label',
-                      'Weekly Availability'
-                    )}
-                  </label>
-                  <CustomDropdown
-                    disableTint={true}
-                    value={keeperAvailability}
-                    onChange={(v: string[]) =>
-                      setKeeperAvailability(
-                        v[0] || 'Part-Time (5–15 hrs/wk)'
-                      )
-                    }
-                    options={[
-                      {
-                        id: 'Core Team (15+ hrs/wk)',
-                        label: t(
-                          'landing_keeper_avail_core',
-                          'Core Team (15+ hrs/wk)'
-                        ),
-                      },
-                      {
-                        id: 'Part-Time (5–15 hrs/wk)',
-                        label: t(
-                          'landing_keeper_avail_part',
-                          'Part-Time (5–15 hrs/wk)'
-                        ),
-                      },
-                      {
-                        id: 'Advisory / Triage (2–5 hrs/wk)',
-                        label: t(
-                          'landing_keeper_avail_advisory',
-                          'Advisory / Triage (2–5 hrs/wk)'
-                        ),
-                      },
-                    ]}
-                  />
-                </div>
-
-                <div className="flex flex-col justify-end gap-1.5">
-                  <label className="text-[10px] font-black uppercase tracking-widest text-[var(--subtext)] opacity-75 px-1 leading-tight">
-                    {t(
-                      'landing_keeper_exp_level_label',
-                      'Experience Level & Background'
-                    )}
-                  </label>
-                  <CustomDropdown
-                    disableTint={true}
-                    value={keeperExperienceLevel}
-                    onChange={(v: string[]) =>
-                      setKeeperExperienceLevel(
-                        v[0] || 'Mid-Level (2–5 Years)'
-                      )
-                    }
-                    options={[
-                      {
-                        id: 'Senior / Lead (5+ Years)',
-                        label: t(
-                          'landing_keeper_level_senior',
-                          'Senior / Lead (5+ Years)'
-                        ),
-                      },
-                      {
-                        id: 'Mid-Level (2–5 Years)',
-                        label: t(
-                          'landing_keeper_level_mid',
-                          'Mid-Level (2–5 Years)'
-                        ),
-                      },
-                      {
-                        id: 'Indie Tool / Mod Creator',
-                        label: t(
-                          'landing_keeper_level_indie',
-                          'Indie Tool / {Mod} Creator'
-                        ),
-                      },
-                      {
-                        id: 'Support, QA & Operations',
-                        label: t(
-                          'landing_keeper_level_ops',
-                          'Support, QA & Operations'
-                        ),
-                      },
-                    ]}
-                  />
-                </div>
-              </div>
-
-              <div className="flex flex-col gap-2.5">
-                <SidePanelPillToggle
-                  label={t(
-                    'landing_keeper_gate_1_title',
-                    'Sanctuary Foundry Organization & Keeper Role'
-                  )}
-                  description={t(
-                    'landing_keeper_gate_1_desc',
-                    'I understand I am applying to Sanctuary Foundry to serve as a Keeper—working on Sanctuary OS engineering, malware heuristics, schemas, or platform support in Keepers Core.'
-                  )}
-                  icon={t(
-                    'icon_admin_panel_settings',
-                    'admin_panel_settings'
-                  )}
-                  checked={keeperGate1}
-                  onChange={setKeeperGate1}
-                />
-                <SidePanelPillToggle
-                  label={t(
-                    'landing_keeper_gate_2_title',
-                    'Zero-Trust FIDO2 Passkey & Anti-Malware Integrity'
-                  )}
-                  description={t(
-                    'landing_keeper_gate_2_desc',
-                    'I commit to hardware-backed FIDO2 Passkey authentication, impartial heuristic malware analysis, and append-only audit log transparency across Keepers Core.'
-                  )}
-                  icon={t('icon_shield_lock', 'shield_lock')}
-                  checked={keeperGate2}
-                  onChange={setKeeperGate2}
-                />
-                <SidePanelPillToggle
-                  label={t(
-                    'landing_keeper_gate_3_title',
-                    'Human-First Support & Zero-PII Privacy Standard'
-                  )}
-                  description={t(
-                    'landing_keeper_gate_3_desc',
-                    'I will handle {Citizen} support tickets, bug diagnostics, and Partner Spoke applications with genuine human care and zero tolerance for data harvesting.'
-                  )}
-                  icon={t('icon_verified_user', 'verified_user')}
-                  checked={keeperGate3}
-                  onChange={setKeeperGate3}
-                />
-              </div>
-
-              <div className="flex justify-end pt-2 border-t border-[color-mix(in_srgb,var(--text)_8%,transparent)]">
-                <ActionButton
-                  variant="primary"
-                  icon={t('icon_done', 'done')}
-                  label={t('confirm', 'Confirm')}
-                  disabled={!keeperGate1 || !keeperGate2 || !keeperGate3}
-                  onClick={() => {
-                    setActiveKeeperStep(1);
-                    setMaxKeeperStep((prev) => Math.max(prev, 1));
-                  }}
-                />
-              </div>
-            </div>
-          )}
-
-          {/* STEP 2: APPLICANT PROFILE, TECHNICAL STACK & EXPERIENCE */}
-          {maxKeeperStep >= 1 &&
-            (activeKeeperStep > 1 ? (
-              <div
-                onClick={() => setActiveKeeperStep(1)}
-                className="glass-panel p-4 rounded-2xl border border-[color-mix(in_srgb,var(--accent)_25%,transparent)] flex items-center justify-between cursor-pointer group hover:border-[var(--accent)] transition-all"
-              >
-                <div className="flex flex-col gap-0.5 min-w-0 pr-4">
-                  <span className="text-[10px] font-black text-[var(--accent)] uppercase tracking-widest flex items-center gap-1.5">
-                    <span className="material-symbols-outlined !text-xs">
-                      {t('icon_check_circle', 'check_circle')}
-                    </span>
-                    {t('step_completed', 'Step Completed')}
-                  </span>
-                  <h4 className="text-sm font-black text-[var(--text)] truncate">
-                    {`${keeperHandle || sessionEmail || ''} • ${keeperContact}`}
-                  </h4>
-                  <p className="text-xs text-[var(--subtext)] opacity-80 truncate font-mono">
-                    {keeperSkills.length > 0
-                      ? `${keeperSkills.join(', ')} — ${keeperExperience}`
-                      : keeperExperience}
-                  </p>
-                </div>
-                <span className="material-symbols-outlined text-[var(--subtext)] opacity-40 group-hover:opacity-100 group-hover:text-[var(--accent)] transition-all">
-                  {t('icon_edit', 'edit')}
-                </span>
-              </div>
-            ) : activeKeeperStep === 1 ? (
-              <div className="glass-panel border-2 border-[var(--accent)] rounded-3xl p-6 md:p-8 flex flex-col gap-5 relative overflow-hidden animate-in zoom-in-95 duration-300 shadow-[0_20px_50px_rgba(0,0,0,0.5)]">
-                <div className="flex flex-col gap-2">
-                  <span className="text-[10px] font-black text-[var(--accent)] uppercase tracking-widest px-3 py-1 rounded-full border border-[color-mix(in_srgb,var(--accent)_25%,transparent)] w-max">
-                    {`${t('step', 'STEP')} 2 / 3`}
-                  </span>
-                  <h3 className="text-xl font-black text-[var(--text)] tracking-tight mt-1">
-                    {t(
-                      'landing_keeper_step2_hdr',
-                      'Step 2: Applicant Profile, Technical Stack & Experience'
-                    )}
-                  </h3>
-                  <p className="text-xs text-[var(--subtext)] opacity-80 leading-relaxed">
-                    {t(
-                      'landing_keeper_step2_desc',
-                      'Provide your contact credentials, technical stack, and background for the Sanctuary Foundry review team in Keepers Core.'
-                    )}
-                  </p>
-                </div>
-
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
-                  <UniversalInput
-                    label={`${t('landing_keeper_handle_label', 'Your Name or Handle')} *`}
-                    value={keeperHandle}
-                    onChange={setKeeperHandle}
-                    placeholder="@handle"
-                  />
-                  <UniversalInput
-                    label={`${t('landing_keeper_contact_label', 'Direct Email or Discord')} *`}
-                    value={keeperContact}
-                    onChange={setKeeperContact}
-                    placeholder="you@example.com"
-                  />
-                </div>
-
-                {/* Aligned 2-Column Row: Portfolio Input + Primary Timezone Dropdown */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
-                  <UniversalInput
-                    label={t(
-                      'landing_keeper_portfolio_label',
-                      'GitHub, Portfolio, or Profile URL'
-                    )}
-                    value={keeperPortfolio}
-                    onChange={setKeeperPortfolio}
-                    placeholder="https://github.com/..."
-                  />
-                  <div className="flex flex-col justify-end gap-1.5">
-                    <label className="text-[10px] font-black uppercase tracking-widest text-[var(--subtext)] opacity-75 px-1 leading-tight">
-                      {t(
-                        'landing_keeper_tz_label',
-                        'Primary Timezone / Region'
-                      )}
-                    </label>
-                    <CustomDropdown
-                      disableTint={true}
-                      value={keeperTimezone}
-                      onChange={(v: string[]) =>
-                        setKeeperTimezone(
-                          v[0] || 'Americas (UTC-8 to UTC-3)'
-                        )
-                      }
-                      options={[
-                        {
-                          id: 'Americas (UTC-8 to UTC-3)',
-                          label: t(
-                            'landing_keeper_tz_americas',
-                            'Americas (UTC-8 to UTC-3)'
-                          ),
-                        },
-                        {
-                          id: 'Europe / UK / Africa (UTC+0 to UTC+3)',
-                          label: t(
-                            'landing_keeper_tz_emea',
-                            'Europe / UK / Africa (UTC+0 to UTC+3)'
-                          ),
-                        },
-                        {
-                          id: 'Asia-Pacific / Oceania (UTC+5 to UTC+12)',
-                          label: t(
-                            'landing_keeper_tz_apac',
-                            'Asia-Pacific / Oceania (UTC+5 to UTC+12)'
-                          ),
-                        },
-                        {
-                          id: 'Flexible / Global Async',
-                          label: t(
-                            'landing_keeper_tz_flex',
-                            'Flexible / Global Async'
-                          ),
-                        },
-                      ]}
-                    />
-                  </div>
-                </div>
-
-                {/* Interactive Technical Stack & Core Domains Multi-Select Chips */}
-                <div className="flex flex-col gap-2">
-                  <label className="text-[10px] font-black uppercase tracking-widest text-[var(--subtext)] opacity-75 px-1 leading-tight">
-                    {t(
-                      'landing_keeper_skills_label',
-                      'Technical Stack & Core Domains (Select All That Apply)'
-                    )}
-                  </label>
-                  <div className="flex flex-wrap gap-2">
-                    {[
-                      {
-                        id: 'Rust',
-                        icon: t('icon_terminal', 'terminal'),
-                        label: 'Rust',
-                      },
-                      {
-                        id: 'TypeScript / React',
-                        icon: t('icon_code', 'code'),
-                        label: 'TypeScript / React',
-                      },
-                      {
-                        id: 'Tauri / Desktop',
-                        icon: t('icon_desktop_windows', 'desktop_windows'),
-                        label: 'Tauri / Desktop',
-                      },
-                      {
-                        id: 'SQL / Supabase',
-                        icon: t('icon_database', 'database'),
-                        label: 'SQL / Supabase',
-                      },
-                      {
-                        id: 'WebGL2 / Shaders',
-                        icon: t('icon_blur_on', 'blur_on'),
-                        label: 'WebGL2 / Shaders',
-                      },
-                      {
-                        id: 'Reverse Engineering',
-                        icon: t('icon_shield_lock', 'shield_lock'),
-                        label: 'Reverse Engineering',
-                      },
-                      {
-                        id: 'Python / Bytecode',
-                        icon: t('icon_memory', 'memory'),
-                        label: 'Python / Bytecode',
-                      },
-                      {
-                        id: 'Game Schema Design',
-                        icon: t('icon_architecture', 'architecture'),
-                        label: 'Game Schema Design',
-                      },
-                      {
-                        id: 'QA & Log Triage',
-                        icon: t('icon_bug_report', 'bug_report'),
-                        label: 'QA & Log Triage',
-                      },
-                      {
-                        id: 'Technical Writing',
-                        icon: t('icon_menu_book', 'menu_book'),
-                        label: 'Technical Writing',
-                      },
-                    ].map((skill) => {
-                      const selected = keeperSkills.includes(skill.id);
-                      return (
-                        <button
-                          key={skill.id}
-                          type="button"
-                          onClick={() => {
-                            if (selected) {
-                              setKeeperSkills(
-                                keeperSkills.filter((s) => s !== skill.id)
-                              );
-                            } else {
-                              setKeeperSkills([...keeperSkills, skill.id]);
-                            }
-                          }}
-                          className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl glass-surface border text-[11px] font-black transition-all cursor-pointer ${selected
-                            ? 'border-[var(--accent)] sa-glass-active text-[var(--text)]'
-                            : 'border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[var(--subtext)] hover:text-[var(--text)]'
-                            }`}
-                        >
-                          <span
-                            className={`material-symbols-outlined !text-[14px] ${selected
-                              ? 'text-[var(--accent)]'
-                              : 'text-[var(--subtext)] opacity-70'
-                              }`}
-                          >
-                            {selected
-                              ? t('icon_check_circle', 'check_circle')
-                              : skill.icon}
-                          </span>
-                          <span>{skill.label}</span>
-                        </button>
-                      );
-                    })}
-                  </div>
-                </div>
-
-                <div className="flex flex-col gap-1.5">
-                  <div className="flex items-center justify-between gap-2 px-1">
-                    <label className="text-[10px] font-black uppercase tracking-widest text-[var(--subtext)] opacity-75 leading-tight">
-                      {`${t('landing_keeper_exp_label', 'Shipped Projects, Technical Background & Relevant Experience (Min 40 chars)')} *`}
-                    </label>
-                    <span
-                      className={`text-[10px] font-mono font-bold shrink-0 ${keeperExperience.trim().length >= 40
-                        ? 'text-[var(--success)]'
-                        : 'text-[var(--warning)]'
-                        }`}
-                    >
-                      {`${keeperExperience.trim().length} / 40+`}
-                    </span>
-                  </div>
-                  <UniversalTextArea
-                    value={keeperExperience}
-                    onChange={setKeeperExperience}
-                    placeholder={t(
-                      'landing_keeper_exp_ph',
-                      'Share shipped projects, GitHub repos, reverse-engineering or modding tool work, support/triage experience, or systems you have built...'
-                    )}
-                    className="min-h-[170px] sm:min-h-[190px]"
-                  />
-                </div>
-
-                <div className="flex flex-col gap-1.5">
-                  <label className="text-[10px] font-black uppercase tracking-widest text-[var(--subtext)] opacity-75 px-1 leading-tight">
-                    {t(
-                      'landing_keeper_motivation_label',
-                      'Role Approach / Why Sanctuary Foundry (Optional)'
-                    )}
-                  </label>
-                  <UniversalTextArea
-                    value={keeperMotivation}
-                    onChange={setKeeperMotivation}
-                    placeholder={t(
-                      'landing_keeper_motivation_ph',
-                      'What would you focus on first in this role at Sanctuary Foundry, or what part of Sanctuary OS excites you most?'
-                    )}
-                  />
-                </div>
-
-                <div className="flex justify-end pt-2 border-t border-[color-mix(in_srgb,var(--text)_8%,transparent)]">
-                  <ActionButton
-                    variant="primary"
-                    icon={t('icon_done', 'done')}
-                    label={t('confirm', 'Confirm')}
-                    disabled={
-                      !keeperHandle.trim() ||
-                      !keeperContact.trim() ||
-                      keeperExperience.trim().length < 40
-                    }
-                    onClick={() => {
-                      setActiveKeeperStep(2);
-                      setMaxKeeperStep((prev) => Math.max(prev, 2));
-                    }}
-                  />
-                </div>
-              </div>
-            ) : null)}
-
-          {/* STEP 3: REVIEW DOSSIER & SUBMIT TO SANCTUARY FOUNDRY */}
-          {maxKeeperStep >= 2 && activeKeeperStep === 2 && (
-            <div className="glass-panel border-2 border-[var(--accent)] rounded-3xl p-6 md:p-8 flex flex-col gap-5 relative overflow-hidden animate-in zoom-in-95 duration-300 shadow-[0_20px_50px_rgba(0,0,0,0.5)]">
-              <div className="flex flex-col gap-2">
-                <span className="text-[10px] font-black text-[var(--success)] uppercase tracking-widest px-3 py-1 rounded-full border border-[color-mix(in_srgb,var(--success)_30%,transparent)] w-max">
-                  {`${t('step', 'STEP')} 3 / 3`}
-                </span>
-                <h3 className="text-xl font-black text-[var(--text)] tracking-tight mt-1">
-                  {t(
-                    'landing_keeper_step3_hdr',
-                    'Step 3: Review Dossier & Submit to Sanctuary Foundry'
-                  )}
-                </h3>
-                <p className="text-xs text-[var(--subtext)] opacity-80 leading-relaxed">
-                  {t(
-                    'landing_keeper_step3_desc',
-                    'Verify your selected position, technical stack, and application details below before transmitting your dossier to Sanctuary Foundry.'
-                  )}
-                </p>
-              </div>
-
-              {/* Structured Application Dossier Summary */}
-              <div className="glass-surface rounded-2xl p-4 border border-[color-mix(in_srgb,var(--text)_12%,transparent)] flex flex-col gap-3.5">
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  <div className="flex flex-col gap-0.5">
-                    <span className="text-[9px] font-black uppercase tracking-widest text-[var(--subtext)] opacity-60">
-                      {t('landing_keeper_focus_label', 'Open Position / Role')}
-                    </span>
-                    <span className="text-xs font-black text-[var(--accent)]">
-                      {keeperFocus}
-                    </span>
-                  </div>
-                  <div className="flex flex-col gap-0.5">
-                    <span className="text-[9px] font-black uppercase tracking-widest text-[var(--subtext)] opacity-60">
-                      {t(
-                        'landing_keeper_availability_label',
-                        'Weekly Availability'
-                      )}
-                    </span>
-                    <span className="text-xs font-bold text-[var(--text)]">
-                      {keeperAvailability}
-                    </span>
-                  </div>
-                  <div className="flex flex-col gap-0.5">
-                    <span className="text-[9px] font-black uppercase tracking-widest text-[var(--subtext)] opacity-60">
-                      {t(
-                        'landing_keeper_exp_level_label',
-                        'Experience Level & Background'
-                      )}
-                    </span>
-                    <span className="text-xs font-bold text-[var(--text)]">
-                      {keeperExperienceLevel}
-                    </span>
-                  </div>
-                  <div className="flex flex-col gap-0.5">
-                    <span className="text-[9px] font-black uppercase tracking-widest text-[var(--subtext)] opacity-60">
-                      {t(
-                        'landing_keeper_tz_label',
-                        'Primary Timezone / Region'
-                      )}
-                    </span>
-                    <span className="text-xs font-bold text-[var(--text)]">
-                      {keeperTimezone}
-                    </span>
-                  </div>
-                  <div className="flex flex-col gap-0.5">
-                    <span className="text-[9px] font-black uppercase tracking-widest text-[var(--subtext)] opacity-60">
-                      {t('landing_keeper_handle_label', 'Your Name or Handle')}
-                    </span>
-                    <span className="text-xs font-bold text-[var(--text)]">
-                      {keeperHandle}
-                    </span>
-                  </div>
-                  <div className="flex flex-col gap-0.5">
-                    <span className="text-[9px] font-black uppercase tracking-widest text-[var(--subtext)] opacity-60">
-                      {t(
-                        'landing_keeper_contact_label',
-                        'Direct Email or Discord'
-                      )}
-                    </span>
-                    <span className="text-xs font-bold text-[var(--text)]">
-                      {keeperContact}
-                    </span>
-                  </div>
-                </div>
-
-                {keeperSkills.length > 0 && (
-                  <div className="flex flex-col gap-1.5 pt-2 border-t border-[color-mix(in_srgb,var(--text)_8%,transparent)]">
-                    <span className="text-[9px] font-black uppercase tracking-widest text-[var(--subtext)] opacity-60">
-                      {t(
-                        'landing_keeper_skills_label',
-                        'Technical Stack & Core Domains (Select All That Apply)'
-                      )}
-                    </span>
-                    <div className="flex flex-wrap gap-1.5">
-                      {keeperSkills.map((skill) => (
-                        <span
-                          key={skill}
-                          className="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[var(--text)] text-[10px] font-bold"
-                        >
-                          <span className="material-symbols-outlined !text-[11px] text-[var(--accent)]">
-                            {t('icon_check_circle', 'check_circle')}
-                          </span>
-                          <span>{skill}</span>
-                        </span>
-                      ))}
-                    </div>
-                  </div>
-                )}
-
-                <div className="flex flex-col gap-1 pt-2 border-t border-[color-mix(in_srgb,var(--text)_8%,transparent)]">
-                  <span className="text-[9px] font-black uppercase tracking-widest text-[var(--subtext)] opacity-60">
-                    {t(
-                      'landing_keeper_exp_label',
-                      'Shipped Projects, Technical Background & Relevant Experience (Min 40 chars)'
-                    )}
-                  </span>
-                  <p className="text-xs text-[var(--subtext)] leading-relaxed m-0 whitespace-pre-wrap">
-                    {keeperExperience}
-                  </p>
-                </div>
-              </div>
-
-              <div className="flex justify-end pt-2 border-t border-[color-mix(in_srgb,var(--text)_8%,transparent)]">
-                <ActionButton
-                  variant="primary"
-                  icon={t('icon_rocket_launch', 'rocket_launch')}
-                  label={
-                    isSubmittingKeeper
-                      ? t('btn_submitting', 'Submitting...')
-                      : t(
-                        'landing_keeper_submit_btn',
-                        'Submit Application to Sanctuary Foundry'
-                      )
+                <CustomDropdown
+                  disableTint={true}
+                  value={keeperAvailability}
+                  onChange={(v: string[]) =>
+                    setKeeperAvailability(v[0] || 'Part-Time (5–15 hrs/wk)')
                   }
-                  onClick={handleSubmitKeeperApplication}
-                  disabled={isSubmittingKeeper}
+                  options={[
+                    {
+                      id: 'Core Team (15+ hrs/wk)',
+                      label: t(
+                        'landing_keeper_avail_core',
+                        'Core Team (15+ hrs/wk)'
+                      ),
+                    },
+                    {
+                      id: 'Part-Time (5–15 hrs/wk)',
+                      label: t(
+                        'landing_keeper_avail_part',
+                        'Part-Time (5–15 hrs/wk)'
+                      ),
+                    },
+                    {
+                      id: 'Advisory / Triage (2–5 hrs/wk)',
+                      label: t(
+                        'landing_keeper_avail_advisory',
+                        'Advisory / Triage (2–5 hrs/wk)'
+                      ),
+                    },
+                  ]}
+                />
+              </div>
+
+              <div className="flex flex-col justify-end gap-1.5">
+                <label className="text-[10px] font-black uppercase tracking-widest text-[var(--subtext)] opacity-75 px-1 leading-tight">
+                  {t(
+                    'landing_keeper_exp_level_label',
+                    'Experience Level & Background'
+                  )}
+                </label>
+                <CustomDropdown
+                  disableTint={true}
+                  value={keeperExperienceLevel}
+                  onChange={(v: string[]) =>
+                    setKeeperExperienceLevel(v[0] || 'Mid-Level (2–5 Years)')
+                  }
+                  options={[
+                    {
+                      id: 'Senior / Lead (5+ Years)',
+                      label: t(
+                        'landing_keeper_level_senior',
+                        'Senior / Lead (5+ Years)'
+                      ),
+                    },
+                    {
+                      id: 'Mid-Level (2–5 Years)',
+                      label: t(
+                        'landing_keeper_level_mid',
+                        'Mid-Level (2–5 Years)'
+                      ),
+                    },
+                    {
+                      id: 'Indie Tool / Mod Creator',
+                      label: t(
+                        'landing_keeper_level_indie',
+                        'Indie Tool / {Mod} Creator'
+                      ),
+                    },
+                    {
+                      id: 'Support, QA & Operations',
+                      label: t(
+                        'landing_keeper_level_ops',
+                        'Support, QA & Operations'
+                      ),
+                    },
+                  ]}
                 />
               </div>
             </div>
-          )}
+          </UniversalGroup>
+
+          <UniversalGroup
+            title={t(
+              'landing_keeper_group_profile',
+              'Applicant Profile & Technical Stack'
+            )}
+            icon={t('icon_badge', 'badge')}
+          >
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+              <UniversalInput
+                label={`${t('landing_keeper_handle_label', 'Your Name or Handle')} *`}
+                value={keeperHandle}
+                onChange={setKeeperHandle}
+                placeholder="@handle"
+              />
+              <UniversalInput
+                label={`${t('landing_keeper_contact_label', 'Direct Email or Discord')} *`}
+                value={keeperContact}
+                onChange={setKeeperContact}
+                placeholder="you@example.com"
+              />
+              <UniversalInput
+                label={t(
+                  'landing_keeper_portfolio_label',
+                  'GitHub, Portfolio, or Profile URL'
+                )}
+                value={keeperPortfolio}
+                onChange={setKeeperPortfolio}
+                placeholder="https://github.com/..."
+              />
+              <div className="flex flex-col justify-end gap-1.5">
+                <label className="text-[10px] font-black uppercase tracking-widest text-[var(--subtext)] opacity-75 px-1 leading-tight">
+                  {t(
+                    'landing_keeper_tz_label',
+                    'Primary Timezone / Region'
+                  )}
+                </label>
+                <CustomDropdown
+                  disableTint={true}
+                  value={keeperTimezone}
+                  onChange={(v: string[]) =>
+                    setKeeperTimezone(v[0] || 'Americas (UTC-8 to UTC-3)')
+                  }
+                  options={[
+                    {
+                      id: 'Americas (UTC-8 to UTC-3)',
+                      label: t(
+                        'landing_keeper_tz_americas',
+                        'Americas (UTC-8 to UTC-3)'
+                      ),
+                    },
+                    {
+                      id: 'Europe / UK / Africa (UTC+0 to UTC+3)',
+                      label: t(
+                        'landing_keeper_tz_emea',
+                        'Europe / UK / Africa (UTC+0 to UTC+3)'
+                      ),
+                    },
+                    {
+                      id: 'Asia-Pacific / Oceania (UTC+5 to UTC+12)',
+                      label: t(
+                        'landing_keeper_tz_apac',
+                        'Asia-Pacific / Oceania (UTC+5 to UTC+12)'
+                      ),
+                    },
+                    {
+                      id: 'Flexible / Global Async',
+                      label: t(
+                        'landing_keeper_tz_flex',
+                        'Flexible / Global Async'
+                      ),
+                    },
+                  ]}
+                />
+              </div>
+            </div>
+
+            <div className="flex flex-col gap-2">
+              <label className="text-[10px] font-black uppercase tracking-widest text-[var(--subtext)] opacity-75 px-1 leading-tight">
+                {t(
+                  'landing_keeper_skills_label',
+                  'Technical Stack & Core Domains (Select All That Apply)'
+                )}
+              </label>
+              <div className="flex flex-wrap gap-2">
+                {[
+                  {
+                    id: 'Rust',
+                    icon: t('icon_terminal', 'terminal'),
+                    label: t('landing_keeper_skill_rust', 'Rust'),
+                  },
+                  {
+                    id: 'TypeScript / React',
+                    icon: t('icon_code', 'code'),
+                    label: t(
+                      'landing_keeper_skill_ts',
+                      'TypeScript / React'
+                    ),
+                  },
+                  {
+                    id: 'Tauri / Desktop',
+                    icon: t('icon_desktop_windows', 'desktop_windows'),
+                    label: t(
+                      'landing_keeper_skill_tauri',
+                      'Tauri / Desktop'
+                    ),
+                  },
+                  {
+                    id: 'SQL / Supabase',
+                    icon: t('icon_database', 'database'),
+                    label: t(
+                      'landing_keeper_skill_sql',
+                      'SQL / Supabase'
+                    ),
+                  },
+                  {
+                    id: 'WebGL2 / Shaders',
+                    icon: t('icon_blur_on', 'blur_on'),
+                    label: t(
+                      'landing_keeper_skill_webgl',
+                      'WebGL2 / Shaders'
+                    ),
+                  },
+                  {
+                    id: 'Reverse Engineering',
+                    icon: t('icon_shield_lock', 'shield_lock'),
+                    label: t(
+                      'landing_keeper_skill_rev',
+                      'Reverse Engineering'
+                    ),
+                  },
+                  {
+                    id: 'Python / Bytecode',
+                    icon: t('icon_memory', 'memory'),
+                    label: t(
+                      'landing_keeper_skill_python',
+                      'Python / Bytecode'
+                    ),
+                  },
+                  {
+                    id: 'Game Schema Design',
+                    icon: t('icon_architecture', 'architecture'),
+                    label: t(
+                      'landing_keeper_skill_schema',
+                      'Game Schema Design'
+                    ),
+                  },
+                  {
+                    id: 'QA & Log Triage',
+                    icon: t('icon_bug_report', 'bug_report'),
+                    label: t(
+                      'landing_keeper_skill_qa',
+                      'QA & Log Triage'
+                    ),
+                  },
+                  {
+                    id: 'Technical Writing',
+                    icon: t('icon_menu_book', 'menu_book'),
+                    label: t(
+                      'landing_keeper_skill_docs',
+                      'Technical Writing'
+                    ),
+                  },
+                ].map((skill) => {
+                  const selected = keeperSkills.includes(skill.id);
+                  return (
+                    <button
+                      key={skill.id}
+                      type="button"
+                      onClick={() => {
+                        if (selected) {
+                          setKeeperSkills(
+                            keeperSkills.filter((s) => s !== skill.id)
+                          );
+                        } else {
+                          setKeeperSkills([...keeperSkills, skill.id]);
+                        }
+                      }}
+                      className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl glass-surface border text-[11px] font-black transition-all cursor-pointer ${
+                        selected
+                          ? 'border-[var(--accent)] sa-glass-active text-[var(--text)]'
+                          : 'border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[var(--subtext)] hover:text-[var(--text)]'
+                      }`}
+                    >
+                      <span
+                        className={`material-symbols-outlined !text-[14px] ${
+                          selected
+                            ? 'text-[var(--accent)]'
+                            : 'text-[var(--subtext)] opacity-70'
+                        }`}
+                      >
+                        {selected
+                          ? t('icon_check_circle', 'check_circle')
+                          : skill.icon}
+                      </span>
+                      <span>{skill.label}</span>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            <div className="flex flex-col gap-1.5">
+              <div className="flex items-center justify-between gap-2 px-1">
+                <label className="text-[10px] font-black uppercase tracking-widest text-[var(--subtext)] opacity-75 leading-tight">
+                  {`${t(
+                    'landing_keeper_exp_label',
+                    'Shipped Projects, Technical Background & Relevant Experience (Min 40 chars)'
+                  )} *`}
+                </label>
+                <span
+                  className={`text-[10px] font-mono font-bold shrink-0 ${
+                    keeperExperience.trim().length >= 40
+                      ? 'text-[var(--success)]'
+                      : 'text-[var(--warning)]'
+                  }`}
+                >
+                  {`${keeperExperience.trim().length} / 40+`}
+                </span>
+              </div>
+              <UniversalTextArea
+                value={keeperExperience}
+                onChange={setKeeperExperience}
+                placeholder={t(
+                  'landing_keeper_exp_ph',
+                  'Share shipped projects, GitHub repos, reverse-engineering or modding tool work, support/triage experience, or systems you have built...'
+                )}
+                className="min-h-[160px] sm:min-h-[180px]"
+              />
+            </div>
+
+            <UniversalTextArea
+              label={t(
+                'landing_keeper_motivation_label',
+                'Role Approach / Why Sanctuary Foundry (Optional)'
+              )}
+              value={keeperMotivation}
+              onChange={setKeeperMotivation}
+              placeholder={t(
+                'landing_keeper_motivation_ph',
+                'What would you focus on first in this role at Sanctuary Foundry, or what part of Sanctuary OS excites you most?'
+              )}
+            />
+          </UniversalGroup>
+
+          <UniversalGroup
+            title={t(
+              'landing_keeper_group_standards',
+              'Foundry Standards & Commitments'
+            )}
+            icon={t('icon_verified_user', 'verified_user')}
+          >
+            <div className="flex flex-col gap-2.5">
+              <SidePanelPillToggle
+                label={t(
+                  'landing_keeper_gate_1_title',
+                  'Sanctuary Foundry Organization & Keeper Role'
+                )}
+                description={t(
+                  'landing_keeper_gate_1_desc',
+                  'I understand I am applying to Sanctuary Foundry to serve as a Keeper—working on Sanctuary OS engineering, malware heuristics, schemas, or platform support in Keepers Core.'
+                )}
+                icon={t(
+                  'icon_admin_panel_settings',
+                  'admin_panel_settings'
+                )}
+                checked={keeperGate1}
+                onChange={setKeeperGate1}
+              />
+              <SidePanelPillToggle
+                label={t(
+                  'landing_keeper_gate_2_title',
+                  'Zero-Trust FIDO2 Passkey & Anti-Malware Integrity'
+                )}
+                description={t(
+                  'landing_keeper_gate_2_desc',
+                  'I commit to hardware-backed FIDO2 Passkey authentication, impartial heuristic malware analysis, and append-only audit log transparency across Keepers Core.'
+                )}
+                icon={t('icon_shield_lock', 'shield_lock')}
+                checked={keeperGate2}
+                onChange={setKeeperGate2}
+              />
+              <SidePanelPillToggle
+                label={t(
+                  'landing_keeper_gate_3_title',
+                  'Human-First Support & Zero-PII Privacy Standard'
+                )}
+                description={t(
+                  'landing_keeper_gate_3_desc',
+                  'I will handle {Citizen} support tickets, bug diagnostics, and Partner Spoke applications with genuine human care and zero tolerance for data harvesting.'
+                )}
+                icon={t('icon_verified_user', 'verified_user')}
+                checked={keeperGate3}
+                onChange={setKeeperGate3}
+              />
+            </div>
+          </UniversalGroup>
+
+          <ActionButton
+            variant="primary"
+            className="w-full"
+            icon={
+              isSubmittingKeeper
+                ? t('icon_sync', 'sync')
+                : t('icon_rocket_launch', 'rocket_launch')
+            }
+            label={
+              isSubmittingKeeper
+                ? t('btn_submitting', 'Submitting...')
+                : t(
+                    'landing_keeper_submit_btn',
+                    'Submit Application to Sanctuary Foundry'
+                  )
+            }
+            onClick={handleSubmitKeeperApplication}
+            disabled={isSubmittingKeeper || keeperMissingReasons.length > 0}
+            tooltip={keeperSubmitTooltipTitle}
+            tooltipSubtitle={keeperSubmitTooltipSub}
+          />
         </div>
       </SidePanel>
     </>

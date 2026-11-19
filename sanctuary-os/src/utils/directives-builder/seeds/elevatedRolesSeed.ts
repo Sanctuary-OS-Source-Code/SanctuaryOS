@@ -1,7 +1,7 @@
 import type { DirectiveBuilderCard } from "../types";
 
 export function getElevatedRolesCards(
-  t: (key: string, fallback?: string) => string
+  t: (key: string, fallback: string) => string
 ): DirectiveBuilderCard[] {
   const elevatedRolesCards: DirectiveBuilderCard[] = [
     {
@@ -101,7 +101,7 @@ export function getElevatedRolesCards(
           title: t("dir_role_mas_s4_title", "0%-Cut Supporter Bridge & Static Manifests"),
           desc: t(
             "dir_role_mas_s4_desc",
-            "Connect Patreon, Ko-fi, or custom supporter links with 0% Sanctuary cut, and publish Tier 1–4 {mods} responsibly via decentralized Static Edge manifests."
+            "Connect Patreon, Ko-fi, or custom supporter links with 0% Sanctuary cut, and publish Tier 2–5 or self-hosted Tier 0 {mods} cleanly via decentralized Static Edge manifests."
           ),
         },
       ],
@@ -134,7 +134,7 @@ export function getElevatedRolesCards(
           title: t("dir_role_arc_s2_title", "Verified {Mason} & Scout Queue Triage"),
           desc: t(
             "dir_role_arc_s2_desc",
-            "Review unknown/unverified community submissions in Dedicated Queues, run Check Hash verification, and escalate Tier 1–4 flags cleanly to Oversight."
+            "Review unknown/unverified community submissions in Dedicated Queues, run Check Hash verification, and escalate Tier 1–5 flags cleanly to Oversight."
           ),
         },
         {
@@ -166,26 +166,26 @@ export function getElevatedRolesCards(
       footerMeta: t("dir_proto_r4_tier", "Tier 4 • Spoke Security Admin"),
       desc: t(
         "dir_proto_r4_scope",
-        "Unlocks Oversight Command: Tier 1–4 & Pending Flag Confirmation, Spoke Heuristic Signatures, Tier 5 Malware blacklisting, DEFCON 1 override, Game/DLC patch registration, Mass Batch Updater, {Mason} Linker, and Spoke Identity Matrix (up to Architect)."
+        "Unlocks Oversight Command: Tier 1 DMCA / Tiers 2–5 & Pending Flag Confirmation, Spoke Heuristic Signatures, Tier 6 Malware blacklisting, DEFCON 1 override, Game/DLC patch registration, Mass Batch Updater, {Mason} Linker, and Spoke Identity Matrix (up to Architect)."
       ),
       status: "passkey",
       subCards: [
         {
           id: "role_ovr_s1",
           icon: t("icon_security", "security"),
-          title: t("dir_role_ovr_s1_title", "Tier 1–4 Compliance & Pending Flag Review"),
+          title: t("dir_role_ovr_s1_title", "Tier 1–5 Compliance, DMCA & Pending Flag Review"),
           desc: t(
             "dir_role_ovr_s1_desc",
-            "Exclusive reviewer for escalated Tier 1–4 records and Pending community flags—auto-hidden publicly until confirmed or cleared."
+            "Exclusive reviewer for Tier 1 Legal/DMCA notices forwarded to the Spoke, escalated Tiers 2–5 records, and Pending community flags—auto-hidden publicly until confirmed or cleared."
           ),
         },
         {
           id: "role_ovr_s2",
           icon: t("icon_gpp_bad", "gpp_bad"),
-          title: t("dir_role_ovr_s2_title", "Spoke Heuristics, Tier 5 Blacklists & DEFCON 1"),
+          title: t("dir_role_ovr_s2_title", "Spoke Heuristics, Tier 6 Blacklists & DEFCON 1"),
           desc: t(
             "dir_role_ovr_s2_desc",
-            "Author game-specific antivirus signatures, blacklist Tier 5 Malware SHA-256 hashes, and engage DEFCON 1 pre-patch shields."
+            "Author game-specific antivirus signatures, blacklist Tier 6 Malware SHA-256 hashes, and engage DEFCON 1 pre-patch shields."
           ),
         },
         {
@@ -242,10 +242,10 @@ export function getElevatedRolesCards(
         {
           id: "role_way_s3",
           icon: t("icon_manage_accounts", "manage_accounts"),
-          title: t("dir_role_way_s3_title", "Full Identity Matrix & Tier 1–4 Authority"),
+          title: t("dir_role_way_s3_title", "Full Identity Matrix & Tier 1–5 Authority"),
           desc: t(
             "dir_role_way_s3_desc",
-            "Appoint Oversight admins and peer Wayfinders, confirm or dismiss compliance flags, and run in-hub Mass Update compatibility sweeps."
+            "Appoint Oversight admins and peer Wayfinders, fulfill Tier 1 DMCA / Tiers 2–5 compliance governance within the Spoke SLA, and oversee Oversight compatibility operations."
           ),
         },
         {

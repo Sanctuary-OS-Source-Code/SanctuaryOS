@@ -1,15 +1,15 @@
-import { useState, type MouseEvent } from "react";
+import { useEffect, useMemo, useState, type MouseEvent, type MutableRefObject } from "react";
 import { useLexicon } from "../../LexiconContext";
 import {
   ActionButton,
-  EmptyState,
   PanelHeaderButton,
   PanelHeaderGroup,
   SidePanel,
-  SidePanelHeroCard,
   VAULT_CHIP_CLASS,
 } from "../../shared";
 import { UniversalCard } from "../../components/universal/UniversalCard";
+import { HubListGrid } from "../../components/layouts/ElevatedHubLayout";
+import { CommandScreenSectionHeading } from "../SharedCommandScreenLayout";
 import {
   UniversalGroup,
   UniversalInput,
@@ -21,6 +21,8 @@ interface EmailResponseTemplatesSectionProps {
   templates: KeeperEmailResponseTemplate[];
   isSaving: boolean;
   onSaveTemplates: (next: KeeperEmailResponseTemplate[]) => Promise<void>;
+  externalSearch?: string;
+  openCreateRef?: MutableRefObject<(() => void) | null>;
 }
 
 /** Direct Human Contact email response templates studio using a stacked edit drawer. */
@@ -28,6 +30,8 @@ export default function EmailResponseTemplatesSection({
   templates,
   isSaving,
   onSaveTemplates,
+  externalSearch = "",
+  openCreateRef,
 }: EmailResponseTemplatesSectionProps) {
   const { t } = useLexicon();
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -54,6 +58,29 @@ export default function EmailResponseTemplatesSection({
     setDraftBody("");
     setIsEditorOpen(true);
   };
+
+  useEffect(() => {
+    if (openCreateRef) {
+      openCreateRef.current = openCreateForm;
+    }
+    return () => {
+      if (openCreateRef) {
+        openCreateRef.current = null;
+      }
+    };
+  });
+
+  const filteredTemplates = useMemo(() => {
+    const q = externalSearch.trim().toLowerCase();
+    if (!q) return templates;
+    return templates.filter(
+      (tpl) =>
+        tpl.name.toLowerCase().includes(q) ||
+        String(tpl.category || "").toLowerCase().includes(q) ||
+        tpl.subject.toLowerCase().includes(q) ||
+        tpl.body.toLowerCase().includes(q)
+    );
+  }, [templates, externalSearch]);
 
   const openEditForm = (tpl: KeeperEmailResponseTemplate) => {
     setEditingId(tpl.id);
@@ -114,96 +141,91 @@ export default function EmailResponseTemplatesSection({
 
   return (
     <div className="flex flex-col gap-4">
-      <SidePanelHeroCard
+      <CommandScreenSectionHeading
         icon={t("icon_quickreply", "quickreply")}
-        overline={t("keepers_foundry_label", "Sanctuary Foundry")}
+        iconColorClass="text-[var(--accent)]"
         title={t("keepers_email_human_tpl_title", "Direct Human Response Templates")}
-        description={t(
+        subtitle={t(
           "keepers_email_human_tpl_desc",
           "Create reusable human outreach and support replies to load into Compose or Ticket Dossiers."
         )}
-        badge={`${templates.length} ${t("tab_templates", "Templates")}`}
-        badgeIcon={t("icon_drafts", "drafts")}
-        variant="accent"
-      >
-        <div className="flex justify-end w-full">
-          <ActionButton
-            onClick={openCreateForm}
-            disabled={isSaving}
-            variant="accent"
-            icon={t("icon_add", "add")}
-            label={t("keepers_email_tpl_new_btn", "New Template")}
-          />
-        </div>
-      </SidePanelHeroCard>
+        breadcrumb={`${filteredTemplates.length}`}
+        actions={
+          <PanelHeaderGroup>
+            <PanelHeaderButton
+              icon={t("icon_add", "add")}
+              tooltip={t("keepers_email_tpl_new_btn", "New Template")}
+              onClick={openCreateForm}
+              disabled={isSaving}
+            />
+          </PanelHeaderGroup>
+        }
+      />
 
-      {templates.length > 0 ? (
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          {templates.map((tpl) => {
-            const catLabel = tpl.category || t("keepers_email_tpl_default_cat", "Support");
-            return (
-              <UniversalCard
-                key={tpl.id}
-                layout="vertical"
-                statusColor="accent"
-                icon={t("icon_quickreply", "quickreply")}
-                bannerTopLabel={catLabel}
-                bannerTopRightLabel={t("tab_templates", "Templates")}
-                bannerBottomLabel={tpl.subject}
-                title={tpl.name}
-                subtitle={tpl.subject}
-                description={
-                  <span className="line-clamp-3 text-xs text-[var(--subtext)] no-text-case">
-                    {tpl.body}
+      <HubListGrid
+        isEmpty={filteredTemplates.length === 0}
+        emptyIcon={t("icon_drafts", "drafts")}
+        emptyTitle={t("keepers_email_tpl_empty", "No Response Templates Saved")}
+        className="!pb-0"
+      >
+        {filteredTemplates.map((tpl) => {
+          const catLabel = tpl.category || t("keepers_email_tpl_default_cat", "Support");
+          return (
+            <UniversalCard
+              key={tpl.id}
+              layout="vertical"
+              statusColor="accent"
+              icon={t("icon_quickreply", "quickreply")}
+              bannerTopLabel={catLabel}
+              bannerTopRightLabel={t("tab_templates", "Templates")}
+              bannerBottomLabel={tpl.subject}
+              title={tpl.name}
+              subtitle={tpl.subject}
+              description={
+                <span className="line-clamp-3 text-xs text-[var(--subtext)] no-text-case">
+                  {tpl.body}
+                </span>
+              }
+              onClick={() => openEditForm(tpl)}
+              imageOverlay={
+                <div className="absolute top-2.5 left-3 flex flex-nowrap items-center gap-1.5 max-w-[calc(100%-6.5rem)] z-30 pointer-events-none">
+                  <span className={VAULT_CHIP_CLASS}>
+                    <span className="material-symbols-outlined !text-[12px] text-[var(--accent)]">
+                      {t("icon_drafts", "drafts")}
+                    </span>
+                    <span>{catLabel}</span>
                   </span>
-                }
-                onClick={() => openEditForm(tpl)}
-                imageOverlay={
-                  <div className="absolute top-2.5 left-3 flex flex-nowrap items-center gap-1.5 max-w-[calc(100%-6.5rem)] z-30 pointer-events-none">
-                    <span className={VAULT_CHIP_CLASS}>
-                      <span className="material-symbols-outlined !text-[12px] text-[var(--accent)]">
-                        {t("icon_drafts", "drafts")}
-                      </span>
-                      <span>{catLabel}</span>
+                </div>
+              }
+              footer={
+                <div className="flex items-center justify-between gap-2 w-full">
+                  <span className="text-[10px] font-bold text-[var(--subtext)] opacity-75 truncate">
+                    {catLabel}
+                  </span>
+                  <div className="flex items-center gap-2 shrink-0">
+                    <PanelHeaderGroup>
+                      <PanelHeaderButton
+                        icon={t("icon_delete", "delete")}
+                        tooltip={t("delete", "Delete")}
+                        isDestructive={true}
+                        className="text-[var(--danger)]"
+                        onClick={(e: MouseEvent) => {
+                          e.stopPropagation();
+                          handleDeleteTemplate(tpl.id);
+                        }}
+                      />
+                    </PanelHeaderGroup>
+                    <span className="text-[10px] font-black uppercase tracking-widest text-[var(--text)] group-hover/card:text-[var(--accent)] group-hover:text-[var(--accent)] transition-all flex items-center gap-1 opacity-80 group-hover/card:opacity-100 shrink-0">
+                      <span>{t("keepers_email_tpl_edit_cta", "Edit Template")}</span>
+                      <span className="text-sm leading-none">&rarr;</span>
                     </span>
                   </div>
-                }
-                footer={
-                  <div className="flex items-center justify-between gap-2 w-full">
-                    <span className="text-[10px] font-bold text-[var(--subtext)] opacity-75 truncate">
-                      {catLabel}
-                    </span>
-                    <div className="flex items-center gap-2 shrink-0">
-                      <PanelHeaderGroup>
-                        <PanelHeaderButton
-                          icon={t("icon_delete", "delete")}
-                          tooltip={t("delete", "Delete")}
-                          isDestructive={true}
-                          className="text-[var(--danger)]"
-                          onClick={(e: MouseEvent) => {
-                            e.stopPropagation();
-                            handleDeleteTemplate(tpl.id);
-                          }}
-                        />
-                      </PanelHeaderGroup>
-                      <span className="text-[10px] font-black uppercase tracking-widest text-[var(--text)] group-hover/card:text-[var(--accent)] group-hover:text-[var(--accent)] transition-all flex items-center gap-1 opacity-80 group-hover/card:opacity-100 shrink-0">
-                        <span>{t("keepers_email_tpl_edit_cta", "Edit Template")}</span>
-                        <span className="text-sm leading-none">&rarr;</span>
-                      </span>
-                    </div>
-                  </div>
-                }
-              />
-            );
-          })}
-        </div>
-      ) : (
-        <EmptyState
-          icon={t("icon_drafts", "drafts")}
-          title={t("keepers_email_tpl_empty", "No Response Templates Saved")}
-          className="py-12"
-        />
-      )}
+                </div>
+              }
+            />
+          );
+        })}
+      </HubListGrid>
 
       <SidePanel
         isOpen={isEditorOpen}

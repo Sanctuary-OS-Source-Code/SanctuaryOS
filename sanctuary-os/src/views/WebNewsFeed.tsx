@@ -11,11 +11,15 @@ export default function WebNewsFeed({
   onCountChange,
   searchQuery = "",
   categoryFilter = "ALL",
+  gridClassName = "grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 w-full",
+  disableFeaturedSpan = true,
 }: {
   limit?: number;
   onCountChange?: (count: number) => void;
   searchQuery?: string;
   categoryFilter?: string;
+  gridClassName?: string;
+  disableFeaturedSpan?: boolean;
 } = {}) {
   const { t } = useLexicon();
   const session = useStore((state: any) => state.session);
@@ -69,7 +73,7 @@ export default function WebNewsFeed({
   });
 
   return (
-    <div className="grid grid-cols-[repeat(auto-fill,minmax(300px,1fr))] gap-6">
+    <div className={gridClassName}>
       {loading ? (
         <EmptyState icon={t("icon_sync", "sync")} title={t("loading", "Loading")} className="col-span-full animate-pulse" />
       ) : filteredPosts.length === 0 ? (
@@ -81,6 +85,7 @@ export default function WebNewsFeed({
             post={p}
             index={index}
             onPostClick={() => setSelectedPost(p)}
+            isFeatured={disableFeaturedSpan ? false : undefined}
             isCompact={false}
           />
         ))

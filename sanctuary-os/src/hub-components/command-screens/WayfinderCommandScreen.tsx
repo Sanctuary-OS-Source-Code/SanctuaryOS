@@ -11,6 +11,18 @@ import {
   CommandComplianceReviewSidePanel,
   CommandReportResolutionSidePanel,
 } from "../../side-panels/HubCommandQuickPanels";
+import {
+  DmcaAllNoticesSidePanel,
+  DmcaLaneLeadCard,
+  DmcaNoticeCard,
+  DmcaNoticeReviewSidePanel,
+  fetchDmcaQueueNotices,
+  type ResolvedDmcaTargetEntry,
+} from "../compliance/DmcaOversightQueueSection";
+import {
+  partitionDmcaNoticesByLane,
+  type DmcaLaneId,
+} from "../compliance/dmcaQueueHelpers";
 import { EmptyState, VAULT_CHIP_CLASS } from "../../shared";
 import {
   CommandScreenLayout,
@@ -49,6 +61,8 @@ interface WayfinderCommandSnapshot {
     tickets: number;
     complianceFlags: number;
     pendingCompliance: number;
+    dmcaActive: number;
+    dmcaOverdue: number;
     malwareTotal: number;
     pendingManifests: number;
     reportQueue: number;
@@ -67,6 +81,9 @@ interface WayfinderCommandSnapshot {
   recentMalware: any[];
   recentCompliance: any[];
   recentReports: any[];
+  dmcaNotices: any[];
+  dmcaGamesMap: Record<string, any>;
+  dmcaResolvedTargetsMap: Record<string, ResolvedDmcaTargetEntry>;
 }
 
 const DEFAULT_WAYFINDER_SNAPSHOT: WayfinderCommandSnapshot = {
@@ -74,6 +91,8 @@ const DEFAULT_WAYFINDER_SNAPSHOT: WayfinderCommandSnapshot = {
     tickets: 0,
     complianceFlags: 0,
     pendingCompliance: 0,
+    dmcaActive: 0,
+    dmcaOverdue: 0,
     malwareTotal: 0,
     pendingManifests: 0,
     reportQueue: 0,
@@ -92,6 +111,9 @@ const DEFAULT_WAYFINDER_SNAPSHOT: WayfinderCommandSnapshot = {
   recentMalware: [],
   recentCompliance: [],
   recentReports: [],
+  dmcaNotices: [],
+  dmcaGamesMap: {},
+  dmcaResolvedTargetsMap: {},
 };
 
 export function WayfinderCommandScreen({
@@ -128,6 +150,8 @@ export function WayfinderCommandScreen({
   const [selectedManifest, setSelectedManifest] = useState<any | null>(null);
   const [selectedComplianceMod, setSelectedComplianceMod] = useState<any | null>(null);
   const [selectedReport, setSelectedReport] = useState<any | null>(null);
+  const [selectedDmcaNotice, setSelectedDmcaNotice] = useState<any | null>(null);
+  const [allDmcaLane, setAllDmcaLane] = useState<DmcaLaneId | null>(null);
 
   const schemaVersion = Number(activeGameSchema?.schema_version || 1);
   const schemaExtensionsCount = Array.isArray(activeGameSchema?.file_extensions)
@@ -159,6 +183,7 @@ export function WayfinderCommandScreen({
       spokeThemesRes,
       spokeLexiconsRes,
       auditLogsRes,
+      dmcaQueueRes,
     ] = await Promise.all([
       supabaseAuth
         .from("keeper_system_broadcasts")
@@ -198,7 +223,7 @@ export function WayfinderCommandScreen({
           count: "exact",
         })
         .gte("compliance_tier", 1)
-        .lte("compliance_tier", 4)
+        .lte("compliance_tier", 5)
         .order("updated_at", { ascending: false })
         .limit(6),
       spokeOversightFrom("mods")
@@ -206,13 +231,13 @@ export function WayfinderCommandScreen({
           count: "exact",
         })
         .gte("compliance_tier", 1)
-        .lte("compliance_tier", 4)
+        .lte("compliance_tier", 5)
         .in("status", ["pending", "under_review", "unverified"])
         .order("updated_at", { ascending: false })
         .limit(6),
       spokeOversightFrom("mods")
         .select("id", { count: "exact", head: true })
-        .eq("compliance_tier", 5),
+        .eq("compliance_tier", 6),
       supabase
         .from("malware_reports")
         .select("*", { count: "exact" })
@@ -246,6 +271,7 @@ export function WayfinderCommandScreen({
       supabase.from("sanctuary_themes").select("id", { count: "exact", head: true }),
       supabase.from("sanctuary_lexicons").select("id", { count: "exact", head: true }),
       supabase.from("audit_logs").select("id", { count: "exact", head: true }),
+      fetchDmcaQueueNotices().catch(() => null),
     ]);
 
     const latency = Date.now() - pingStart;
@@ -356,6 +382,8 @@ export function WayfinderCommandScreen({
         complianceFlags:
           complianceModsRes?.count ?? (complianceModsRes?.data?.length || 0),
         pendingCompliance: pendingComplianceCount,
+        dmcaActive: dmcaQueueRes?.activeCount ?? 0,
+        dmcaOverdue: dmcaQueueRes?.overdueCount ?? 0,
         malwareTotal: tier5Count + pendingManifests,
         pendingManifests,
         reportQueue: unifiedReports.length,
@@ -374,6 +402,9 @@ export function WayfinderCommandScreen({
       recentMalware: (malwareReportsRes?.data || []).slice(0, 3),
       recentCompliance: prioritizedCompliance.slice(0, 3),
       recentReports: unifiedReports.slice(0, 3),
+      dmcaNotices: dmcaQueueRes?.notices || [],
+      dmcaGamesMap: dmcaQueueRes?.gamesMap || {},
+      dmcaResolvedTargetsMap: dmcaQueueRes?.resolvedTargetsMap || {},
     };
 
     setSnapshot(nextSnapshot);
@@ -395,6 +426,23 @@ export function WayfinderCommandScreen({
     recentCompliance,
     recentReports,
   } = snapshot;
+
+  const dmcaLanes = partitionDmcaNoticesByLane(snapshot.dmcaNotices || [], t);
+  const leadDmcaLane: DmcaLaneId =
+    dmcaLanes.urgent.length > 0
+      ? "urgent"
+      : dmcaLanes.pending.length > 0
+        ? "pending"
+        : "settled";
+  const leadDmcaCount =
+    leadDmcaLane === "urgent"
+      ? dmcaLanes.urgent.length
+      : leadDmcaLane === "pending"
+        ? dmcaLanes.pending.length
+        : dmcaLanes.settled.length;
+  const inlineDmcaNotices = (
+    dmcaLanes.active.length > 0 ? dmcaLanes.active : dmcaLanes.settled
+  ).slice(0, 2);
 
   return (
     <CommandScreenLayout>
@@ -468,6 +516,47 @@ export function WayfinderCommandScreen({
               jumpTooltip={t("wf_tab_dispatch", "{Dispatches}")}
             />
             <SystemBroadcastsGrid broadcasts={broadcasts} setViewingPost={setViewingPost} />
+          </div>
+
+          {/* DMCA & Legal Compliance -> Opens DmcaNoticeReviewSidePanel Directly */}
+          <div className="flex flex-col gap-4">
+            <CommandScreenSectionHeading
+              icon={t("icon_gavel", "gavel")}
+              iconColorClass={
+                (stats.dmcaOverdue || 0) > 0
+                  ? "text-[var(--danger)]"
+                  : (stats.dmcaActive || 0) > 0
+                    ? "text-[var(--warning)]"
+                    : "text-[var(--success)]"
+              }
+              title={t("dmca_tab_label", "DMCA & Legal")}
+              subtitle={t(
+                "oversight_dmca_sub",
+                "Statutory § 512 takedown & counter-notice compliance queue (48h SLA)"
+              )}
+              onJump={() => {
+                if (setComplianceFilter) setComplianceFilter("dmca");
+                setTab("compliance");
+              }}
+              jumpTooltip={`${t("dmca_tab_label", "DMCA & Legal")} (${stats.dmcaActive || 0})`}
+            />
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 w-full">
+              <DmcaLaneLeadCard
+                lane={leadDmcaLane}
+                count={leadDmcaCount}
+                overdueCount={stats.dmcaOverdue || 0}
+                onClick={() => setAllDmcaLane(leadDmcaLane)}
+              />
+              {inlineDmcaNotices.map((notice: any) => (
+                <DmcaNoticeCard
+                  key={notice.id}
+                  notice={notice}
+                  resolvedTargetsMap={snapshot.dmcaResolvedTargetsMap || {}}
+                  gamesMap={snapshot.dmcaGamesMap || {}}
+                  onSelect={setSelectedDmcaNotice}
+                />
+              ))}
+            </div>
           </div>
 
           {/* Spoke Control & Spoke Aesthetics Overview (Mirrors Master Schemas, Uplink, Chameleons & Lexicons!) */}
@@ -997,6 +1086,27 @@ export function WayfinderCommandScreen({
         report={selectedReport}
         onCompleted={refreshWayfinderDashboard}
         onOpenFullReports={() => setTab("reports")}
+      />
+
+      <DmcaAllNoticesSidePanel
+        isOpen={Boolean(allDmcaLane)}
+        onClose={() => setAllDmcaLane(null)}
+        initialLane={allDmcaLane || "urgent"}
+        notices={snapshot.dmcaNotices || []}
+        resolvedTargetsMap={snapshot.dmcaResolvedTargetsMap || {}}
+        gamesMap={snapshot.dmcaGamesMap || {}}
+        onSelectNotice={setSelectedDmcaNotice}
+        onRefresh={refreshWayfinderDashboard}
+      />
+
+      <DmcaNoticeReviewSidePanel
+        notice={selectedDmcaNotice}
+        isOpen={Boolean(selectedDmcaNotice)}
+        onClose={() => setSelectedDmcaNotice(null)}
+        resolvedTargetsMap={snapshot.dmcaResolvedTargetsMap || {}}
+        gamesMap={snapshot.dmcaGamesMap || {}}
+        onRefresh={refreshWayfinderDashboard}
+        onTriageCompleted={refreshWayfinderDashboard}
       />
     </CommandScreenLayout>
   );

@@ -139,7 +139,7 @@ fn normalize_solder_config(config: &mut SolderConfig, create_dirs: bool) -> bool
     healed
 }
 
-#[tauri::command]
+#[tauri::command(async)]
 pub fn get_global_config() -> SolderConfig {
     let path = get_config_path();
     let current_mtime = fs::metadata(&path).ok().and_then(|m| m.modified().ok());
@@ -235,7 +235,7 @@ pub fn get_global_config() -> SolderConfig {
     resolved_cfg
 }
 
-#[tauri::command]
+#[tauri::command(async)]
 pub fn get_saved_coordinates() -> WorkspaceConfig {
     let global_config = get_global_config();
     let master_vault = global_config.vault_path.clone();
@@ -375,7 +375,7 @@ pub fn get_malware_protocol_override(state: tauri::State<'_, SecurityState>) -> 
 }
 
 #[tauri::command]
-pub fn set_malware_protocol_override(
+pub async fn set_malware_protocol_override(
     enabled: bool,
     state: tauri::State<'_, SecurityState>,
 ) -> Result<bool, String> {
@@ -383,41 +383,45 @@ pub fn set_malware_protocol_override(
         .malware_protocol_overridden
         .store(enabled, std::sync::atomic::Ordering::SeqCst);
 
-    let config_path = get_config_path();
-    let mut cfg = get_global_config();
-    cfg.malware_protocol_overridden = enabled;
+    tauri::async_runtime::spawn_blocking(move || {
+        let config_path = get_config_path();
+        let mut cfg = get_global_config();
+        cfg.malware_protocol_overridden = enabled;
 
-    let mut json_val = fs::read_to_string(&config_path)
-        .ok()
-        .and_then(|raw| serde_json::from_str::<serde_json::Value>(&raw).ok())
-        .filter(|v| v.is_object())
-        .unwrap_or_else(|| serde_json::to_value(&cfg).unwrap_or_else(|_| serde_json::json!({})));
-    if let Some(obj) = json_val.as_object_mut() {
-        obj.insert(
-            "malware_protocol_overridden".to_string(),
-            serde_json::Value::Bool(enabled),
-        );
-    }
-    let json = serde_json::to_string_pretty(&json_val).map_err(|e| e.to_string())?;
-    if let Ok(mut guard) = global_config_cache().write() {
-        *guard = None;
-    }
-    crate::utils::atomic_write_bytes(&config_path, json.as_bytes())?;
-    let new_mtime = fs::metadata(&config_path).ok().and_then(|m| m.modified().ok());
-    if let Ok(mut guard) = global_config_cache().write() {
-        *guard = Some((config_path, new_mtime, cfg));
-    }
-    Ok(enabled)
+        let mut json_val = fs::read_to_string(&config_path)
+            .ok()
+            .and_then(|raw| serde_json::from_str::<serde_json::Value>(&raw).ok())
+            .filter(|v| v.is_object())
+            .unwrap_or_else(|| serde_json::to_value(&cfg).unwrap_or_else(|_| serde_json::json!({})));
+        if let Some(obj) = json_val.as_object_mut() {
+            obj.insert(
+                "malware_protocol_overridden".to_string(),
+                serde_json::Value::Bool(enabled),
+            );
+        }
+        let json = serde_json::to_string_pretty(&json_val).map_err(|e| e.to_string())?;
+        if let Ok(mut guard) = global_config_cache().write() {
+            *guard = None;
+        }
+        crate::utils::atomic_write_bytes(&config_path, json.as_bytes())?;
+        let new_mtime = fs::metadata(&config_path).ok().and_then(|m| m.modified().ok());
+        if let Ok(mut guard) = global_config_cache().write() {
+            *guard = Some((config_path, new_mtime, cfg));
+        }
+        Ok(enabled)
+    })
+    .await
+    .map_err(|e| e.to_string())?
 }
 
-#[tauri::command]
+#[tauri::command(async)]
 pub fn get_protocol_handler_preferences() -> ProtocolHandlerPreferences {
     get_global_config()
         .external_protocol_handlers
         .unwrap_or_default()
 }
 
-#[tauri::command]
+#[tauri::command(async)]
 pub fn set_protocol_handler_preferences(
     prefs: ProtocolHandlerPreferences,
 ) -> Result<ProtocolHandlerPreferences, String> {
@@ -461,7 +465,7 @@ pub fn consume_startup_deep_links(state: tauri::State<'_, SecurityState>) -> Vec
     }
 }
 
-#[tauri::command]
+#[tauri::command(async)]
 pub fn save_coordinates(mut config: SolderConfig) -> Result<String, String> {
     if config.external_protocol_handlers.is_none() {
         config.external_protocol_handlers = get_global_config().external_protocol_handlers;

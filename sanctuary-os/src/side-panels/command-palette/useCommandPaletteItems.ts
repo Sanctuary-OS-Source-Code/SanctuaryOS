@@ -519,7 +519,9 @@ export function useCommandPaletteItems({
         { id: "active_games", label: cleanNavLabel(t("keepers_tab_partner_spokes", "Partner Spokes"), "Partner Spokes"), icon: t("icon_dns", "dns"), kw: "partner spokes games schemas audit logs applications" },
         { id: "identities", label: cleanNavLabel(t("citizen_oversight", "Citizen Oversight"), "Citizen Oversight"), icon: t("icon_group", "group"), kw: "citizen oversight identities users roles" },
         { id: "heuristics", label: cleanNavLabel(t("core_heuristics_tab", "Core Heuristics"), "Core Heuristics"), icon: t("icon_shield_lock", "shield_lock"), kw: "core heuristics malware signatures security" },
-        { id: "support", label: cleanNavLabel(t("wf_tab_tickets", "Support"), "Support"), icon: t("icon_support_agent", "support_agent"), kw: "support tickets feedback applications" },
+        { id: "spoke_support", label: cleanNavLabel(t("keepers_tab_spoke_support", "Spoke Support"), "Spoke Support"), icon: t("icon_hub", "hub"), kw: "spoke support partner escalations wayfinder tickets" },
+        { id: "platform_support", label: cleanNavLabel(t("keepers_tab_platform_support", "Platform Support"), "Platform Support"), icon: t("icon_bug_report", "bug_report"), kw: "platform support core bugs feedback feature requests" },
+        { id: "compliance_contact", label: cleanNavLabel(t("keepers_tab_compliance_contact", "Compliance & Contact"), "Compliance & Contact"), icon: t("icon_gavel", "gavel"), kw: "compliance contact dmca legal email threads relay" },
         { id: "chameleons", label: cleanNavLabel(t("keepers_tab_core_aesthetics", "Core Aesthetics"), "Core Aesthetics"), icon: t("icon_palette", "palette"), kw: "core aesthetics chameleons themes lexicons title area" },
       ];
       for (const sub of keepersSubsections) {

@@ -1052,7 +1052,7 @@ AS $$
         SELECT 1
         FROM public.mods m
         WHERE m.id = p_mod_id
-          AND COALESCE(m.compliance_tier, 0) NOT IN (1, 2, 3, 4, 6)
+          AND COALESCE(m.compliance_tier, 0) NOT IN (1, 2, 3, 4, 5)
     );
 $$;
 
@@ -1334,7 +1334,17 @@ SECURITY DEFINER
 SET search_path = public
 AS $$
 BEGIN
-    DELETE FROM public.citizen_staging_queue WHERE expires_at < NOW();
+    IF pg_try_advisory_xact_lock(hashtext('sanctuary_staging_queue_gc')) THEN
+        DELETE FROM public.citizen_staging_queue
+        WHERE id IN (
+            SELECT id
+            FROM public.citizen_staging_queue
+            WHERE expires_at < NOW()
+            ORDER BY expires_at ASC
+            LIMIT 250
+            FOR UPDATE SKIP LOCKED
+        );
+    END IF;
     RETURN NEW;
 END;
 $$;
@@ -1694,7 +1704,7 @@ EXCEPTION WHEN OTHERS THEN
 END;
 $$;
 
-CREATE OR REPLACE FUNCTION sanctuary_internal.trigger_pwa_web_push_on_notification()
+CREATE OR REPLACE FUNCTION sanctuary_internal.trigger_pwa_web_push_on_notifications_batch()
 RETURNS TRIGGER
 LANGUAGE plpgsql
 SECURITY DEFINER
@@ -1704,35 +1714,60 @@ DECLARE
     v_endpoint TEXT;
     v_secret TEXT;
     v_spoke_id TEXT;
+    v_chunk RECORD;
 BEGIN
-    IF NOT EXISTS (SELECT 1 FROM pg_namespace WHERE nspname = 'net') OR NEW.user_id IS NULL THEN
-        RETURN NEW;
+    IF NOT EXISTS (SELECT 1 FROM pg_namespace WHERE nspname = 'net') THEN
+        RETURN NULL;
     END IF;
 
     v_endpoint := sanctuary_internal.read_runtime_secret('pwa_push_endpoint');
     v_secret := sanctuary_internal.read_runtime_secret('pwa_push_secret');
     IF COALESCE(v_endpoint, '') = '' THEN
-        RETURN NEW;
+        RETURN NULL;
     END IF;
 
     v_spoke_id := sanctuary_internal.active_spoke_id();
 
-    EXECUTE 'SELECT net.http_post(url := $1, headers := $2, body := $3)'
-    USING
-        v_endpoint,
-        jsonb_build_object('Content-Type', 'application/json', 'x-internal-push-secret', COALESCE(v_secret, '')),
-        jsonb_build_object(
-            'type', 'user_notification',
-            'user_id', NEW.user_id,
-            'notif_type', COALESCE(NEW.type, 'system_dispatch'),
-            'title', 'Sanctuary OS',
-            'body', COALESCE(NEW.message, ''),
-            'spoke_id', v_spoke_id,
-            'unique_id', 'notif_' || NEW.id::text
-        );
-    RETURN NEW;
+    FOR v_chunk IN
+        WITH numbered AS (
+            SELECT
+                user_id,
+                COALESCE(type, 'system_dispatch') AS notif_type,
+                COALESCE(message, '') AS body,
+                'notif_' || id::text AS unique_id,
+                ((ROW_NUMBER() OVER (ORDER BY id) - 1) / 500)::INTEGER AS batch_no
+            FROM inserted_notifications
+            WHERE user_id IS NOT NULL
+        )
+        SELECT
+            batch_no,
+            jsonb_agg(
+                jsonb_build_object(
+                    'user_id', user_id,
+                    'notif_type', notif_type,
+                    'title', 'Sanctuary OS',
+                    'body', body,
+                    'unique_id', unique_id
+                )
+            ) AS items
+        FROM numbered
+        GROUP BY batch_no
+        ORDER BY batch_no
+    LOOP
+        EXECUTE 'SELECT net.http_post(url := $1, headers := $2, body := $3)'
+        USING
+            v_endpoint,
+            jsonb_build_object('Content-Type', 'application/json', 'x-internal-push-secret', COALESCE(v_secret, '')),
+            jsonb_build_object(
+                'type', 'user_notification_batch',
+                'spoke_id', v_spoke_id,
+                'items', v_chunk.items
+            );
+    END LOOP;
+
+    RETURN NULL;
 EXCEPTION WHEN OTHERS THEN
-    RETURN NEW;
+    RETURN NULL;
 END;
 $$;
 
@@ -1777,7 +1812,7 @@ REVOKE ALL ON FUNCTION sanctuary_internal.cleanup_expired_staging_queue() FROM P
 REVOKE ALL ON FUNCTION sanctuary_internal.handle_new_spoke_user() FROM PUBLIC, anon, authenticated;
 REVOKE ALL ON FUNCTION sanctuary_internal.protect_spoke_profile_fields() FROM PUBLIC, anon, authenticated;
 REVOKE ALL ON FUNCTION sanctuary_internal.trigger_pwa_web_push_on_staging() FROM PUBLIC, anon, authenticated;
-REVOKE ALL ON FUNCTION sanctuary_internal.trigger_pwa_web_push_on_notification() FROM PUBLIC, anon, authenticated;
+REVOKE ALL ON FUNCTION sanctuary_internal.trigger_pwa_web_push_on_notifications_batch() FROM PUBLIC, anon, authenticated;
 REVOKE ALL ON FUNCTION sanctuary_internal.trigger_pwa_web_push_on_spoke_broadcast() FROM PUBLIC, anon, authenticated;
 
 DROP TRIGGER IF EXISTS on_auth_user_created_spoke ON auth.users;
@@ -1801,9 +1836,11 @@ CREATE TRIGGER trg_pwa_web_push_staging
     FOR EACH ROW EXECUTE FUNCTION sanctuary_internal.trigger_pwa_web_push_on_staging();
 
 DROP TRIGGER IF EXISTS trg_pwa_web_push_notification ON public.notifications;
+DROP FUNCTION IF EXISTS sanctuary_internal.trigger_pwa_web_push_on_notification();
 CREATE TRIGGER trg_pwa_web_push_notification
     AFTER INSERT ON public.notifications
-    FOR EACH ROW EXECUTE FUNCTION sanctuary_internal.trigger_pwa_web_push_on_notification();
+    REFERENCING NEW TABLE AS inserted_notifications
+    FOR EACH STATEMENT EXECUTE FUNCTION sanctuary_internal.trigger_pwa_web_push_on_notifications_batch();
 
 DROP TRIGGER IF EXISTS trg_pwa_web_push_spoke_broadcast ON public.system_broadcasts;
 CREATE TRIGGER trg_pwa_web_push_spoke_broadcast
@@ -1938,18 +1975,18 @@ DECLARE
     v_old_confirmed BOOLEAN := false;
 BEGIN
     v_new_confirmed := (
-        NEW.compliance_tier IN (5, 6)
+        NEW.compliance_tier = 6
         OR (
-            NEW.compliance_tier BETWEEN 1 AND 4
+            NEW.compliance_tier BETWEEN 1 AND 5
             AND LOWER(COALESCE(NEW.status, '')) NOT IN ('pending', 'under_review', 'unverified')
         )
     );
 
     IF TG_OP = 'UPDATE' THEN
         v_old_confirmed := (
-            OLD.compliance_tier IN (5, 6)
+            OLD.compliance_tier = 6
             OR (
-                OLD.compliance_tier BETWEEN 1 AND 4
+                OLD.compliance_tier BETWEEN 1 AND 5
                 AND LOWER(COALESCE(OLD.status, '')) NOT IN ('pending', 'under_review', 'unverified')
             )
         );
@@ -2307,7 +2344,7 @@ AS $$
     FROM public.mods m
     WHERE m.id = ANY(p_ids)
       AND (
-          COALESCE(m.compliance_tier, 0) NOT IN (1, 2, 3, 4, 6)
+          COALESCE(m.compliance_tier, 0) NOT IN (1, 2, 3, 4, 5)
           OR sanctuary_internal.is_spoke_oversight_or_wayfinder()
       );
 $$;
@@ -2323,7 +2360,7 @@ AS $$
     FROM public.mod_versions mv
     INNER JOIN public.mods m ON m.id = mv.mod_id
     WHERE mv.dna_hash = ANY(p_hashes)
-      AND COALESCE(m.compliance_tier, 0) IN (1, 2, 3, 4, 6);
+      AND COALESCE(m.compliance_tier, 0) IN (1, 2, 3, 4, 5);
 $$;
 
 REVOKE ALL ON FUNCTION public.get_compliance_restricted_hashes(TEXT[]) FROM PUBLIC;
@@ -2366,7 +2403,7 @@ DECLARE
     v_is_gateway BOOLEAN := sanctuary_internal.is_verified_hub_gateway();
     v_role TEXT := sanctuary_internal.spoke_user_role();
     v_is_oversight BOOLEAN := v_is_gateway OR (v_role IN ('wayfinder', 'oversight', 'admin'));
-    v_tier INTEGER := LEAST(4, GREATEST(1, COALESCE(p_tier, 1)));
+    v_tier INTEGER := LEAST(5, GREATEST(1, COALESCE(p_tier, 1)));
     v_reason TEXT := COALESCE(NULLIF(btrim(p_reason), ''), 'Flagged Tier ' || v_tier || ' for Compliance Review');
     v_tagged_reason TEXT := '[' || CASE WHEN v_role <> '' THEN upper(v_role) WHEN v_is_gateway THEN 'WAYFINDER' ELSE 'CITIZEN' END || ' FLAG - TIER ' || v_tier || '] ' || left(v_reason, 1000);
     v_hash TEXT := lower(btrim(COALESCE(p_dna_hash, '')));
@@ -2478,20 +2515,105 @@ $$;
 REVOKE ALL ON FUNCTION public.flag_mod_for_compliance(UUID, TEXT, TEXT, INTEGER, TEXT) FROM PUBLIC;
 GRANT EXECUTE ON FUNCTION public.flag_mod_for_compliance(UUID, TEXT, TEXT, INTEGER, TEXT) TO anon, authenticated, service_role;
 
+CREATE TABLE IF NOT EXISTS public.counter_shards (
+    entity_kind TEXT NOT NULL,
+    entity_id TEXT NOT NULL,
+    shard SMALLINT NOT NULL CHECK (shard BETWEEN 0 AND 15),
+    pending_delta BIGINT NOT NULL DEFAULT 0,
+    updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
+    PRIMARY KEY (entity_kind, entity_id, shard)
+);
+
+ALTER TABLE public.counter_shards ENABLE ROW LEVEL SECURITY;
+REVOKE ALL ON TABLE public.counter_shards FROM PUBLIC, anon, authenticated;
+GRANT ALL ON TABLE public.counter_shards TO service_role;
+DROP POLICY IF EXISTS "service_role_counter_shards" ON public.counter_shards;
+CREATE POLICY "service_role_counter_shards" ON public.counter_shards
+    FOR ALL TO service_role USING (true) WITH CHECK (true);
+
+CREATE OR REPLACE FUNCTION public.flush_counter_shards(
+    p_entity_kind TEXT DEFAULT NULL,
+    p_entity_id TEXT DEFAULT NULL
+)
+RETURNS INTEGER
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public, sanctuary_internal
+AS $$
+DECLARE
+    v_flushed INTEGER := 0;
+BEGIN
+    WITH drained AS (
+        DELETE FROM public.counter_shards
+        WHERE (p_entity_kind IS NULL OR entity_kind = p_entity_kind)
+          AND (p_entity_id IS NULL OR entity_id = p_entity_id)
+          AND pending_delta > 0
+        RETURNING entity_kind, entity_id, pending_delta
+    ),
+    grouped AS (
+        SELECT entity_kind, entity_id, SUM(pending_delta) AS total_delta
+        FROM drained
+        GROUP BY entity_kind, entity_id
+    ),
+    upd_assets AS (
+        UPDATE public.nexus_assets na
+        SET downloads = COALESCE(na.downloads, 0) + g.total_delta
+        FROM grouped g
+        WHERE g.entity_kind = 'nexus_asset' AND na.id::text = g.entity_id
+        RETURNING na.id
+    ),
+    upd_blueprints AS (
+        UPDATE public.blueprints b
+        SET downloads = COALESCE(b.downloads, 0) + g.total_delta
+        FROM grouped g
+        WHERE g.entity_kind = 'blueprint' AND b.id::text = g.entity_id
+        RETURNING b.id
+    ),
+    upd_posts AS (
+        UPDATE public.mason_posts mp
+        SET view_count = COALESCE(mp.view_count, 0) + g.total_delta
+        FROM grouped g
+        WHERE g.entity_kind = 'mason_post' AND mp.id::text = g.entity_id
+        RETURNING mp.id
+    )
+    SELECT (SELECT COUNT(*) FROM upd_assets)
+         + (SELECT COUNT(*) FROM upd_blueprints)
+         + (SELECT COUNT(*) FROM upd_posts)
+    INTO v_flushed;
+
+    RETURN v_flushed;
+END;
+$$;
+
+REVOKE ALL ON FUNCTION public.flush_counter_shards(TEXT, TEXT) FROM PUBLIC, anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.flush_counter_shards(TEXT, TEXT) TO service_role;
+
 CREATE OR REPLACE FUNCTION public.increment_asset_downloads(asset_id UUID)
 RETURNS VOID
 LANGUAGE plpgsql
 SECURITY DEFINER
 SET search_path = public, sanctuary_internal
 AS $$
+DECLARE
+    v_eid TEXT := asset_id::text;
+    v_shard SMALLINT := (abs(hashtext(COALESCE((SELECT auth.uid())::text, txid_current()::text))) % 16)::smallint;
+    v_pending BIGINT := 0;
 BEGIN
     IF (SELECT auth.uid()) IS NULL AND NOT (SELECT sanctuary_internal.is_verified_hub_gateway()) THEN
         RAISE EXCEPTION 'Authentication required';
     END IF;
 
-    UPDATE public.nexus_assets
-    SET downloads = COALESCE(downloads, 0) + 1
-    WHERE id = asset_id;
+    INSERT INTO public.counter_shards (entity_kind, entity_id, shard, pending_delta, updated_at)
+    VALUES ('nexus_asset', v_eid, v_shard, 1, NOW())
+    ON CONFLICT (entity_kind, entity_id, shard) DO UPDATE
+    SET pending_delta = public.counter_shards.pending_delta + 1,
+        updated_at = NOW()
+    RETURNING pending_delta INTO v_pending;
+
+    IF (v_shard = 0 OR v_pending >= 16)
+       AND pg_try_advisory_xact_lock(hashtext('flush_counter:nexus_asset:' || v_eid)) THEN
+        PERFORM public.flush_counter_shards('nexus_asset', v_eid);
+    END IF;
 END;
 $$;
 
@@ -2504,14 +2626,26 @@ LANGUAGE plpgsql
 SECURITY DEFINER
 SET search_path = public, sanctuary_internal
 AS $$
+DECLARE
+    v_eid TEXT := blueprint_id::text;
+    v_shard SMALLINT := (abs(hashtext(COALESCE((SELECT auth.uid())::text, txid_current()::text))) % 16)::smallint;
+    v_pending BIGINT := 0;
 BEGIN
     IF (SELECT auth.uid()) IS NULL AND NOT (SELECT sanctuary_internal.is_verified_hub_gateway()) THEN
         RAISE EXCEPTION 'Authentication required';
     END IF;
 
-    UPDATE public.blueprints
-    SET downloads = COALESCE(downloads, 0) + 1
-    WHERE id = blueprint_id;
+    INSERT INTO public.counter_shards (entity_kind, entity_id, shard, pending_delta, updated_at)
+    VALUES ('blueprint', v_eid, v_shard, 1, NOW())
+    ON CONFLICT (entity_kind, entity_id, shard) DO UPDATE
+    SET pending_delta = public.counter_shards.pending_delta + 1,
+        updated_at = NOW()
+    RETURNING pending_delta INTO v_pending;
+
+    IF (v_shard = 0 OR v_pending >= 16)
+       AND pg_try_advisory_xact_lock(hashtext('flush_counter:blueprint:' || v_eid)) THEN
+        PERFORM public.flush_counter_shards('blueprint', v_eid);
+    END IF;
 END;
 $$;
 
@@ -3832,7 +3966,7 @@ CREATE POLICY "spoke_collections_select" ON public.collections
     FOR SELECT TO public
     USING (
         (SELECT sanctuary_internal.is_verified_hub_gateway())
-        OR COALESCE(compliance_tier, 0) NOT IN (1, 2, 3, 4, 6)
+        OR COALESCE(compliance_tier, 0) NOT IN (1, 2, 3, 4, 5)
         OR sanctuary_internal.is_spoke_oversight_or_wayfinder()
     );
 DROP POLICY IF EXISTS "spoke_collections_insert" ON public.collections;
@@ -4510,13 +4644,13 @@ BEGIN
     END LOOP;
 END $$;
 
--- Strict Zero-Sync Tier 1-4 Protection: hide Tier 1-4 Artifact & Version metadata from anon/Citizens/Masons/Architects
+-- Strict Zero-Sync Tier 1-5 Protection: hide Tier 1-5 Artifact & Version metadata from anon/Citizens/Masons/Architects
 DROP POLICY IF EXISTS "spoke_mods_select" ON public.mods;
 CREATE POLICY "spoke_mods_select" ON public.mods
     FOR SELECT TO public
     USING (
         (SELECT sanctuary_internal.is_verified_hub_gateway())
-        OR COALESCE(compliance_tier, 0) NOT IN (1, 2, 3, 4, 6)
+        OR COALESCE(compliance_tier, 0) NOT IN (1, 2, 3, 4, 5)
         OR sanctuary_internal.is_spoke_oversight_or_wayfinder()
     );
 
@@ -4721,16 +4855,28 @@ CREATE OR REPLACE FUNCTION public.increment_mason_post_view(p_post_id UUID)
 RETURNS VOID
 LANGUAGE plpgsql
 SECURITY DEFINER
-SET search_path = public
+SET search_path = public, sanctuary_internal
 AS $$
+DECLARE
+    v_eid TEXT := p_post_id::text;
+    v_shard SMALLINT := (abs(hashtext(COALESCE((SELECT auth.uid())::text, txid_current()::text))) % 16)::smallint;
+    v_pending BIGINT := 0;
 BEGIN
-    UPDATE public.mason_posts
-    SET view_count = COALESCE(view_count, 0) + 1
-    WHERE id = p_post_id;
+    INSERT INTO public.counter_shards (entity_kind, entity_id, shard, pending_delta, updated_at)
+    VALUES ('mason_post', v_eid, v_shard, 1, NOW())
+    ON CONFLICT (entity_kind, entity_id, shard) DO UPDATE
+    SET pending_delta = public.counter_shards.pending_delta + 1,
+        updated_at = NOW()
+    RETURNING pending_delta INTO v_pending;
+
+    IF (v_shard = 0 OR v_pending >= 16)
+       AND pg_try_advisory_xact_lock(hashtext('flush_counter:mason_post:' || v_eid)) THEN
+        PERFORM public.flush_counter_shards('mason_post', v_eid);
+    END IF;
 END;
 $$;
 
-GRANT EXECUTE ON FUNCTION public.increment_mason_post_view(UUID) TO anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.increment_mason_post_view(UUID) TO anon, authenticated, service_role;
 
 -- Zero-Identity Content Reports, Scout Suggestions & Anonymous Tickets
 DO $$
@@ -5114,3 +5260,39 @@ CREATE INDEX IF NOT EXISTS idx_spoke_malware_reports_created ON public.malware_r
 CREATE INDEX IF NOT EXISTS idx_spoke_lab_logs_created ON public.homestead_lab_logs (created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_homestead_lab_logs_version_created ON public.homestead_lab_logs(version_id, created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_blueprints_mason_created ON public.blueprints(mason_id, created_at DESC);
+
+-- ============================================================================
+-- 12. SPOKE SCHEMA MIGRATION REGISTRY
+-- ============================================================================
+CREATE TABLE IF NOT EXISTS public.schema_migrations (
+    version INTEGER PRIMARY KEY,
+    name TEXT NOT NULL,
+    applied_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW()
+);
+
+ALTER TABLE public.schema_migrations ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "spoke_schema_migrations_select" ON public.schema_migrations;
+CREATE POLICY "spoke_schema_migrations_select" ON public.schema_migrations
+    FOR SELECT TO public USING (true);
+DROP POLICY IF EXISTS "spoke_schema_migrations_service_write" ON public.schema_migrations;
+CREATE POLICY "spoke_schema_migrations_service_write" ON public.schema_migrations
+    FOR ALL TO service_role USING (true) WITH CHECK (true);
+
+INSERT INTO public.schema_migrations (version, name) VALUES
+    (1, '0001_spoke_baseline'),
+    (2, '0002_spoke_batched_push_sharded_counters_and_storage'),
+    (3, '0003_compliance_tiers_0_to_6_remapping')
+ON CONFLICT (version) DO NOTHING;
+
+CREATE OR REPLACE FUNCTION public.get_spoke_schema_version()
+RETURNS INTEGER
+LANGUAGE sql
+STABLE
+SECURITY DEFINER
+SET search_path = public
+AS $$
+    SELECT COALESCE((SELECT MAX(version) FROM public.schema_migrations), 3);
+$$;
+
+REVOKE ALL ON FUNCTION public.get_spoke_schema_version() FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION public.get_spoke_schema_version() TO anon, authenticated, service_role;

@@ -280,7 +280,7 @@ export function useAppLabAndWorkbenchActions({
       alert(
         t(
           "alert_restricted_no_lab_reports",
-          "Tier 1–4 and unverified/unknown {mods} cannot be submitted to the global Homestead {Lab} database."
+          "Tier 1–5 and unverified/unknown {mods} cannot be submitted to the global Homestead {Lab} database."
         )
       );
       return false;

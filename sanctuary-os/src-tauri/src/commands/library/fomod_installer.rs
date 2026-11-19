@@ -1492,7 +1492,7 @@ fn resolve_mod_dir_and_cached_installer(
     Ok((vault_root, vault_mods_lane, mod_dir, folder_rel, archive_opt, saved_ids))
 }
 
-#[tauri::command]
+#[tauri::command(async)]
 pub fn can_reconfigure_mod_installer(
     vault_path: String,
     mod_rel_path: String,
@@ -1846,6 +1846,118 @@ mod tests {
         assert!(!mod_dir.join("opt_a.esp").exists());
         assert!(mod_dir.join("user_notes.txt").exists());
         assert_eq!(read_saved_fomod_choices(&mod_dir), vec!["s0_g0_o0".to_string()]);
+
+        let _ = std::fs::remove_dir_all(&base);
+    }
+
+    #[test]
+    fn test_fomod_fomm_and_plugin_flag_dependency_chain_resolution() {
+        let base = std::env::temp_dir().join(format!(
+            "sanctuary_fomod_chain_test_{}",
+            uuid::Uuid::new_v4()
+        ));
+        let stage = base.join("stage");
+        let vault_mods = base.join("vault_mods");
+        let mods_dir = base.join("live_mods");
+        let fomod_dir = stage.join("fomod");
+        std::fs::create_dir_all(&fomod_dir).unwrap();
+        std::fs::create_dir_all(&vault_mods).unwrap();
+        std::fs::create_dir_all(&mods_dir).unwrap();
+
+        std::fs::write(mods_dir.join("base_core.plug"), b"CORE").unwrap();
+
+        let xml = r#"<config>
+  <moduleName>Chain Dependency Mod</moduleName>
+  <moduleDependencies operator="And">
+    <fommDependency version="0.5.0"/>
+    <fileDependency file="base_core.plug" state="Active"/>
+  </moduleDependencies>
+  <installSteps order="Explicit">
+    <installStep name="Step 1">
+      <optionalFileGroups order="Explicit">
+        <group name="Core Preset" type="SelectExactlyOne">
+          <plugins order="Explicit">
+            <plugin name="Ultra Tier">
+              <description>Sets ULTRA flag</description>
+              <conditionFlags><flag name="TIER_FLAG">ULTRA</flag></conditionFlags>
+              <typeDescriptor><type name="Recommended"/></typeDescriptor>
+            </plugin>
+          </plugins>
+        </group>
+      </optionalFileGroups>
+    </installStep>
+    <installStep name="Step 2">
+      <visible>
+        <flagDependency flag="TIER_FLAG" value="ULTRA"/>
+      </visible>
+      <optionalFileGroups order="Explicit">
+        <group name="Dependent Patch" type="SelectAny">
+          <plugins order="Explicit">
+            <plugin name="Core Compatibility Patch">
+              <description>Recommended only when base_core active and absent_opt missing</description>
+              <typeDescriptor>
+                <dependencyType>
+                  <defaultType name="NotUsable"/>
+                  <patterns>
+                    <pattern>
+                      <dependencies operator="And">
+                        <fileDependency file="base_core.plug" state="Active"/>
+                        <fileDependency file="absent_opt.plug" state="Missing"/>
+                      </dependencies>
+                      <type name="Recommended"/>
+                    </pattern>
+                  </patterns>
+                </dependencyType>
+              </typeDescriptor>
+            </plugin>
+          </plugins>
+        </group>
+      </optionalFileGroups>
+    </installStep>
+  </installSteps>
+</config>"#;
+        std::fs::write(fomod_dir.join("ModuleConfig.xml"), xml).unwrap();
+
+        let plan = parse_fomod_or_bain_plan(
+            &stage,
+            "ChainMod",
+            Some(&mods_dir),
+            None,
+            &vault_mods,
+            None,
+        )
+        .unwrap()
+        .expect("Expected FOMOD plan");
+
+        assert!(plan.module_dependencies_satisfied);
+        let step2_vis = plan.steps[1].visible.as_ref().expect("Expected visible condition");
+        let empty_flags = HashMap::new();
+        assert!(!evaluate_fomod_condition(step2_vis, &empty_flags));
+
+        let mut step1_flags = HashMap::new();
+        for (fk, fv) in &plan.steps[0].groups[0].options[0].condition_flags {
+            step1_flags.insert(fk.clone(), fv.clone());
+        }
+        assert!(evaluate_fomod_condition(step2_vis, &step1_flags));
+
+        let dep_opt = &plan.steps[1].groups[0].options[0];
+        assert_eq!(dep_opt.default_type, "NotUsable");
+        assert!(evaluate_fomod_condition(&dep_opt.dependency_patterns[0].condition, &step1_flags));
+        assert_eq!(dep_opt.dependency_patterns[0].plugin_type, "Recommended");
+
+        // Removing base_core flips Active -> Missing, blocking moduleDependencies
+        std::fs::remove_file(mods_dir.join("base_core.plug")).unwrap();
+        let blocked_plan = parse_fomod_or_bain_plan(
+            &stage,
+            "ChainMod",
+            Some(&mods_dir),
+            None,
+            &vault_mods,
+            None,
+        )
+        .unwrap()
+        .unwrap();
+        assert!(!blocked_plan.module_dependencies_satisfied);
 
         let _ = std::fs::remove_dir_all(&base);
     }

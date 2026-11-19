@@ -544,11 +544,12 @@ export function useAppNotificationsAndBoot({
     return () => clearTimeout(debounceTimeout);
   }, [playSets, playsetsLoaded, activeWorkspaceId]);
 
+  const dlcBootPromiseRef = useRef<Promise<boolean> | null>(null);
   const didInitDLC = useRef(false);
   useEffect(() => {
     if (didInitDLC.current) return;
     didInitDLC.current = true;
-    const bootDLCProtocol = async () => {
+    const bootDLCProtocol = async (): Promise<boolean> => {
       try {
         if (!isDesktop()) {
           loadDLCMap().catch(console.warn);
@@ -566,22 +567,32 @@ export function useAppNotificationsAndBoot({
               console.warn("Sync failed on boot", e);
             }
 
+            const syncedWorkspaces = useStore.getState().workspaces || [];
+            const matchedWebWs = findMatchingWorkspaceEntry(webSubdomain, syncedWorkspaces);
+            const canonicalWebWsId = matchedWebWs?.id || matchedWebWs?.schema_id || webSubdomain;
+
             // Essential for web to prevent bleeding from past workspaces
-            useStore.getState().hydrateWorkspaceState(webSubdomain);
-            useStore.setState({ activeWorkspaceId: webSubdomain });
+            useStore.getState().hydrateWorkspaceState(canonicalWebWsId);
+            useStore.setState({ activeWorkspaceId: canonicalWebWsId });
 
             setIsConfigured(true);
+            if (typeof window !== 'undefined') {
+              window.dispatchEvent(new CustomEvent('sanctuary-games-updated'));
+            }
           } else {
             // Root domain on web -> Show Hub
             useStore.getState().hydrateWorkspaceState("default_workspace");
             useStore.setState({ activeWorkspaceId: "default_workspace" });
             setIsConfigured(false);
           }
-          return;
+          return false;
         }
-        const [config, globalConfig]: [any, any] = await Promise.all([
-          invoke("get_saved_coordinates").catch(() => ({})),
-          invoke("get_global_config").catch(() => ({})),
+        const [config, globalConfig]: [any, any] = await Promise.race([
+          Promise.all([
+            invoke("get_saved_coordinates").catch(() => ({})),
+            invoke("get_global_config").catch(() => ({})),
+          ]),
+          new Promise<[any, any]>((resolve) => setTimeout(() => resolve([{}, {}]), 2000)),
         ]);
         const activeWorkspace = findMatchingWorkspaceEntry(
           globalConfig?.active_workspace_id,
@@ -605,13 +616,16 @@ export function useAppNotificationsAndBoot({
         }
 
         const cachePromise = (globalConfig?.active_workspace_id && config?.vault_path)
-          ? invoke<string>("load_master_cache", { vaultPath: config.vault_path }).catch((e) => {
-              console.error("Failed to load master cache during boot:", e);
-              return null;
-            })
+          ? Promise.race([
+              invoke<string>("load_master_cache", { vaultPath: config.vault_path }).catch((e) => {
+                console.error("Failed to load master cache during boot:", e);
+                return null;
+              }),
+              new Promise<null>((resolve) => setTimeout(() => resolve(null), 1800)),
+            ])
           : Promise.resolve(null);
 
-        // Hydrate Game Database URLs (instant from cache when available) in parallel with local master cache read
+        // Hydrate Game Database URLs (instant from cache when available) in parallel with bounded local master cache read
         const [, cacheStr] = await Promise.all([
           syncGameDatabases(globalConfig?.workspaces).catch(console.warn),
           cachePromise,
@@ -626,12 +640,14 @@ export function useAppNotificationsAndBoot({
         // globalConfig might have 'default_workspace' if the rust config is empty, which destroys the user's selection.
 
         let initialModList = useStore.getState().modList;
+        let hadOfflineMasterCache = Array.isArray(initialModList) && initialModList.length > 0;
 
         if (cacheStr) {
           try {
             const parsedCache = JSON.parse(cacheStr);
             if (Array.isArray(parsedCache) && parsedCache.length > 0) {
               initialModList = parsedCache;
+              hadOfflineMasterCache = true;
               setStatus(`${t("status_offline_cache_prefix", "Offline Cache Loaded:")} ${parsedCache.length} ${t("status_offline_cache_suffix", "{Mods} In Your {Vault}.")}`);
             }
           } catch (e) {
@@ -743,12 +759,14 @@ export function useAppNotificationsAndBoot({
             }
           }
         }
+        return hadOfflineMasterCache;
       } catch (err) {
         console.error("DLC Protocol Sync Failed:", err);
         useStore.setState({ isGlobalConfigLoaded: true });
+        return false;
       }
     };
-    bootDLCProtocol();
+    dlcBootPromiseRef.current = bootDLCProtocol();
   }, []);
 
   useEffect(() => {
@@ -842,6 +860,9 @@ export function useAppNotificationsAndBoot({
         return;
       }
       try {
+        const hadCachedMods = dlcBootPromiseRef.current
+          ? await dlcBootPromiseRef.current.catch(() => false)
+          : false;
         localStorage.removeItem("sanctuary_cloud_cache");
         const config: any = await invoke("get_saved_coordinates");
 
@@ -885,11 +906,15 @@ export function useAppNotificationsAndBoot({
               .catch(() => {});
           }
 
-          // Defer heavy Vault / Conflict Radar disk scans briefly so workspace preparation & master cache hydration finish with zero I/O contention
+          // Let the first frame paint and UI settle before launching heavy disk/Radar scans;
+          // if offline master cache already hydrated the Vault, run silently in background.
+          const hasHydratedMods = hadCachedMods || (useStore.getState().modList?.length || 0) > 0;
           setTimeout(() => {
-            runRadarSweep(false);
-            fetchCloudLabQueue();
-          }, 20);
+            window.requestAnimationFrame(() => {
+              runRadarSweep(hasHydratedMods, hasHydratedMods);
+              fetchCloudLabQueue();
+            });
+          }, 450);
           invoke("initialize_vault_watch").catch(console.warn);
           const docsBase = String(config.docs_path || config.user_data_path || "").trim();
           if (docsBase) {

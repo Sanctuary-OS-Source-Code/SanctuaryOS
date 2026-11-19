@@ -1,6 +1,7 @@
 import { useLexicon, normalizeAllCapsForThemeCase } from '../LexiconContext';
 import { useTheme } from '../ThemeContext';
 import { isLinuxDesktop } from '../utils/envUtils';
+import { getStaticNoiseDataUrl } from '../utils/noiseTexture';
 import React, { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { PanelHeaderButton } from "./buttons";
@@ -664,10 +665,13 @@ export function SidePanel({
             <div className="pointer-events-none absolute inset-y-8 left-0 w-[1px] bg-gradient-to-b from-white/25 via-white/10 to-transparent z-40" />
             {theme.ambientNoise && !isLinuxDesktop() && (
               <div
-                className="absolute inset-0 z-[-1] opacity-[0.05] mix-blend-overlay pointer-events-none"
+                className="absolute inset-0 z-[-1] opacity-[0.4] pointer-events-none"
                 style={{
-                  backgroundImage:
-                    'url("data:image/svg+xml,%3Csvg viewBox=%220 0 200 200%22 xmlns=%22http://www.w3.org/2000/svg%22%3E%3Cfilter id=%22noiseFilter%22%3E%3CfeTurbulence type=%22fractalNoise%22 baseFrequency=%220.85%22 numOctaves=%223%22 stitchTiles=%22stitch%22/%3E%3C/filter%3E%3Crect width=%22100%25%22 height=%22100%25%22 filter=%22url(%23noiseFilter)%22/%3E%3C/svg%3E")',
+                  backgroundImage: getStaticNoiseDataUrl()
+                    ? `url("${getStaticNoiseDataUrl()}")`
+                    : undefined,
+                  backgroundRepeat: "repeat",
+                  backgroundSize: "96px 96px",
                 }}
               />
             )}

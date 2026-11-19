@@ -216,7 +216,7 @@ export function NexusFlagResolutionCard({
     assetType === "blueprint" && (hasViolations || hasFlags)
       ? t(
           "nexus_flag_tier0_desc",
-          "Only verified Tier 0 {mods} are permitted in {Nexus} {Blueprints}. Remove Tier 1–5 or unknown {mods} below and re-upload to restore your {Blueprint} listing."
+          "Only verified Tier 0 {mods} are permitted in {Nexus} {Blueprints}. Remove Tier 1–6 or unknown {mods} below and re-upload to restore your {Blueprint} listing."
         )
       : isHidden && hasFlags
         ? t(
@@ -522,7 +522,7 @@ export function NexusFlagResolutionCard({
               title={`${complianceViolations.length.toLocaleString()} ${t("flagged", "Flagged")} ${t("mods", "{Mods}")}`}
               description={t(
                 "nexus_flag_tier0_desc",
-                "Only verified Tier 0 {mods} are permitted in {Nexus} {Blueprints}. Remove Tier 1–5 or unknown {mods} below and re-upload to restore your {Blueprint} listing."
+                "Only verified Tier 0 {mods} are permitted in {Nexus} {Blueprints}. Remove Tier 1–6 or unknown {mods} below and re-upload to restore your {Blueprint} listing."
               )}
               variant="danger"
             >

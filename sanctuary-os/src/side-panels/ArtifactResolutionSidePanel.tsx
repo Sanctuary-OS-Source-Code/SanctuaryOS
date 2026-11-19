@@ -402,7 +402,7 @@ export default function ArtifactResolutionSidePanel({
           <DashboardStatTile
             variant="filter"
             icon={t("icon_shield", "shield")}
-            label={`${t("stat_tier", "Tier")} 4`}
+            label={`${t("stat_tier", "Tier")} 4+`}
             value={tierCounts.t4}
             isActive={tierFilter === "TIER_4"}
             onClick={() => setTierFilter("TIER_4")}

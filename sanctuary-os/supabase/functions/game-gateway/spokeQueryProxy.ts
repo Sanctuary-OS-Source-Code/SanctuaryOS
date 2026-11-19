@@ -260,7 +260,7 @@ export async function handleSpokeQueryAction(ctx: {
               const isPublicComplianceRow = (r: any) => {
                 if (!r || typeof r !== 'object') return false
                 const tier = Number(r.compliance_tier ?? 0)
-                return !((tier >= 1 && tier <= 4) || tier === 6)
+                return !(tier >= 1 && tier <= 5)
               }
               if (Array.isArray(responseData)) {
                 const filtered = responseData.filter(isPublicComplianceRow)
@@ -296,7 +296,7 @@ export async function handleSpokeQueryAction(ctx: {
                     .in('id', chunk)
                   for (const m of modTiers || []) {
                     const tier = Number((m as any)?.compliance_tier ?? 0)
-                    if ((tier >= 1 && tier <= 4) || tier === 6) {
+                    if (tier >= 1 && tier <= 5) {
                       restrictedModIds.add(String((m as any).id))
                     }
                   }
@@ -308,7 +308,7 @@ export async function handleSpokeQueryAction(ctx: {
                 const joinedMod = Array.isArray(r?.mods) ? r.mods[0] : r?.mods
                 if (joinedMod && typeof joinedMod.compliance_tier === 'number') {
                   const t = Number(joinedMod.compliance_tier)
-                  if ((t >= 1 && t <= 4) || t === 6) return false
+                  if (t >= 1 && t <= 5) return false
                 }
                 if (r.mod_id && restrictedModIds.has(String(r.mod_id))) return false
                 return true
@@ -610,7 +610,7 @@ export async function handleSpokeQueryAction(ctx: {
             if (isArchitectOnlyStaff && (cleanTable === 'mods' || cleanTable === 'collections')) {
               for (const row of rows) {
                 if (row && typeof row === 'object' && Number(row.compliance_tier || 0) >= 1) {
-                  row.compliance_tier = Math.min(4, Math.max(1, Math.round(Number(row.compliance_tier))))
+                  row.compliance_tier = Math.min(5, Math.max(1, Math.round(Number(row.compliance_tier))))
                   row.status = 'pending'
                 }
               }
@@ -716,7 +716,7 @@ export async function handleSpokeQueryAction(ctx: {
 
             if (isArchitectOnlyStaff && op === 'update' && (cleanTable === 'mods' || cleanTable === 'collections')) {
               if (Number(updateVals.compliance_tier || 0) >= 1) {
-                updateVals.compliance_tier = Math.min(4, Math.max(1, Math.round(Number(updateVals.compliance_tier))))
+                updateVals.compliance_tier = Math.min(5, Math.max(1, Math.round(Number(updateVals.compliance_tier))))
                 updateVals.status = 'pending'
               }
             }
@@ -762,7 +762,7 @@ export async function handleSpokeQueryAction(ctx: {
                 }
                 delete updateVals.is_official
                 if (Number(updateVals.compliance_tier || 0) >= 1) {
-                  updateVals.compliance_tier = Math.min(4, Math.max(1, Math.round(Number(updateVals.compliance_tier))))
+                  updateVals.compliance_tier = Math.min(5, Math.max(1, Math.round(Number(updateVals.compliance_tier))))
                   updateVals.status = 'pending'
                 }
               } else if (cleanTable === 'mods') {
@@ -770,7 +770,7 @@ export async function handleSpokeQueryAction(ctx: {
                   delete updateVals.highlander_group_id
                 }
                 if (Number(updateVals.compliance_tier || 0) >= 1) {
-                  updateVals.compliance_tier = Math.min(4, Math.max(1, Math.round(Number(updateVals.compliance_tier))))
+                  updateVals.compliance_tier = Math.min(5, Math.max(1, Math.round(Number(updateVals.compliance_tier))))
                   updateVals.status = 'pending'
                 }
               } else if (cleanTable === 'mason_post_comments') {

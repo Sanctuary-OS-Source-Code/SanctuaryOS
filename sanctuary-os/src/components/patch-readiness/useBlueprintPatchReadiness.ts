@@ -479,7 +479,7 @@ export function useBlueprintPatchReadiness(opts?: {
             for (const row of data) {
               const modRef = Array.isArray(row?.mods) ? row.mods[0] : row?.mods;
               const tier = Number(modRef?.compliance_tier ?? 0);
-              if (tier >= 1 && tier <= 4) continue;
+              if (tier >= 1 && tier <= 5) continue;
               const mid = String(row.mod_id || "");
               if (!mid) continue;
               const arr = cache.cloudModVersions.get(mid) || [];

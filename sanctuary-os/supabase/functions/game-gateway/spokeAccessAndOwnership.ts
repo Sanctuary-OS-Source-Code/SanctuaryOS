@@ -98,17 +98,33 @@ export async function resolveGameWithServiceKey(supabaseAdmin: any, gameIdOrSche
     };
   }
 
-  let gameQuery = supabaseAdmin
-    .from('sanctuary_games')
-    .select('id, name, schema_id, supabase_url, supabase_anon_key, is_active, is_keepers_only, donation_url, payment_processor');
+  const baseSelectCols =
+    'id, name, schema_id, supabase_url, supabase_anon_key, is_active, is_keepers_only, donation_url, payment_processor';
 
-  if (UUID_REGEX.test(gameIdOrSchema)) {
-    gameQuery = gameQuery.eq('id', gameIdOrSchema);
-  } else {
-    gameQuery = gameQuery.ilike('schema_id', gameIdOrSchema);
+  const runGameLookup = async (selectCols: string) => {
+    let q = supabaseAdmin.from('sanctuary_games').select(selectCols);
+    if (UUID_REGEX.test(gameIdOrSchema)) {
+      q = q.eq('id', gameIdOrSchema);
+    } else {
+      q = q.ilike('schema_id', gameIdOrSchema);
+    }
+    return await q.maybeSingle();
+  };
+
+  let { data: game, error: gameError } = await runGameLookup(
+    `${baseSelectCols}, spoke_schema_version`
+  );
+  if (
+    gameError &&
+    String(gameError.message || '').toLowerCase().includes('spoke_schema_version')
+  ) {
+    const fallbackRes = await runGameLookup(baseSelectCols);
+    game = fallbackRes.data
+      ? { ...fallbackRes.data, spoke_schema_version: 1 }
+      : null;
+    gameError = fallbackRes.error;
   }
 
-  const { data: game, error: gameError } = await gameQuery.maybeSingle();
   if (gameError || !game) {
     return {
       game: null,
@@ -508,11 +524,11 @@ export async function enforceArchitectSubmissionCompliance(
     }
   } else if (cleanTable === 'mods') {
     const tier = Number(row.compliance_tier || 0);
-    if (!Number.isFinite(tier) || tier < 0 || tier >= 5) {
+    if (!Number.isFinite(tier) || tier < 0 || tier >= 6) {
       throw new Error('Forbidden: Invalid compliance tier.');
     }
-    if (tier >= 1 && tier <= 4) {
-      row.compliance_tier = Math.min(4, Math.max(1, Math.round(tier)));
+    if (tier >= 1 && tier <= 5) {
+      row.compliance_tier = Math.min(5, Math.max(1, Math.round(tier)));
       row.status = 'pending';
     }
   } else if (cleanTable === 'mod_versions') {

@@ -10,7 +10,7 @@ import { buildMasterProtocolsSchema } from "./seeds/masterProtocolsSeed";
 
 export function getDefaultDirectiveBuilderSchema(
   slug: DirectiveSlug,
-  t: (key: string, fallback?: string) => string = defaultT
+  t: (key: string, fallback: string) => string = defaultT
 ): DirectiveBuilderSchema {
   const g = (txt: string) => interpolateDynamicText(t, txt);
   const elevatedRolesCards = getElevatedRolesCards(t);

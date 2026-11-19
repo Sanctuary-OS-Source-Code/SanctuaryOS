@@ -714,7 +714,7 @@ pub(super) fn validate_blueprint_path_safety(target: &Path) -> Result<PathBuf, S
     Ok(resolved)
 }
 
-#[tauri::command]
+#[tauri::command(async)]
 pub fn read_blueprint(path: String) -> Result<String, String> {
     use std::io::Read;
     const MAX_BLUEPRINT_BYTES: u64 = 10 * 1024 * 1024;
@@ -737,7 +737,7 @@ pub fn read_blueprint(path: String) -> Result<String, String> {
     Ok(raw)
 }
 
-#[tauri::command]
+#[tauri::command(async)]
 pub fn save_blueprint(path: String, content: String) -> Result<(), String> {
     if content.len() > 10 * 1024 * 1024 {
         return Err("Blocked: Blueprint payload exceeds 10 MiB limit.".into());
@@ -779,7 +779,7 @@ pub fn read_mod_hidden_sidecar(mod_dir: &Path) -> std::collections::HashSet<Stri
         .collect()
 }
 
-#[tauri::command]
+#[tauri::command(async)]
 pub fn get_mod_hidden_files(
     vault_path: String,
     mod_folder: String,
@@ -806,7 +806,7 @@ pub fn get_mod_hidden_files(
     Ok(items)
 }
 
-#[tauri::command]
+#[tauri::command(async)]
 pub fn set_mod_hidden_files(
     vault_path: String,
     mod_folder: String,

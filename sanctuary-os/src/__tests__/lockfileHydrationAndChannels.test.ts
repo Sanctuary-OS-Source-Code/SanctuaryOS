@@ -8,7 +8,7 @@ import {
   type BlueprintVaultLockState,
 } from "../utils/blueprintLockfile";
 
-describe("Section 9: Deterministic Blueprint Lockfiles & Mason Release Channels", () => {
+describe("Deterministic Blueprint Lockfiles & Mason Release Channels", () => {
   it("builds sanctuary-blueprint.lock.json v1.0 with FOMOD choices, hidden files & Workbench config deltas", () => {
     const exportBase = {
       sanctuary_profile: true,

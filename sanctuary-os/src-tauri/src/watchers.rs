@@ -30,25 +30,27 @@ fn reset_watcher_shutdown(
 }
 
 #[tauri::command]
-pub fn initialize_vault_watch(
+pub async fn initialize_vault_watch(
     app_handle: tauri::AppHandle,
     app_state: tauri::State<'_, AppState>,
-) -> () {
-    let config = get_saved_coordinates();
-    let path_to_watch = PathBuf::from(&config.vault_path);
-    if !path_to_watch.exists() {
-        return;
-    }
-    let mods_path_to_ignore = std::path::PathBuf::from(&config.mods_path);
+) -> Result<(), String> {
     let game_schema = app_state.active_schema.lock().unwrap().clone();
-    let supported_exts = crate::game_logic::get_supported_extensions(&game_schema);
-    let editable_cfg_exts = crate::game_logic::get_editable_config_extensions(&game_schema);
-    let manifest_leaf_lower = crate::game_logic::resolve_manifest_leaf_lower(&game_schema);
     let is_deploying = app_state.inner().is_deploying.clone();
     let last_deploy_epoch_ms = app_state.inner().last_deploy_epoch_ms.clone();
-    let shutdown_rx = reset_watcher_shutdown(&VAULT_WATCH_SHUTDOWN);
 
-    std::thread::spawn(move || {
+    tauri::async_runtime::spawn_blocking(move || {
+        let config = get_saved_coordinates();
+        let path_to_watch = PathBuf::from(&config.vault_path);
+        if !path_to_watch.exists() {
+            return;
+        }
+        let mods_path_to_ignore = std::path::PathBuf::from(&config.mods_path);
+        let supported_exts = crate::game_logic::get_supported_extensions(&game_schema);
+        let editable_cfg_exts = crate::game_logic::get_editable_config_extensions(&game_schema);
+        let manifest_leaf_lower = crate::game_logic::resolve_manifest_leaf_lower(&game_schema);
+        let shutdown_rx = reset_watcher_shutdown(&VAULT_WATCH_SHUTDOWN);
+
+        std::thread::spawn(move || {
         let (tx, rx) = std::sync::mpsc::channel();
         let mut watcher = match notify::RecommendedWatcher::new(tx, notify::Config::default()) {
             Ok(w) => w,
@@ -152,33 +154,37 @@ pub fn initialize_vault_watch(
                 }
             }
         }
-    });
+        });
+    })
+    .await
+    .map_err(|e| e.to_string())
 }
 
 #[tauri::command]
-pub fn initialize_airgap_watch(
+pub async fn initialize_airgap_watch(
     app_handle: tauri::AppHandle,
     docs_path: String,
     vault_path: String,
     app_state: tauri::State<'_, AppState>,
-) {
-    let path_to_watch = std::path::PathBuf::from(&docs_path);
-    if !path_to_watch.exists() {
-        return;
-    }
-
+) -> Result<(), String> {
     let game_schema = app_state.active_schema.lock().unwrap().clone();
-    let editable_exts = crate::game_logic::get_editable_config_extensions(&game_schema);
-    let manifest_leaf_lower = crate::game_logic::resolve_manifest_leaf_lower(&game_schema);
+    tauri::async_runtime::spawn_blocking(move || {
+        let path_to_watch = std::path::PathBuf::from(&docs_path);
+        if !path_to_watch.exists() {
+            return;
+        }
 
-    let v_path = std::path::PathBuf::from(&vault_path)
-        .join("Backups")
-        .join("Config");
-    let _ = std::fs::create_dir_all(&v_path);
-    let vault_mods_lane = crate::utils::get_vault_mods_lane(&vault_path);
-    let shutdown_rx = reset_watcher_shutdown(&AIRGAP_WATCH_SHUTDOWN);
+        let editable_exts = crate::game_logic::get_editable_config_extensions(&game_schema);
+        let manifest_leaf_lower = crate::game_logic::resolve_manifest_leaf_lower(&game_schema);
 
-    std::thread::spawn(move || {
+        let v_path = std::path::PathBuf::from(&vault_path)
+            .join("Backups")
+            .join("Config");
+        let _ = std::fs::create_dir_all(&v_path);
+        let vault_mods_lane = crate::utils::get_vault_mods_lane(&vault_path);
+        let shutdown_rx = reset_watcher_shutdown(&AIRGAP_WATCH_SHUTDOWN);
+
+        std::thread::spawn(move || {
         use notify::{Config, RecommendedWatcher, RecursiveMode, Watcher};
 
         let (tx, rx) = std::sync::mpsc::channel();
@@ -266,32 +272,37 @@ pub fn initialize_airgap_watch(
                 Err(std::sync::mpsc::RecvTimeoutError::Disconnected) => break,
             }
         }
-    });
+        });
+    })
+    .await
+    .map_err(|e| e.to_string())
 }
 
 #[tauri::command]
-pub fn initialize_settings_watch(
+pub async fn initialize_settings_watch(
     app_handle: tauri::AppHandle,
     mods_path: String,
     vault_path: String,
     app_state: tauri::State<'_, AppState>,
-) {
-    let path_to_watch = std::path::PathBuf::from(&mods_path);
-    if !path_to_watch.exists() {
-        return;
-    }
-    let vault_mods_path = crate::utils::get_vault_mods_lane(&vault_path);
-    let _ = std::fs::create_dir_all(&vault_mods_path);
-
+) -> Result<(), String> {
     let game_schema = app_state.active_schema.lock().unwrap().clone();
-    let editable_exts = crate::game_logic::get_editable_config_extensions(&game_schema);
-    let manifest_leaf_lower = crate::game_logic::resolve_manifest_leaf_lower(&game_schema);
     let is_deploying = app_state.inner().is_deploying.clone();
     let last_deploy_epoch_ms = app_state.inner().last_deploy_epoch_ms.clone();
-    let shutdown_rx = reset_watcher_shutdown(&SETTINGS_WATCH_SHUTDOWN);
 
-    let (tx, rx) = std::sync::mpsc::channel();
-    std::thread::spawn(move || {
+    tauri::async_runtime::spawn_blocking(move || {
+        let path_to_watch = std::path::PathBuf::from(&mods_path);
+        if !path_to_watch.exists() {
+            return;
+        }
+        let vault_mods_path = crate::utils::get_vault_mods_lane(&vault_path);
+        let _ = std::fs::create_dir_all(&vault_mods_path);
+
+        let editable_exts = crate::game_logic::get_editable_config_extensions(&game_schema);
+        let manifest_leaf_lower = crate::game_logic::resolve_manifest_leaf_lower(&game_schema);
+        let shutdown_rx = reset_watcher_shutdown(&SETTINGS_WATCH_SHUTDOWN);
+
+        let (tx, rx) = std::sync::mpsc::channel();
+        std::thread::spawn(move || {
         use notify::Watcher;
 
         let is_watched_config_file = |p: &std::path::Path| -> bool {
@@ -508,7 +519,10 @@ pub fn initialize_settings_watch(
                 }
             }
         }
-    });
+        });
+    })
+    .await
+    .map_err(|e| e.to_string())
 }
 
 use crate::state::DownloadsWatcherState;

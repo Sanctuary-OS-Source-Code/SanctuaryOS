@@ -3,7 +3,6 @@ import { useState, useEffect } from 'react';
 import { invoke } from '@tauri-apps/api/core';
 import { getVersion } from '@tauri-apps/api/app';
 import { open } from '@tauri-apps/plugin-dialog';
-import { useTheme } from '../ThemeContext';
 import { useLexicon } from '../LexiconContext';
 import { ViewHeader, DashboardStatTile, ActionPill, InlineFilterGroup } from '../shared';
 import { StatTileCarousel } from '../hub-components/SharedCommandScreenLayout';
@@ -68,7 +67,6 @@ const normalizeSettingsTabId = (rawTab?: string | null): string => {
 
 export default function Settings({ anarchyRules, setAnarchyRules }: any) {
   const { t } = useLexicon();
-  const { currentTheme } = useTheme();
   const session = useStore((state) => state.session);
 
   const [activeTab, setActiveTab] = useState(() => {
@@ -143,8 +141,52 @@ export default function Settings({ anarchyRules, setAnarchyRules }: any) {
     return () => window.removeEventListener('navigateSettings', handleNav);
   }, []);
 
-  const [config, setConfig] = useState<any>(null);
-  const [globalConfig, setGlobalConfig] = useState<any>(null);
+  const [config, setConfig] = useState<any>(() => {
+    const storeState = useStore.getState();
+    const activeId =
+      storeState.activeWorkspaceId ||
+      localStorage.getItem('sanctuary_last_active_workspace') ||
+      'default_workspace';
+    const storeMatch = (storeState.workspaces || []).find(
+      (w: any) =>
+        String(w.id || '').toLowerCase() === String(activeId || '').toLowerCase() ||
+        String(w.schema_id || '').toLowerCase() === String(activeId || '').toLowerCase()
+    );
+    const resolvedId = storeMatch?.id || activeId || 'default_workspace';
+    const resolvedSchema = storeMatch?.schema_id || resolvedId;
+    if (!isDesktop()) {
+      return {
+        id: resolvedId === 'default_workspace' ? 'web' : resolvedId,
+        name: storeMatch?.name || resolvedId,
+        schema_id: resolvedSchema,
+        vault_path: 'web',
+        master_vault_path: 'web',
+        mods_path: 'web',
+        live_path: 'web',
+        docs_path: 'web',
+      };
+    }
+    return {
+      id: resolvedId,
+      name: storeMatch?.name || resolvedId,
+      schema_id: resolvedSchema,
+      live_path: storeState.livePath || '',
+      mods_path: storeState.modsPath || '',
+      docs_path: storeState.docsPath || '',
+      user_data_path: storeState.docsPath || '',
+      master_vault_path: storeState.vaultPath || '',
+      vault_path: storeState.vaultPath || '',
+    };
+  });
+  const [globalConfig, setGlobalConfig] = useState<any>(() => {
+    const storeState = useStore.getState();
+    const activeId = storeState.activeWorkspaceId || 'default_workspace';
+    return {
+      workspaces: storeState.workspaces || [],
+      active_workspace_id: activeId,
+      vault_path: storeState.vaultPath || (isDesktop() ? '' : 'web'),
+    };
+  });
 
   const resolveUniversalMasterVaultPath = (
     rawPath: string | undefined | null,
@@ -258,67 +300,73 @@ export default function Settings({ anarchyRules, setAnarchyRules }: any) {
         };
       }
 
-      // Auto-resolve Saves & User Data path from the active GameSchema when live/mods paths are already set
-      let autoResolvedDocsPath = '';
+      const buildNormalizedGlobal = (resolvedDocsPath = '') => {
+        const normalizedWorkspaces = Array.isArray(gConf?.workspaces)
+          ? gConf.workspaces.map((w: any) => {
+              const isTarget =
+                String(w.id || '').toLowerCase() === String(activeW.id || '').toLowerCase() ||
+                String(w.schema_id || '').toLowerCase() ===
+                  String(activeW.schema_id || '').toLowerCase();
+              const withDocs =
+                isTarget && resolvedDocsPath && !w.docs_path
+                  ? { ...w, docs_path: resolvedDocsPath, user_data_path: resolvedDocsPath }
+                  : w;
+              if (!masterVault) return withDocs;
+              const wsSchema =
+                withDocs.schema_id && withDocs.schema_id !== 'default_schema'
+                  ? withDocs.schema_id
+                  : withDocs.id;
+              return {
+                ...withDocs,
+                master_vault_path: masterVault,
+                vault_path:
+                  wsSchema && wsSchema !== 'default_workspace'
+                    ? `${masterVault}${sep}${wsSchema}`
+                    : withDocs.vault_path,
+              };
+            })
+          : [];
+        return {
+          ...gConf,
+          vault_path: masterVault || gConf?.vault_path,
+          active_workspace_id: activeW.id || activeId,
+          workspaces: normalizedWorkspaces,
+        };
+      };
+
+      // Hydrate UI immediately before optional background path auto-detection
+      setGlobalConfig(buildNormalizedGlobal());
+      setConfig(activeW);
+
+      // Non-blocking auto-resolve Saves & User Data path when live/mods paths are set
       if (!activeW.docs_path && (activeW.mods_path || activeW.live_path)) {
-        try {
-          if (storeState.activeGameSchema) {
-            await invoke('update_active_game_schema', { schema: storeState.activeGameSchema }).catch(
-              () => {}
-            );
-          }
-          const detected: any = await invoke('auto_detect_paths');
-          const resolvedDocs = String(detected?.docs_path || detected?.user_data_path || '').trim();
-          if (resolvedDocs) {
-            autoResolvedDocsPath = resolvedDocs;
-            activeW = {
+        void (async () => {
+          try {
+            if (storeState.activeGameSchema) {
+              await invoke('update_active_game_schema', {
+                schema: storeState.activeGameSchema,
+              }).catch(() => {});
+            }
+            const detected: any = await invoke('auto_detect_paths');
+            const resolvedDocs = String(
+              detected?.docs_path || detected?.user_data_path || ''
+            ).trim();
+            if (!resolvedDocs) return;
+            const nextW = {
               ...activeW,
               docs_path: resolvedDocs,
               user_data_path: resolvedDocs,
             };
+            const nextGlobal = buildNormalizedGlobal(resolvedDocs);
+            setGlobalConfig(nextGlobal);
+            setConfig(nextW);
+            invoke('save_coordinates', { config: nextGlobal }).catch(() => {});
+            useStore.getState().setDocsPath(resolvedDocs);
+          } catch {
+            // Non-fatal fallback
           }
-        } catch {
-          // Non-fatal fallback
-        }
+        })();
       }
-
-      const normalizedWorkspaces = Array.isArray(gConf?.workspaces)
-        ? gConf.workspaces.map((w: any) => {
-            const isTarget =
-              String(w.id || '').toLowerCase() === String(activeW.id || '').toLowerCase() ||
-              String(w.schema_id || '').toLowerCase() ===
-                String(activeW.schema_id || '').toLowerCase();
-            const withDocs =
-              isTarget && autoResolvedDocsPath && !w.docs_path
-                ? { ...w, docs_path: autoResolvedDocsPath, user_data_path: autoResolvedDocsPath }
-                : w;
-            if (!masterVault) return withDocs;
-            const wsSchema =
-              withDocs.schema_id && withDocs.schema_id !== 'default_schema'
-                ? withDocs.schema_id
-                : withDocs.id;
-            return {
-              ...withDocs,
-              master_vault_path: masterVault,
-              vault_path:
-                wsSchema && wsSchema !== 'default_workspace'
-                  ? `${masterVault}${sep}${wsSchema}`
-                  : withDocs.vault_path,
-            };
-          })
-        : [];
-      const normalizedGlobal = {
-        ...gConf,
-        vault_path: masterVault || gConf?.vault_path,
-        active_workspace_id: activeW.id || activeId,
-        workspaces: normalizedWorkspaces,
-      };
-      if (autoResolvedDocsPath) {
-        invoke('save_coordinates', { config: normalizedGlobal }).catch(() => {});
-        useStore.getState().setDocsPath(autoResolvedDocsPath);
-      }
-      setGlobalConfig(normalizedGlobal);
-      setConfig(activeW);
     } catch (err) {
       console.error(err);
     }
@@ -547,11 +595,15 @@ export default function Settings({ anarchyRules, setAnarchyRules }: any) {
 
   if (config === null) {
     return (
-      <div
-        className="p-12 font-black animate-pulse capitalize tracking-widest"
-        style={{ color: currentTheme.accent }}
-      >
-        {t('booting', 'Booting core systems...')}
+      <div className="p-6 md:p-10">
+        <div className="glass-panel rounded-3xl p-6 border border-[var(--border)] flex items-center gap-4">
+          <span className="material-symbols-outlined animate-spin text-[22px] text-[var(--accent)]">
+            {t('icon_progress_activity', 'progress_activity')}
+          </span>
+          <span className="text-sm font-black uppercase tracking-widest text-[var(--text)]">
+            {t('loading', 'Loading')}
+          </span>
+        </div>
       </div>
     );
   }

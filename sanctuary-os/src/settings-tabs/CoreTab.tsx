@@ -18,7 +18,19 @@ import { buildSpokeRelinkToken, parseSpokeRelinkToken } from "../utils/stagingCr
 import { TabContainer, SettingsGrid, SettingsToggle } from "./shared";
 import { UniversalCard } from "../components/universal/UniversalCard";
 import { LiquidGlassAlertCard } from "../components/BlueprintPatchReadiness";
-import { ActionButton, HoverTooltip } from "../shared";
+import {
+  SidePanelHeroCard,
+  SidePanelPillToggle,
+  UniversalGroup,
+} from "../components/universal/UniversalLayout";
+import {
+  ActionButton,
+  HoverTooltip,
+  PanelHeaderButton,
+  PanelHeaderGroup,
+  SidePanel,
+  VAULT_CHIP_CLASS,
+} from "../shared";
 import { openSanctuaryLogin } from "../AuthWrapper";
 import {
   fetchMfaSecurityState,
@@ -84,6 +96,47 @@ export default function CoreTab() {
   const [claimingRelink, setClaimingRelink] = useState(false);
   const [uplinkInput, setUplinkInput] = useState("");
   const activeRuntimeUplink = parseUplinkBundle(getRuntimeUplinkBundle());
+  const [isUplinkPanelOpen, setIsUplinkPanelOpen] = useState(false);
+  const [isProtocolCaptureOpen, setIsProtocolCaptureOpen] = useState(false);
+  const enabledProtocolCount = [
+    protocolPrefs.nxm,
+    protocolPrefs.ror2mm,
+    protocolPrefs.curseforge,
+  ].filter(Boolean).length;
+
+  const handleConnectUplink = () => {
+    const parsed = parseUplinkBundle(uplinkInput);
+    if (!parsed) {
+      useStore
+        .getState()
+        .pushStatus(
+          t("uplink_invalid_bundle_err", "Invalid SANCTUARY-UPLINK:// bundle."),
+          "error"
+        );
+      return;
+    }
+    if (setRuntimeUplinkBundle(uplinkInput)) {
+      setUplinkInput("");
+      useStore
+        .getState()
+        .pushStatus(
+          t("uplink_connected_toast", "Runtime Spoke Uplink saved. Reloading..."),
+          "success"
+        );
+      window.location.reload();
+    }
+  };
+
+  const handleDisconnectUplink = () => {
+    setRuntimeUplinkBundle(null);
+    useStore
+      .getState()
+      .pushStatus(
+        t("uplink_disconnected_toast", "Disconnected runtime Spoke Uplink. Reloading..."),
+        "info"
+      );
+    window.location.reload();
+  };
   const [activePanel, setActivePanel] = useState<"email" | "password" | "system_id" | "2fa" | null>(() => {
     if (typeof window !== "undefined" && localStorage.getItem("sanctuary_open_2fa_panel") === "true") {
       localStorage.removeItem("sanctuary_open_2fa_panel");
@@ -1040,85 +1093,56 @@ export default function CoreTab() {
               )}
             </div>
 
-            <div className="md:col-span-2 glass-surface rounded-2xl p-4 border border-[color-mix(in_srgb,var(--text)_12%,transparent)] flex flex-col gap-3">
-              <div className="flex items-center justify-between gap-3 flex-wrap">
-                <div className="flex items-center gap-3 min-w-0">
-                  <div className="w-9 h-9 rounded-xl glass-surface border border-[color-mix(in_srgb,var(--text)_14%,transparent)] flex items-center justify-center text-[var(--accent)] shrink-0">
-                    <span className="material-symbols-outlined !text-[18px]">
-                      {t("icon_hub", "hub")}
-                    </span>
-                  </div>
-                  <div className="flex flex-col min-w-0">
-                    <span className="text-xs font-black text-[var(--text)]">
-                      {t("uplink_runtime_title", "Sovereign Spoke Runtime Uplink")}
-                    </span>
-                    <span className="text-[11px] font-medium text-[var(--subtext)] truncate">
-                      {activeRuntimeUplink?.supabase_url
-                        ? `${t("uplink_active_host_prefix", "Connected:")} ${activeRuntimeUplink.supabase_url}`
-                        : t(
-                            "uplink_runtime_desc",
-                            "Paste a SANCTUARY-UPLINK:// invite bundle to connect this client to an independent Partner Spoke Hub."
-                          )}
-                    </span>
-                  </div>
-                </div>
-                {activeRuntimeUplink?.supabase_url && (
-                  <ActionButton
-                    variant="glass"
-                    icon={t("icon_link_off", "link_off")}
-                    label={t("uplink_disconnect_btn", "Disconnect Uplink")}
-                    onClick={() => {
-                      setRuntimeUplinkBundle(null);
-                      useStore
-                        .getState()
-                        .pushStatus(
-                          t("uplink_disconnected_toast", "Disconnected runtime Spoke Uplink. Reloading..."),
-                          "info"
-                        );
-                      window.location.reload();
-                    }}
-                  />
-                )}
-              </div>
-
-              <div className="flex items-center gap-2 flex-wrap">
-                <input
-                  type="text"
-                  value={uplinkInput}
-                  onChange={(e) => setUplinkInput(e.target.value)}
-                  placeholder={t("uplink_input_placeholder", "SANCTUARY-UPLINK://...")}
-                  className="flex-1 min-w-[220px] glass-surface rounded-xl px-3.5 py-2 text-xs font-mono text-[var(--text)] outline-none border border-[color-mix(in_srgb,var(--text)_12%,transparent)] focus:border-[color-mix(in_srgb,var(--accent)_50%,transparent)]"
-                />
+            <UniversalCard
+              headerStyle="inline"
+              title={t("uplink_runtime_title", "Sovereign Spoke Runtime Uplink")}
+              subtitle={
+                activeRuntimeUplink?.supabase_url
+                  ? `${t("uplink_active_host_prefix", "Connected:")} ${activeRuntimeUplink.supabase_url}`
+                  : t(
+                      "uplink_runtime_desc",
+                      "Paste a SANCTUARY-UPLINK:// invite bundle to connect this client to an independent Partner Spoke Hub."
+                    )
+              }
+              icon={t("icon_hub", "hub")}
+              isActive={Boolean(activeRuntimeUplink?.supabase_url)}
+              onClick={() => setIsUplinkPanelOpen(true)}
+              actions={
+                <span className={`${VAULT_CHIP_CLASS} ml-auto shrink-0`}>
+                  <span
+                    className={`material-symbols-outlined !text-[12px] ${
+                      activeRuntimeUplink?.supabase_url
+                        ? "text-[var(--success)]"
+                        : "text-[var(--subtext)]"
+                    }`}
+                  >
+                    {activeRuntimeUplink?.supabase_url
+                      ? t("icon_verified_user", "verified_user")
+                      : t("icon_hub", "hub")}
+                  </span>
+                  <span
+                    className={
+                      activeRuntimeUplink?.supabase_url
+                        ? "text-[var(--success)]"
+                        : "text-[var(--subtext)]"
+                    }
+                  >
+                    {activeRuntimeUplink?.supabase_url
+                      ? t("active", "Active")
+                      : t("lab_optional_label", "Optional")}
+                  </span>
+                </span>
+              }
+              footer={
                 <ActionButton
-                  variant="accent"
+                  variant="glass"
                   icon={t("icon_hub", "hub")}
-                  label={t("btn_connect", "Connect")}
-                  disabled={!uplinkInput.trim()}
-                  onClick={() => {
-                    const parsed = parseUplinkBundle(uplinkInput);
-                    if (!parsed) {
-                      useStore
-                        .getState()
-                        .pushStatus(
-                          t("uplink_invalid_bundle_err", "Invalid SANCTUARY-UPLINK:// bundle."),
-                          "error"
-                        );
-                      return;
-                    }
-                    if (setRuntimeUplinkBundle(uplinkInput)) {
-                      setUplinkInput("");
-                      useStore
-                        .getState()
-                        .pushStatus(
-                          t("uplink_connected_toast", "Runtime Spoke Uplink saved. Reloading..."),
-                          "success"
-                        );
-                      window.location.reload();
-                    }
-                  }}
+                  label={t("uplink_configure_btn", "Configure Spoke Uplink")}
+                  onClick={() => setIsUplinkPanelOpen(true)}
+                  className="w-full justify-center"
                 />
-              </div>
-            </div>
+              }
+            />
           </SettingsGrid>
         </TabContainer>
 
@@ -1157,45 +1181,48 @@ export default function CoreTab() {
                   onClick={() => setUseInternalBrowser(!useInternalBrowser)}
                   actions={<SettingsToggle checked={useInternalBrowser} />}
                 />
-                {(
-                  [
-                    {
-                      key: "nxm" as const,
-                      title: t("settings_proto_nxm_title", "Capture nxm:// Manager Links"),
-                      subtitle: t(
-                        "settings_proto_nxm_desc",
-                        "Opt in to intercept external nxm:// {Mod} manager links directly in Sanctuary OS instead of leaving them unassigned."
-                      ),
-                    },
-                    {
-                      key: "ror2mm" as const,
-                      title: t("settings_proto_ror2mm_title", "Capture ror2mm:// Manager Links"),
-                      subtitle: t(
-                        "settings_proto_ror2mm_desc",
-                        "Opt in to intercept ror2mm:// package install links directly into your Sanctuary {Vault}."
-                      ),
-                    },
-                    {
-                      key: "curseforge" as const,
-                      title: t("settings_proto_curseforge_title", "Capture curseforge:// Manager Links"),
-                      subtitle: t(
-                        "settings_proto_curseforge_desc",
-                        "Opt in to route curseforge:// manager links cleanly into Sanctuary Guided Browser."
-                      ),
-                    },
-                  ] as const
-                ).map((item) => (
-                  <UniversalCard
-                    key={item.key}
-                    headerStyle="inline"
-                    title={item.title}
-                    subtitle={item.subtitle}
-                    icon={t("icon_link", "link")}
-                    isActive={protocolPrefs[item.key]}
-                    onClick={() => void handleToggleProtocolPref(item.key)}
-                    actions={<SettingsToggle checked={protocolPrefs[item.key]} />}
-                  />
-                ))}
+                <UniversalCard
+                  headerStyle="inline"
+                  title={t("settings_proto_capture_card_title", "External {Mod} Manager Links")}
+                  subtitle={t(
+                    "settings_proto_capture_card_desc",
+                    "Choose which external manager URL schemes are intercepted directly by Sanctuary OS."
+                  )}
+                  icon={t("icon_link", "link")}
+                  isActive={enabledProtocolCount > 0}
+                  onClick={() => setIsProtocolCaptureOpen(true)}
+                  actions={
+                    <span className={`${VAULT_CHIP_CLASS} ml-auto shrink-0`}>
+                      <span
+                        className={`material-symbols-outlined !text-[12px] ${
+                          enabledProtocolCount > 0
+                            ? "text-[var(--success)]"
+                            : "text-[var(--subtext)]"
+                        }`}
+                      >
+                        {t("icon_link", "link")}
+                      </span>
+                      <span
+                        className={
+                          enabledProtocolCount > 0
+                            ? "text-[var(--success)]"
+                            : "text-[var(--subtext)]"
+                        }
+                      >
+                        {`${enabledProtocolCount}/3`}
+                      </span>
+                    </span>
+                  }
+                  footer={
+                    <ActionButton
+                      variant="glass"
+                      icon={t("icon_link", "link")}
+                      label={t("settings_proto_capture_btn", "Configure Link Handlers")}
+                      onClick={() => setIsProtocolCaptureOpen(true)}
+                      className="w-full justify-center"
+                    />
+                  }
+                />
                 <ByoApiKeyBrokerCard />
               </>
             )}
@@ -1302,6 +1329,225 @@ export default function CoreTab() {
         activeTabFactors={activeTabFactors}
         isPasskeyFormOpen={isPasskeyFormOpen}
       />
+
+      {/* SOVEREIGN SPOKE RUNTIME UPLINK DRAWER */}
+      <SidePanel
+        isOpen={isUplinkPanelOpen}
+        onClose={() => setIsUplinkPanelOpen(false)}
+        title={t("uplink_runtime_title", "Sovereign Spoke Runtime Uplink")}
+        subtitle={t("prefs_section_privacy", "Network & Privacy")}
+        icon={t("icon_hub", "hub")}
+        iconColorClass="theme-text-accent"
+        widthClass="w-[90vw] md:w-[600px]"
+        headerActions={
+          <PanelHeaderGroup>
+            <PanelHeaderButton
+              icon={t("icon_hub", "hub")}
+              tooltip={t("btn_connect", "Connect")}
+              disabled={!uplinkInput.trim()}
+              onClick={handleConnectUplink}
+            />
+            {activeRuntimeUplink?.supabase_url && (
+              <PanelHeaderButton
+                icon={t("icon_link_off", "link_off")}
+                tooltip={t("uplink_disconnect_btn", "Disconnect Uplink")}
+                onClick={handleDisconnectUplink}
+              />
+            )}
+          </PanelHeaderGroup>
+        }
+      >
+        <div className="flex flex-col gap-4 mt-2 relative z-10 w-full pb-8">
+          <SidePanelHeroCard
+            icon={t("icon_hub", "hub")}
+            overline={t("prefs_section_privacy", "Network & Privacy")}
+            title={t("uplink_runtime_title", "Sovereign Spoke Runtime Uplink")}
+            description={
+              activeRuntimeUplink?.supabase_url ? (
+                <span className="inline-flex items-center gap-1.5 flex-wrap">
+                  <span>{t("uplink_active_host_prefix", "Connected:")}</span>
+                  <span className="font-mono no-text-case text-[var(--text)]">
+                    {activeRuntimeUplink.supabase_url}
+                  </span>
+                </span>
+              ) : (
+                t(
+                  "uplink_runtime_desc",
+                  "Paste a SANCTUARY-UPLINK:// invite bundle to connect this client to an independent Partner Spoke Hub."
+                )
+              )
+            }
+            badge={
+              activeRuntimeUplink?.supabase_url
+                ? t("active", "Active")
+                : t("lab_optional_label", "Optional")
+            }
+            badgeIcon={
+              activeRuntimeUplink?.supabase_url
+                ? t("icon_verified_user", "verified_user")
+                : t("icon_hub", "hub")
+            }
+            variant={activeRuntimeUplink?.supabase_url ? "success" : "accent"}
+          />
+
+          <UniversalGroup
+            title={t("uplink_runtime_title", "Sovereign Spoke Runtime Uplink")}
+            icon={t("icon_link", "link")}
+            headerAction={
+              <span className={VAULT_CHIP_CLASS}>
+                <span
+                  className={`material-symbols-outlined !text-[12px] ${
+                    activeRuntimeUplink?.supabase_url
+                      ? "text-[var(--success)]"
+                      : "text-[var(--accent)]"
+                  }`}
+                >
+                  {activeRuntimeUplink?.supabase_url
+                    ? t("icon_verified_user", "verified_user")
+                    : t("icon_hub", "hub")}
+                </span>
+                <span>
+                  {activeRuntimeUplink?.supabase_url
+                    ? t("active", "Active")
+                    : t("lab_optional_label", "Optional")}
+                </span>
+              </span>
+            }
+          >
+            <form
+              onSubmit={(e) => {
+                e.preventDefault();
+                handleConnectUplink();
+              }}
+              className="flex flex-col gap-3.5"
+            >
+              <div className="flex flex-col gap-1.5">
+                <label className="text-[10px] font-black uppercase tracking-widest text-[var(--subtext)] px-1 no-text-case">
+                  {t("uplink_input_placeholder", "SANCTUARY-UPLINK://...")}
+                </label>
+                <input
+                  type="text"
+                  value={uplinkInput}
+                  onChange={(e) => setUplinkInput(e.target.value)}
+                  placeholder={t("uplink_input_placeholder", "SANCTUARY-UPLINK://...")}
+                  className="w-full glass-surface rounded-xl px-3.5 py-2.5 text-xs font-mono no-text-case text-[var(--text)] border border-[color-mix(in_srgb,var(--text)_12%,transparent)] outline-none focus:border-[var(--accent)] transition-all"
+                />
+              </div>
+
+              <div
+                className={
+                  activeRuntimeUplink?.supabase_url
+                    ? "grid grid-cols-1 sm:grid-cols-2 gap-2.5"
+                    : "flex flex-col"
+                }
+              >
+                <ActionButton
+                  type="submit"
+                  variant="glass"
+                  icon={t("icon_hub", "hub")}
+                  label={t("btn_connect", "Connect")}
+                  disabled={!uplinkInput.trim()}
+                  className="w-full justify-center"
+                />
+                {activeRuntimeUplink?.supabase_url && (
+                  <ActionButton
+                    type="button"
+                    variant="glass"
+                    icon={t("icon_link_off", "link_off")}
+                    label={t("uplink_disconnect_btn", "Disconnect Uplink")}
+                    onClick={handleDisconnectUplink}
+                    className="w-full justify-center"
+                  />
+                )}
+              </div>
+            </form>
+          </UniversalGroup>
+        </div>
+      </SidePanel>
+
+      {/* EXTERNAL MOD MANAGER LINKS DRAWER */}
+      <SidePanel
+        isOpen={isProtocolCaptureOpen}
+        onClose={() => setIsProtocolCaptureOpen(false)}
+        title={t("settings_proto_capture_card_title", "External {Mod} Manager Links")}
+        subtitle={t("settings_browser_controls_section", "Browser & Controls")}
+        icon={t("icon_link", "link")}
+        iconColorClass="theme-text-accent"
+        widthClass="w-[90vw] md:w-[600px]"
+      >
+        <div className="flex flex-col gap-4 mt-2 relative z-10 w-full pb-8">
+          <SidePanelHeroCard
+            icon={t("icon_link", "link")}
+            overline={t("settings_browser_controls_section", "Browser & Controls")}
+            title={t("settings_proto_capture_card_title", "External {Mod} Manager Links")}
+            description={t(
+              "settings_proto_capture_card_desc",
+              "Choose which external manager URL schemes are intercepted directly by Sanctuary OS."
+            )}
+            badge={`${enabledProtocolCount} / 3`}
+            badgeIcon={t("icon_link", "link")}
+            variant={enabledProtocolCount > 0 ? "success" : "accent"}
+          />
+
+          <UniversalGroup
+            title={t("settings_proto_capture_btn", "Configure Link Handlers")}
+            icon={t("icon_tune", "tune")}
+            count={`${enabledProtocolCount}/3`}
+          >
+            <div className="flex flex-col gap-3">
+              {(
+                [
+                  {
+                    key: "nxm" as const,
+                    scheme: "nxm://",
+                    title: t("settings_proto_nxm_title", "Capture nxm:// Manager Links"),
+                    subtitle: t(
+                      "settings_proto_nxm_desc",
+                      "Opt in to intercept external nxm:// {Mod} manager links directly in Sanctuary OS instead of leaving them unassigned."
+                    ),
+                  },
+                  {
+                    key: "ror2mm" as const,
+                    scheme: "ror2mm://",
+                    title: t("settings_proto_ror2mm_title", "Capture ror2mm:// Manager Links"),
+                    subtitle: t(
+                      "settings_proto_ror2mm_desc",
+                      "Opt in to intercept ror2mm:// package install links directly into your Sanctuary {Vault}."
+                    ),
+                  },
+                  {
+                    key: "curseforge" as const,
+                    scheme: "curseforge://",
+                    title: t("settings_proto_curseforge_title", "Capture curseforge:// Manager Links"),
+                    subtitle: t(
+                      "settings_proto_curseforge_desc",
+                      "Opt in to route curseforge:// manager links cleanly into Sanctuary Guided Browser."
+                    ),
+                  },
+                ] as const
+              ).map((item) => (
+                <SidePanelPillToggle
+                  key={item.key}
+                  icon={t("icon_link", "link")}
+                  checked={protocolPrefs[item.key]}
+                  disabled={savingProtocolPrefs}
+                  onChange={() => void handleToggleProtocolPref(item.key)}
+                  variant={protocolPrefs[item.key] ? "success" : "accent"}
+                  label={
+                    <span className="inline-flex items-center gap-2 flex-wrap">
+                      <span>{item.title}</span>
+                      <span className={`${VAULT_CHIP_CLASS} font-mono no-text-case`}>
+                        {item.scheme}
+                      </span>
+                    </span>
+                  }
+                  description={item.subtitle}
+                />
+              ))}
+            </div>
+          </UniversalGroup>
+        </div>
+      </SidePanel>
     </>
   );
 }

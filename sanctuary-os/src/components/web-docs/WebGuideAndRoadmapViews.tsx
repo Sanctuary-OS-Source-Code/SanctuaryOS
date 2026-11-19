@@ -827,13 +827,16 @@ export function WebRoadmapView({
               : phaseMatch
                 ? parseInt(phaseMatch[1], 10)
                 : Math.max(1, totalCustomPhases - idx);
-            const resolvedCardStatus: "active" | "in_testing" | "completed" =
-              c.status === "in_testing" ||
-              /in\s+testing|in\s+dev\s+build/i.test(c.badge || "")
-                ? "in_testing"
-                : c.status === "active" || idx === 0
-                  ? "active"
-                  : "completed";
+            const resolvedCardStatus: "planned" | "active" | "in_testing" | "completed" =
+              c.status === "planned" ||
+              /\bplanned\b/i.test(c.badge || "")
+                ? "planned"
+                : c.status === "in_testing" ||
+                    /in\s+testing|in\s+dev\s+build/i.test(c.badge || "")
+                  ? "in_testing"
+                  : c.status === "active"
+                    ? "active"
+                    : "completed";
             return {
               num: parsedNum,
               code: td(c.overline || `Phase ${parsedNum}`),
@@ -848,7 +851,7 @@ export function WebRoadmapView({
                   title: td(sc.title || ""),
                   desc: td(sc.desc || ""),
                   icon: sc.icon || "",
-                  pending: mStatus === "in_progress",
+                  pending: mStatus === "in_progress" || mStatus === "planned",
                   roadmapStatus: mStatus,
                 };
               }),
@@ -856,14 +859,16 @@ export function WebRoadmapView({
           })
         : roadmapPhases.map((rp: any) => ({
             ...rp,
-            status: rp.status as "active" | "in_testing" | "completed",
+            status: rp.status as "planned" | "active" | "in_testing" | "completed",
             milestones: rp.milestones.map((m: any) => ({
               ...m,
               icon: "",
               pending: Boolean((m as any).pending),
-              roadmapStatus: ((m as any).pending
-                ? "in_progress"
-                : "completed") as RoadmapMilestoneStatus,
+              roadmapStatus: (rp.status === "planned"
+                ? "planned"
+                : (m as any).pending
+                  ? "in_progress"
+                  : "completed") as RoadmapMilestoneStatus,
             })),
           }));
 
@@ -874,7 +879,9 @@ export function WebRoadmapView({
       return true;
     });
 
-    const topPhaseNum = effectivePhases[0]?.num || 14;
+    const topPhaseNum = effectivePhases[0]?.num || 16;
+    const activeEraPhase =
+      effectivePhases.find((p: any) => p.status === "active") || effectivePhases[0];
     const completedPhases = effectivePhases.filter(
       (p: any) => p.status === "completed"
     );
@@ -920,12 +927,12 @@ export function WebRoadmapView({
             className="!w-full"
             icon={t("icon_rocket_launch", "rocket_launch")}
             label={t("dir_phase_tab_active_lbl", "Current Era")}
-            number={`${t("dir_phase_word", "Phase")} ${topPhaseNum} ${t("active", "Active")}`}
+            number={`${t("dir_phase_word", "Phase")} ${activeEraPhase?.num || topPhaseNum} ${t("active", "Active")}`}
             colorClass="text-[var(--accent)]"
             isActive={roadmapFilter === "active"}
             onClick={() => {
               setRoadmapFilter("active");
-              setSelectedPhaseNum(topPhaseNum);
+              setSelectedPhaseNum(activeEraPhase?.num || topPhaseNum);
             }}
           />
           <DashboardStatTile

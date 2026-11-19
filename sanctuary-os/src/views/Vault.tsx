@@ -107,6 +107,7 @@ const Vault = React.memo(function Vault(props: any) {
   const [contextVersionGroups, setContextVersionGroups] = React.useState<ModVersionBinaryGroup[]>([]);
   const [vaultContextMenu, setVaultContextMenu] = React.useState<{ x: number, y: number, mod: any } | null>(null);
   const [activeSubmenu, setActiveSubmenu] = React.useState<'blueprint' | 'folder' | null>(null);
+  const vaultContextMenuRef = React.useRef<HTMLDivElement | null>(null);
 
   const openVersionsForMod = React.useCallback(async (targetMod: any) => {
     try {
@@ -171,6 +172,7 @@ const Vault = React.memo(function Vault(props: any) {
       setIsLocalFolderEditorOpen(true);
     };
     const handleOpenContextMenu = (e: any) => {
+      setActiveSubmenu(null);
       setVaultContextMenu({ mod: e.detail.mod, x: e.detail.x, y: e.detail.y });
     };
     const handleOpenVersionPool = () => {
@@ -187,15 +189,33 @@ const Vault = React.memo(function Vault(props: any) {
     window.addEventListener('sanctuary-open-version-pool', handleOpenVersionPool);
     window.addEventListener('sanctuary-vault-navigate', handleVaultNavigate);
 
-    const closeContextMenu = () => setVaultContextMenu(null);
-    window.addEventListener('click', closeContextMenu);
+    const handleGlobalMouseDown = (e: MouseEvent) => {
+      if (
+        vaultContextMenuRef.current &&
+        e.target instanceof Node &&
+        vaultContextMenuRef.current.contains(e.target)
+      ) {
+        return;
+      }
+      setActiveSubmenu(null);
+      setVaultContextMenu(null);
+    };
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        setActiveSubmenu(null);
+        setVaultContextMenu(null);
+      }
+    };
+    window.addEventListener('mousedown', handleGlobalMouseDown, true);
+    window.addEventListener('keydown', handleKeyDown);
 
     return () => {
       window.removeEventListener('openLocalFolderEditor', handleOpenEditor);
       window.removeEventListener('openVaultContextMenu', handleOpenContextMenu);
       window.removeEventListener('sanctuary-open-version-pool', handleOpenVersionPool);
       window.removeEventListener('sanctuary-vault-navigate', handleVaultNavigate);
-      window.removeEventListener('click', closeContextMenu);
+      window.removeEventListener('mousedown', handleGlobalMouseDown, true);
+      window.removeEventListener('keydown', handleKeyDown);
     };
   }, [setEquipFilter]);
   const [confirmDeleteId, setConfirmDeleteId] = React.useState<string | null>(null);
@@ -292,13 +312,25 @@ const Vault = React.memo(function Vault(props: any) {
     const byHash = new Map();
     const byInterchangeableId = new Map();
     const byName = new Map();
+    const byCleanLookup = new Map<string, any>();
+    const byFileLower = new Map<string, any>();
     const namesAndDisplayNames: { name: string, displayNameUpper: string, displayNameSpaced: string, orig: any, hash: string }[] = [];
 
     modList.forEach((ml: any) => {
       if (!ml.isVirtual) {
         if (ml.dbId) byDbId.set(String(ml.dbId), ml);
         if (ml.hash) byHash.set(ml.hash, ml);
-        if (ml.name) byName.set(ml.name, ml);
+        if (ml.name) {
+          byName.set(ml.name, ml);
+          const cleanLookup = stripPriorityTierPrefix(ml.name, activeGameSchema);
+          if (cleanLookup && !byCleanLookup.has(cleanLookup)) {
+            byCleanLookup.set(cleanLookup, ml);
+          }
+          const cleanFile = (ml.name.split(/[\\/]/).pop() || ml.name).toLowerCase();
+          if (cleanFile && !byFileLower.has(cleanFile)) {
+            byFileLower.set(cleanFile, ml);
+          }
+        }
         if (ml.interchangeableIds) {
           ml.interchangeableIds.forEach((id: string) => {
             byInterchangeableId.set(String(id), ml);
@@ -316,8 +348,8 @@ const Vault = React.memo(function Vault(props: any) {
       }
     });
 
-    return { byDbId, byHash, byInterchangeableId, byName, namesAndDisplayNames };
-  }, [modList]);
+    return { byDbId, byHash, byInterchangeableId, byName, byCleanLookup, byFileLower, namesAndDisplayNames };
+  }, [modList, activeGameSchema]);
 
 
   const activeSetEquipContext = React.useMemo(() => {
@@ -335,11 +367,8 @@ const Vault = React.memo(function Vault(props: any) {
       const mData =
         modListIndex.byName.get(cleanNLookup) ||
         modListIndex.byName.get(n) ||
-        modListIndex.namesAndDisplayNames.find(
-          (ne: any) =>
-            ne.name === cleanNLookup ||
-            (ne.name.split(/[\\/]/).pop() || ne.name).toLowerCase() === cleanFile.toLowerCase()
-        )?.orig;
+        modListIndex.byCleanLookup.get(cleanNLookup) ||
+        modListIndex.byFileLower.get(cleanFile.toLowerCase());
       const cleanN = cleanFile.replace(extRegex, "").toUpperCase();
 
       if (mData?.dbId) parsedActiveSetModIds.add(String(mData.dbId));
@@ -615,51 +644,52 @@ const Vault = React.memo(function Vault(props: any) {
     return count;
   }, [displayModList, classifyVaultMod, t]);
 
-  const vaultTabCounts = React.useMemo(() => {
+  const { vaultTabCounts, finalVisibleMods } = React.useMemo(() => {
     const list = visibleMods || displayModList || [];
     let all = 0;
     let equipped = 0;
     let unequipped = 0;
     let dev = 0;
     let archives = 0;
+    const filtered: any[] = [];
 
     for (let i = 0; i < list.length; i++) {
-      const bucket = classifyVaultMod(list[i]);
+      const mod = list[i];
+      const bucket = classifyVaultMod(mod);
       if (!bucket || bucket === "ARCHIVES_FILTERED_OUT") continue;
       if (bucket === "ARCHIVES") {
         archives++;
+        if (equipFilter === "ARCHIVES") filtered.push(mod);
       } else if (bucket === "DEV") {
         dev++;
+        if (equipFilter === "DEV") filtered.push(mod);
       } else if (bucket === "EQUIPPED") {
         all++;
         equipped++;
+        if (equipFilter !== "ARCHIVES" && equipFilter !== "DEV" && equipFilter !== "UNEQUIPPED") {
+          filtered.push(mod);
+        }
       } else if (bucket === "UNEQUIPPED") {
         all++;
         unequipped++;
+        if (equipFilter !== "ARCHIVES" && equipFilter !== "DEV" && equipFilter !== "EQUIPPED") {
+          filtered.push(mod);
+        }
       }
     }
 
     return {
-      total: all + dev + archives,
-      all,
-      equipped,
-      unequipped,
-      dev,
-      archives,
+      vaultTabCounts: {
+        total: all + dev + archives,
+        all,
+        equipped,
+        unequipped,
+        dev,
+        archives,
+      },
+      finalVisibleMods: filtered,
     };
   }, [equipFilter, displayModList, visibleMods, classifyVaultMod]);
-
-  const finalVisibleMods = React.useMemo(() => {
-    return visibleMods.filter((mod: any) => {
-      const bucket = classifyVaultMod(mod);
-      if (!bucket || bucket === "ARCHIVES_FILTERED_OUT") return false;
-      if (equipFilter === "ARCHIVES") return bucket === "ARCHIVES";
-      if (equipFilter === "DEV") return bucket === "DEV";
-      if (equipFilter === "EQUIPPED") return bucket === "EQUIPPED";
-      if (equipFilter === "UNEQUIPPED") return bucket === "UNEQUIPPED";
-      return bucket === "EQUIPPED" || bucket === "UNEQUIPPED";
-    });
-  }, [visibleMods, equipFilter, classifyVaultMod]);
   const dependencyGraph = React.useMemo(() => {
     const graph = new Map<string, any[]>();
 
@@ -864,7 +894,15 @@ const Vault = React.memo(function Vault(props: any) {
                       const modulesCount = Array.isArray(item?.flavors) && item.flavors.length > 1 ? item.flavors.length : 0;
 
                       return (
-                        <div key={`recent-${idx}`} className="relative flex flex-col h-full glass-panel rounded-[var(--radius)] transition-colors duration-300 shadow-xl hover:shadow-2xl cursor-pointer hover:border-[color-mix(in_srgb,var(--accent)_35%,rgba(255,255,255,0.35))] group" onClick={() => {
+                        <div
+                          key={`recent-${idx}`}
+                          className="relative flex flex-col h-full glass-panel rounded-[var(--radius)] transition-colors duration-300 shadow-xl hover:shadow-2xl cursor-pointer hover:border-[color-mix(in_srgb,var(--accent)_35%,rgba(255,255,255,0.35))] group"
+                          onContextMenu={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            handleVaultContextMenu(e, item);
+                          }}
+                          onClick={() => {
                           if (item.isVirtual && item.isLocalOverride && !item.isCollection) {
                             const targetId = item.dbId || item.familyId || item.setId;
                             if (targetId) window.dispatchEvent(new CustomEvent('openLocalFolderEditor', { detail: targetId }));
@@ -1168,13 +1206,15 @@ const Vault = React.memo(function Vault(props: any) {
 
       {vaultContextMenu && createPortal(
         <div
+          ref={vaultContextMenuRef}
           style={{
             position: "fixed",
             left: Math.max(12, Math.min(vaultContextMenu.x, window.innerWidth - 312)),
             top: Math.max(12, Math.min(vaultContextMenu.y, window.innerHeight - 430)),
             zIndex: 120000,
           }}
-          className="flex flex-col w-[292px] animate-in fade-in zoom-in-95 duration-150"
+          className="flex flex-col w-[292px] pointer-events-auto animate-in fade-in zoom-in-95 duration-150"
+          onMouseDown={(e) => e.stopPropagation()}
           onClick={(e) => e.stopPropagation()}
           onContextMenu={(e) => {
             e.preventDefault();
@@ -1183,7 +1223,7 @@ const Vault = React.memo(function Vault(props: any) {
         >
           <div
             style={{ overflow: "visible" }}
-            className="w-full h-full glass-panel portal-glass-fix sa-dropdown-popover !overflow-visible rounded-2xl p-2 flex flex-col gap-1"
+            className="w-full h-full glass-panel portal-glass-fix sa-dropdown-popover pointer-events-auto !overflow-visible rounded-2xl p-2 flex flex-col gap-1"
           >
             {(() => {
             const ctxMod = vaultContextMenu.mod;
@@ -1470,11 +1510,11 @@ const Vault = React.memo(function Vault(props: any) {
                   </button>
                   {activeSubmenu === "blueprint" && (
                     <div
-                      className={`absolute top-0 w-64 pt-0 z-50 ${
+                      className={`absolute top-0 w-64 pt-0 z-50 pointer-events-auto ${
                         openSubmenuLeft ? "right-full pr-1.5" : "left-full pl-1.5"
                       }`}
                     >
-                      <div className="w-full glass-panel portal-glass-fix sa-dropdown-popover rounded-2xl p-2 flex flex-col gap-1 animate-in fade-in zoom-in-95 duration-150">
+                      <div className="w-full glass-panel portal-glass-fix sa-dropdown-popover pointer-events-auto rounded-2xl p-2 flex flex-col gap-1 animate-in fade-in zoom-in-95 duration-150">
                         <button
                           type="button"
                           onClick={(e) => {
@@ -1590,11 +1630,11 @@ const Vault = React.memo(function Vault(props: any) {
                   </button>
                   {activeSubmenu === "folder" && (
                     <div
-                      className={`absolute top-0 w-64 pt-0 z-50 ${
+                      className={`absolute top-0 w-64 pt-0 z-50 pointer-events-auto ${
                         openSubmenuLeft ? "right-full pr-1.5" : "left-full pl-1.5"
                       }`}
                     >
-                      <div className="w-full glass-panel portal-glass-fix sa-dropdown-popover rounded-2xl p-2 flex flex-col gap-1 animate-in fade-in zoom-in-95 duration-150">
+                      <div className="w-full glass-panel portal-glass-fix sa-dropdown-popover pointer-events-auto rounded-2xl p-2 flex flex-col gap-1 animate-in fade-in zoom-in-95 duration-150">
                         <button
                           type="button"
                           onClick={(e) => {

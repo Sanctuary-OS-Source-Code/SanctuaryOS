@@ -362,7 +362,7 @@ export function StaticPollingGuideSidePanel({
       title={t("edge_guide_title", "Static Polling & Lineage Guide")}
       subtitle={t(
         "edge_guide_subtitle",
-        "Step-by-step {Mason} walkthrough for Tier 1–4 & independent {mods}"
+        "Step-by-step {Mason} walkthrough for Tier 1–5 & independent {mods}"
       )}
       icon={t("icon_menu_book", "menu_book")}
       widthClass="w-[92vw] max-w-[980px]"
@@ -374,12 +374,12 @@ export function StaticPollingGuideSidePanel({
           icon={t("icon_rocket_launch", "rocket_launch")}
           overline={t(
             "studio_static_section_title",
-            "Decentralized Static Edge Polling (Tier 1–4 & Independent {Mods})"
+            "Decentralized Static Edge Polling (Tier 1–5 & Independent {Mods})"
           )}
           title={t("edge_guide_hero_title", "One-Time Drag & Drop Forever")}
           description={t(
             "edge_guide_hero_sub",
-            "Make any Tier 1–4 or independent {mod} behave like a synced {mod}—with automatic update alerts, DLC/dependency/conflict rules, multi-file family grouping, and in-place upgrades at $0 hosting cost."
+            "Make any Tier 1–5 or independent {mod} behave like a synced {mod}—with automatic update alerts, DLC/dependency/conflict rules, multi-file family grouping, and in-place upgrades at $0 hosting cost."
           )}
           badge={t("studio_static_pill_zero_cost", "$0 Static Hosting")}
           badgeIcon={t("icon_savings", "savings")}

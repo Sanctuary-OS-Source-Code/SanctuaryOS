@@ -12,6 +12,10 @@ export function ActionButton({
   children,
   variant = "default",
   iconOnly = false,
+  tooltip,
+  tooltipSubtitle,
+  tooltipAlign,
+  tooltipVariant,
 }: {
   icon?: string;
   label?: React.ReactNode;
@@ -34,6 +38,10 @@ export function ActionButton({
     | "engine"
     | "solid";
   iconOnly?: boolean;
+  tooltip?: React.ReactNode;
+  tooltipSubtitle?: React.ReactNode;
+  tooltipAlign?: "left" | "center" | "right";
+  tooltipVariant?: "danger" | "info" | "accent" | "warning" | "default";
 }) {
   let variantClasses = "";
   let iconColorClass = "text-[var(--accent)]";
@@ -87,7 +95,7 @@ export function ActionButton({
         : "max-w-full";
 
   return (
-    <div className={`relative ${wrapperWidthClass}`}>
+    <div className={`relative group/btn ${disabled ? "cursor-not-allowed" : ""} ${wrapperWidthClass}`}>
       <button
         type={type}
         form={form}
@@ -110,8 +118,18 @@ export function ActionButton({
           </span>
         )}
       </button>
-      {iconOnly && (label || typeof children === "string") && (
-        <HoverTooltip title={label || children} />
+      {tooltip ? (
+        <HoverTooltip
+          title={String(tooltip)}
+          subtitle={tooltipSubtitle ? String(tooltipSubtitle) : undefined}
+          variant={disabled ? tooltipVariant || "warning" : tooltipVariant || "info"}
+          align={tooltipAlign}
+        />
+      ) : (
+        iconOnly &&
+        (label || typeof children === "string") && (
+          <HoverTooltip title={label || children} />
+        )
       )}
     </div>
   );

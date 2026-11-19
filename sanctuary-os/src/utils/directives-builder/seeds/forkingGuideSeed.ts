@@ -2,7 +2,7 @@ import type { DirectiveBuilderSchema, DirectiveBuilderCard } from "../types";
 import { CURRENT_DIRECTIVE_SCHEMA_VERSION } from "../types";
 
 export function buildForkingGuideSchema(
-  t: (key: string, fallback?: string) => string,
+  t: (key: string, fallback: string) => string,
   g: (txt: string) => string,
   elevatedRolesCards: DirectiveBuilderCard[]
 ): DirectiveBuilderSchema {
@@ -36,7 +36,7 @@ export function buildForkingGuideSchema(
                   icon: t("icon_database", "database"),
                   title: g("Step 1: Initialize Your Supabase Spoke (schema.sql) & Mint Token"),
                   desc: g(
-                    "Create a free Supabase project, open the SQL Editor, run schema.sql (52 tables, RLS, and gateway auth), then run SELECT public.mint_spoke_gateway_token(); to mint your one-time spk_gw_... token."
+                    "Create a free Supabase project, open the SQL Editor, run schema.sql (61 tables, RLS, and gateway auth) plus migrations/spoke/0003 if upgrading, then run SELECT public.mint_spoke_gateway_token(); to mint your one-time spk_gw_... token."
                   ),
                 },
                 {
@@ -134,7 +134,7 @@ export function buildForkingGuideSchema(
                   icon: t("icon_storage", "storage"),
                   title: g("3. Transparent OS-to-Spoke Table Mapping"),
                   desc: g(
-                    "All internal queries to global broadcasts, polls, and support categories automatically map to your single database's system_broadcasts, dispatch_poll_votes, and support_tickets tables."
+                    "All internal queries to global broadcasts, polls, and support categories automatically map to your single database's system_broadcasts, dispatch_poll_votes, and sanctuary_tickets tables. Use sanctuary.fork.json + npm run fork:configure for zero-conflict upgrades."
                   ),
                 },
               ],
@@ -188,7 +188,7 @@ export function buildForkingGuideSchema(
               id: "fork_mode_schema",
               icon: t("icon_schema", "schema"),
               overline: g("MODE 3 • MASTER GAME SCHEMAS & CROSS-PLATFORM"),
-              badge: g("7 Engine Presets"),
+              badge: g("27 Engine Presets"),
               title: g("Master Schema Studio & Windows/macOS/Linux Build Pipeline"),
               footerMeta: "schema.json • Windows .msi, Darwin .dmg & Linux / SteamOS .AppImage/.deb",
               desc: g(
@@ -198,9 +198,9 @@ export function buildForkingGuideSchema(
                 {
                   id: "fork_m3_s1",
                   icon: t("icon_schema", "schema"),
-                  title: g("7 Built-In Engine Architecture Presets"),
+                  title: g("27 Built-In Engine Architecture Presets"),
                   desc: g(
-                    "1-click templates for Binary Chunk + Script, Multi-Folder Asset Tree, Ordered Load List, Virtual Archive Container, XML Load Manifest, JSON Mod Loader, and Universal engines."
+                    "1-click templates across Creation Engine, Unreal, Source, Unity/BepInEx, REDEngine, RAGE, RimWorld, Sims, and Universal engines—paired with database-driven public.taxonomy categories and sanctuary.fork.json overlays."
                   ),
                 },
                 {
@@ -319,24 +319,24 @@ export function buildForkingGuideSchema(
             {
               id: "fork_sql_spoke",
               icon: t("icon_storage", "storage"),
-              overline: g("Spoke & Standalone DB • 52 Tables"),
+              overline: g("Spoke & Standalone DB • 61 Tables"),
               badge: "schema.sql",
-              title: g("schema.sql (52 Tables)"),
+              title: g("schema.sql (61 Tables)"),
               footerMeta: "Community Spoke & Standalone Fork SQL",
               desc: g(
-                "Idempotent copy-paste community registry schema (mods, blueprints, citizen_staging_queue, masons, conflicts, tickets, heuristics, pending-flag triggers, RLS policies, and Founding Wayfinder trigger)."
+                "Idempotent copy-paste community registry schema (mods, taxonomy, playsets, tickets, heuristics, dmca_compliance_notices, counter_shards, schema_migrations, pending-flag triggers, RLS policies, and Founding Wayfinder trigger), upgradable via migrations/spoke/."
               ),
               subCards: [],
             },
             {
               id: "fork_sql_hub",
               icon: t("icon_dns", "dns"),
-              overline: g("Core Hub Federation DB • 22 Tables"),
+              overline: g("Core Hub Federation DB • 28 Tables"),
               badge: "schema_os.sql",
-              title: g("schema_os.sql (Core Hub DB)"),
+              title: g("schema_os.sql (28 Tables)"),
               footerMeta: "Central Multi-Game Federation SQL",
               desc: g(
-                "Central multi-game federation schema (global SSO profiles, FIDO2 passkeys, sanctuary_games directory, master schemas, global lexicons/themes, and core heuristics)."
+                "Central multi-game federation schema (global SSO profiles, FIDO2 passkeys, sanctuary_games directory, master schemas, encrypted_keyrings, dmca_compliance_notices audit ledger, global lexicons/themes, and core heuristics), upgradable via migrations/hub/."
               ),
               subCards: [],
             },

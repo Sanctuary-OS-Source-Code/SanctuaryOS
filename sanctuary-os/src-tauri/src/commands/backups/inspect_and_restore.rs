@@ -1047,4 +1047,100 @@ mod tests {
 
         let _ = std::fs::remove_dir_all(&tmp);
     }
+
+    #[test]
+    fn test_engine_vs_world_lane_end_to_end_restore_and_delta_chain() {
+        let tmp = std::env::temp_dir().join(format!(
+            "sanctuary_lane_restore_e2e_{}",
+            uuid::Uuid::new_v4()
+        ));
+        let vault_dir = tmp.join("vault");
+        let engine_arc = vault_dir.join("Backups").join("CustomLabel_A");
+        let world_arc = vault_dir.join("Backups").join("EngineTrap_B");
+        let engine_target = tmp.join("engine_root");
+        let world_target = tmp.join("world_docs");
+
+        std::fs::create_dir_all(engine_arc.join("Bin")).unwrap();
+        std::fs::write(engine_arc.join("Bin").join("runner.bin"), b"ENGINE_V1").unwrap();
+        std::fs::write(
+            engine_arc.join(".delta_manifest.json"),
+            serde_json::to_string(&DeltaManifest {
+                lane: Some("engine".to_string()),
+                previous_backup_name: None,
+                is_baseline: true,
+                added_paths: vec!["Bin/runner.bin".to_string()],
+                updated_paths: vec![],
+                removed_files: vec![],
+            })
+            .unwrap(),
+        )
+        .unwrap();
+
+        std::fs::create_dir_all(&engine_target).unwrap();
+        std::fs::create_dir_all(engine_target.join("Bin")).unwrap();
+        std::fs::write(engine_target.join("Bin").join("stale.bin"), b"STALE").unwrap();
+
+        assert!(is_engine_backup_lane(
+            &engine_arc,
+            "CustomLabel_A",
+            &vault_dir.to_string_lossy(),
+            "",
+        ));
+        restore_snapshot_parallel_cow(None, &engine_arc, &engine_target, "Engine", &[], &[])
+            .expect("Engine snapshot restore should succeed");
+        assert_eq!(
+            std::fs::read(engine_target.join("Bin").join("runner.bin")).unwrap(),
+            b"ENGINE_V1"
+        );
+        assert!(!engine_target.join("Bin").join("stale.bin").exists());
+
+        // World lane preserves non-overlapping live user saves even if renamed with "Engine*"
+        std::fs::create_dir_all(world_arc.join("Saves")).unwrap();
+        std::fs::write(world_arc.join("Saves").join("Slot_001.sav"), b"WORLD_SAVE_1").unwrap();
+        std::fs::create_dir_all(world_arc.join("Configs")).unwrap();
+        std::fs::write(world_arc.join("Configs").join("prefs.cfg"), b"PREFS_V1").unwrap();
+        std::fs::write(
+            world_arc.join(".delta_manifest.json"),
+            serde_json::to_string(&DeltaManifest {
+                lane: Some("world".to_string()),
+                previous_backup_name: Some("PrevBase".to_string()),
+                is_baseline: false,
+                added_paths: vec![],
+                updated_paths: vec!["Saves/Slot_001.sav".to_string()],
+                removed_files: vec![],
+            })
+            .unwrap(),
+        )
+        .unwrap();
+
+        std::fs::create_dir_all(world_target.join("Saves")).unwrap();
+        std::fs::write(world_target.join("Saves").join("LiveUserSlot.sav"), b"LIVE_USER").unwrap();
+        std::fs::create_dir_all(world_target.join("Configs")).unwrap();
+        std::fs::write(world_target.join("Configs").join("old.cfg"), b"OLD_CFG").unwrap();
+
+        assert!(!is_engine_backup_lane(
+            &world_arc,
+            "EngineTrap_B",
+            &vault_dir.to_string_lossy(),
+            "",
+        ));
+        let protected = vec!["Saves".to_string()];
+        restore_snapshot_parallel_cow(None, &world_arc, &world_target, "World", &protected, &[])
+            .expect("World snapshot restore should succeed");
+        assert_eq!(
+            std::fs::read(world_target.join("Saves").join("Slot_001.sav")).unwrap(),
+            b"WORLD_SAVE_1"
+        );
+        assert_eq!(
+            std::fs::read(world_target.join("Saves").join("LiveUserSlot.sav")).unwrap(),
+            b"LIVE_USER"
+        );
+        assert_eq!(
+            std::fs::read(world_target.join("Configs").join("prefs.cfg")).unwrap(),
+            b"PREFS_V1"
+        );
+        assert!(!world_target.join("Configs").join("old.cfg").exists());
+
+        let _ = std::fs::remove_dir_all(&tmp);
+    }
 }

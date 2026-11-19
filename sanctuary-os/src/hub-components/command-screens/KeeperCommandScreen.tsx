@@ -9,6 +9,18 @@ import {
 } from "../../side-panels/WayfinderSidePanels";
 import TicketDossierSidePanel from "../../side-panels/TicketDossierSidePanel";
 import { CommandSpokeNodeSidePanel } from "../../side-panels/HubCommandQuickPanels";
+import {
+  DmcaAllNoticesSidePanel,
+  DmcaLaneLeadCard,
+  DmcaNoticeCard,
+  DmcaNoticeReviewSidePanel,
+  fetchDmcaQueueNotices,
+  type ResolvedDmcaTargetEntry,
+} from "../compliance/DmcaOversightQueueSection";
+import {
+  partitionDmcaNoticesByLane,
+  type DmcaLaneId,
+} from "../compliance/dmcaQueueHelpers";
 import { EmptyState, VAULT_CHIP_CLASS } from "../../shared";
 import {
   CommandScreenLayout,
@@ -53,6 +65,8 @@ interface KeeperCommandSnapshot {
     totalGames: number;
     partnerApps: number;
     supportTickets: number;
+    dmcaActive: number;
+    dmcaOverdue: number;
     coreHeuristics: number;
     citizens: number;
     keepers: number;
@@ -69,6 +83,9 @@ interface KeeperCommandSnapshot {
   spokeNodes: any[];
   recentPartnerApps: any[];
   recentSupport: any[];
+  dmcaNotices: any[];
+  dmcaGamesMap: Record<string, any>;
+  dmcaResolvedTargetsMap: Record<string, ResolvedDmcaTargetEntry>;
 }
 
 const DEFAULT_KEEPER_SNAPSHOT: KeeperCommandSnapshot = {
@@ -77,6 +94,8 @@ const DEFAULT_KEEPER_SNAPSHOT: KeeperCommandSnapshot = {
     totalGames: 0,
     partnerApps: 0,
     supportTickets: 0,
+    dmcaActive: 0,
+    dmcaOverdue: 0,
     coreHeuristics: 0,
     citizens: 0,
     keepers: 0,
@@ -93,6 +112,9 @@ const DEFAULT_KEEPER_SNAPSHOT: KeeperCommandSnapshot = {
   spokeNodes: [],
   recentPartnerApps: [],
   recentSupport: [],
+  dmcaNotices: [],
+  dmcaGamesMap: {},
+  dmcaResolvedTargetsMap: {},
 };
 
 export function KeeperCommandScreen({
@@ -120,6 +142,8 @@ export function KeeperCommandScreen({
   const [viewingPost, setViewingPost] = useState<any | null>(null);
   const [selectedKeeperTicket, setSelectedKeeperTicket] = useState<any | null>(null);
   const [selectedSpokeNode, setSelectedSpokeNode] = useState<any | null>(null);
+  const [selectedDmcaNotice, setSelectedDmcaNotice] = useState<any | null>(null);
+  const [allDmcaLane, setAllDmcaLane] = useState<DmcaLaneId | null>(null);
 
   const refreshKeeperDashboard = useCallback(async () => {
     const pingStart = Date.now();
@@ -137,6 +161,7 @@ export function KeeperCommandScreen({
       activeBroadcastsCountRes,
       schemasRes,
       webNewsRes,
+      dmcaQueueRes,
     ] = await Promise.all([
       supabaseAuth
         .from("keeper_system_broadcasts")
@@ -187,6 +212,7 @@ export function KeeperCommandScreen({
         .from("system_broadcasts")
         .select("id", { count: "exact", head: true })
         .eq("is_active", true),
+      fetchDmcaQueueNotices({ isKeepersHub: true }).catch(() => null),
     ]);
 
     const latency = Date.now() - pingStart;
@@ -220,7 +246,9 @@ export function KeeperCommandScreen({
       (tk: any) => classifyKeeperTicket(tk) === "partner_apps"
     );
     const openSupportQueue = openKeeperTickets.filter(
-      (tk: any) => classifyKeeperTicket(tk) !== "partner_apps"
+      (tk: any) =>
+        classifyKeeperTicket(tk) !== "partner_apps" &&
+        !Boolean(tk.metadata?.dmca_notice_id || tk.metadata?.dmca_meta)
     );
 
     const defaultSchemaRow =
@@ -235,6 +263,8 @@ export function KeeperCommandScreen({
         totalGames: spokeNodes.length,
         partnerApps: openPartnerApps.length,
         supportTickets: openSupportQueue.length,
+        dmcaActive: dmcaQueueRes?.activeCount ?? 0,
+        dmcaOverdue: dmcaQueueRes?.overdueCount ?? 0,
         coreHeuristics: heuristicsRes?.count || 0,
         citizens: citizensRes?.count || 0,
         keepers: keepersRes?.count || 0,
@@ -255,6 +285,9 @@ export function KeeperCommandScreen({
       spokeNodes: spokeNodes.slice(0, 3),
       recentPartnerApps: openPartnerApps.slice(0, 3),
       recentSupport: openSupportQueue.slice(0, 3),
+      dmcaNotices: dmcaQueueRes?.notices || [],
+      dmcaGamesMap: dmcaQueueRes?.gamesMap || {},
+      dmcaResolvedTargetsMap: dmcaQueueRes?.resolvedTargetsMap || {},
     };
 
     setSnapshot(nextSnapshot);
@@ -275,6 +308,23 @@ export function KeeperCommandScreen({
     recentPartnerApps,
     recentSupport,
   } = snapshot;
+
+  const dmcaLanes = partitionDmcaNoticesByLane(snapshot.dmcaNotices || [], t);
+  const leadDmcaLane: DmcaLaneId =
+    dmcaLanes.urgent.length > 0
+      ? "urgent"
+      : dmcaLanes.pending.length > 0
+        ? "pending"
+        : "settled";
+  const leadDmcaCount =
+    leadDmcaLane === "urgent"
+      ? dmcaLanes.urgent.length
+      : leadDmcaLane === "pending"
+        ? dmcaLanes.pending.length
+        : dmcaLanes.settled.length;
+  const inlineDmcaNotices = (
+    dmcaLanes.active.length > 0 ? dmcaLanes.active : dmcaLanes.settled
+  ).slice(0, 2);
 
   return (
     <CommandScreenLayout>
@@ -318,7 +368,7 @@ export function KeeperCommandScreen({
           value={stats.supportTickets}
           label={t("support_queue", "Support Queue")}
           colorClass={stats.supportTickets > 0 ? "text-[var(--danger)]" : "text-[var(--success)]"}
-          onClick={() => setTab("support")}
+          onClick={() => setTab("platform_support")}
         />
         <DashboardStatTile
           icon={t("icon_shield_lock", "shield_lock")}
@@ -342,6 +392,45 @@ export function KeeperCommandScreen({
               jumpTooltip={t("wf_tab_dispatch", "Core {Dispatches}")}
             />
             <SystemBroadcastsGrid broadcasts={broadcasts} setViewingPost={setViewingPost} />
+          </div>
+
+          {/* DMCA & Legal Compliance -> Opens DmcaNoticeReviewSidePanel Directly */}
+          <div className="flex flex-col gap-4">
+            <CommandScreenSectionHeading
+              icon={t("icon_gavel", "gavel")}
+              iconColorClass={
+                (stats.dmcaOverdue || 0) > 0
+                  ? "text-[var(--danger)]"
+                  : (stats.dmcaActive || 0) > 0
+                    ? "text-[var(--warning)]"
+                    : "text-[var(--success)]"
+              }
+              title={t("dmca_tab_label", "DMCA & Legal")}
+              subtitle={t(
+                "keepers_dmca_sub",
+                "Global § 512 takedowns, counter-notices, and Spoke 48h SLA escalation notices"
+              )}
+              onJump={() => setTab("compliance_contact")}
+              jumpTooltip={`${t("dmca_tab_label", "DMCA & Legal")} (${stats.dmcaActive || 0})`}
+            />
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 w-full">
+              <DmcaLaneLeadCard
+                lane={leadDmcaLane}
+                count={leadDmcaCount}
+                overdueCount={stats.dmcaOverdue || 0}
+                onClick={() => setAllDmcaLane(leadDmcaLane)}
+              />
+              {inlineDmcaNotices.map((notice: any) => (
+                <DmcaNoticeCard
+                  key={notice.id}
+                  notice={notice}
+                  resolvedTargetsMap={snapshot.dmcaResolvedTargetsMap || {}}
+                  gamesMap={snapshot.dmcaGamesMap || {}}
+                  showScopeChip={true}
+                  onSelect={setSelectedDmcaNotice}
+                />
+              ))}
+            </div>
           </div>
 
           {/* Partner Spokes & Partner Applications -> Open Drawers Directly */}
@@ -462,7 +551,7 @@ export function KeeperCommandScreen({
                 "keepers_support_sub",
                 "Core OS bugs, feedback & Wayfinder escalations — click to reply or resolve in-drawer"
               )}
-              onJump={() => setTab("support")}
+              onJump={() => setTab("platform_support")}
               jumpTooltip={`${t("support_queue", "Support Queue")} (${stats.supportTickets})`}
             />
             {recentSupport.length > 0 ? (
@@ -819,6 +908,29 @@ export function KeeperCommandScreen({
             refreshKeeperDashboard();
           }
         }}
+      />
+
+      <DmcaAllNoticesSidePanel
+        isOpen={Boolean(allDmcaLane)}
+        onClose={() => setAllDmcaLane(null)}
+        initialLane={allDmcaLane || "urgent"}
+        notices={snapshot.dmcaNotices || []}
+        resolvedTargetsMap={snapshot.dmcaResolvedTargetsMap || {}}
+        gamesMap={snapshot.dmcaGamesMap || {}}
+        isKeepersView={true}
+        onSelectNotice={setSelectedDmcaNotice}
+        onRefresh={refreshKeeperDashboard}
+      />
+
+      <DmcaNoticeReviewSidePanel
+        notice={selectedDmcaNotice}
+        isOpen={Boolean(selectedDmcaNotice)}
+        onClose={() => setSelectedDmcaNotice(null)}
+        resolvedTargetsMap={snapshot.dmcaResolvedTargetsMap || {}}
+        gamesMap={snapshot.dmcaGamesMap || {}}
+        isKeepersView={true}
+        onRefresh={refreshKeeperDashboard}
+        onTriageCompleted={refreshKeeperDashboard}
       />
     </CommandScreenLayout>
   );

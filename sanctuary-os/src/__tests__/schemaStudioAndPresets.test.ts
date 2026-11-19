@@ -26,7 +26,7 @@ import rootSchemaJson from "../../schema.json";
 import { GAME_ARCHITECTURE_PRESETS } from "../utils/gameArchitecturePresets";
 import { getSafeSchema } from "../store";
 
-describe("Section 6: GameSchema ground-truth audit & 27 presets", () => {
+describe("GameSchema Ground-Truth Audit & 27 Presets", () => {
   it("contains all 27 architectural presets with valid identity and safe save targets", () => {
     const keys = Object.keys(GAME_ARCHITECTURE_PRESETS);
     expect(keys.length).toBe(27);

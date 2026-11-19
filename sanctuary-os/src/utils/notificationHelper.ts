@@ -1,7 +1,7 @@
 import { isPermissionGranted, sendNotification } from '@tauri-apps/plugin-notification';
 import { invoke } from '@tauri-apps/api/core';
 import { isDesktop } from './envUtils';
-import { getSpokeClientById, supabaseAuth } from '../supabase';
+import { getSpokeClientById, hasValidSpokeHttpUrl, supabaseAuth } from '../supabase';
 import { useStore } from '../store';
 import {
   type EncryptedNotificationSyncPayload,
@@ -815,29 +815,43 @@ export function dismissAllHubNotifications(ids: string[]): void {
   scheduleNotificationStatePush();
 }
 
-let cachedGamesMeta: Array<{ id: string; schema_id: string; name: string; icon?: string }> | null = null;
+let cachedGamesMeta: Array<{
+  id: string;
+  schema_id: string;
+  name: string;
+  icon?: string;
+  supabase_url?: string;
+  supabase_anon_key?: string;
+}> | null = null;
 let cachedGamesAt = 0;
 let cachedGamesIsKeeper = false;
 
 export async function getAvailableSpokeWorkspaces(
   supabaseAuth: any,
   storeWorkspaces?: any[]
-): Promise<Array<{ id: string; schema_id: string; name: string; icon?: string }>> {
-  const map = new Map<string, { id: string; schema_id: string; name: string; icon?: string }>();
+): Promise<Array<{ id: string; schema_id: string; name: string; icon?: string; supabase_url?: string; supabase_anon_key?: string }>> {
+  const map = new Map<string, { id: string; schema_id: string; name: string; icon?: string; supabase_url?: string; supabase_anon_key?: string }>();
+  const blockedSchemaKeys = new Set<string>();
 
   const isKeeper = useStore.getState().osRole === 'keeper';
   if (Array.isArray(storeWorkspaces)) {
     storeWorkspaces.forEach((w: any) => {
-      if (w?.is_keepers_only === true && !isKeeper) return;
       const schemaId = String(w?.schema_id || w?.id || '').trim();
-      if (schemaId && schemaId !== 'default_workspace') {
-        map.set(schemaId, {
-          id: String(w.id || schemaId),
-          schema_id: schemaId,
-          name: String(w.name || schemaId),
-          icon: w.icon,
-        });
+      if (!schemaId || schemaId === 'default_workspace') return;
+      const hasInvalidSpokeCreds =
+        typeof w?.supabase_url === 'string' && !hasValidSpokeHttpUrl(w);
+      if ((w?.is_keepers_only === true && !isKeeper) || hasInvalidSpokeCreds) {
+        blockedSchemaKeys.add(schemaId.toLowerCase());
+        return;
       }
+      map.set(schemaId, {
+        id: String(w.id || schemaId),
+        schema_id: schemaId,
+        name: String(w.name || schemaId),
+        icon: w.icon,
+        supabase_url: w.supabase_url,
+        supabase_anon_key: w.supabase_anon_key,
+      });
     });
   }
 
@@ -847,12 +861,26 @@ export async function getAvailableSpokeWorkspaces(
     try {
       const { data } = await supabaseAuth
         .from('sanctuary_games')
-        .select('id, name, schema_id, icon, is_active, is_keepers_only');
+        .select('id, name, schema_id, icon, supabase_url, supabase_anon_key, is_active, is_keepers_only');
       if (Array.isArray(data)) {
         data.forEach((g: any) => {
-          if (g && (g.is_active === false || (g.is_keepers_only === true && !isKeeper))) {
-            if (g.schema_id) offlineSchemaIds.add(String(g.schema_id).trim());
-            if (g.id) offlineSchemaIds.add(String(g.id).trim());
+          const invalidEndpoint = !hasValidSpokeHttpUrl(g);
+          if (
+            g &&
+            (g.is_active === false ||
+              (g.is_keepers_only === true && !isKeeper) ||
+              invalidEndpoint)
+          ) {
+            if (g.schema_id) {
+              const sid = String(g.schema_id).trim();
+              offlineSchemaIds.add(sid);
+              blockedSchemaKeys.add(sid.toLowerCase());
+            }
+            if (g.id) {
+              const gid = String(g.id).trim();
+              offlineSchemaIds.add(gid);
+              blockedSchemaKeys.add(gid.toLowerCase());
+            }
           }
         });
         cachedGamesMeta = data
@@ -861,13 +889,16 @@ export async function getAvailableSpokeWorkspaces(
               g?.schema_id &&
               g.schema_id !== 'default_workspace' &&
               g.is_active !== false &&
-              (isKeeper || g.is_keepers_only !== true)
+              (isKeeper || g.is_keepers_only !== true) &&
+              hasValidSpokeHttpUrl(g)
           )
           .map((g: any) => ({
             id: String(g.id || g.schema_id),
             schema_id: String(g.schema_id).trim(),
             name: String(g.name || g.schema_id).trim(),
             icon: g.icon,
+            supabase_url: g.supabase_url,
+            supabase_anon_key: g.supabase_anon_key,
           }));
         cachedGamesAt = now;
         cachedGamesIsKeeper = isKeeper;
@@ -877,10 +908,18 @@ export async function getAvailableSpokeWorkspaces(
     }
   }
 
-  offlineSchemaIds.forEach((id) => map.delete(id));
+  for (const existingKey of Array.from(map.keys())) {
+    if (
+      offlineSchemaIds.has(existingKey) ||
+      blockedSchemaKeys.has(existingKey.toLowerCase())
+    ) {
+      map.delete(existingKey);
+    }
+  }
 
   if (Array.isArray(cachedGamesMeta)) {
     cachedGamesMeta.forEach((g) => {
+      if (blockedSchemaKeys.has(g.schema_id.toLowerCase())) return;
       if (!map.has(g.schema_id)) {
         map.set(g.schema_id, g);
       } else {
@@ -888,11 +927,17 @@ export async function getAvailableSpokeWorkspaces(
         if (existing.name === existing.schema_id && g.name) {
           existing.name = g.name;
         }
+        if (!existing.supabase_url && g.supabase_url) {
+          existing.supabase_url = g.supabase_url;
+          existing.supabase_anon_key = g.supabase_anon_key;
+        }
       }
     });
   }
 
-  return Array.from(map.values());
+  return Array.from(map.values()).filter(
+    (sp) => !sp.supabase_url || hasValidSpokeHttpUrl(sp)
+  );
 }
 
 export async function fetchUnifiedSanctuaryNotifications(opts: {
@@ -915,14 +960,22 @@ export async function fetchUnifiedSanctuaryNotifications(opts: {
   const allowedCrossSet = new Set(getAllowedCrossWorkspaceSpokes(allSpokeSchemaIds));
 
   const targetSpokes = availableSpokes.filter((s) => {
-    const isActiveSpoke = s.schema_id === activeSpokeClean || s.id === activeSpokeClean;
+    const sSchemaLow = String(s.schema_id || '').toLowerCase();
+    const sIdLow = String(s.id || '').toLowerCase();
+    const activeLow = String(activeSpokeClean || '').toLowerCase();
+    const isActiveSpoke = Boolean(activeLow) && (sSchemaLow === activeLow || sIdLow === activeLow);
     if (isActiveSpoke) return true;
     return crossWorkspaceEnabled && allowedCrossSet.has(s.schema_id);
   });
 
   if (
     targetSpokes.length === 0 &&
-    activeSpokeClean
+    activeSpokeClean &&
+    availableSpokes.some(
+      (s) =>
+        s.schema_id.toLowerCase() === activeSpokeClean.toLowerCase() ||
+        s.id.toLowerCase() === activeSpokeClean.toLowerCase()
+    )
   ) {
     targetSpokes.push({
       id: activeSpokeClean,

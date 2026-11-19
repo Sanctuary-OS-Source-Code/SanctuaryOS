@@ -18,7 +18,6 @@ import { useModalStore } from "../store/modalStore";
 import { useStore } from "../store";
 import { useLexicon } from "../LexiconContext";
 import { supabaseAuth, getReleaseApiBaseUrl, getReleaseBaseUrl } from "../supabase";
-import { relaunch } from "@tauri-apps/plugin-process";
 import { DispatchPollViewer } from "../components/universal/DispatchPollAndMeta";
 import {
   getKeepersPipelineConfig,
@@ -422,6 +421,7 @@ export function UpdateSidePanel() {
       }
       setInstallStage("relaunching");
       setStatus(t("status_restarting", "Restarting Sanctuary OS..."));
+      const { relaunch } = await import("@tauri-apps/plugin-process");
       await relaunch();
     } catch (e) {
       setStatus(`${t("update_panel_failed_prefix", "Update Failed:")} ${e}`);

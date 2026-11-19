@@ -1509,7 +1509,7 @@ export function ArtifactRulesTab({
               <h4 className="text-xs font-black uppercase tracking-wider text-[var(--text)]">
                 {t(
                   "studio_static_section_title",
-                  "Decentralized Static Edge Polling (Tier 1–4 & Independent {Mods})"
+                  "Decentralized Static Edge Polling (Tier 1–5 & Independent {Mods})"
                 )}
               </h4>
             </div>

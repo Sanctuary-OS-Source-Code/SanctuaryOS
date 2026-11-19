@@ -1,6 +1,6 @@
 import { DirectiveSlug } from "../directivesSync";
 
-export type RoadmapMilestoneStatus = "in_progress" | "in_testing" | "completed";
+export type RoadmapMilestoneStatus = "planned" | "in_progress" | "in_testing" | "completed";
 
 export interface DirectiveBuilderSubCard {
   id: string;
@@ -22,6 +22,7 @@ export interface DirectiveBuilderCard {
   tip?: string;
   codeSnippet?: string;
   status?:
+    | "planned"
     | "active"
     | "in_testing"
     | "completed"
@@ -41,6 +42,7 @@ export function resolveRoadmapSubCardStatus(sub?: {
 } | null): RoadmapMilestoneStatus {
   if (!sub) return "completed";
   if (
+    sub.roadmapStatus === "planned" ||
     sub.roadmapStatus === "in_progress" ||
     sub.roadmapStatus === "in_testing" ||
     sub.roadmapStatus === "completed"
@@ -48,6 +50,9 @@ export function resolveRoadmapSubCardStatus(sub?: {
     return sub.roadmapStatus;
   }
   const combined = `${sub.title || ""} ${sub.desc || ""}`;
+  if (/\bplanned\b/i.test(combined)) {
+    return "planned";
+  }
   if (
     /in\s+testing|in\s+dev\s+build/i.test(combined) ||
     combined.includes("\u{1F9EA}")
@@ -66,13 +71,21 @@ export function resolveRoadmapSubCardStatus(sub?: {
 
 export function getRoadmapStatusMeta(
   status: RoadmapMilestoneStatus | "active",
-  t: (key: string, fallback?: string) => string = (_k, fb) => fb || _k
+  t: (key: string, fallback: string) => string = defaultT
 ): {
   status: RoadmapMilestoneStatus;
   label: string;
   icon: string;
   colorClass: string;
 } {
+  if (status === "planned") {
+    return {
+      status: "planned",
+      label: t("dir_roadmap_status_planned", "Planned"),
+      icon: t("icon_upcoming", "upcoming"),
+      colorClass: "text-[var(--info)]",
+    };
+  }
   if (status === "in_testing") {
     return {
       status: "in_testing",
@@ -121,7 +134,7 @@ export const CURRENT_DIRECTIVE_SCHEMA_VERSION = 88;
 export const defaultT = (_key: string, fallback?: string): string => fallback || _key;
 
 export function interpolateDynamicText(
-  t: (key: string, fallback?: string) => string,
+  t: (key: string, fallback: string) => string,
   rawText: string
 ): string {
   if (!rawText) return "";

@@ -1433,6 +1433,7 @@ export default function WebLandingPage() {
                     onNavigateToGame={navigateToGame}
                     pinnedIds={pinnedIds}
                     onTogglePin={handleTogglePin}
+                    gridClassName="grid grid-cols-1 md:grid-cols-2 gap-6 w-full"
                     emptyIcon={t('icon_keep', 'keep')}
                     emptyTitle={t(
                       'workspace_no_pinned_overview',
@@ -1463,8 +1464,10 @@ export default function WebLandingPage() {
                 />
                 <div className="w-full">
                   <WebNewsFeed
-                    limit={3}
+                    limit={2}
                     onCountChange={setNewsCount}
+                    gridClassName="grid grid-cols-1 md:grid-cols-2 gap-6 w-full"
+                    disableFeaturedSpan={true}
                   />
                 </div>
               </section>

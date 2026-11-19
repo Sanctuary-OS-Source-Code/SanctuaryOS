@@ -563,7 +563,7 @@ pub async fn delete_backup(file_name: String) -> Result<String, String> {
     .map_err(|e| e.to_string())?
 }
 
-#[tauri::command]
+#[tauri::command(async)]
 pub fn rename_backup(old_name: String, new_name: String) -> Result<String, String> {
     if !crate::utils::is_safe_single_filename(&old_name) {
         return Err("Invalid source backup name.".into());

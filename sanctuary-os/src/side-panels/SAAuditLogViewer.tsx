@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useMemo, useRef } from "react";
-import { supabaseAuth, getActiveGameClient } from "../supabase";
+import { supabaseAuth, getActiveGameClient, findWorkspaceByIdentifier } from "../supabase";
 import { useLexicon, normalizeAllCapsForThemeCase } from "../LexiconContext";
 import { useStore } from "../store";
 import { SharedIdentityEditor } from "../hub-components/IdentityMatrix";
@@ -284,7 +284,7 @@ export function AuditLogViewer({
 
       // Client-side strict isolation guard:
       // Strip Core OS / private key / internal rows depending on effectiveViewerScope
-      const activeWs = workspaces?.find((w: any) => w.id === activeWorkspaceId);
+      const activeWs = findWorkspaceByIdentifier(workspaces, activeWorkspaceId);
       const isolatedLogs = effectiveIsKeepers
         ? rawLogs
         : rawLogs.filter((row: any) => {

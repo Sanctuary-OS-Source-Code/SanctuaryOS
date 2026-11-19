@@ -43,9 +43,18 @@ export default function WayfinderSupportSidePanel({
            }
         }
         if (cats && cats.length > 0) {
-          setCategories(cats);
-          if (!preselectedType) setType(cats[0].category_code);
-          setCustomFieldsData({});
+          const spokeCats = cats.filter((c: any) => c.support_domain === "spoke");
+          const visibleCats =
+            spokeCats.length > 0
+              ? spokeCats
+              : cats.filter((c: any) => c.support_domain !== "partner_apps");
+          if (visibleCats.length > 0) {
+            setCategories(visibleCats);
+            if (!preselectedType || !visibleCats.some((c: any) => c.category_code === preselectedType)) {
+              setType(visibleCats[0].category_code);
+            }
+            setCustomFieldsData({});
+          }
         }
         if (sources) {
           setTelemetrySources(sources);
@@ -128,6 +137,14 @@ export default function WayfinderSupportSidePanel({
         scrubbedCustomFields[k] = scrubLogUserData(String(v || ""));
       }
 
+      const storeState = useStore.getState();
+      const activeSpokeId = storeState.activeWorkspaceId || null;
+      const activeSpokeName =
+        storeState.activeGameSchema?.game_name ||
+        storeState.activeGameSchema?.name ||
+        activeSpokeId ||
+        null;
+
       const { error } = await supabaseAuth.from('keeper_tickets').insert([{
         author_id: user.id,
         ticket_type: type,
@@ -138,6 +155,9 @@ export default function WayfinderSupportSidePanel({
           target_user_id: activeCategory?.requires_target_user ? (targetUserId || null) : null,
           logs: scrubLogUserData(finalLogs) || null,
           custom_fields: scrubbedCustomFields,
+          source_domain: "spoke_support",
+          spoke_id: activeSpokeId,
+          spoke_name: activeSpokeName,
         }
       }]);
 

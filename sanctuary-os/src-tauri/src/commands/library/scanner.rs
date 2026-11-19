@@ -772,7 +772,7 @@ pub async fn scan_bunker(
                                 "status": "QUARANTINED",
                                 "isLocalOverride": false,
                                 "isVirtual": false,
-                                "compliance_tier": 5,
+                                "compliance_tier": 6,
                                 "original_exists": manifest.original_exists,
                                 "original_shredded": manifest.original_shredded,
                                 "original_path": manifest.original_path,

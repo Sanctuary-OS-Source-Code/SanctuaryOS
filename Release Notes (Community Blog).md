@@ -1,52 +1,41 @@
-# State of the Sanctuary — Version 0.6.0
-### Liquid Glass Surface Unification, Multi-Game Support, Native Mac App & Deep Mod Protection
-**Release Date:** October 28, 2026 | **Version:** 0.6.0 | **Platform:** Windows, macOS, Linux & SteamOS
+# State of the Sanctuary — Version 0.6.0-Dev.15
+### Universal Modding Parity, Zero-Copy Exodus, The Quartermaster, Rosetta Protocol, Save Doctor, DAG Load Order & Liquid Glass V6
+**Release Date:** November 18, 2026 | **Version:** 0.6.0-Dev.15 | **Platform:** Windows, macOS, Linux & SteamOS
 
-## Welcome to Sanctuary OS 0.6.0!
+## Welcome to Sanctuary OS 0.6.0-Dev.15!
 
-This is our biggest update yet—touching almost every corner of the app on Desktop, Web, and Mobile. Whether you're a player organizing your mod folder, a creator sharing your next release, or a community leader running your own game hub, here is everything new in plain English.
+**Version 0.6.0-Dev.15** completes Sanctuary OS's transformation from a single-game manager into a **100% game-agnostic, multi-engine modding operating system** across **Desktop (Windows, macOS, Linux & SteamOS), Web, and Mobile PWA**. Whether you're switching over from Mod Organizer 2, Vortex, CurseForge, BG3MM, r2modman, or Sims 4 Mod Manager—or running a full community hub—here is everything new in plain English.
 
 ### TL;DR — The 60-Second Summary
 
-- **3D Liquid Glass & True Glass Mode:** We rebuilt the visual interface with real-time 3D glass refraction that bends light around every card and panel, plus a 1-click **True Glass** mode and **Auto-Tune** button in the Theme Editor.
-- **Built for Any Moddable Game:** Sanctuary OS now supports any game out of the box—with built-in setups for *The Sims 4*, *GTA V*, *WWE 2K*, *Skyrim SE*, *Cyberpunk 2077*, *Baldur's Gate 3*, *Stardew Valley*, and custom games.
-- **Cross-Platform Native Apps & 1-Click Updates:** Sanctuary OS runs natively on **Windows**, **macOS**, **Linux**, and **SteamOS / Steam Deck**, complete with a silent in-app updater that downloads and installs updates without opening your browser.
-- **Smarter Mod Security Scanner:** Every downloaded archive, script, and package file is now scanned inside and out before it touches your mod folder—catching hidden threats while never falsely flagging popular script mods.
-- **1-Click Creator Publishing:** Every registered user can now open the Creator Workshop to package mods, build settings templates, and publish static update manifests directly to GitHub, GitHub Gist, GitLab / Codeberg, Neocities, WebDAV / HTTP PUT endpoints, a Local Synced Folder, or a ready-to-share zip file.
-- **Cleaner Cards & Floating Mobile Dock:** Mod titles now have the full width of every card without getting cut off, and phone users get a smooth floating glass bottom bar with swipeable top tabs.
+- **Drop Almost Any Archive or Modlist Anywhere:** Native `.7z` and `.rar` support joins `.zip`, alongside **The Quartermaster** (`fomod/ModuleConfig.xml` & BAIN installer drawers), **The Rosetta Protocol** (`.mrpack`, CurseForge `manifest.json`, Nexus `collection.json`, and `.wabbajack` Blueprint translation), and drag-and-drop import for Blueprints, Themes, Languages, Workbench configs, and Game Schemas.
+- **Zero-Copy Exodus (`0 Extra Bytes`) & Deep Links (`nxm://`, `curseforge://`, `ror2mm://`):** Move existing setups from **Mod Organizer 2**, **Vortex**, **BG3MM**, or **r2modman / Gale** into Sanctuary's airgapped Vault using OS hardlinks with zero duplicate disk space—plus direct manager-link interception and encrypted local API key storage for Nexus, CurseForge, and Modrinth.
+- **Built for 27 Game Presets & Any Custom Engine:** Ready out of the box with **27 engine architecture presets** (including *The Sims 4*, *Skyrim SE*, *Fallout 4*, *Starfield*, *Baldur's Gate 3*, *Cyberpunk 2077*, *GTA V*, *Minecraft*, *Stardew Valley*, *Risk of Rain 2*, *Elden Ring*, *Witcher 3*, and more), database-driven categories (`public.taxonomy`), and streamlined **Cartographer** folder setup + **Cloud-Sync Folder Sentinel** alerts for OneDrive/iCloud/Dropbox traps.
+- **Smarter Load Order, Save Doctor & Creator Airlock:** True **Master/Dependency DAG** sorting (supporting Starfield `0x0800` Medium Masters, LOOT `userlist.yaml`/JSON import, and per-file `.sanctuary_hidden.json` hiding), **Save Doctor** pre-launch save warnings, **Creator Airlock** automatic save protection when launching external modding tools, and **3D Liquid Glass** visuals + **True Glass** mode.
+- **ByteHound v3 Security, Opt-In Privacy & Compliance Tiers 0–6:** Pre-ingest streaming scans for `> 8 MiB` files and `.7z`/`.rar`/Zlib/Zstd payloads, sealed local creator tokens (`DPAPI`/`AES-256-GCM`), strictly local-only opt-in defaults for Homestead lab certificates & Mobile Companion sync, and updated **Compliance Tiers 0–6** (`0` Clean, `1` Spoke-Routed Legal/DMCA, `2–5` Explicit..Taboo, `6` Malware).
 
-### Visual Overhaul: 3D Liquid Glass & Easier-to-Read Cards
+---
 
-- **Real 3D Liquid Glass:** Cards, sidebars, and panels now behave like real optical glass—gently bending your background wallpaper around rounded corners with soft depth and zero harsh neon outlines.
-- **True Glass & 1-Click Auto-Tune:** Flip on **True Glass** in the Theme Editor for a crystal-clear look, or click **Auto-Tune Glass** and **Auto-Harmonize** to automatically match your glass settings and colors to your wallpaper.
-- **Full-Width Mod Titles on Every Card:** We moved action buttons (like *Update*, *Ignore*, *Delete*, and *Modules*) to the bottom-right corner of cards so long mod names have the entire top row to breathe without getting cut off.
-- **Calm, Consistent Status Badges:** Status tags across the entire app now use a clean, neutral glass style where only the small icon is colored—making your mod library and alerts much easier on the eyes.
-- **Live Card Previews & Bundled Theme Sharing:** Every mod, modpack, theme, and language pack card now displays a live mini-preview header. Exporting a theme automatically packs your custom wallpaper and preview image along with it.
-- **Floating Mobile Dock & Fullscreen Web App:** On phones and tablets, the bottom navigation bar now floats like a rounded glass dock and matches your theme color all the way to the bottom edge of your screen.
+### Switch Without Reinstalling: Zero-Copy Exodus, Quartermaster & Rosetta
 
-### Multi-Game Support, Native Mac App & Faster Mod Management
+- **Zero-Copy Exodus (`Blueprints -> Migrate External Manager`):** Point Sanctuary OS at an existing **Mod Organizer 2**, **Vortex**, **BG3 Mod Manager**, or **r2modman / Gale** install. Sanctuary hashes your files, scans them through **ByteHound v3**, hardlinks them into your isolated Vault with **0 extra bytes used**, safely clears legacy deployment links, and rebuilds your profiles as playable **Blueprints**.
+- **The Quartermaster (Interactive FOMOD & BAIN Installer):** Multi-option archives containing `fomod/ModuleConfig.xml` or BAIN subpackages automatically open a clean step-by-step installer drawer with pre-checked dependency options—and remember your choices (`.sanctuary_fomod_choices.json`) whenever you install an upgrade.
+- **The Rosetta Protocol & Guided Browser Autoloader (`1 of N`):** Drop a Nexus `collection.json`, CurseForge `manifest.json`, Modrinth `.mrpack`, or `.wabbajack` file to convert it into a Blueprint immediately, match every archive you already own via SHA-256, and step through missing downloads in the **Side Browser** with automatic interception.
+- **Manager Deep Links & Local Encrypted BYO API Key Broker:** Opt in under **Settings -> Browser & Controls** to handle `nxm://`, `curseforge://`, and `ror2mm://` links directly in Sanctuary OS, with optional personal Nexus, CurseForge, and Modrinth tokens encrypted locally in hardware/OS custody (`DPAPI` / `AES-256-GCM`).
 
-- **Ready for Any Game Engine:** Switch between *The Sims 4*, *Grand Theft Auto V*, *WWE 2K Series*, *Skyrim Special Edition*, *Cyberpunk 2077*, *Baldur's Gate 3*, *Stardew Valley*, or any custom Universal schema from the top bar—each with its own folders, categories, and load rules.
-- **Safe Vanilla Game Folders:** For games where mods go directly into the main game folder (like *Skyrim* or *GTA V*), Sanctuary OS tracks every file it places and backs up original files automatically—so disabling mods never breaks your clean game install.
-- **Native Mac (.dmg), Linux & SteamOS Support + Silent Updates:** Mac players on Apple Silicon and Intel—plus Linux and Steam Deck players via `.AppImage` / `.deb`—can run Sanctuary OS natively. When a new version drops, clicking **Install & Restart** updates the app right inside the window.
-- **Instant Library & Nexus Loading:** Opening huge mod libraries, switching between games, and browsing **The Nexus** or **Conflict Radar** is now dramatically faster thanks to background loading and smarter caching.
-- **4-Tab Phone-to-PC Modpack Queue:** Browse mods on your phone or browser and send them straight to your home PC. Our updated 4-tab Modpack Builder automatically grabs required parent mods (like adding *MC Command Center* when you pick *MC Woohoo*).
-- **No More Duplicate Settings Files:** Fixed an issue where live mod config files could create a duplicate copy in your main Mods folder when updated while the game was running.
+---
 
-### Deeper Mod Protection, Privacy & Safe Testing
+### Deeper Protection Against Broken Saves, Cloud Sync Traps & Malware
 
-- **Deep Archive & Package Scanning:** Before a downloaded mod ever enters your library, Sanctuary OS checks inside zip/rar/7z archives, script files, and compressed package files to block hidden malware, scripts, and credential stealers.
-- **Clean Move-to-Quarantine Tracking:** If you use **Move** mode when importing mods and a dangerous file is caught, Sanctuary OS moves the original file straight into quarantine and clearly shows **Moved to Quarantine** so nothing is left behind in your Downloads folder.
-- **Protected Save Games in Homestead Lab:** Starting a mod test run automatically moves your real save files to a safe backup vault and loads a dedicated test save—so testing new or broken mods can never corrupt your actual family or campaign saves.
-- **Live In-Game Test Timer & Crash Plain-English Helper:** The Homestead Lab timer only counts down while you are actively playing in-game (pausing if you Alt-Tab out), and explains common game errors in plain English while scrubbing your computer username from crash logs.
-- **Passkey & Biometric Security:** Protect your account with 2-Factor Authenticator codes, or use Windows Hello, Touch ID, or a hardware security key when opening creator and admin tools.
-- **Focused Security & Backup Screens:** When a critical malware alert, game patch warning, or backup restore is running, Sanctuary OS locks the background screen so you never accidentally click away mid-operation.
+- **Save Doctor & Creator Airlock:** **Save Doctor** checks `.sanctuary-save-manifest.json` and save-file headers before game launch to warn you if switching Blueprints removed mods your save expects. Need to run an external modding tool (`xEdit`, `Sims 4 Studio`, `Bodyslide`, etc.)? **Creator Airlock** temporarily protects your real saves in an external airgap vault and restores them automatically when the tool exits.
+- **Cloud-Sync Folder Sentinel:** **The Cartographer** detects Windows OneDrive, macOS iCloud Drive, Dropbox, and Google Drive reparse folders early so cloud "Files On-Demand" dehydration never snaps symlinks or locks save files mid-launch.
+- **ByteHound v3 (`Tier 6 Malware`) & Rescue:** Pure-Rust scanning now inspects `.zip`, `.7z`, `.rar`, `overrides/` trees, Zlib/Zstd chunks, `.pyc` bytecode, and `> 8 MiB` assets via streaming sliding-window buffers—while safely rescuing any legacy heuristic false positives without touching confirmed threat hashes.
+- **Topological DAG Load Order, Binary TOCs & Lossless Workbench:** Reads real `.esm`/`.esp`/`.esl` headers and binary containers (`BSA`/`BA2`, `LSPK`, Unreal `.utoc`/`.pak`, `RDAR`, `RPF7`), lets you hide noisy conflict files per mod without deleting anything, imports LOOT rules, and edits `.toml`, `.yaml`, and `.jsonc` configs in **Live-Wire Workbench** without stripping comments.
 
-### For Creators & Community Leaders: Open Workshop, Guides & Direct Support
+---
 
-- **Creator Workshop Open to Everyone:** Every registered player can now open the **Mason Workshop** to package mods, link add-ons and script files together, design custom themes, and build visual settings screens for their mods.
-- **1-Click Cloud Publishing (Zero Lock-In):** Creators can push static `.sanctuary.manifest.json` or `catalog.json` updates directly to **GitHub Repo / Cloudflare Pages**, **GitHub Gist**, **GitLab / Codeberg**, **Neocities**, **Personal WebDAV / HTTP PUT**, or a **Local Synced Folder** with one click—or export a ready-to-share zip file for Patreon, itch.io, Nexus, or CurseForge.
-- **Interactive Visual Settings & Diff Timeline:** Players and creators can tweak mod settings with simple sliders and toggles in the **Citizen's Workbench**, and compare current changes side-by-side against saved backups before applying them.
-- **Built-In Schema & Language Guides + Icon Picker:** Customizing a game workspace or language pack now includes an interactive field-by-field guide explaining every setting in plain English, plus a visual searchable **Icon Picker** so you never have to guess icon names.
-- **0%-Cut Community Donations & Daily Dev Builds:** Supporting Sanctuary OS or any Partner Community gives 100% of your donation directly to that community, and every **$5 adds +30 days** of early **Daily Dev Build** access across Desktop, Web, and Mobile.
-- **Direct Human Support & Partner Community Applications:** Send platform feedback, report bugs (with automatic log attachment), reach a real human on the Sanctuary team (never an AI bot), or apply to launch a new Partner Game Community right from the home page.
+### 3D Liquid Glass, Cross-Platform Apps, Privacy & Community Sovereignty
+
+- **Tri-Platform Native Apps & Instant Performance:** Native builds run smoothly across **Windows (`.exe`/`.msi`), macOS Universal (`.dmg`), Linux / SteamOS (`.AppImage`/`.deb` + Deck Overdrive gamepad pointer & Proton `compatdata` discovery)**, **Web**, and **Mobile PWA**—with asynchronous startup hydration, instant **Settings** & **Blueprints**, and smooth 60 FPS WebGL2 glass rendering.
+- **Strict Opt-In Privacy & Zero-Identity Telemetry:** Homestead Lab verification certificates stay strictly on your device unless you choose to submit them, **Pocket Radar** mobile cloud sync defaults to **OFF (opt-in)**, reporter IDs are stripped across content flags and anonymous tickets, and **Nuclear Override** can now be toggled bidirectionally offline inside **System Preferences**.
+- **Runtime Spoke Switching (`SANCTUARY-UPLINK://`) & Community Governance:** Connect to any Partner Game Spoke at runtime from **Login** or **Settings -> Core** without rebuilding, review updated legal & safety covenants (**GNU GPLv3 EULA**, **Privacy Policy** GDPR erasure/retention schedules, **Compliance Tiers 0–6** with Spoke-routed DMCA & Keepers Core compliance logs, and **7 Governance & Security SOPs**) directly in the app's **System Directives** and **Legal** drawers, and enjoy **0%-cut** direct support to creators and communities.

@@ -1,7 +1,7 @@
 use std::fs;
 use std::path::Path;
 
-#[tauri::command]
+#[tauri::command(async)]
 pub fn read_config_file(path: String) -> Result<String, String> {
     let target = Path::new(&path);
     if !crate::utils::is_safe_user_file_path(target) {
@@ -16,7 +16,7 @@ pub fn read_config_file(path: String) -> Result<String, String> {
     fs::read_to_string(target).map_err(|e| e.to_string())
 }
 
-#[tauri::command]
+#[tauri::command(async)]
 pub fn save_config_file(path: String, content: String) -> Result<String, String> {
     let target = Path::new(&path);
     if !crate::utils::is_safe_user_file_path(target) {

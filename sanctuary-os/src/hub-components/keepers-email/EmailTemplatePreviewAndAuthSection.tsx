@@ -1,8 +1,17 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useLexicon } from "../../LexiconContext";
 import { useStore } from "../../store";
-import { ActionButton, CustomDropdown } from "../../shared";
-import { UniversalGroup } from "../../components/universal/UniversalLayout";
+import {
+  ActionButton,
+  PanelHeaderButton,
+  PanelHeaderGroup,
+  SidePanel,
+  SidePanelHeroCard,
+  VAULT_CHIP_CLASS,
+} from "../../shared";
+import { UniversalCard } from "../../components/universal/UniversalCard";
+import { HubListGrid } from "../../components/layouts/ElevatedHubLayout";
+import { CommandScreenSectionHeading } from "../SharedCommandScreenLayout";
 import {
   buildSanctuaryOsEmailHtml,
   SANCTUARY_AUTH_EMAIL_TEMPLATES,
@@ -14,6 +23,7 @@ interface EmailTemplatePreviewAndAuthSectionProps {
   fromName: string;
   subject: string;
   bodyText: string;
+  externalSearch?: string;
 }
 
 /** Extracts style blocks and body markup from email HTML for isolated Shadow-DOM preview rendering without iframes. */
@@ -47,18 +57,33 @@ export default function EmailTemplatePreviewAndAuthSection({
   fromName,
   subject,
   bodyText,
+  externalSearch = "",
 }: EmailTemplatePreviewAndAuthSectionProps) {
   const { t } = useLexicon();
-  const [selectedAuthId, setSelectedAuthId] =
-    useState<SanctuaryAuthEmailTemplate["id"]>("confirm_signup");
-  const [showAuthPreview, setShowAuthPreview] = useState(false);
+  const [inspectingAuthId, setInspectingAuthId] =
+    useState<SanctuaryAuthEmailTemplate["id"] | null>(null);
 
-  const selectedAuthTpl = useMemo(
+  const activeAuthTpl = useMemo(
     () =>
-      SANCTUARY_AUTH_EMAIL_TEMPLATES.find((tpl) => tpl.id === selectedAuthId) ||
-      SANCTUARY_AUTH_EMAIL_TEMPLATES[0],
-    [selectedAuthId]
+      inspectingAuthId
+        ? SANCTUARY_AUTH_EMAIL_TEMPLATES.find((tpl) => tpl.id === inspectingAuthId) || null
+        : null,
+    [inspectingAuthId]
   );
+
+  const filteredAuthTemplates = useMemo(() => {
+    const q = externalSearch.trim().toLowerCase();
+    if (!q) return SANCTUARY_AUTH_EMAIL_TEMPLATES;
+    return SANCTUARY_AUTH_EMAIL_TEMPLATES.filter((tpl) => {
+      const label = t(tpl.labelKey, tpl.labelDefault).toLowerCase();
+      const desc = t(tpl.descriptionKey, tpl.descriptionDefault).toLowerCase();
+      return (
+        label.includes(q) ||
+        desc.includes(q) ||
+        tpl.subject.toLowerCase().includes(q)
+      );
+    });
+  }, [externalSearch, t]);
 
   const composePreviewHtml = useMemo(
     () =>
@@ -112,92 +137,167 @@ export default function EmailTemplatePreviewAndAuthSection({
     );
   }
 
+  const authFlowLabel = t("keepers_email_supabase_auth", "Supabase Auth");
+  const htmlBadgeLabel = t("keepers_email_format_html", "HTML");
+
   return (
-    <UniversalGroup
-      title={t(
-        "keepers_email_auth_templates_title",
-        "Account & Auth Email Templates (Supabase Auth)"
-      )}
-      icon={t("icon_verified_user", "verified_user")}
-    >
-      <div className="flex flex-col gap-3 text-xs text-[var(--subtext)] leading-relaxed">
-        <div className="flex flex-col gap-1.5">
-          <label className="text-[10px] font-black text-[var(--subtext)] opacity-75 uppercase tracking-widest px-1">
-            {t("keepers_email_auth_template_select", "Supabase Auth Email Template")}
-          </label>
-          <CustomDropdown
-            disableTint={true}
-            value={selectedAuthTpl.id}
-            onChange={(v: string[]) =>
-              setSelectedAuthId(
-                (v[0] as SanctuaryAuthEmailTemplate["id"]) || "confirm_signup"
-              )
-            }
-            options={SANCTUARY_AUTH_EMAIL_TEMPLATES.map((tpl) => ({
-              id: tpl.id,
-              label: t(tpl.labelKey, tpl.labelDefault),
-            }))}
-          />
-        </div>
+    <div className="flex flex-col gap-4">
+      <CommandScreenSectionHeading
+        icon={t("icon_verified_user", "verified_user")}
+        iconColorClass="text-[var(--accent)]"
+        title={t(
+          "keepers_email_auth_templates_title",
+          "Account & Auth Email Templates (Supabase Auth)"
+        )}
+        subtitle={t(
+          "keepers_email_auth_templates_subtitle",
+          "Copyable Liquid Glass HTML templates for Supabase Authentication flows"
+        )}
+        breadcrumb={`${filteredAuthTemplates.length}`}
+      />
 
-        <div className="glass-surface rounded-xl p-3 border border-[color-mix(in_srgb,var(--text)_10%,transparent)] flex flex-col gap-1.5">
-          <span className="text-[11px] font-semibold text-[var(--text)]">
-            {t(selectedAuthTpl.descriptionKey, selectedAuthTpl.descriptionDefault)}
-          </span>
-          <div className="text-[11px] text-[var(--subtext)]">
-            <span className="font-bold text-[var(--accent)]">
-              {t("keepers_email_subject_label", "Subject Line")}:
-            </span>{" "}
-            <span className="no-text-case font-mono text-[var(--text)] select-all">
-              {selectedAuthTpl.subject}
-            </span>
+      <HubListGrid
+        isEmpty={filteredAuthTemplates.length === 0}
+        emptyIcon={t("icon_verified_user", "verified_user")}
+        emptyTitle={t("no_match_assets", "No Matching Assets")}
+        className="!pb-0"
+      >
+        {filteredAuthTemplates.map((tpl) => {
+          const titleText = t(tpl.labelKey, tpl.labelDefault);
+          const descText = t(tpl.descriptionKey, tpl.descriptionDefault);
+          return (
+            <UniversalCard
+              key={tpl.id}
+              layout="vertical"
+              statusColor="accent"
+              icon={t("icon_verified_user", "verified_user")}
+              bannerTopLabel={authFlowLabel}
+              bannerTopRightLabel={htmlBadgeLabel}
+              bannerBottomLabel={tpl.subject}
+              title={titleText}
+              subtitle={
+                <span className="no-text-case font-mono text-[11px]">
+                  {tpl.subject}
+                </span>
+              }
+              description={descText}
+              imageOverlay={
+                <div className="absolute top-2.5 left-3 flex flex-nowrap items-center gap-1.5 max-w-[calc(100%-6.5rem)] z-30 pointer-events-none">
+                  <span className={VAULT_CHIP_CLASS}>
+                    <span className="material-symbols-outlined !text-[12px] text-[var(--accent)]">
+                      {t("icon_code", "code")}
+                    </span>
+                    <span>{htmlBadgeLabel}</span>
+                  </span>
+                </div>
+              }
+              onClick={() => setInspectingAuthId(tpl.id)}
+              footer={
+                <div className="flex items-center justify-between gap-2 w-full">
+                  <span className="text-[10px] font-bold text-[var(--subtext)] opacity-75 truncate">
+                    {authFlowLabel}
+                  </span>
+                  <span className="text-[10px] font-black uppercase tracking-widest text-[var(--text)] group-hover/card:text-[var(--accent)] group-hover:text-[var(--accent)] transition-all flex items-center gap-1 opacity-80 group-hover/card:opacity-100 shrink-0">
+                    <span>{t("inspect", "Inspect")}</span>
+                    <span className="text-sm leading-none">&rarr;</span>
+                  </span>
+                </div>
+              }
+            />
+          );
+        })}
+      </HubListGrid>
+
+      <SidePanel
+        isOpen={Boolean(activeAuthTpl)}
+        onClose={() => setInspectingAuthId(null)}
+        title={
+          activeAuthTpl
+            ? t(activeAuthTpl.labelKey, activeAuthTpl.labelDefault)
+            : ""
+        }
+        subtitle={authFlowLabel}
+        icon={t("icon_verified_user", "verified_user")}
+        widthClass="w-[92vw] md:w-[760px]"
+        headerActions={
+          activeAuthTpl ? (
+            <PanelHeaderGroup>
+              <PanelHeaderButton
+                icon={t("icon_content_copy", "content_copy")}
+                tooltip={t("keepers_email_copy_subject", "Copy Subject")}
+                onClick={() =>
+                  handleCopyText(
+                    activeAuthTpl.subject,
+                    t("keepers_email_auth_subject_copied", "Copied Auth email subject line!")
+                  )
+                }
+              />
+              <PanelHeaderButton
+                icon={t("icon_code", "code")}
+                tooltip={t("keepers_email_copy_html", "Copy HTML Template")}
+                onClick={() =>
+                  handleCopyText(
+                    activeAuthTpl.html,
+                    t("keepers_email_auth_html_copied", "Copied Sanctuary OS Auth HTML template!")
+                  )
+                }
+              />
+            </PanelHeaderGroup>
+          ) : null
+        }
+      >
+        {activeAuthTpl && (
+          <div className="flex flex-col gap-4 mt-2 relative z-10 w-full pb-8">
+            <SidePanelHeroCard
+              icon={t("icon_verified_user", "verified_user")}
+              overline={authFlowLabel}
+              title={t(activeAuthTpl.labelKey, activeAuthTpl.labelDefault)}
+              description={t(activeAuthTpl.descriptionKey, activeAuthTpl.descriptionDefault)}
+              badge={htmlBadgeLabel}
+              badgeIcon={t("icon_code", "code")}
+              variant="accent"
+            >
+              <div className="text-[11px] text-[var(--subtext)] pt-1">
+                <span className="font-bold text-[var(--accent)]">
+                  {t("keepers_email_subject_label", "Subject Line")}:
+                </span>{" "}
+                <span className="no-text-case font-mono text-[var(--text)] select-all">
+                  {activeAuthTpl.subject}
+                </span>
+              </div>
+            </SidePanelHeroCard>
+
+            <div className="flex flex-wrap gap-2">
+              <ActionButton
+                onClick={() =>
+                  handleCopyText(
+                    activeAuthTpl.subject,
+                    t("keepers_email_auth_subject_copied", "Copied Auth email subject line!")
+                  )
+                }
+                icon={t("icon_content_copy", "content_copy")}
+                variant="glass"
+                className="w-auto shrink-0"
+                label={t("keepers_email_copy_subject", "Copy Subject")}
+              />
+              <ActionButton
+                onClick={() =>
+                  handleCopyText(
+                    activeAuthTpl.html,
+                    t("keepers_email_auth_html_copied", "Copied Sanctuary OS Auth HTML template!")
+                  )
+                }
+                icon={t("icon_code", "code")}
+                variant="accent"
+                className="flex-1"
+                label={t("keepers_email_copy_html", "Copy HTML Template")}
+              />
+            </div>
+
+            <EmailHtmlPreviewSurface html={activeAuthTpl.previewHtml} />
           </div>
-        </div>
-
-        <div className="flex flex-wrap gap-2">
-          <ActionButton
-            onClick={() =>
-              handleCopyText(
-                selectedAuthTpl.subject,
-                t("keepers_email_auth_subject_copied", "Copied Auth email subject line!")
-              )
-            }
-            icon={t("icon_content_copy", "content_copy")}
-            variant="glass"
-            className="w-auto shrink-0"
-            label={t("keepers_email_copy_subject", "Copy Subject")}
-          />
-          <ActionButton
-            onClick={() =>
-              handleCopyText(
-                selectedAuthTpl.html,
-                t("keepers_email_auth_html_copied", "Copied Sanctuary OS Auth HTML template!")
-              )
-            }
-            icon={t("icon_code", "code")}
-            variant="accent"
-            className="flex-1"
-            label={t("keepers_email_copy_html", "Copy HTML Template")}
-          />
-          <ActionButton
-            onClick={() => setShowAuthPreview((prev) => !prev)}
-            icon={
-              showAuthPreview
-                ? t("icon_visibility_off", "visibility_off")
-                : t("icon_visibility", "visibility")
-            }
-            variant="glass"
-            className="w-auto shrink-0"
-            label={
-              showAuthPreview
-                ? t("hide", "Hide")
-                : t("preview", "Preview")
-            }
-          />
-        </div>
-
-        {showAuthPreview && <EmailHtmlPreviewSurface html={selectedAuthTpl.previewHtml} />}
-      </div>
-    </UniversalGroup>
+        )}
+      </SidePanel>
+    </div>
   );
 }

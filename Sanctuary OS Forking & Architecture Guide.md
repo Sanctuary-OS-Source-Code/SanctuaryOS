@@ -2,58 +2,33 @@
 
 Sanctuary OS is architected to support three seamless deployment and forking models across **Windows**, **macOS**, and **Linux / SteamOS (Steam Deck)**:
 1. **Official Hub-and-Spoke Partner Network (Zero Code Edits):** Connect your community's Supabase Spoke database ([`schema.sql`](./schema.sql)) to the official Sanctuary OS Hub ([`schema_os.sql`](./schema_os.sql)) using a `SANCTUARY-UPLINK://` bundle.
-2. **True Standalone Codebase Fork (1 Database — Edit ONLY `src/supabase.ts`):** Run your own completely independent desktop/web build of Sanctuary OS backed by **a single Supabase database ([`schema.sql`](./schema.sql))**—requiring **no separate Hub database**, **no Edge Functions (`game-gateway`)**, and **editing only `SANCTUARY_CONFIG` at the top of [`sanctuary-os/src/supabase.ts`](./sanctuary-os/src/supabase.ts)**.
-3. **Full Hub-and-Spoke Multi-Game Federation Fork (Hub DB + Multiple Spoke DBs):** Fork the entire multi-game Hub-and-Spoke ecosystem—running your own Central Core OS Hub ([`schema_os.sql`](./schema_os.sql) + `supabase/functions/game-gateway` Edge Function) connected to multiple independent community Spoke databases ([`schema.sql`](./schema.sql)).
+2. **True Standalone Codebase Fork (1 Database — `sanctuary.fork.json`):** Run your own completely independent desktop/web build of Sanctuary OS backed by **a single Supabase database ([`schema.sql`](./schema.sql) — 61 tables)**—requiring **no separate Hub database**, **no Edge Functions (`game-gateway`)**, and configured via the zero-merge-conflict **`sanctuary.fork.json` overlay + `npm run fork:configure`** (`scripts/configure-fork.mjs`), rather than editing tracked [`sanctuary-os/src/supabase.ts`](./sanctuary-os/src/supabase.ts) or `tauri.conf.json` directly.
+3. **Full Hub-and-Spoke Multi-Game Federation Fork (Hub DB + Multiple Spoke DBs):** Fork the entire multi-game Hub-and-Spoke ecosystem—running your own Central Core OS Hub ([`schema_os.sql`](./schema_os.sql) — **28 tables** + [`sanctuary-os/supabase/functions/game-gateway`](./sanctuary-os/supabase/functions/game-gateway) Edge Function) connected to multiple independent community Spoke databases ([`schema.sql`](./schema.sql)).
 
 ---
 
-## 1. True Codebase Forking (Standalone Mode — Edit Only `src/supabase.ts`)
+## 1. True Codebase Forking (Standalone Mode — `sanctuary.fork.json` & `npm run fork:configure`)
 
-If your community wants to fork Sanctuary OS into a standalone desktop/web application—or if you are an existing Partner community that executed **Spoke Sever (Cut the Cord)** and wants to run your own client against your existing Spoke database—you only need to edit **one file**: [`sanctuary-os/src/supabase.ts`](./sanctuary-os/src/supabase.ts).
+If your community wants to fork Sanctuary OS into a standalone desktop/web application—or if you are an existing Partner community that executed **Spoke Sever (Cut the Cord)** and wants to run your own client against your existing Spoke database—copy [`sanctuary-os/sanctuary.fork.example.json`](./sanctuary-os/sanctuary.fork.example.json) to `sanctuary-os/sanctuary.fork.json` (ignored by Git for zero merge conflicts on upstream pulls).
 
 ### Step 1: Set Up Your Single Supabase Database (`schema.sql`)
 1. Create a free project at [supabase.com](https://supabase.com).
 2. Open the **SQL Editor** in your Supabase Dashboard.
-3. Copy and paste the entire contents of [`schema.sql`](./schema.sql) (available via the **Copy `schema.sql`** button inside **Wayfinder Operations -> Spoke Control -> Forking Help & Walkthrough**, on the Landing Page Forking Matrix, or in the repository root) and click **Run**.
-   - This single script provisions all Spoke tables, foreign-key indexes, triggers, `sanctuary_internal` RBAC helpers, non-permissive Row-Level Security (RLS) policies, `spoke_relink_commitments`, and the `on_auth_user_created_spoke` trigger (which automatically promotes the **very first user who signs up** in your forked app to `role = 'wayfinder'`).
+3. Copy and paste the entire contents of [`schema.sql`](./schema.sql) (61 tables; available via the **Copy `schema.sql`** button inside **Wayfinder Operations -> Spoke Control -> Forking Help & Walkthrough**, on the Landing Page Forking Matrix, or in the repository root) and click **Run**. For existing databases, run incremental upgrades in [`migrations/spoke/`](./migrations/spoke) (`0003_compliance_tiers_0_to_6_remapping`).
+   - This single script provisions all 61 Spoke tables, foreign-key indexes, triggers, `sanctuary_internal` RBAC helpers, non-permissive Row-Level Security (RLS) policies, `spoke_relink_commitments`, `dmca_compliance_notices`, `counter_shards`, `schema_migrations`, and the `on_auth_user_created_spoke` trigger (which automatically promotes the **very first user who signs up** in your forked app to `role = 'wayfinder'`).
 
-### Step 2: Edit `SANCTUARY_CONFIG` at the Top of `sanctuary-os/src/supabase.ts`
-Open [`sanctuary-os/src/supabase.ts`](./sanctuary-os/src/supabase.ts) and choose **Option A** or **Option B**:
+### Step 2: Configure `sanctuary-os/sanctuary.fork.json` (Zero-Conflict CLI)
+Copy [`sanctuary-os/sanctuary.fork.example.json`](./sanctuary-os/sanctuary.fork.example.json) to `sanctuary-os/sanctuary.fork.json` (or edit the fallback defaults in `sanctuary-os/src/supabase.ts` only if not using `sanctuary.fork.json`):
 
-#### Option A: 1-Line Paste (If you exported a `SANCTUARY-UPLINK://` Bundle from Spoke Control)
-If you clicked **Copy Uplink Bundle** inside **Wayfinder Operations -> Spoke Control -> Spoke Setup & Maintenance** (or inside the **Spoke Sever** drawer) before cutting the cord, simply paste that string into `uplinkBundle`:
-```ts
-export const SANCTUARY_CONFIG = {
-    uplinkBundle: "SANCTUARY-UPLINK://eyJuYW1lIjoiVGhlIFNpbXMgNCIs...", // <-- Paste here! Everything else auto-configures.
-    mode: "hub_and_spoke",
-    // ...
-};
-```
-Sanctuary OS will automatically decode your bundle, switch `mode` to `"standalone"`, and configure your Supabase URL, Anon/Publishable Key (`eyJ...` or `sb_publishable_*`), and Workspace identity.
-
-#### Option B: Manual Standalone Configuration
-Set `mode` to `"standalone"` and enter your Supabase Project URL, Anon/Publishable Key, and workspace metadata:
-```ts
-export const SANCTUARY_CONFIG = {
-    uplinkBundle: "",
-
-    // Switch from "hub_and_spoke" to "standalone"
-    mode: "standalone",
-
-    // Paste your single Supabase Project URL and Anon/Publishable Key
-    supabaseUrl: "https://YOUR_PROJECT_ID.supabase.co",
-    supabaseAnonKey: "YOUR_SUPABASE_ANON_OR_PUBLISHABLE_KEY",
-
-    // Define your game workspace
-    standaloneWorkspace: {
-        id: "custom_game",
-        name: "My Community Workspace",
-        schema_id: "default",
-        icon: "sports_esports",
-    },
-};
-```
-*(Optional: You can also pass these via `.env` variables: `VITE_SANCTUARY_UPLINK_BUNDLE`, `VITE_SANCTUARY_MODE=standalone`, `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY`, `VITE_STANDALONE_WORKSPACE_ID`, `VITE_STANDALONE_WORKSPACE_NAME`, `VITE_STANDALONE_SCHEMA_ID`.)*
+1. **Option A — 1-Line Bundle:** Set `"uplinkBundle": "SANCTUARY-UPLINK://..."` from **Copy Uplink Bundle**; Vite injects `__SANCTUARY_FORK_CONFIG__` and automatically switches `mode` to `"standalone"`.
+2. **Option B — Manual Config:** Set `"mode": "standalone"`, `"supabaseUrl"`, `"supabaseAnonKey"`, `"standaloneWorkspace"` (any of the **27 engine presets** or `"default"`), custom `"branding"`, and `"updater"` keys (`pubkey`, `releaseRepo`) in `sanctuary.fork.json`.
+3. **Validate & Apply Overlay:**
+   ```bash
+   cd sanctuary-os
+   npm run fork:configure -- --check
+   npm run fork:configure -- --dry-run
+   ```
+   During CI/CD or local native releases, `npm run fork:configure -- --apply-ephemeral-tauri-conf` applies your `branding` and updater `pubkey` ephemerally without dirtying tracked git files. (`src/supabase.ts` `SANCTUARY_CONFIG` and `VITE_*` env vars remain supported as fallback inputs.)
 
 ### Step 3: Launch, Claim Founding Wayfinder Clearance & Cryptographic `SRK1` Profile Relinking
 1. Run the app in development or build native installers for Windows, macOS, and Linux / SteamOS:
@@ -80,18 +55,19 @@ When `isStandaloneFork` (`mode === "standalone"`) is active:
 
 If you want to fork Sanctuary OS to operate your own **multi-game federation** (1 central Hub database for SSO, FIDO2 Passkeys, Keepers Core Default Schema, and Global Heuristics + multiple separate Spoke databases for each game community):
 
-1. **Step 1 — Provision Your Central Core Hub Database (`schema_os.sql`):**
-   - Create a central Supabase project for your Hub, open the SQL Editor, and run [`schema_os.sql`](./schema_os.sql).
+1. **Step 1 — Provision Your Central Core Hub Database (`schema_os.sql` — 28 Tables):**
+   - Create a central Supabase project for your Hub, open the SQL Editor, and run [`schema_os.sql`](./schema_os.sql) (or incremental upgrades in [`migrations/hub/`](./migrations/hub)).
    - Register your admin account and set `role = 'keeper'` in `public.profiles` on the Hub database.
 2. **Step 2 — Set `SPOKE_VAULT_MASTER_KEY` & Deploy the `game-gateway` Edge Function to Your Hub:**
-   - Generate a 256-bit (32-byte) Split-Custody envelope key, set it on your Hub project's Edge secrets, and deploy [`supabase/functions/game-gateway`](./supabase/functions/game-gateway):
+   - Generate a 256-bit (32-byte) Split-Custody envelope key, set it on your Hub project's Edge secrets, and deploy [`sanctuary-os/supabase/functions/game-gateway`](./sanctuary-os/supabase/functions/game-gateway) from inside `sanctuary-os/`:
      ```bash
+     cd sanctuary-os
      supabase link --project-ref YOUR_HUB_PROJECT_ID
      supabase secrets set SPOKE_VAULT_MASTER_KEY=$(openssl rand -hex 32)
      supabase functions deploy game-gateway --no-verify-jwt
      ```
      *(For zero-downtime master key rotation later, supply old hex keys in `SPOKE_VAULT_PREVIOUS_KEYS` comma-separated while switching `SPOKE_VAULT_MASTER_KEY`.)*
-3. **Step 3 — Point `sanctuary-os/src/supabase.ts` at Your Core Hub:**
+3. **Step 3 — Point `sanctuary.fork.json` (or `src/supabase.ts`) at Your Core Hub:**
    - Keep `mode: "hub_and_spoke"` in `SANCTUARY_CONFIG` inside [`sanctuary-os/src/supabase.ts`](./sanctuary-os/src/supabase.ts) and enter your Hub project's URL and Anon/Publishable Key:
      ```ts
      export const SANCTUARY_CONFIG = {
@@ -115,11 +91,11 @@ If you want to fork Sanctuary OS to operate your own **multi-game federation** (
 
 If you are joining the official Sanctuary OS multi-game network rather than forking the client, **zero code edits are required**. Sanctuary OS separates global identity and core infrastructure from community-owned game registries:
 
-1. **The Core OS Hub ([`schema_os.sql`](./schema_os.sql)) — Governed by Keepers Core:**
-   - **Zero-Knowledge Seal & FIDO2 Security Vault:** Citizens authenticate once against the Core OS Hub (`profiles` holds global `id`, `username`, `role = 'citizen' | 'keeper'`, and protected Supporter / **Nuclear Override** ban state; `user_passkeys` stores WebAuthn/FIDO2 hardware and biometric credentials).
-   - **Mirror Uplink, Default Schema & Assets:** Hosts the baseline `default.json` **Universal Master Schema** in `sanctuary_schemas`, `system_directives` (bidirectionally synced via **Mirror Uplink** with codebase `.md` files), core `sanctuary_lexicons` (`en-default`, `en-sanctuary`), the 7 universal Core OS `sanctuary_themes`, and `keeper_heuristic_signatures` (**Bytecode Hound**).
+1. **The Core OS Hub ([`schema_os.sql`](./schema_os.sql) — 28 Tables) — Governed by Keepers Core:**
+   - **Zero-Knowledge Seal & FIDO2 Security Vault:** Citizens authenticate once against the Core OS Hub (`profiles` holds global `id`, `username`, `role = 'citizen' | 'keeper'`, and protected Supporter / **Nuclear Override** ledger state; `user_passkeys` stores WebAuthn/FIDO2 hardware and biometric credentials).
+   - **Mirror Uplink, Default Schema & Assets:** Hosts the baseline `default.json` **Universal Master Schema** in `sanctuary_schemas`, `system_directives` (bidirectionally synced via **Mirror Uplink** with codebase `.md` files), immutable `dmca_compliance_notices` audit logging, core `sanctuary_lexicons` (`en-default`, `en-sanctuary`), the 7 universal Core OS `sanctuary_themes`, and `keeper_heuristic_signatures` (**Bytecode Hound**).
    - **Spoke Directory & Split-Custody Double-Envelope Vault (`sanctuary_games` & `sanctuary_internal.spoke_credentials`):** `public.sanctuary_games` maps each active community workspace (`schema_id`, `supabase_url`, `supabase_anon_key`, `is_keepers_only`, and Wayfinder-governed non-custodial `donation_url` / `payment_processor`), while Spoke `spk_gw_*` gateway tokens are sealed via **HKDF-SHA256 + AES-256-GCM** bound AAD (`SPOKE_VAULT_MASTER_KEY`) and Supabase Vault (`vault.secrets`) inside `service_role`-only `sanctuary_internal.spoke_credentials` so neither DB leaks nor client queries can expose usable Spoke credentials.
-   - **Batch-Coalesced API Gateway (`game-gateway` Edge Function):** Validates the Citizen's Hub JWT, enforces 5-tier Spoke RBAC across `spoke_query` and sub-second `spoke_query_batch` requests, manages content-addressed `<= 250 KB` WebP theme wallpaper uploads, and executes bilateral severance.
+   - **Batch-Coalesced API Gateway (`game-gateway` Edge Function):** Validates the Citizen's Hub JWT (with local WebCrypto JWKS verification + rate limiting), enforces 5-tier Spoke RBAC across `spoke_query` and sub-second `spoke_query_batch` requests, issues Spoke-owned wallpaper Storage URLs, forwards Tier 1 DMCA holds under the `48h` SLA, and executes bilateral severance.
 
 2. **The Community Spoke ([`schema.sql`](./schema.sql)) — Owned 100% by the Community (Wayfinder):**
    - **Sovereign Supabase Instance:** The community creates and owns their own Supabase project, with community donation fields protected by Postgres triggers (`protect_spoke_donation_fields`) so only the Spoke's Wayfinder can modify them.
@@ -146,9 +122,9 @@ Under **Sovereign Covenants** ([Partners Agreement](./Partners%20Agreement.md)),
 
 ---
 
-## 4. Universal Master Schema Specification (`sanctuary_schemas` v12)
+## 4. Universal Master Schema Specification (`sanctuary_schemas` — 27 Engine Presets)
 
-Instead of hardcoding file extensions, folder paths, conflict rules, or crash log names in Rust, Sanctuary OS reads a declarative Master Schema JSON from `sanctuary_schemas` (or `src/data/schemas/<schema_id>.json`) editable visually in **Schema Forge** (validated in real time against the **Keepers Core Default Schema**):
+Instead of hardcoding file extensions, folder paths, conflict rules, or crash log names in Rust, Sanctuary OS reads a declarative Master Schema JSON from `sanctuary_schemas` (seeded from any of **27 built-in presets** or `src/data/schemas/<schema_id>.json`) editable visually in **Schema Forge** (validated in real time against the **Keepers Core Default Schema**; mod categories and exception matchers live cleanly in Spoke `public.taxonomy` and `public.known_exception_rules`):
 
 ```json
 {
@@ -224,7 +200,7 @@ Sanctuary OS compiles natively for Windows, macOS, and Linux / SteamOS via Tauri
 One unified codebase powers your native **Desktop client (Windows / macOS / Linux & SteamOS)**, installable **PWA**, and **Web Portal**:
 
 1. **White-Label Identity & Live Title Area Branding (`SANCTUARY_CONFIG.branding` & `Title Area` Studio):**
-   - Configure compile-time defaults in the single `SANCTUARY_CONFIG.branding` block inside `sanctuary-os/src/supabase.ts`—or via `.env` / CI build variables (`VITE_APP_TITLE`, `VITE_ORG_NAME`, `VITE_LOGO_URL`, `VITE_SUPPORT_EMAIL`, `VITE_WEBAUTHN_RP_ID`)—covering your app title, organization name, logo URL, support email, FIDO2 WebAuthn Relying Party ID, and rotating subtitles.
+   - Configure compile-time defaults in **`sanctuary-os/sanctuary.fork.json`** (`npm run fork:configure`) or the single `SANCTUARY_CONFIG.branding` block inside `sanctuary-os/src/supabase.ts`—and `.env` / CI build variables (`VITE_APP_TITLE`, `VITE_ORG_NAME`, `VITE_LOGO_URL`, `VITE_SUPPORT_EMAIL`, `VITE_WEBAUTHN_RP_ID`)—covering your app title, organization name, logo URL, support email, FIDO2 WebAuthn Relying Party ID, and rotating subtitles.
    - Standalone & Core Hub founders can also customize logos, app title, and rotating subtitles live from the database at runtime using **Wayfinder / Keepers -> `Chameleons` -> `Title Area` Studio** (persisted in `sanctuary_themes`, automatically syncing `document.title` and copy via `LexiconContext.tsx`).
 2. **One Codebase Across Desktop, PWA & Web (`sanctuary-os/package.json`):**
    - **Web Portal & Installable PWA:** Run `npm run build:web:public` (or `npm run build:web:beta`) inside `sanctuary-os/` to emit a static single-page bundle (`dist/`) backed by `public/sw.js` and `public/manifest.webmanifest`.
@@ -262,7 +238,7 @@ One unified codebase powers your native **Desktop client (Windows / macOS / Linu
               "id": "fork_spoke_s1",
               "icon": "database",
               "title": "Step 1: Initialize Your Supabase Spoke (schema.sql) & Mint Token",
-              "desc": "Create a free Supabase project, open the SQL Editor, run schema.sql (52 tables, RLS, and gateway auth), then run SELECT public.mint_spoke_gateway_token(); to mint your one-time spk_gw_... token."
+              "desc": "Create a free Supabase project, open the SQL Editor, run schema.sql (61 tables, RLS, and gateway auth) plus migrations/spoke/0003 if upgrading, then run SELECT public.mint_spoke_gateway_token(); to mint your one-time spk_gw_... token."
             },
             {
               "id": "fork_spoke_s2",
@@ -312,8 +288,8 @@ One unified codebase powers your native **Desktop client (Windows / macOS / Linu
     {
       "id": "standalone",
       "icon": "call_split",
-      "label": "Step 2",
-      "value": "Fork Modes",
+      "label": "FORK MODES",
+      "value": "Standalone & Hub",
       "cards": [
         {
           "id": "fork_mode_standalone",
@@ -340,7 +316,7 @@ One unified codebase powers your native **Desktop client (Windows / macOS / Linu
               "id": "fork_m1_s3",
               "icon": "storage",
               "title": "3. Transparent OS-to-Spoke Table Mapping",
-              "desc": "All internal queries to global broadcasts, polls, and support categories automatically map to your single database's system_broadcasts, dispatch_poll_votes, and support_tickets tables."
+              "desc": "All internal queries to global broadcasts, polls, and support categories automatically map to your single database's system_broadcasts, dispatch_poll_votes, and sanctuary_tickets tables. Use sanctuary.fork.json + npm run fork:configure for zero-conflict upgrades."
             }
           ]
         },
@@ -357,7 +333,7 @@ One unified codebase powers your native **Desktop client (Windows / macOS / Linu
               "id": "fork_m2_s1",
               "icon": "memory",
               "title": "1. Provision Core Hub Database (schema_os.sql)",
-              "desc": "Create your central Hub Supabase project and run schema_os.sql in the SQL Editor. This provisions global SSO profiles, FIDO2 user_passkeys, sanctuary_games, sanctuary_schemas, system_directives, and keeper_heuristic_signatures."
+              "desc": "Create your central Hub Supabase project and run schema_os.sql in the SQL Editor. This provisions global SSO profiles, auth.webauthn_credentials FIDO2 passkeys, sanctuary_games, sanctuary_schemas, system_directives, and keeper_heuristic_signatures."
             },
             {
               "id": "fork_m2_s2",
@@ -383,7 +359,7 @@ One unified codebase powers your native **Desktop client (Windows / macOS / Linu
           "id": "fork_mode_schema",
           "icon": "schema",
           "overline": "MODE 3 • MASTER GAME SCHEMAS & CROSS-PLATFORM",
-          "badge": "7 Engine Presets",
+          "badge": "27 Engine Presets",
           "title": "Master Schema Studio & Windows/macOS/Linux Build Pipeline",
           "footerMeta": "schema.json • Windows .msi, Darwin .dmg & Linux / SteamOS .AppImage/.deb",
           "desc": "Adapt Sanctuary OS to any game engine without touching Rust or React code by configuring a declarative Master Schema JSON in Wayfinder or Keepers IDE.",
@@ -391,8 +367,8 @@ One unified codebase powers your native **Desktop client (Windows / macOS / Linu
             {
               "id": "fork_m3_s1",
               "icon": "schema",
-              "title": "7 Built-In Engine Architecture Presets",
-              "desc": "1-click templates for Binary Chunk + Script, Multi-Folder Asset Tree, Ordered Load List, Virtual Archive Container, XML Load Manifest, JSON Mod Loader, and Universal engines."
+              "title": "27 Built-In Engine Architecture Presets",
+              "desc": "1-click templates across Creation Engine, Unreal, Source, Unity/BepInEx, REDEngine, RAGE, RimWorld, Sims, and Universal engines—paired with database-driven public.taxonomy categories and sanctuary.fork.json overlays."
             },
             {
               "id": "fork_m3_s2",
@@ -490,27 +466,26 @@ One unified codebase powers your native **Desktop client (Windows / macOS / Linu
         {
           "id": "fork_sql_spoke",
           "icon": "storage",
-          "overline": "Spoke & Standalone DB • 52 Tables",
+          "overline": "Spoke & Standalone DB • 61 Tables",
           "badge": "schema.sql",
-          "title": "schema.sql (52 Tables)",
+          "title": "schema.sql (61 Tables)",
           "footerMeta": "Community Spoke & Standalone Fork SQL",
-          "desc": "Idempotent copy-paste community registry schema (mods, blueprints, citizen_staging_queue, masons, conflicts, tickets, heuristics, pending-flag triggers, RLS policies, and Founding Wayfinder trigger).",
+          "desc": "Idempotent copy-paste community registry schema (mods, taxonomy, playsets, tickets, heuristics, dmca_compliance_notices, counter_shards, schema_migrations, pending-flag triggers, RLS policies, and Founding Wayfinder trigger), upgradable via migrations/spoke/.",
           "subCards": []
         },
         {
           "id": "fork_sql_hub",
           "icon": "dns",
-          "overline": "Core Hub Federation DB • 22 Tables",
+          "overline": "Core Hub Federation DB • 28 Tables",
           "badge": "schema_os.sql",
-          "title": "schema_os.sql (Core Hub DB)",
+          "title": "schema_os.sql (28 Tables)",
           "footerMeta": "Central Multi-Game Federation SQL",
-          "desc": "Central multi-game federation schema (global SSO profiles, FIDO2 passkeys, sanctuary_games directory, master schemas, global lexicons/themes, and core heuristics).",
+          "desc": "Central multi-game federation schema (global SSO profiles, FIDO2 passkeys, sanctuary_games directory, master schemas, encrypted_keyrings, dmca_compliance_notices audit ledger, global lexicons/themes, and core heuristics), upgradable via migrations/hub/.",
           "subCards": []
         }
       ]
     }
   ],
-  "_bodySig": 1821606791,
-  "isActive": true
+  "_bodySig": 2273677126
 }
 -->

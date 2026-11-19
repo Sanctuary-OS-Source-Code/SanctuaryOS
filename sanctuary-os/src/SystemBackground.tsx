@@ -634,8 +634,7 @@ export function SystemBackground() {
 
       for (let i = 0; i < nodes.length; i++) {
         const el = nodes[i];
-        if (el.closest('[data-sandbox-preview-root]')) continue;
-        if (el.classList.contains('portal-glass-modal') || el.closest('.portal-glass-modal')) {
+        if (el.classList.contains('portal-glass-modal')) {
           continue;
         }
         if (
@@ -653,25 +652,67 @@ export function SystemBackground() {
           el.classList.contains('sa-dropdown-popover') ||
           (el.classList.contains('portal-glass-fix') &&
             !el.classList.contains('portal-glass-modal'));
+
+        // Single upward ancestor pass instead of 4+ separate .closest() DOM walks per node
+        let skip = false;
+        let hasHostOverlay = false;
+        let hostCard: HTMLElement | null = null;
+        let hasBannerImg = el.classList.contains('sa-card-has-banner-img');
+
+        let cur: HTMLElement | null = el.parentElement;
+        while (cur) {
+          if (cur.hasAttribute('data-sandbox-preview-root')) {
+            skip = true;
+            break;
+          }
+          const cl = cur.classList;
+          if (cl.contains('portal-glass-modal')) {
+            skip = true;
+            break;
+          }
+          if (!isSelfOverlay && !hasHostOverlay) {
+            if (
+              cl.contains('sa-side-panel-window') ||
+              cl.contains('sa-mobile-glass-overlay') ||
+              cl.contains('sa-floating-glass-pill') ||
+              cl.contains('sa-dropdown-popover') ||
+              cl.contains('sa-tooltip-glass') ||
+              cl.contains('portal-glass-fix')
+            ) {
+              hasHostOverlay = true;
+              break;
+            }
+          }
+          if (
+            !isSelfOverlay &&
+            !hostCard &&
+            (cl.contains('glass-panel') || (cur.tagName === 'NAV' && cl.contains('firefox-safe-glass')))
+          ) {
+            hostCard = cur;
+          }
+          if (!hasBannerImg && cl.contains('sa-card-has-banner-img')) {
+            hasBannerImg = true;
+          }
+          cur = cur.parentElement;
+        }
+
+        if (skip) continue;
+
         if (isSelfOverlay) {
           layer2.push(el);
           if (!overlayChildren.has(el)) overlayChildren.set(el, []);
           continue;
         }
 
-        const hostOverlay = el.closest(
-          '.sa-side-panel-window, .sa-mobile-glass-overlay, .sa-floating-glass-pill, .sa-dropdown-popover, .sa-tooltip-glass, .portal-glass-fix'
-        ) as HTMLElement | null;
-        if (hostOverlay) {
+        if (hasHostOverlay) {
           // Inside a SidePanel, Dropdown, Tooltip, or Mobile/Floating Liquid Glass Overlay, the container itself is the continuous 3D Liquid Glass slab;
           // internal components sit cleanly on top of that slab via CSS translucent glass fills instead of punching separate wallpaper lenses.
           continue;
         }
 
-        const hostCard = el.parentElement?.closest('.glass-panel, nav.firefox-safe-glass') as HTMLElement | null;
         if (hostCard) {
           // Only keep WebGL lens for badges floating over an opaque <img> banner where the parent card's glass is covered by the image
-          if (el.classList.contains('glass-surface') && el.closest('.sa-card-has-banner-img')) {
+          if (el.classList.contains('glass-surface') && hasBannerImg) {
             let list = cardChildren.get(hostCard);
             if (!list) {
               list = [];
@@ -821,15 +862,35 @@ export function SystemBackground() {
           return null;
         }
 
+        const meta = getElementMeta(el);
+        const isSideSlidingOut =
+          meta.isSideDrawer &&
+          (el.classList.contains('sa-panel-slide-out-right') ||
+            el.classList.contains('sa-panel-slide-out-left'));
+        if (isSideSlidingOut && (overlayCanvasMap.get(el) as any)?.__lastBlitKey) {
+          // Closing animation slides the already-painted occlusion canvas off-screen; avoid extra WebGL/readback work
+          return null;
+        }
+
         const rawRect = el.getBoundingClientRect();
         if (rawRect.width < 8 || rawRect.height < 8) return null;
-        const rectLeft = rawRect.left - canvasOffsetX;
-        const rectTop = rawRect.top - canvasOffsetY;
-        const rectRight = rawRect.right - canvasOffsetX;
-        const rectBottom = rawRect.bottom - canvasOffsetY;
-        if (rectBottom <= 0 || rectTop >= vh || rectRight <= 0 || rectLeft >= vw) return null;
 
-        const meta = getElementMeta(el);
+        // For sliding SidePanel drawers, lock the sampled WebGL region to the panel's settled docked edge so
+        // CSS translateX transitions never dirty/re-blit ovCanvas or run WebGL->2D GPU readbacks mid-slide.
+        const rectLeft = meta.isSideDrawer
+          ? el.classList.contains('sa-panel-right')
+            ? Math.max(0, vw - rawRect.width)
+            : Math.max(0, el.offsetLeft - canvasOffsetX)
+          : rawRect.left - canvasOffsetX;
+        const rectTop = meta.isSideDrawer
+          ? Math.max(0, el.offsetTop - canvasOffsetY)
+          : rawRect.top - canvasOffsetY;
+        const rectRight = rectLeft + rawRect.width;
+        const rectBottom = rectTop + rawRect.height;
+        if (!meta.isSideDrawer && (rectBottom <= 0 || rectTop >= vh || rectRight <= 0 || rectLeft >= vw)) {
+          return null;
+        }
+
         let clipL = 0;
         let clipT = 0;
         let clipR = vw;
@@ -1349,13 +1410,15 @@ export function SystemBackground() {
         const tgt = e.target as HTMLElement | null;
         if (
           !tgt?.classList ||
-          (!tgt.classList.contains('sa-side-panel-window') &&
-            !tgt.classList.contains('sa-mobile-glass-overlay') &&
+          (!tgt.classList.contains('sa-mobile-glass-overlay') &&
             !tgt.classList.contains('sa-floating-glass-pill') &&
             !tgt.classList.contains('sa-mobile-drawer-wrapper') &&
             !tgt.classList.contains('portal-glass-fix') &&
             tgt.tagName !== 'NAV')
         ) {
+          if (tgt?.classList?.contains('sa-side-panel-window')) {
+            scheduleRender();
+          }
           return;
         }
       }
@@ -1367,16 +1430,17 @@ export function SystemBackground() {
       const tgt = e.target as HTMLElement | null;
       if (
         tgt?.classList &&
-        (tgt.classList.contains('sa-side-panel-window') ||
-          tgt.classList.contains('sa-mobile-glass-overlay') ||
+        (tgt.classList.contains('sa-mobile-glass-overlay') ||
           tgt.classList.contains('sa-floating-glass-pill') ||
           tgt.classList.contains('sa-mobile-drawer-wrapper') ||
           tgt.classList.contains('portal-glass-fix') ||
-          tgt.classList.contains('sa-dropdown-popover') ||
-          tgt.classList.contains('sa-side-panel-backdrop'))
+          tgt.classList.contains('sa-dropdown-popover'))
       ) {
         needsElementScan = true;
         triggerAnimWindow(560);
+      } else if (tgt?.classList?.contains('sa-side-panel-window')) {
+        needsElementScan = true;
+        scheduleRender();
       }
     };
 
@@ -1422,16 +1486,13 @@ export function SystemBackground() {
                 needsSyncOverlayRender = true;
               }
               if (
-                n.classList?.contains('sa-side-panel-window') ||
-                n.classList?.contains('sa-side-panel-wrapper') ||
                 n.classList?.contains('sa-mobile-glass-overlay') ||
                 n.classList?.contains('sa-floating-glass-pill') ||
                 n.querySelector?.('.sa-floating-glass-pill') ||
                 n.classList?.contains('sa-mobile-drawer-wrapper') ||
                 n.classList?.contains('portal-glass-fix') ||
                 n.classList?.contains('sa-dropdown-popover') ||
-                n.classList?.contains('sa-tooltip-glass') ||
-                n.classList?.contains('grid')
+                n.classList?.contains('sa-tooltip-glass')
               ) {
                 needsAnimLoop = true;
               }
@@ -1474,8 +1535,6 @@ export function SystemBackground() {
               needsSyncOverlayRender = true;
             }
             if (
-              tgt.classList?.contains('sa-side-panel-window') ||
-              tgt.classList?.contains('sa-side-panel-wrapper') ||
               tgt.classList?.contains('sa-mobile-glass-overlay') ||
               tgt.classList?.contains('sa-floating-glass-pill') ||
               tgt.classList?.contains('sa-mobile-drawer-wrapper')
@@ -1488,12 +1547,11 @@ export function SystemBackground() {
 
       if (hasRelevantMutation) {
         needsElementScan = true;
-        if (needsSyncOverlayRender) {
-          renderFrame();
-        }
         if (needsAnimLoop) {
           triggerAnimWindow(560);
-        } else if (!needsSyncOverlayRender) {
+        } else if (needsSyncOverlayRender) {
+          scheduleRender();
+        } else {
           scheduleRender();
         }
       }

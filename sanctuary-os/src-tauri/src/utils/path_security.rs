@@ -625,7 +625,7 @@ pub fn is_safe_single_node_component(raw: &str) -> bool {
 }
 
 /// Returns true only when `raw` is a clean relative file/folder reference inside the workspace (`Normal` segments only).
-pub(super) fn is_safe_relative_node_subpath(raw: &str) -> bool {
+pub fn is_safe_relative_node_subpath(raw: &str) -> bool {
     let trimmed = raw.trim();
     if trimmed.is_empty() || trimmed.contains('\0') {
         return false;

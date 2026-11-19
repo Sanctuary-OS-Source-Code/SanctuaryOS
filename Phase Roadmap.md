@@ -1,232 +1,338 @@
-# Master Phase Roadmap
+# Engineering Phase Roadmap (Phase 16 → Phase 1)
 
-> Reverse-chronological engineering timeline from Phase 14 (V0.6.0 Universal Multi-Engine Expansion, Patch Fire Drill, Groundhog Sandbox, Deck Overdrive, Code-Switch & Pocket Radar) and Phase 13 (V5.8 Schema Forge, Bytecode Hound & Sovereign Covenants) down to Phase 1 (Genesis & Cartographer).
+> Interactive reverse-chronological engineering timeline tracking Sanctuary OS from planned Phase 16 (V1.0.0 GA) & Phase 15 (V0.7.0 Beta), through active Phase 14 (V0.6.0-Dev.15 Multi-Engine Expansion, Differential VFS & Scale Architecture), down to Phase 1.
 
 ---
 
-## Phase 14 (V0.6.0) • November 2026 — Active Era: Universal Multi-Engine Expansion, Patch Fire Drill & Deck Overdrive
-**Status:** `In Progress` | **Focus:** `Creator Airlock, The Quartermaster, Zero-Copy Exodus, The Rosetta Protocol, Save Doctor, Patch Fire Drill, Groundhog Sandbox, Universal Master Schema, Deck Overdrive, Code-Switch, The Highlander Rule, Echo Suppressor, Crash Autopsy, Pocket Radar, Browser Autoloader, Jump Gate, Conflict Radar 2.0, Live-Wire Diff & Ironclad Gauntlet`
+## PHASE 16 (V1.0.0 GA) • PLANNED: Global GA — Reproducible Signed Builds & Sovereign Ecosystem
+**Status:** `PLANNED` | **Focus:** `Notarized Multi-OS Signing • Audited Crypto • Spoke SLA & Abandonment Automation • V1.0 Spec Freeze`
 
-Full multi-engine expansion featuring **Creator Airlock** external tool save isolation, **The Quartermaster** guided package wizard, **Zero-Copy Exodus** out-of-tree setup migration, **The Rosetta Protocol** modlist translation, **Save Doctor** lockouts, **Patch Fire Drill** simulations, **Groundhog Sandbox** verification, **Universal Master Schema** adapters, **Deck Overdrive** Steam Deck controls, **Code-Switch** auto-translation, **The Highlander Rule** swap alerts, **Echo Suppressor** alert sync, **Crash Autopsy**, **Pocket Radar**, **Browser Autoloader**, **Jump Gate** command palette, **Conflict Radar 2.0**, **Live-Wire Diff**, and the **Ironclad Gauntlet** test suite.
+General Availability release delivering reproducible Authenticode EV / notarized Apple / GPG-signed desktop binaries, third-party cryptographic and VFS security audits, automated Keepers Core Spoke DMCA/abandonment tooling, and the frozen v1.0 Master Schema specification.
 
-- **Creator Airlock (In Progress):** Launch external authoring, asset-editing, and world-building tools inside a Save-Airgapped Homestead session—physically isolating primary saves while developing assets or testing mods and restoring saves automatically on exit.
-- **The Quartermaster (In Progress):** Intercepts multi-variant archives on drop/download with a Guided Package Installer drawer that parses `fomod/ModuleConfig.xml` and Mason Dossier Flavors with auto-checked compatibility patches.
-- **Zero-Copy Exodus (In Progress):** Zero-reinstall out-of-tree migration via Cartographer & Vault: ingests external staging directories, safely unlinks legacy deployment links, translates XML/JSON/text profile manifests and load orders into ready Blueprints, preserves source URLs and notes as Local Dossiers, and supports hardlink, move, or copy Vault absorption.
-- **The Rosetta Protocol (In Progress):** Cross-platform curated modlist and collection translator: compiles third-party collection manifests, profile archives, and XML/JSON load lists into native Sanctuary Blueprints, binds local Vault matches via SHA-256 / MD5 DNA, and routes missing items into **Browser Autoloader** (with two-way standard load list export).
-- **Save Doctor (In Progress):** Pairs save states with the deployed Blueprint DNA manifest (`.sanctuary-save-manifest.json`) and warns before launch if switching Blueprints removed mods required by the latest save.
-- **Patch Fire Drill (In Testing [In Dev Build]):** Simulates any upstream game patch across all Blueprints with 1:1 deduplicated artifact counts, transitive Atomic Logic dependency cascades, local Echo Archive Auto-Swap detection, 1-click Get Dependency acquisition, and 1-click Clone Ready Blueprint generation.
-- **Groundhog Sandbox (In Testing [In Dev Build]):** Immortal save-verify-and-rewind Lab airgap featuring externalized `SanctuarySaveVault` storage, read-only Golden Baseline Lab Test Saves with disposable working copies and Stage 4 magic-byte save corruption auditing, 100% passive anti-cheat-safe 4-stage verification, pause-menu suspension, and native fullscreen PCM audio chimes.
-- **Universal Master Schema (In Testing [In Dev Build]):** 100% engine-agnostic Master Schema v2 powering ordered XML/JSON/text manifest compilers, multi-folder asset tree preservation, Copy-on-Write staging, and declarative `virtual_fs_path`, `archive_member`, `binary_chunk_index`, and `json_xml_key` conflict analyzers.
-- **Deck Overdrive (In Testing [In Dev Build]):** Full-OS Steam Deck controller engine (`hidraw` + 64-byte `SteamDeckStatePacket_t`, 60 FPS Chameleon Virtual Pointer, 2D Spatial Focus, Steam OSK auto-summon, Gamescope XWayland surface binding) paired with automatic Valve Proton `compatdata/<AppID>/pfx/` resolution across internal storage and SD cards.
-- **Code-Switch (In Testing [In Dev Build]):** Automated `6,166`-key Standard English source scanner, lightweight Sparse Delta Override packs, Source-First 4-tab Lexicon Visual Studio, Guided Icon Overrides, and 1-click neural auto-translation across 28+ languages with `{Glossary}` placeholder masking.
-- **The Highlander Rule (In Testing [In Dev Build]):** Enforces mutually exclusive slots (`highlander_group_id`) with explicit **Swap**, **Keep Both**, or **Cancel** alerts on Vault cards and Dossiers—while pairing 7-Domain Settings, Per-Space Aesthetics, and `SRK1` Spoke Relink commitments.
-- **Echo Suppressor (In Testing [In Dev Build]):** Zero-PII AES-256-GCM cross-device notification deduplication and per-Spoke alert muting across Windows, Steam Deck, and Mobile PWA so read banners and dismissed notifications never repeat across devices.
-- **Crash Autopsy (In Testing [In Dev Build]):** Citizen-facing 3-section Corrupted / Unstable / Unrelated Known Error showcase with Architect-pinned diagnostic rules, schema-driven log matchers, and instant crash-log paste decoding across Desktop and Web.
-- **Pocket Radar (In Testing [In Dev Build]):** Mobile PWA and Web Vault Companion with optional encrypted sync of active Blueprint DNA hashes so Citizens spot broken mods remotely, pair with **Beam to Rig** transfers, and browse with responsive mobile filter pills.
-- **Browser Autoloader (In Testing [In Dev Build]):** Adds a Guided Update Queue (`1 of N`) stepper bar to the Side Panel Browser that opens each Mason's official download page sequentially and auto-advances the instant the Rust download interceptor verifies the archive.
-- **Jump Gate (In Testing [In Dev Build]):** Global `Ctrl+K` / `Cmd+K` Liquid Glass command palette across Desktop, Web, and Mobile PWA for jumping to installed Vault mods, toggling Blueprint items, navigating all 18 OS views, switching Chameleons & Lexicons, and firing quick actions.
-- **Conflict Radar 2.0 (In Testing [In Dev Build]):** 5-Tier Severity Matrix (`S1–S5`), strategy-aware Priority Compiler & Tier inspector with searchable Blueprint Scan Scope, 1-click `'Set Winner'` resolution, and directional Must Load After/Before rules.
-- **Live-Wire Diff (In Testing [In Dev Build]):** Automatically captures live in-game `.cfg`/`.ini`/`.json`/`.toml`/`.yaml`/`.xml` modifications intercepted by the Rust Config Watcher as timestamped `[In-Game Engine Edit]` snapshots inside the Workbench Diff Timeline.
-- **Ironclad Gauntlet (In Progress):** Automated Vitest + Cargo Test regression suite covering the Topological Load Order Engine, **Bytecode Hound** (including Zlib/Zstd binary streams), Dynamic `{Glossary}` Token interpolation, and System Directive parsing.
+- **Reproducible Multi-OS Code Signing & Notarization (Planned):** Production Windows Authenticode EV / Azure Trusted Signing, notarized Apple Universal .dmg binaries, and GPG-signed Linux AppImage/DEB releases with build provenance attestations.
+- **External Cryptography & VFS Security Audit (Planned):** Independent third-party verification of Split-Custody HKDF-SHA256 / AES-256-GCM envelopes, Ed25519 manifests, WebAuthn FIDO2 gates, and Rust extraction/path-traversal sandboxing.
+- **Partner Spoke SLA & Succession Automation (Planned):** In-hub UI tooling for 48h Spoke DMCA compliance logs, automated Abandoned Spoke / Wayfinder Succession handoffs, and zero-downtime spoke schema migrations.
+- **Global Lexicon Registry & V1.0 Stability Freeze (Planned):** Public community translation pack index, frozen v1.0 sanctuary_schemas contract, and production multi-region Core Hub Federation SLA guarantees.
 
-## Phase 13 (V5.8) • October 2026: Schema Forge, Bytecode Hound & Sovereign Covenants
-**Status:** `Completed` | **Focus:** `Schema Forge, Lexicon Codex, Bytecode Hound, Edge Direct Push & Sovereign Covenants`
+## PHASE 15 (V0.7.0 BETA) • PLANNED: Beta Stabilization — 27-Preset Soak, Fire Drill & Opt-In Controls
+**Status:** `PLANNED` | **Focus:** `Real-Game E2E Soak • Automated Patch Fire Drill • Opt-In Telemetry Granularity • 50k-Mod Performance Budgets`
 
-Delivered **Schema Forge** & **Lexicon Codex** with Guided Icon Overrides and Interactive Codex Guides, upgraded **Bytecode Hound** (Core + Spoke rules with Zlib/Zstd binary stream & Base64/Hex deobfuscation), added 6-provider **Edge Direct Push**, Readiness-Gated Partner Applications with mandatory **Sovereign Covenants**, and **Mirror Uplink** bilateral sync.
+Pre-GA public beta stabilization delivering real-game end-to-end soak verification across all 27 engine presets, automated Patch Fire Drill & Groundhog bisect orchestration, granular opt-in cloud mirroring controls, and in-hub Spoke SQL migration runners.
 
-- **Schema Forge (Complete):** 7 multi-game architecture presets, Windows (`.exe`) & macOS (`.app`) coordinate mapping, secondary `install_routes`, game-agnostic `mod_categories`, and live `config_extensions` syncing.
-- **Lexicon Codex (Complete):** Searchable Material Symbol override builder with `Default → New` glyph previews, themed checkboxes, parity validation bar, and interactive Schema & Lexicon Codex drawers.
+- **27-Preset Real-Game End-to-End Soak Suite (Planned):** Cross-platform storefront verification (Steam, GOG, Epic, Xbox Store, Proton) testing real binary version ripping, hardlink/junction deployment, and runtime Overwrite capture.
+- **Patch Fire Drill & Groundhog Bisect Polish (Planned):** Automated pre-patch dry-run staging simulation and interactive 1-click binary search mod isolation sweeps inside Homestead Lab.
+- **Granular Opt-In Cloud Mirroring Controls (Planned):** Unified per-device consent dashboard governing opt-in Lab verification certificates, Pocket Radar encrypted staging queues, and optional Zero-PII Threat Manifest uploads.
+- **In-Hub Spoke Migrator & 60 FPS Scale Budgets (Planned):** Interactive Wayfinder migrations/spoke/ version upgrader (v1 -> v3+), WebGL2 Low-Power / Reduced-Motion presets, and 50,000+-mod UI frame budgets.
+
+## PHASE 14 (V0.6.0-DEV.15) • NOVEMBER 2026 — ACTIVE ERA: Universal Multi-Engine Expansion, Patch Fire Drill & Deck Overdrive
+**Status:** `ACTIVE PHASE` | **Focus:** `Creator Airlock • Quartermaster • Zero-Copy Exodus • Rosetta Protocol • Save Doctor • 27 Presets • Differential VFS`
+
+Major v0.6.0 expansion shipping Creator Airlock external tool save isolation, The Quartermaster guided package wizard, Zero-Copy Exodus MO2/Vortex migration, The Rosetta Protocol modlist translation + lockfile hydration, Save Doctor, Cloud-Sync Folder Sentinel, Deck Overdrive, Code-Switch (7,300+ strings), Crash Autopsy, Conflict Radar 2.0 (multi-engine binary TOCs + LOOT), Differential Rayon VFS, Million-Citizen Cloud Scale, and the Ironclad Gauntlet test suite—while Patch Fire Drill & Groundhog Sandbox finalize for v0.7.0.
+
+- **Creator Airlock (Complete):** Launches external authoring, asset-editing, and modding tools inside a Save-Airgapped {Lab} session with automatic post-exit save restoration—physically isolating primary saves during edits (distinct from the in-app Open {Mason} Workshop).
+- **The Quartermaster (Complete):** Intercepts multi-variant .fomod (ModuleConfig.xml UTF-8/UTF-16LE, <gameDependency>/<fommDependency>) and BAIN archives on drop or download via a Guided Package Installer drawer with 1-click reconfiguration.
+- **Zero-Copy Exodus (Complete):** Zero-reinstall out-of-tree migration via {Blueprints} -> Migrate External Manager or Cartographer setup: auto-detects MO2, Vortex, and staging directories, screens with ByteHound, absorbs files via OS hardlinks, and reconstructs {Blueprint} profiles.
+- **The Rosetta Protocol & Lockfile Hydration (Complete):** Cross-platform modlist translator compiling .mrpack, CurseForge manifest.json, Nexus collection.json, and .wabbajack archives alongside 1-click parallel .sanctuary-blueprint.lock.json hydration and BSDiff/xdelta binary patching.
+- **Save Doctor (Complete):** Pairs save activity with the deployed {Blueprint} DNA manifest ({Vault}/.sanctuary_save_doctor/<ws>.sanctuary-save-manifest.json) and warns before launch if switching {Blueprints} removed {mods} required by existing saves.
+- **Patch Fire Drill (In Testing [In Dev Build]):** Simulates any upstream game patch across all {Blueprints} with 1:1 deduplicated {mod} counts, transitive Atomic Logic dependency cascades, local Echo Archive Auto-Swap detection, and Clone Ready {Blueprint} generation (full headless soak finalizing in v0.7.0).
+- **Groundhog Sandbox (In Testing [In Dev Build]):** Save-verify-and-rewind {Lab} airgap featuring an externalized save mirror, read-only Golden Baseline test saves, strict opt-in OFF cloud verification certificates, anti-cheat-safe timers, and fullscreen PCM chimes (full automated bisect finalizing in v0.7.0).
+- **Universal Master Schema (27 Presets) (Complete):** 100% engine-agnostic sanctuary_schemas across 27 built-in presets, Overwrite runtime capture, ini_mutations, profile_isolated_dirs, post_deploy_hooks, and declarative virtual_fs_path, archive_member, binary_chunk_index (TES4/BSA/BA2/LSPK/PAK/UTOC/RDAR/RPF7), and json_xml_key analyzers.
+- **Deck Overdrive (Complete):** Full-OS Steam Deck controller engine and Proton prefix auto-resolver: unifies Gamescope XWayland surface binding, decodes 64-byte hidraw packets into a 60 FPS {Chameleon} Virtual Pointer + 2D Spatial Focus engine, and launches Windows tools/script extenders inside Proton prefixes.
+- **Code-Switch (7,400+ Keys) (Complete):** Lexicon Engine V2 with automated 7,400+-key Standard English extraction (7,409 keys), Sparse Delta Override packs, Source-First 4-tab Visual Studio, Guided Icon Overrides, and 1-click neural auto-translation with {Glossary} placeholder masking.
+- **The Highlander Rule (Complete):** Enforces single-winner exclusive slots (highlander_group_id) with explicit Swap, Keep Both, or Cancel alerts on {Vault} cards and Dossiers so rival {mods} never vanish silently.
+- **Echo Suppressor (Complete):** Zero-PII AES-256-GCM cross-device notification deduplication and per-Spoke alert muting across Windows, Steam Deck, and Mobile PWA, paired with 7-Domain {Settings} and the Per-Space {Chameleons} & {Lexicons} Matrix.
+- **Crash Autopsy (Complete):** Citizen-facing {Lab} Known Error showcase (Corrupted / Unstable / Unrelated) backed by SQLite <10ms exception correlation, Architect-pinned public.known_exception_rules, and instant crash-log paste decoding.
+- **Pocket Radar (Opt-In Companion) (Complete):** Mobile PWA and Web Vault Companion with strict opt-in OFF by default for encrypted active-{Blueprint} DNA sync, pairing with Beam to Rig transfers and responsive mobile filter pills.
+- **Browser Autoloader, Direct HTTPS & Deep Links (Complete):** Guided Update Queue (1 of N) in Side Panel Browser alongside direct SHA-256 HTTPS streaming, tri-OS Deep Links (sanctuary://, nxm://, ror2mm://, curseforge://), and optional local DPAPI BYO-API-Key Broker.
+- **Jump Gate (Complete):** Global Ctrl+K / Cmd+K Liquid Glass command palette across Desktop, Web, and Mobile PWA for jumping to installed {Vault} {mods}, toggling {Blueprint} items, navigating all OS views, switching {Chameleons} & {Lexicons}, and firing quick actions.
+- **Conflict Radar 2.0 & LOOT Compiler (Complete):** 5-Tier Severity Matrix (S1–S5), external LOOT YAML/CRC32 rules, bidirectional DAG load ordering with 1-click 'Set Winner' resolution, and SQLite Conflict Radar key caching.
+- **Live-Wire Diff (Complete):** Lossless TOML/YAML/JSONC round-trip config preservation capturing live in-game .cfg/.ini/.json/.toml/.yaml/.xml edits intercepted by the Rust Config Watcher as [In-Game Engine Edit] snapshots.
+- **Ironclad Gauntlet (Complete):** CI-enforced Vitest + Cargo Test regression gauntlet (15+ Vitest suites & 87+ Rust tests across Load Order, Rosetta, Anarchy, Crypto/Uplink, 27 Presets/Lexicons, Differential VFS, Binary TOCs, FOMOD, Time Capsule Lanes, and Doc/Directive Parity).
+- **Cloud-Sync Folder Sentinel (Complete):** Detects active OneDrive, Dropbox, iCloud Drive, and Google Drive sync locks on {Vault}, Staging, and target game directories before symlink/hardlink projection can corrupt data.
+- **Differential VFS, Scale Architecture & Compliance Tiers 0–6 (Complete):** Differential Rayon VFS deployment with WAL safety for 50k-mod libraries, batched statement-level pwa-web-push & counter_shards for million-citizen scale, 61 Spoke / 28 Hub tables with versioned migrations, Spoke-routed Tier 1 DMCA Hold + Tiers 2–5 Restricted + Tier 6 Malware, and 7 Governance SOPs.
+
+## PHASE 13 (V5.8) • OCTOBER 2026: Schema Forge, Bytecode Hound & Sovereign Covenants
+**Status:** `COMPLETED` | **Focus:** `Schema Forge • Lexicon Codex • Bytecode Hound • Edge Direct Push • Sovereign Covenants`
+
+Delivered the 4-Tab Master Schema Studio & Lexicon Terminology Studio with Guided Icon Overrides and Interactive Codex Guides, upgraded the Bytecode Hound heuristic scanner, added 6-provider Edge Direct Push, Readiness-Gated Partner Applications with mandatory Covenants, and Bilateral Codebase ↔ Cloud Sync.
+
+- **Schema Forge (Complete):** 27 multi-game architecture presets, Windows (.exe) & macOS (.app) coordinate mapping, secondary install_routes, database-driven public.taxonomy Categories, and live config_extensions syncing.
+- **Lexicon Codex (Complete):** Searchable Material Symbol override builder with Default → New glyph previews, themed checkboxes, parity validation bar, and interactive Schema & Lexicon Codex drawers.
 - **Bytecode Hound (Complete):** In-memory Zlib/Zstd binary stream decompression, Base64/Hex deobfuscation, Move-mode source disposition tracking, and Zero-PII Threat Manifest reporting across Core and Spoke rules.
-- **Edge Direct Push (Complete):** 1-click OS Auto-Push for `.sanctuary.manifest.json` and multi-mod `catalog.json` files to GitHub, Gist, GitLab/Codeberg, Neocities, WebDAV, and Local Folders with automatic `previous_hashes` lineage rollover.
-- **Sovereign Covenants (Complete):** Mandatory Partners Agreement & Compliance Protocol review before Partner Spoke application, 0%-cut community donations, `$5 = +30 Days` Dev Builds, and **Mirror Uplink** bilateral Codebase ↔ Cloud Sync.
+- **Edge Direct Push (Complete):** 1-click OS Auto-Push for .sanctuary.manifest.json and multi-mod catalog.json files to GitHub, Gist, GitLab/Codeberg, Neocities, WebDAV, and Local Folders with automatic previous_hashes lineage rollover.
+- **Sovereign Covenants (Complete):** Mandatory Partners Agreement & Compliance Protocol review before Partner Spoke application, 0%-cut community donations, $5 = +30 Days Dev Builds, and Mirror Uplink bilateral sync.
 
-## Phase 12 • July 15 – October 2026: Agnostic Future — Multi-Workspace, Sanctuary V6 Liquid Glass & Web PWA
-**Status:** `Completed` | **Focus:** `Citizens Workbench / Mason IDE, Lexicon Revamp, Sanctuary Partners, V6 Liquid Glass & Website V2`
+## PHASE 12 • JULY 15 – OCTOBER 2026: Agnostic Future — Multi-Workspace, Sanctuary V6 Liquid Glass & Web PWA
+**Status:** `COMPLETED` | **Focus:** `{Citizens} Workbench / {Mason} IDE, Lexicon Revamp, Sanctuary Partners, V6 Liquid Glass & Website V2`
 
-Dual-Vision Mason IDE & Cloud Lexicons, Multi-Workspace Master Schemas & the 0%-cut Sanctuary Partners Agreement, the Sanctuary V6 3D Liquid Glass Engine & 18-Section Revamp, and Website V2 / Mobile PWA.
+Dual-Vision {Mason} IDE & Cloud Lexicons, Multi-Workspace Master Schemas & the 0%-cut Sanctuary Partners Agreement, the Sanctuary V6 3D Liquid Glass Engine & 18-Section Revamp, and Website V2 / Mobile PWA.
 
-- **Citizens Workbench & Mason IDE 2.0 (Complete):** Named Version Timeline entries, simultaneous Dual-Vision (Visual + Raw Monaco) split editing, Author Mode scaffolding, and the side-by-side Lexicon Builder.
+- **{Citizens} Workbench & {Mason} IDE 2.0 (Complete):** Named Version Timeline entries, simultaneous Dual-Vision (Visual + Raw Monaco) split editing, Author Mode scaffolding, and the side-by-side Lexicon Builder.
 - **Lexicon Revamp & Cloud Schemas (Complete):** Deduplicated all localization dictionaries, moved default Lexicon JSONs to the cloud database, and added official Sanctuary & Community badges.
 - **Multi-Workspace & Sanctuary Partners (Complete):** Shared Core App and SSO with per-game Master Schemas, 100% Partner DB ownership ('Cut the Cord'), 0%-cut Partner Donations, and 1-File Standalone Forking.
-- **Sanctuary V6 & Liquid Glass Engine (Complete):** 4-layer 3D Refractive Liquid Glass Engine, revamped Default Themes + Partner Chameleons, and Chameleon Theme Forge 2.0.
+- **Sanctuary V6 & Liquid Glass Engine (Complete):** 4-layer 3D Refractive Liquid Glass Engine, revamped Default {Chameleons}, Partner Spoke {Chameleon} packs, and Chameleon Theme Forge 2.0.
 - **Dynamic Alert Tiles & 18-Section Revamp (Complete):** Floating 2-Pill Title Bar, Hover Dock, 5 Dynamic Alert Stat Tiles (Permissions, Global, Critical, System, Updates), and a full 18-section UI overhaul.
-- **Website V2, Mobile PWA & Remote Queuing (Complete):** Unified single-codebase Web OS & PWA with live Comm-Link, Nexus, Support Desk, Command Hubs, and Web-to-PC Blueprint queuing.
+- **Website V2, Mobile PWA & Remote Queuing (Complete):** Unified single-codebase Web OS & PWA (sanctuaryos.net/<spoke>) with live Comm-Link, Nexus, Support Desk, Command Hubs, and Web-to-PC {Blueprint} queuing.
 - **Schema-Driven Load Order Compiler (Complete):** Declarative Master Game Schemas powering multi-strategy topological compilation across folder priority, manifest lists, numeric prefixes, and timestamps.
-- **FIDO2 Passkey Vault & Quarantine Lockdown (Complete):** Hardware WebAuthn Passkey gates for Elevated Hubs, Full-OS Malware Quarantine Lockdown, Silent Updater, and Bilateral Directives Sync.
+- **FIDO2 Passkey {Vault} & Quarantine Lockdown (Complete):** Hardware WebAuthn Passkey gates for Elevated Hubs, Full-OS Malware Quarantine Lockdown, Silent Updater, and Bilateral Directives Sync.
 
-## Phase 11 • June 15 – July 15, 2026: The Sovereign Foundry — Multi-Game Hub & Spoke Architecture
-**Status:** `Completed` | **Focus:** `Central OS Hub + Game-Specific Spoke Architecture & Sanctuary Studio IDE`
+## PHASE 11 • MAY 17 – JULY 13, 2026: Technical Debt Repayment, {Citizens} Workbench & The Agnostic Sprint
+**Status:** `COMPLETED` | **Focus:** `Native Intake & Support Desk, {Citizens} Workbench 1.0 & Game-Agnostic Kernel`
 
-Evolved Sanctuary OS from a single-game mod manager into a multi-game Hub & Spoke platform powered by declarative Master Game Schemas, dual-role identity separation, and the integrated Sanctuary Studio IDE.
+Integrated {Mason} & Architect intake forms, native Bug Reports & Support Ticket Dossiers, {Citizens} Workbench 1.0 (.cfg/.ini/.json + Monaco IDE + Sanctuary Templates), full 11-section Lexicon/UI sweep, and the Agnostic Sprint.
 
-- **Multi-Game Hub & Spoke Architecture (Complete):** Separated the Sanctuary Foundry Hub (`keeper` global governance) from independent Game Spokes (`citizen` through `wayfinder`) with per-workspace client routing.
-- **Master Game Schema Engine (`sanctuary_schemas`) (Complete):** Replaced hardcoded single-game paths and extensions with declarative JSON schemas defining executables, directories, load-order strategies, and DLC registries.
-- **Sanctuary Studio IDE & Lexicon Builder (Complete):** Integrated Monaco Code Editor, side-by-side Lexicon localization editor, and live Theme Forge previewing inside the Mason Workshop.
-- **Turnkey `SANCTUARY-UPLINK://` Spoke Onboarding (Complete):** Zero-code workspace connection strings and health-verified partner spoke registration in Keepers Core.
+- **Native Intake Forms & Support Desk (Complete):** Integrated {Mason} UUID registration, Architect intake forms, Bug Reports, and encrypted Support Ticket dossiers directly into the Desktop App.
+- **{Citizens} Workbench 1.0 & Sanctuary Templates (Complete):** Automatic .cfg, .ini, and .json detection in the {Vault} with an embedded Monaco IDE and visual slider/toggle Schema Mapping.
+- **The Agnostic Sprint & Master Schemas (Complete):** Extracted all hardcoded single-game extension and path checks across 17 frontend modules and the Rust backend into dynamic Master JSON Schemas.
+- **Integrated Side Browser & {Vault} Intercept (Complete):** Embedded multi-tab Side Browser that automatically intercepts .zip, .rar, .7z, and schema-supported {mod} downloads straight into the {Vault}.
+- **Full-Stack Security & Forensic Audit (Complete):** Hardened Rust path-traversal guards (is_safe_user_file_path), Supabase Row-Level Security (RLS) policies, and immutable append-only audit logs.
+- **Oversight {Mason} Linker & Lexicon Sweep (Complete):** Deployed the Oversight {Mason} Linker, automatic Unregistered {Vault} syncing on Nexus verification, and a full 11-section Lexicon/UI sweep.
 
-## Phase 10 • May 25 – June 15, 2026: The Sovereign Standard — Zero-Cost Decentralized Edge & Deep Polish
-**Status:** `Completed` | **Focus:** `Decentralized Static Edge Polling (manifest.json), Lineage Rollover & 60 FPS UI`
+## PHASE 10 • MAY 10 – MAY 16, 2026: Post-Alpha Revamp, Visual Protocol Manager & Oversight Mass Update
+**Status:** `COMPLETED` | **Focus:** `Dev Sandbox, Visual Protocol Schema, Theme Forge & Mass Triage`
 
-Introduced $0-cost Decentralized Static Edge Polling (`manifest.json`), automatic `previous_hashes` lineage rollover, `catalog.json` multi-artifact indexing, and a full 60 FPS glassmorphic UI polish pass.
+Launched the isolated Dev Sandbox & 'Sync to Network' creator pipeline, visual database-schema Protocol Manager, Folder Structure builder, Oversight Mass Update console, The Nexus registry, and Chameleon Theme Forge.
 
-- **Decentralized Static Edge Polling (`manifest.json`) (Complete):** Allows independent Masons to host `manifest.json` on GitHub Raw, Cloudflare Pages, or personal domains for automatic Citizen update alerts and rule syncing at $0 server cost.
-- **Automatic Lineage Hash Rollover (`previous_hashes`) (Complete):** Automatically rolls prior release SHA-256 hashes into `previous_hashes` on export so updated mods replace older files in-place even when filenames change.
-- **Multi-Mod `catalog.json` Indexing (Complete):** Supports a single master `catalog.json` endpoint per creator, matching installed artifacts by ID, name, current hash, or historical lineage hash.
-- **60 FPS Virtualized Grid & Glass Polish (Complete):** Optimized large Vault and Nexus grids, refined modal and drawer transitions, and standardized transparent outline status badges.
+- **Isolated Dev Sandbox & Sync to Network (Complete):** Dedicated local Dev Sandbox folder bypassing radar hash churn for WIP {mods}, paired with 1-click 'Sync to Network' release promotion.
+- **Visual Protocol & Folder Structure Builder (Complete):** Database-schema visual Protocol Manager (Core & Addons, Flavors, Dependencies, DLC) and visual Folder Structure builder enforced by Sanitize {Vault}.
+- **Oversight Mass Update & Filters (Complete):** Bulk post-patch triage console for Oversight Command alongside 'Game Version', 'Currently Eligible', and 'Exclude Unowned DLC' filters.
+- **The Nexus Discovery Registry (Complete):** Global metadata catalog for {Mods}, {Blueprints}, Lexicons, Chameleons, and Templates with automatic game patch and DLC compatibility filtering.
+- **Chameleon Theme Forge & Holo Sandbox (Complete):** Interactive Theme Forge suite featuring a multi-stop atmospheric Background Builder, Dark/Light adaptation, and live Holo Sandbox previewing.
+- **Hot-Swappable Lexicon Protocol (Complete):** Word-as-a-Service localization engine routing 100% of UI labels and icons through hot-swappable JSON dictionaries.
 
-## Phase 9 • May 17 – May 25, 2026: The Grand Unification — 6-Tier Clearance & Command Hubs
-**Status:** `Completed` | **Focus:** `6-Tier Clearance Hierarchy, Architect/Oversight/Wayfinder Hubs & Passkey Gates`
+## PHASE 9 • MAY 8 – MAY 9, 2026: Infrastructure Finalization, Laboratory Diagnostics & Command Hubs
+**Status:** `COMPLETED` | **Focus:** `Proving Grounds Simulation, macOS Universal Pipeline & Command Hubs`
 
-Unified the governance model into 6 distinct clearance tiers (`Citizen`, `Verified Mason`, `Architect`, `Oversight`, `Wayfinder`, `Keeper`) with dedicated Command Hubs, immutable audit trails, and WebAuthn/TOTP security gates.
+Transitioned Homestead Proving Grounds into a live simulation laboratory with real-time log monitoring, deployed the Oversight & Wayfinder Command Hubs, automated signed macOS Universal (.dmg) builds, and enforced Compliance Tiers 0–6.
 
-- **6-Tier Clearance Hierarchy & Dedicated Hubs (Complete):** Established granular role boundaries across Citizen, Verified Mason, Architect Console, Oversight Command, Wayfinder Operations, and Keepers Core.
-- **WebAuthn Passkey & TOTP Security Vault (Complete):** Enforced hardware passkey or authenticator verification before unlocking elevated moderation, security, or spoke administration hubs.
-- **Global & Spoke Immutable Audit Logs (Complete):** Recorded cryptographically timestamped governance actions, role changes, heuristic updates, and emergency lockdowns across Spoke and Hub tables.
-- **Compliance Tiers 0–5 & Emergency DEFCON Lockdown (Complete):** Implemented content classification tiers (`0` Public through `5` Confirmed Malware) and real-time emergency spoke lockdown broadcasts.
+- **Live Proving Grounds & macOS Pipeline (Complete):** Real-time crash log monitoring with 1-click conflict rule pushing in the Homestead Lab, plus signed macOS Universal (.dmg) GitHub Actions builds.
+- **Five Elevated Command Hubs (Complete):** Dedicated ElevatedHubLayout command centers for {Mason} Workshop, Architect Console, Oversight Command, Wayfinder Operations, and Keepers Core.
+- **Claimable Support Desk Ticket Dossiers (Complete):** Interactive ticket dossiers equipped with PII-scrubbed crash logs, response macros, and cross-tier escalation between Architects and Oversight.
+- **Compliance Tiers 0–6 Matrix (Complete):** Automated public feed scrubbing and Cloud {Blueprint} hash purge triggers protecting public discovery while preserving local {Vault} freedom.
 
-## Phase 8 • May 12 – May 17, 2026: The Creator's Renaissance — Open Mason Workshop & 3-Tile Studio
-**Status:** `Completed` | **Focus:** `Open Mason Workshop, Unified 3-Tile Artifact Studio & Supporter Bridge`
+## PHASE 8 • MAY 7 – MAY 8, 2026: Standardized Lexicons, Dynamic Engine Recognition & DEFCON Shield
+**Status:** `COMPLETED` | **Focus:** `Rust Rip Protocol, Auto-Sanitization Launch & DEFCON 1 Shield`
 
-Opened the Mason Workshop to every Citizen, launched the Unified 3-Tile Artifact Studio (`Details & Versions`, `Files & Folders`, `Rules & Upload`), and built the 0%-cut Supporter Bridge.
+Engineered the Rust 'Rip Protocol' for dynamic engine version recognition, Auto-Sanitization Launch purging stale crash logs & caches, Global Lexicon Extraction, the {Blueprint} Architect Load Order UI, and the real-time DEFCON 1 patch shield.
 
-- **Open Mason Workshop Inheritance (Complete):** Granted every Citizen access to the Dev Sandbox, 3-Tile Artifact Studio, Theme Forge, and local `override.json` packaging without requiring elevated clearance.
-- **Unified 3-Tile Artifact Studio (Complete):** Consolidated metadata, version history, Twin/Add-on module linking, and DLC/Dependency/Conflict rules into a guided 3-step studio.
-- **0%-Cut Supporter Bridge & Creator Showcases (Complete):** Added direct Patreon/Ko-fi/BuyMeACoffee links with zero platform fees, customizable Mason Profiles, and Featured Showcases.
-- **Fast-Lane Verified Mason Publishing (Complete):** Enabled Verified Masons to publish directly to The Nexus and push instant version updates to subscribed Citizens.
+- **Rust 'Rip Protocol' & Auto-Sanitization (Complete):** Dynamic engine version recognition parsing config files and PE headers in Rust, plus pre-launch purging of stale crash logs and volatile cache files.
+- **Global Comm-Link Broadcast Feed (Complete):** Real-time community feed supporting WYSIWYG/Markdown dispatches, multi-level threaded replies, and dedicated Discover & Following tabs.
+- **DEFCON 1 Pre-Patch Network Shield (Complete):** Real-time network listener that intercepts game launches during breaking engine patches to prompt an emergency {Backups} backup.
+- **Tier 6 Malware Scanner & Secure Shred (Complete):** Byte-level heuristic malware scanner, {Citizen}-signed zero-fill Secure Shredding, and the offline-toggleable Nuclear Override.
 
-## Phase 7 • May 8 – May 12, 2026: The Living Network — Comm-Link, Nexus 2.0 & Side Browser
-**Status:** `Completed` | **Focus:** `Global Comm-Link Feed, Download-Intercepting Side Browser & Live Polls`
+## PHASE 7 • MAY 6, 2026: Core Architecture, {Backups} Compression & Windows MSI Pipeline
+**Status:** `COMPLETED` | **Focus:** `Nested {Vault} Taxonomy, 78 GB → 24 GB Engine Compression & Automated MSI Builds`
 
-Transformed Sanctuary OS into a connected community network with the Comm-Link broadcast feed, interactive polls, Bug Report Dossiers, and the built-in Side Browser that intercepts downloads directly into the Vault.
+Deployed the nested {Vault} directory hierarchy, optimized {Backups} Engine Core compression (78 GB → 24 GB) with <50s rollbacks, automated Windows .msi GitHub Actions builds, and integrated Scout Dossiers into Conflict Radar.
 
-- **Global & Creator Comm-Link Broadcasts (Complete):** Real-time announcement feed with unread badges, markdown formatting, interactive community polls, and direct creator follow feeds.
-- **Download-Intercepting Side Browser (Complete):** Embedded WebView browser that catches mod downloads from external creator sites, scans them in memory, and routes them straight into the Vault.
-- **Zero-PII Bug Report & Support Dossiers (Complete):** Structured bug reporting that attaches scrubbed exception logs and active loadout telemetry while stripping local Windows/macOS usernames.
-- **Nexus 2.0 Discovery & Multi-Asset Sharing (Complete):** Expanded The Nexus beyond mods to host community Blueprints, Chameleon Themes, Lexicon Packs, and Workbench Templates.
+- **Nested {Vault} Taxonomy & 24 GB Compression (Complete):** Self-healing {Vault} hierarchy (Backups/World, Backups/Engine, Data/cache, Quarantine) and 78 GB → 24 GB Engine Core compression with <50s rollbacks.
+- **Schema-Driven Visual Config Workbench (Complete):** Visual configuration studio rendering raw {mod} settings as interactive sliders and toggles synchronized live with a Monaco Raw Editor.
+- **{Mason} Workshop & Collections Orchestrator (Complete):** Creator suite featuring an isolated Dev Sandbox, Collections Builder, and relational Protocol Orchestrator for Twins, Flavors, and Dependencies.
+- **In-Process Rust PE Executable Parser (Complete):** Native Rust pelite binary parser extracting genuine patch versions directly from .exe headers with zero antivirus false positives.
 
-## Phase 6 • May 4 – May 7, 2026: The Proving Grounds — Homestead Lab, Binary Resource Diffing & Heuristic AV
-**Status:** `Completed` | **Focus:** `Homestead 100% Nuke Sandbox, Binary/XML Resource Diffing & Bytecode AST Scanner`
+## PHASE 6 • MAY 3 – MAY 5, 2026: Codebase Modularization, Comm-Link Ledger & Homestead Proving Grounds
+**Status:** `COMPLETED` | **Focus:** `Creator Following Feed, Domain View Modularization & Nuke Sandbox`
 
-Built the Homestead Lab isolated testing arena, deep binary/XML resource collision diffing, and the multi-layer Python bytecode/AST heuristic malware scanner.
+Launched the Creator Following system and real-time Comm-Link discovery ledger, modularized the core shell into dedicated domain views, extracted Yeet Cascade casualty tracking, and built the 100% Nuke Isolation Proving Grounds.
 
-- **Homestead Lab (100% Nuke & 1v1 Arena) (Complete):** Automated sandbox launcher that backs up saves, isolates suspect or conflicting mods, monitors live game stability, and restores player saves on exit.
-- **Binary & Tuning Resource Diff Inspector (Complete):** Extracts and decompresses tuning resources for side-by-side XML diffing inside Conflict Radar.
-- **Multi-Layer Heuristic Malware Scanner (Complete):** Scans script archives, `.py`, `.pyc` bytecode, and binaries against known malicious signatures, unauthorized network calls, and shell execution patterns.
-- **Quarantine Bio-Hazard Lockdown & Secure Shred (Complete):** Isolates flagged threats in an inert Quarantine Vault and requires explicit Citizen signature to permanently shred malicious binaries.
+- **Creator Following & Domain Modularization (Complete):** Added the Creator Following feed to Comm-Link, modularized the core shell into dedicated domain views, and extracted Yeet Cascade casualty tracking.
+- **100% Nuke Injection Sandbox (Complete):** Temporarily strips active {Vault} symlinks during Proving Grounds runs to inject only the isolated test subject and its mandatory dependencies.
+- **1v1 Conflict Stability Arena (Complete):** Pits two suspected colliding {mods} head-to-head in an airgapped test environment while monitoring real-time engine stability.
+- **Automated Crash Log Harvester & Scrubber (Complete):** Captures engine exception and crash logs automatically and scrubs local filesystem paths and PII (scrub_user_data_from_log) before sharing.
 
-## Phase 5 • May 1 – May 3, 2026: Defensive Protocols, Symlink Airgap 2.1 & Mason Protocol Manager
-**Status:** `Completed` | **Focus:** `Real-Time Airgap Watcher, DNA Duplicate Intercept & Time Capsule`
+## PHASE 5 • MAY 1 – MAY 3, 2026: Defensive Protocols, Symlink Airgap 2.1 & {Mason} Protocol Manager
+**Status:** `COMPLETED` | **Focus:** `Real-Time Airgap Watcher, DNA Duplicate Intercept & Time Capsule`
 
-Implemented Symlink Airgap 2.1 real-time .cfg/.ini file watching in Rust, SHA-256 DNA duplicate interception, Mason Protocol Manager 1.0, intelligent Google Search fallback, and hardlink Time Capsule snapshots.
+Implemented Symlink Airgap 2.1 real-time .cfg/.ini file watching in Rust, SHA-256 DNA duplicate interception, {Mason} Protocol Manager 1.0, intelligent Google Search fallback, and hardlink {Backups} snapshots.
 
-- **Real-Time Airgap Watcher & DNA Intercept (Complete):** Non-blocking Rust notify thread syncing live in-game .cfg/.ini edits back to the Vault, plus SHA-256 duplicate interception on drop.
-- **Dual-State Time Capsule Architecture (Complete):** Independently snapshots World State (Saves & Settings) and Engine Core (Game Installation Binaries) before patches or artifact tests.
-- **Zero-Bloat OS Hardlink Snapshot Engine (Complete):** Pairs native NTFS/POSIX hardlink deduplication with .tar.zst Zstandard compression so unchanged files consume zero extra disk space.
+- **Real-Time Airgap Watcher & DNA Intercept (Complete):** Non-blocking Rust notify thread syncing live in-game .cfg/.ini edits back to the {Vault}, plus SHA-256 duplicate interception on drop.
+- **Dual-State {Backups} Architecture (Complete):** Independently snapshots World State (User Saves, Profiles & Settings) and Engine Core (Game Installation Binaries) before patches or {mod} tests.
+- **Zero-Bloat OS Hardlink Snapshot Engine (Complete):** Uses parallel native NTFS/POSIX Copy-on-Write (CoW) hardlink deduplication so unchanged files consume zero extra disk space.
 - **Differential Rollback Comparator (Complete):** High-speed diff_backup engine that restores only modified bytes and purges rogue files without re-copying the entire installation.
 
-## Phase 4 • April 28 – May 1, 2026: The Global Network, Radiant Light Mode & Cloud Blueprints
-**Status:** `Completed` | **Focus:** `Radiant ThemeProvider, SNC-XXXXX Cloud Codes & Conflict Radar`
+## PHASE 4 • APRIL 28 – MAY 1, 2026: The Global Network, Radiant Light Mode & Cloud {Blueprints}
+**Status:** `COMPLETED` | **Focus:** `Radiant ThemeProvider, SNC-XXXXX Cloud Codes & Conflict Radar`
 
-Expanded beyond dark-only Bunker to Radiant Light Mode with real-time ThemeProvider switching, launched 6-digit Cloud Blueprint transmissions (SNC-XXXXX), added the Architect Signature gate, and established Conflict Radar Severity 1–4.
+Expanded beyond dark-only Bunker to Radiant Light Mode with real-time ThemeProvider switching, launched 6-digit Cloud {Blueprint} transmissions (SNC-XXXXX), added the Architect Signature gate, and established Conflict Radar Severity 1–4.
 
-- **Radiant Mode, ThemeProvider & Signature Gate (Complete):** Introduced Radiant (Light Mode) and real-time ThemeProvider profile switching, 6-digit Cloud Blueprint codes, and the Architect Signature gate.
+- **Radiant Mode, ThemeProvider & Signature Gate (Complete):** Introduced Radiant (Light Mode) and real-time ThemeProvider profile switching, 6-digit Cloud {Blueprint} codes, and the Architect Signature gate.
 - **Severity 1–4 Collision Matrix (Complete):** Proactive conflict classifier distinguishing minor overlaps from Severity 3 Tuning Overlaps and Severity 4 Fatal Clashes.
-- **Priority Tier Folders & Dynamic Manifests (Complete):** Multi-tier override directories (Sanctuary1–Sanctuary3) paired with automated priority manifest depth compilation.
+- **Priority Tier Folders & Dynamic Load Manifests (Complete):** Multi-tier override directories (schema priority folders Tiers 1–3) paired with automated load-order manifest priority depth compilation.
 - **Architect Console & Crowd-Sourced Scout Queue (Complete):** Dedicated moderation console for verifying community Scout Dossier submissions behind Copilot confirmation gates.
 
-## Phase 3 • April 15 – April 28, 2026: System Rip, Deep Yeet 2.0 & Logic Intelligence
-**Status:** `Completed` | **Focus:** `Deep Yeet 2.0, UTF-16 Version Ripper, Twin Bonds & Copilot`
+## PHASE 3 • APRIL 15 – APRIL 28, 2026: System Rip, Deep Yeet 2.0 & Logic Intelligence
+**Status:** `COMPLETED` | **Focus:** `Deep Yeet 2.0, UTF-16 Version Ripper, Twin Bonds & Copilot`
 
-Engineered Deep Yeet 2.0 recursive dependency cascade scanning, the Rust UTF-16 byte-filter System Version Ripper, Twin Bond synchronized module/script links, and the Copilot Philosophy halting for manual Citizen signature.
+Engineered Deep Yeet 2.0 recursive dependency cascade scanning, the Rust UTF-16 byte-filter System Version Ripper, Twin Bond synchronized script/package links, and the Copilot Philosophy halting for manual {Citizen} signature.
 
 - **Deep Yeet 2.0 & UTF-16 Version Ripper (Complete):** Recursive dependency cascade scanner queuing orphaned addons on master removal, paired with the Rust UTF-16 binary version ripper.
-- **Atomic Logic Triumvirate (Complete):** Relational artifact rules enforcing Highlander Exclusive Slot resolution, bidirectional module/script Twin bonds, and Recursive Chain-Link Dependencies.
-- **Orphaned Addon Cascade Protection (Complete):** Intercepts master library removal and halts for the Citizen's manual signature before cleanly unequipping or removing dependent child add-ons.
-- **SNCXXX Cloud Blueprints & Ghosted States (Complete):** 6-character alphanumeric Cloud Blueprint share codes, portable offline JSON exports, and automatic Missing DLC Ghosting diagnostics.
+- **Atomic Logic Triumvirate (Complete):** Relational {mod} rules enforcing Highlander Flavor eviction, bidirectional binary/script Twin bonds, and Recursive Chain-Link Dependencies.
+- **Orphaned Addon Cascade Protection (Complete):** Intercepts master library removal and halts for the {Citizen}'s manual signature before cleanly unequipping or removing dependent child add-ons.
+- **SNCXXX Cloud {Blueprints} & Ghosted States (Complete):** 6-character alphanumeric Cloud {Blueprint} share codes, portable offline JSON exports, and automatic Missing DLC Ghosting diagnostics.
 
-## Phase 2 • April 10 – April 15, 2026: Visual Uplink, Glassmorphism 1.0 & The Quarantine Zone
-**Status:** `Completed` | **Focus:** `Glassmorphism 1.0, Quarantine Bio-Hazard Sector & Symlink Airgap`
+## PHASE 2 • APRIL 10 – APRIL 15, 2026: Visual Uplink, Glassmorphism 1.0 & The Quarantine Zone
+**Status:** `COMPLETED` | **Focus:** `Glassmorphism 1.0, Quarantine Bio-Hazard Sector & Symlink Airgap`
 
 Introduced the Glassmorphism 1.0 backdrop-blur engine, constructed the dedicated bio-hazard Quarantine Zone for isolating malicious files, and unified the app into a layered desktop OS experience backed by Symlink Airgap and SQLite caching.
 
 - **Glassmorphism 1.0 & Bio-Hazard Quarantine (Complete):** Translucent backdrop-blur glass containers with deep elevation shadows and a dedicated Quarantine Zone for isolating and shredding threats.
-- **Symlink Airgap 2.5 Projection Engine (Complete):** Projects active artifacts from the isolated Vault into the live game directory via zero-copy OS symlinks in milliseconds.
-- **Sub-Second SQLite Delta Scanner (Complete):** Local .sanctuary_cache.db SQLite engine using mtime-first delta checks to index 5,000+ artifact Vaults in sub-second sweeps.
-- **Self-Healing Vault Sanitizer & Profiles (Complete):** Automatically maintains the isolated Vault directory structure and powers instant local Blueprint loadout switching.
+- **Symlink Airgap 2.5 Projection Engine (Complete):** Projects active {mods} from the isolated {Vault} into the live game directory via zero-copy OS symlinks in milliseconds.
+- **Sub-Second SQLite Delta Scanner (Complete):** Local .sanctuary_cache.db SQLite engine using mtime-first delta checks to index 5,000+ {mod} Vaults in sub-second sweeps.
+- **Self-Healing {Vault} Sanitizer & Profiles (Complete):** Automatically maintains the isolated {Vault} directory structure and powers instant local {Blueprint} loadout switching.
 
-## Phase 1 • April 1 – April 10, 2026: Bunker Initialization, Cartographer Protocol & SHA-256 DNA Pathing
-**Status:** `Completed` | **Focus:** `First-Boot Cartographer Recon & Millisecond Delta Caching`
+## PHASE 1 • APRIL 1 – APRIL 10, 2026: Bunker Initialization, Cartographer Protocol & SHA-256 DNA Pathing
+**Status:** `COMPLETED` | **Focus:** `First-Boot Cartographer Recon & Millisecond Delta Caching`
 
-Initialized the Tauri v2 + Rust + React 18 architecture, built The Cartographer automated first-boot reconnaissance scanner for Game Bin & Artifacts directories, and engineered SHA-256 DNA delta caching.
+Initialized the Tauri v2 + Rust + React 19 architecture, built The Cartographer automated first-boot reconnaissance scanner for Game Bin & {Mods} directories, and engineered SHA-256 DNA delta caching.
 
-- **Cartographer Recon & Millisecond Delta Cache (Complete):** Automated first-boot drive reconnaissance locating Game Bin & Artifacts folders, paired with SHA-256 delta caching for instant startup.
-- **Tauri v2 + Rust + React 18 Kernel (Complete):** Foundational desktop OS architecture combining a native multi-threaded Rust backend with React 18, TypeScript, and Zustand.
-- **Automated Coordinate Discovery Wizard (Complete):** Guided first-launch Cartographer setup linking Game Binaries, live Artifacts folders, and airgapped Bunker Vault coordinates.
-- **Streaming SHA-256 DNA & Archive Inspector (Complete):** Multi-threaded Rust cryptographic hashing and in-memory binary/ZIP header inspection without extracting archives to disk.
+- **Cartographer Recon & Millisecond Delta Cache (Complete):** Automated first-boot drive reconnaissance locating Game Bin & {Mods} folders, paired with SHA-256 delta caching for instant startup.
+- **Tauri v2 + Rust + React 19 Kernel (Complete):** Foundational desktop OS architecture combining a native multi-threaded Rust backend with React 19, TypeScript, and Zustand.
+- **Automated Coordinate Discovery Wizard (Complete):** Guided first-launch Cartographer setup linking Game Binaries, live {Mods} folders, and airgapped Bunker {Vault} coordinates.
+- **Streaming SHA-256 DNA & Archive Inspector (Complete):** Multi-threaded Rust cryptographic hashing and in-memory binary chunk/ZIP header inspection without extracting archives to disk.
 
 <!-- SANCTUARY_DIRECTIVE_BUILDER_JSON:
 {
   "slug": "phase_roadmap",
   "_schemaVersion": 88,
-  "title": "Engineering Phase Roadmap (Phase 14 → Phase 1)",
-  "summary": "Interactive reverse-chronological engineering timeline tracking Sanctuary OS from Phase 14 (V0.6.0 Agnostic Multi-Engine Expansion) and Phase 13 (V5.8 Multi-Engine Studios & Bilateral Cloud Sync) down to Phase 1.",
+  "title": "Engineering Phase Roadmap (Phase 16 → Phase 1)",
+  "summary": "Interactive reverse-chronological engineering timeline tracking Sanctuary OS from planned Phase 16 (V1.0.0 GA) & Phase 15 (V0.7.0 Beta), through active Phase 14 (V0.6.0-Dev.15 Multi-Engine Expansion, Differential VFS & Scale Architecture), down to Phase 1.",
   "tabs": [
     {
       "id": "all",
       "icon": "timeline",
-      "label": "14 Phases",
+      "label": "16 Phases",
       "value": "Full Timeline",
       "cards": [
         {
+          "id": "phase_16",
+          "icon": "verified",
+          "overline": "PHASE 16 (V1.0.0 GA) • PLANNED",
+          "badge": "PLANNED",
+          "title": "Global GA — Reproducible Signed Builds & Sovereign Ecosystem",
+          "footerMeta": "Notarized Multi-OS Signing • Audited Crypto • Spoke SLA & Abandonment Automation • V1.0 Spec Freeze",
+          "desc": "General Availability release delivering reproducible Authenticode EV / notarized Apple / GPG-signed desktop binaries, third-party cryptographic and VFS security audits, automated Keepers Core Spoke DMCA/abandonment tooling, and the frozen v1.0 Master Schema specification.",
+          "status": "planned",
+          "subCards": [
+            {
+              "id": "phase_16_m1",
+              "icon": "verified_user",
+              "roadmapStatus": "planned",
+              "title": "Reproducible Multi-OS Code Signing & Notarization",
+              "desc": "Production Windows Authenticode EV / Azure Trusted Signing, notarized Apple Universal .dmg binaries, and GPG-signed Linux AppImage/DEB releases with build provenance attestations."
+            },
+            {
+              "id": "phase_16_m2",
+              "icon": "security",
+              "roadmapStatus": "planned",
+              "title": "External Cryptography & VFS Security Audit",
+              "desc": "Independent third-party verification of Split-Custody HKDF-SHA256 / AES-256-GCM envelopes, Ed25519 manifests, WebAuthn FIDO2 gates, and Rust extraction/path-traversal sandboxing."
+            },
+            {
+              "id": "phase_16_m3",
+              "icon": "gavel",
+              "roadmapStatus": "planned",
+              "title": "Partner Spoke SLA & Succession Automation",
+              "desc": "In-hub UI tooling for 48h Spoke DMCA compliance logs, automated Abandoned Spoke / Wayfinder Succession handoffs, and zero-downtime spoke schema migrations."
+            },
+            {
+              "id": "phase_16_m4",
+              "icon": "public",
+              "roadmapStatus": "planned",
+              "title": "Global Lexicon Registry & V1.0 Stability Freeze",
+              "desc": "Public community translation pack index, frozen v1.0 sanctuary_schemas contract, and production multi-region Core Hub Federation SLA guarantees."
+            }
+          ]
+        },
+        {
+          "id": "phase_15",
+          "icon": "upcoming",
+          "overline": "PHASE 15 (V0.7.0 BETA) • PLANNED",
+          "badge": "PLANNED",
+          "title": "Beta Stabilization — 27-Preset Soak, Fire Drill & Opt-In Controls",
+          "footerMeta": "Real-Game E2E Soak • Automated Patch Fire Drill • Opt-In Telemetry Granularity • 50k-Mod Performance Budgets",
+          "desc": "Pre-GA public beta stabilization delivering real-game end-to-end soak verification across all 27 engine presets, automated Patch Fire Drill & Groundhog bisect orchestration, granular opt-in cloud mirroring controls, and in-hub Spoke SQL migration runners.",
+          "status": "planned",
+          "subCards": [
+            {
+              "id": "phase_15_m1",
+              "icon": "sports_esports",
+              "roadmapStatus": "planned",
+              "title": "27-Preset Real-Game End-to-End Soak Suite",
+              "desc": "Cross-platform storefront verification (Steam, GOG, Epic, Xbox Store, Proton) testing real binary version ripping, hardlink/junction deployment, and runtime Overwrite capture."
+            },
+            {
+              "id": "phase_15_m2",
+              "icon": "local_fire_department",
+              "roadmapStatus": "planned",
+              "title": "Patch Fire Drill & Groundhog Bisect Polish",
+              "desc": "Automated pre-patch dry-run staging simulation and interactive 1-click binary search mod isolation sweeps inside Homestead Lab."
+            },
+            {
+              "id": "phase_15_m3",
+              "icon": "tune",
+              "roadmapStatus": "planned",
+              "title": "Granular Opt-In Cloud Mirroring Controls",
+              "desc": "Unified per-device consent dashboard governing opt-in Lab verification certificates, Pocket Radar encrypted staging queues, and optional Zero-PII Threat Manifest uploads."
+            },
+            {
+              "id": "phase_15_m4",
+              "icon": "speed",
+              "roadmapStatus": "planned",
+              "title": "In-Hub Spoke Migrator & 60 FPS Scale Budgets",
+              "desc": "Interactive Wayfinder migrations/spoke/ version upgrader (v1 -> v3+), WebGL2 Low-Power / Reduced-Motion presets, and 50,000+-mod UI frame budgets."
+            }
+          ]
+        },
+        {
           "id": "phase_14",
           "icon": "science",
-          "overline": "PHASE 14 (V0.6.0) • NOVEMBER 2026 — ACTIVE ERA",
+          "overline": "PHASE 14 (V0.6.0-DEV.15) • NOVEMBER 2026 — ACTIVE ERA",
           "badge": "ACTIVE PHASE",
           "title": "Universal Multi-Engine Expansion, Patch Fire Drill & Deck Overdrive",
-          "footerMeta": "Creator Airlock • Zero-Copy Exodus • The Rosetta Protocol • Patch Fire Drill • Groundhog Sandbox • Deck Overdrive • Jump Gate",
-          "desc": "Full multi-engine expansion featuring Creator Airlock external tool save isolation, The Quartermaster guided package wizard, Zero-Copy Exodus out-of-tree setup migration, The Rosetta Protocol modlist translation, Save Doctor lockouts, Patch Fire Drill simulations, Groundhog Sandbox verification, Deck Overdrive Steam Deck controls, Code-Switch auto-translation, Echo Suppressor alert sync, Crash Autopsy, Pocket Radar, Browser Autoloader, Jump Gate palette, Live-Wire Diff, and the Ironclad Gauntlet test suite.",
+          "footerMeta": "Creator Airlock • Quartermaster • Zero-Copy Exodus • Rosetta Protocol • Save Doctor • 27 Presets • Differential VFS",
+          "desc": "Major v0.6.0 expansion shipping Creator Airlock external tool save isolation, The Quartermaster guided package wizard, Zero-Copy Exodus MO2/Vortex migration, The Rosetta Protocol modlist translation + lockfile hydration, Save Doctor, Cloud-Sync Folder Sentinel, Deck Overdrive, Code-Switch (7,300+ strings), Crash Autopsy, Conflict Radar 2.0 (multi-engine binary TOCs + LOOT), Differential Rayon VFS, Million-Citizen Cloud Scale, and the Ironclad Gauntlet test suite—while Patch Fire Drill & Groundhog Sandbox finalize for v0.7.0.",
           "status": "active",
           "subCards": [
             {
               "id": "phase_14_m1",
-              "icon": "handyman",
+              "icon": "check_circle",
               "title": "Creator Airlock",
-              "desc": "Launch external authoring, asset-editing, and world-building tools inside a Save-Airgapped {Lab} session—physically isolating primary saves while developing assets or testing {mods} and restoring saves automatically on exit.",
-              "pending": true
+              "desc": "Launches external authoring, asset-editing, and modding tools inside a Save-Airgapped {Lab} session with automatic post-exit save restoration—physically isolating primary saves during edits (distinct from the in-app Open {Mason} Workshop).",
+              "pending": false
             },
             {
               "id": "phase_14_m2",
-              "icon": "inventory_2",
+              "icon": "check_circle",
               "title": "The Quartermaster",
-              "desc": "Intercepts multi-variant archives on drop or download with a Guided Package Installer drawer that parses multi-option installer manifests and {Mason} Dossier Flavors with auto-checked compatibility patches.",
-              "pending": true
+              "desc": "Intercepts multi-variant .fomod (ModuleConfig.xml UTF-8/UTF-16LE, <gameDependency>/<fommDependency>) and BAIN archives on drop or download via a Guided Package Installer drawer with 1-click reconfiguration.",
+              "pending": false
             },
             {
               "id": "phase_14_m3",
-              "icon": "drive_file_move",
+              "icon": "check_circle",
               "title": "Zero-Copy Exodus",
-              "desc": "Zero-reinstall out-of-tree migration via Cartographer & {Vault}: ingests external staging directories, safely unlinks legacy deployment links, translates XML/JSON/text profile manifests and load orders into ready {Blueprints}, preserves source URLs and notes as Local Dossiers, and supports hardlink, move, or copy Vault absorption.",
-              "pending": true
+              "desc": "Zero-reinstall out-of-tree migration via {Blueprints} -> Migrate External Manager or Cartographer setup: auto-detects MO2, Vortex, and staging directories, screens with ByteHound, absorbs files via OS hardlinks, and reconstructs {Blueprint} profiles.",
+              "pending": false
             },
             {
               "id": "phase_14_m4",
-              "icon": "swap_horiz",
-              "title": "The Rosetta Protocol",
-              "desc": "Cross-platform curated modlist and collection translator: compiles third-party collection manifests, profile archives, and XML/JSON load lists into native Sanctuary {Blueprints}, binds local {Vault} matches via SHA-256 / MD5 DNA, and routes missing items into Browser Autoloader (with two-way standard load list export).",
-              "pending": true
+              "icon": "check_circle",
+              "title": "The Rosetta Protocol & Lockfile Hydration",
+              "desc": "Cross-platform modlist translator compiling .mrpack, CurseForge manifest.json, Nexus collection.json, and .wabbajack archives alongside 1-click parallel .sanctuary-blueprint.lock.json hydration and BSDiff/xdelta binary patching.",
+              "pending": false
             },
             {
               "id": "phase_14_m5",
-              "icon": "health_and_safety",
+              "icon": "check_circle",
               "title": "Save Doctor",
-              "desc": "Pairs save states with the deployed {Blueprint} DNA manifest (.sanctuary-save-manifest.json) and warns before launch if switching {Blueprints} removed {mods} required by the latest save.",
-              "pending": true
+              "desc": "Pairs save activity with the deployed {Blueprint} DNA manifest ({Vault}/.sanctuary_save_doctor/<ws>.sanctuary-save-manifest.json) and warns before launch if switching {Blueprints} removed {mods} required by existing saves.",
+              "pending": false
             },
             {
               "id": "phase_14_m6",
               "icon": "science",
               "title": "Patch Fire Drill",
-              "desc": "Simulates any upstream game patch across all {Blueprints} with 1:1 deduplicated {mod} counts, transitive Atomic Logic dependency cascades, local Echo Archive Auto-Swap detection, 1-click dependency acquisition, and 1-click Clone Ready {Blueprint} generation.",
+              "desc": "Simulates any upstream game patch across all {Blueprints} with 1:1 deduplicated {mod} counts, transitive Atomic Logic dependency cascades, local Echo Archive Auto-Swap detection, and Clone Ready {Blueprint} generation (full headless soak finalizing in v0.7.0).",
               "pending": false,
               "roadmapStatus": "in_testing"
             },
@@ -234,104 +340,107 @@ Initialized the Tauri v2 + Rust + React 18 architecture, built The Cartographer 
               "id": "phase_14_m7",
               "icon": "science",
               "title": "Groundhog Sandbox",
-              "desc": "Immortal save-verify-and-rewind {Lab} airgap featuring an externalized save mirror, read-only Golden Baseline test saves with disposable working copies, Stage 4 magic-byte save corruption auditing, 100% passive anti-cheat-safe 4-stage timers, pause-menu suspension, and native fullscreen PCM audio chimes.",
+              "desc": "Save-verify-and-rewind {Lab} airgap featuring an externalized save mirror, read-only Golden Baseline test saves, strict opt-in OFF cloud verification certificates, anti-cheat-safe timers, and fullscreen PCM chimes (full automated bisect finalizing in v0.7.0).",
               "pending": false,
               "roadmapStatus": "in_testing"
             },
             {
               "id": "phase_14_m8",
-              "icon": "extension",
-              "title": "Universal Master Schema",
-              "desc": "100% engine-agnostic Master Schema v2 powering ordered XML/JSON/text manifest compilers, multi-folder asset tree preservation, Copy-on-Write staging, and declarative virtual_fs_path, archive_member, binary_chunk_index, and json_xml_key conflict analyzers.",
-              "pending": false,
-              "roadmapStatus": "in_testing"
+              "icon": "check_circle",
+              "title": "Universal Master Schema (27 Presets)",
+              "desc": "100% engine-agnostic sanctuary_schemas across 27 built-in presets, Overwrite runtime capture, ini_mutations, profile_isolated_dirs, post_deploy_hooks, and declarative virtual_fs_path, archive_member, binary_chunk_index (TES4/BSA/BA2/LSPK/PAK/UTOC/RDAR/RPF7), and json_xml_key analyzers.",
+              "pending": false
             },
             {
               "id": "phase_14_m9",
-              "icon": "sports_esports",
+              "icon": "check_circle",
               "title": "Deck Overdrive",
-              "desc": "Full-OS Steam Deck controller engine and Proton prefix auto-resolver: unifies Gamescope XWayland surface binding, decodes 64-byte hidraw packets into a 60 FPS {Chameleon} Virtual Pointer + 2D Spatial Focus engine, and translates Steam libraryfolders.vdf / compatdata prefixes across internal drives and SD cards.",
-              "pending": false,
-              "roadmapStatus": "in_testing"
+              "desc": "Full-OS Steam Deck controller engine and Proton prefix auto-resolver: unifies Gamescope XWayland surface binding, decodes 64-byte hidraw packets into a 60 FPS {Chameleon} Virtual Pointer + 2D Spatial Focus engine, and launches Windows tools/script extenders inside Proton prefixes.",
+              "pending": false
             },
             {
               "id": "phase_14_m10",
-              "icon": "translate",
-              "title": "Code-Switch",
-              "desc": "Lexicon Engine V2 with an automated Standard English source scanner, lightweight Sparse Delta Override packs, a Source-First 4-tab Visual Studio, Guided Icon Overrides, and 1-click neural auto-translation across 28+ languages with {Glossary} placeholder masking.",
-              "pending": false,
-              "roadmapStatus": "in_testing"
+              "icon": "check_circle",
+              "title": "Code-Switch (7,400+ Keys)",
+              "desc": "Lexicon Engine V2 with automated 7,400+-key Standard English extraction (7,409 keys), Sparse Delta Override packs, Source-First 4-tab Visual Studio, Guided Icon Overrides, and 1-click neural auto-translation with {Glossary} placeholder masking.",
+              "pending": false
             },
             {
               "id": "phase_14_m11",
-              "icon": "filter_1",
+              "icon": "check_circle",
               "title": "The Highlander Rule",
               "desc": "Enforces single-winner exclusive slots (highlander_group_id) with explicit Swap, Keep Both, or Cancel alerts on {Vault} cards and Dossiers so rival {mods} never vanish silently.",
-              "pending": false,
-              "roadmapStatus": "in_testing"
+              "pending": false
             },
             {
               "id": "phase_14_m12",
-              "icon": "notifications_off",
+              "icon": "check_circle",
               "title": "Echo Suppressor",
               "desc": "Zero-PII AES-256-GCM cross-device notification deduplication and per-Spoke alert muting across Windows, Steam Deck, and Mobile PWA, paired with 7-Domain {Settings} and the Per-Space {Chameleons} & {Lexicons} Matrix.",
-              "pending": false,
-              "roadmapStatus": "in_testing"
+              "pending": false
             },
             {
               "id": "phase_14_m13",
-              "icon": "troubleshoot",
+              "icon": "check_circle",
               "title": "Crash Autopsy",
-              "desc": "Citizen-facing {Lab} Known Error showcase (Corrupted / Unstable / Unrelated) with Architect-pinned diagnostic rules, schema-driven log matchers, and instant crash-log paste decoding across Desktop and Web.",
-              "pending": false,
-              "roadmapStatus": "in_testing"
+              "desc": "Citizen-facing {Lab} Known Error showcase (Corrupted / Unstable / Unrelated) backed by SQLite <10ms exception correlation, Architect-pinned public.known_exception_rules, and instant crash-log paste decoding.",
+              "pending": false
             },
             {
               "id": "phase_14_m14",
-              "icon": "install_mobile",
-              "title": "Pocket Radar",
-              "desc": "Mobile PWA and Web Vault Companion with optional encrypted sync of active {Blueprint} DNA hashes so {Citizens} spot broken {mods} remotely, pair with Beam to Rig transfers, and browse with responsive mobile filter pills.",
-              "pending": false,
-              "roadmapStatus": "in_testing"
+              "icon": "check_circle",
+              "title": "Pocket Radar (Opt-In Companion)",
+              "desc": "Mobile PWA and Web Vault Companion with strict opt-in OFF by default for encrypted active-{Blueprint} DNA sync, pairing with Beam to Rig transfers and responsive mobile filter pills.",
+              "pending": false
             },
             {
               "id": "phase_14_m15",
-              "icon": "cloud_download",
-              "title": "Browser Autoloader",
-              "desc": "Adds a Guided Update Queue (1 of N) stepper bar to the Side Panel Browser that opens each {Mason}'s official download page sequentially and auto-advances the instant the Rust download interceptor verifies the archive.",
-              "pending": false,
-              "roadmapStatus": "in_testing"
+              "icon": "check_circle",
+              "title": "Browser Autoloader, Direct HTTPS & Deep Links",
+              "desc": "Guided Update Queue (1 of N) in Side Panel Browser alongside direct SHA-256 HTTPS streaming, tri-OS Deep Links (sanctuary://, nxm://, ror2mm://, curseforge://), and optional local DPAPI BYO-API-Key Broker.",
+              "pending": false
             },
             {
               "id": "phase_14_m16",
-              "icon": "bolt",
+              "icon": "check_circle",
               "title": "Jump Gate",
-              "desc": "Global Ctrl+K / Cmd+K Liquid Glass command palette across Desktop, Web, and Mobile PWA for jumping to installed {Vault} {mods}, toggling {Blueprint} items, navigating all 18 OS views, switching {Chameleons} & {Lexicons}, and firing quick actions.",
-              "pending": false,
-              "roadmapStatus": "in_testing"
+              "desc": "Global Ctrl+K / Cmd+K Liquid Glass command palette across Desktop, Web, and Mobile PWA for jumping to installed {Vault} {mods}, toggling {Blueprint} items, navigating all OS views, switching {Chameleons} & {Lexicons}, and firing quick actions.",
+              "pending": false
             },
             {
               "id": "phase_14_m17",
-              "icon": "radar",
-              "title": "Conflict Radar 2.0",
-              "desc": "5-Tier Severity Matrix (S1–S5), strategy-aware Load Order & Priority Tier inspector with searchable {Blueprint} Scan Scope, 1-click 'Set Winner' resolution, and directional Must Load After/Before rules.",
-              "pending": false,
-              "roadmapStatus": "in_testing"
+              "icon": "check_circle",
+              "title": "Conflict Radar 2.0 & LOOT Compiler",
+              "desc": "5-Tier Severity Matrix (S1–S5), external LOOT YAML/CRC32 rules, bidirectional DAG load ordering with 1-click 'Set Winner' resolution, and SQLite Conflict Radar key caching.",
+              "pending": false
             },
             {
               "id": "phase_14_m18",
-              "icon": "difference",
+              "icon": "check_circle",
               "title": "Live-Wire Diff",
-              "desc": "Automatically captures live in-game .cfg/.ini/.json/.toml modifications intercepted by the Rust Config Watcher as timestamped [In-Game Engine Edit] snapshots inside the {Citizen}'s Workbench Diff Timeline.",
-              "pending": false,
-              "roadmapStatus": "in_testing"
+              "desc": "Lossless TOML/YAML/JSONC round-trip config preservation capturing live in-game .cfg/.ini/.json/.toml/.yaml/.xml edits intercepted by the Rust Config Watcher as [In-Game Engine Edit] snapshots.",
+              "pending": false
             },
             {
               "id": "phase_14_m19",
-              "icon": "verified",
+              "icon": "check_circle",
               "title": "Ironclad Gauntlet",
-              "desc": "Automated Vitest + Cargo Test regression suite covering the Topological Load Order Engine, Bytecode Hound heuristic scanner (including Zlib/Zstd streams), Dynamic {Glossary} Token interpolation, and System Directive parsing.",
-              "pending": true
+              "desc": "CI-enforced Vitest + Cargo Test regression gauntlet (15+ Vitest suites & 87+ Rust tests across Load Order, Rosetta, Anarchy, Crypto/Uplink, 27 Presets/Lexicons, Differential VFS, Binary TOCs, FOMOD, Time Capsule Lanes, and Doc/Directive Parity).",
+              "pending": false
+            },
+            {
+              "id": "phase_14_m20",
+              "icon": "check_circle",
+              "title": "Cloud-Sync Folder Sentinel",
+              "desc": "Detects active OneDrive, Dropbox, iCloud Drive, and Google Drive sync locks on {Vault}, Staging, and target game directories before symlink/hardlink projection can corrupt data.",
+              "pending": false
+            },
+            {
+              "id": "phase_14_m21",
+              "icon": "check_circle",
+              "title": "Differential VFS, Scale Architecture & Compliance Tiers 0–6",
+              "desc": "Differential Rayon VFS deployment with WAL safety for 50k-mod libraries, batched statement-level pwa-web-push & counter_shards for million-citizen scale, 61 Spoke / 28 Hub tables with versioned migrations, Spoke-routed Tier 1 DMCA Hold + Tiers 2–5 Restricted + Tier 6 Malware, and 7 Governance SOPs.",
+              "pending": false
             }
           ]
         },
@@ -349,7 +458,7 @@ Initialized the Tauri v2 + Rust + React 18 architecture, built The Cartographer 
               "id": "phase_13_m1",
               "icon": "check_circle",
               "title": "Schema Forge",
-              "desc": "7 multi-game architecture presets, Windows (.exe) & macOS (.app) coordinate mapping, secondary install_routes, game-agnostic mod_categories, and live config_extensions syncing.",
+              "desc": "27 multi-game architecture presets, Windows (.exe) & macOS (.app) coordinate mapping, secondary install_routes, database-driven public.taxonomy Categories, and live config_extensions syncing.",
               "pending": false
             },
             {
@@ -414,7 +523,7 @@ Initialized the Tauri v2 + Rust + React 18 architecture, built The Cartographer 
               "id": "phase_12_m8",
               "icon": "check_circle",
               "title": "Sanctuary V6 & Liquid Glass Engine",
-              "desc": "4-layer 3D Refractive Liquid Glass Engine, revamped Default Themes + 'Plumbob Crystal' Partner Chameleon, and Chameleon Theme Forge 2.0."
+              "desc": "4-layer 3D Refractive Liquid Glass Engine, revamped Default {Chameleons}, Partner Spoke {Chameleon} packs, and Chameleon Theme Forge 2.0."
             },
             {
               "id": "phase_12_m10",
@@ -495,9 +604,9 @@ Initialized the Tauri v2 + Rust + React 18 architecture, built The Cartographer 
           "icon": "palette",
           "overline": "PHASE 10 • MAY 10 – MAY 16, 2026",
           "badge": "COMPLETED",
-          "title": "Post-Alpha Revamp, Visual Protocol Manager & Senior Architect Mass Update",
+          "title": "Post-Alpha Revamp, Visual Protocol Manager & Oversight Mass Update",
           "footerMeta": "Dev Sandbox, Visual Protocol Schema, Theme Forge & Mass Triage",
-          "desc": "Launched the isolated Dev Sandbox & 'Sync to Network' creator pipeline, visual database-schema Protocol Manager, Folder Structure builder, Senior Architect Mass Update console, The Nexus registry, and Chameleon Theme Forge.",
+          "desc": "Launched the isolated Dev Sandbox & 'Sync to Network' creator pipeline, visual database-schema Protocol Manager, Folder Structure builder, Oversight Mass Update console, The Nexus registry, and Chameleon Theme Forge.",
           "status": "completed",
           "subCards": [
             {
@@ -515,8 +624,8 @@ Initialized the Tauri v2 + Rust + React 18 architecture, built The Cartographer 
             {
               "id": "phase_10_m7",
               "icon": "check_circle",
-              "title": "Senior Architect Mass Update & Filters",
-              "desc": "Bulk post-patch triage console for Senior Architects alongside 'Game Version', 'Currently Eligible', and 'Exclude Unowned DLC' filters."
+              "title": "Oversight Mass Update & Filters",
+              "desc": "Bulk post-patch triage console for Oversight Command alongside 'Game Version', 'Currently Eligible', and 'Exclude Unowned DLC' filters."
             },
             {
               "id": "phase_10_m8",
@@ -545,7 +654,7 @@ Initialized the Tauri v2 + Rust + React 18 architecture, built The Cartographer 
           "badge": "COMPLETED",
           "title": "Infrastructure Finalization, Laboratory Diagnostics & Command Hubs",
           "footerMeta": "Proving Grounds Simulation, macOS Universal Pipeline & Command Hubs",
-          "desc": "Transitioned Homestead Proving Grounds into a live simulation laboratory with real-time log monitoring, deployed the Senior Architect & Wayfinder Command Hubs, automated signed macOS Universal (.dmg) builds, and enforced Florida Compliance Tiers 1–4.",
+          "desc": "Transitioned Homestead Proving Grounds into a live simulation laboratory with real-time log monitoring, deployed the Oversight & Wayfinder Command Hubs, automated signed macOS Universal (.dmg) builds, and enforced Compliance Tiers 0–6.",
           "status": "completed",
           "subCards": [
             {
@@ -569,7 +678,7 @@ Initialized the Tauri v2 + Rust + React 18 architecture, built The Cartographer 
             {
               "id": "phase_9_m8",
               "icon": "check_circle",
-              "title": "Florida Compliance Tiers 1–4",
+              "title": "Compliance Tiers 0–6 Matrix",
               "desc": "Automated public feed scrubbing and Cloud {Blueprint} hash purge triggers protecting public discovery while preserving local {Vault} freedom."
             }
           ]
@@ -605,8 +714,8 @@ Initialized the Tauri v2 + Rust + React 18 architecture, built The Cartographer 
             {
               "id": "phase_8_m8",
               "icon": "check_circle",
-              "title": "Tier 5 Malware Scanner & Secure Shred",
-              "desc": "Byte-level heuristic malware scanner, {Citizen}-signed 3-pass Secure Shredding, and the privacy-first hardware_bans Nuclear Override."
+              "title": "Tier 6 Malware Scanner & Secure Shred",
+              "desc": "Byte-level heuristic malware scanner, {Citizen}-signed zero-fill Secure Shredding, and the offline-toggleable Nuclear Override."
             }
           ]
         },
@@ -708,7 +817,7 @@ Initialized the Tauri v2 + Rust + React 18 architecture, built The Cartographer 
               "id": "phase_5_m7",
               "icon": "check_circle",
               "title": "Zero-Bloat OS Hardlink Snapshot Engine",
-              "desc": "Pairs native NTFS/POSIX hardlink deduplication with .tar.zst Zstandard compression so unchanged files consume zero extra disk space."
+              "desc": "Uses parallel native NTFS/POSIX Copy-on-Write (CoW) hardlink deduplication so unchanged files consume zero extra disk space."
             },
             {
               "id": "phase_5_m8",
@@ -744,7 +853,7 @@ Initialized the Tauri v2 + Rust + React 18 architecture, built The Cartographer 
               "id": "phase_4_m7",
               "icon": "check_circle",
               "title": "Priority Tier Folders & Dynamic Load Manifests",
-              "desc": "Multi-tier override directories (Sanctuary1–Sanctuary3) paired with automated load-order manifest priority depth compilation."
+              "desc": "Multi-tier override directories (schema priority folders Tiers 1–3) paired with automated load-order manifest priority depth compilation."
             },
             {
               "id": "phase_4_m8",
@@ -833,7 +942,7 @@ Initialized the Tauri v2 + Rust + React 18 architecture, built The Cartographer 
           "badge": "COMPLETED",
           "title": "Bunker Initialization, Cartographer Protocol & SHA-256 DNA Pathing",
           "footerMeta": "First-Boot Cartographer Recon & Millisecond Delta Caching",
-          "desc": "Initialized the Tauri v2 + Rust + React 18 architecture, built The Cartographer automated first-boot reconnaissance scanner for Game Bin & {Mods} directories, and engineered SHA-256 DNA delta caching.",
+          "desc": "Initialized the Tauri v2 + Rust + React 19 architecture, built The Cartographer automated first-boot reconnaissance scanner for Game Bin & {Mods} directories, and engineered SHA-256 DNA delta caching.",
           "status": "completed",
           "subCards": [
             {
@@ -845,8 +954,8 @@ Initialized the Tauri v2 + Rust + React 18 architecture, built The Cartographer 
             {
               "id": "phase_1_m6",
               "icon": "check_circle",
-              "title": "Tauri v2 + Rust + React 18 Kernel",
-              "desc": "Foundational desktop OS architecture combining a native multi-threaded Rust backend with React 18, TypeScript, and Zustand."
+              "title": "Tauri v2 + Rust + React 19 Kernel",
+              "desc": "Foundational desktop OS architecture combining a native multi-threaded Rust backend with React 19, TypeScript, and Zustand."
             },
             {
               "id": "phase_1_m7",
@@ -865,6 +974,6 @@ Initialized the Tauri v2 + Rust + React 18 architecture, built The Cartographer 
       ]
     }
   ],
-  "_bodySig": 2911533518
+  "_bodySig": 3959783445
 }
 -->

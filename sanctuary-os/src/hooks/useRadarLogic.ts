@@ -121,7 +121,7 @@ export function useRadarLogic(checkNetworkUpdates: (currentModList: any[], isMan
               detected_at: parsed.detected_at || undefined,
               quarantine_path: parsed.quarantine_path || undefined,
               status: "QUARANTINED",
-              compliance_tier: 5,
+              compliance_tier: 6,
             };
           }
           return {
@@ -131,7 +131,7 @@ export function useRadarLogic(checkNetworkUpdates: (currentModList: any[], isMan
             volatile_original_path: volatileOrig || undefined,
             file_size_bytes: typeof detail.size_bytes === "number" ? detail.size_bytes : undefined,
             status: "QUARANTINED",
-            compliance_tier: 5,
+            compliance_tier: 6,
           };
         })
       );
@@ -238,14 +238,14 @@ export function useRadarLogic(checkNetworkUpdates: (currentModList: any[], isMan
       let currentOwnedDLC = ownedDLC;
       let currentMaskedDLC = maskedDLC;
 
-      // Refresh security definitions from cloud (or localStorage when offline) BEFORE scanning disk so removed Tier 5 flags never quarantine files
+      // Refresh security definitions from cloud (or localStorage when offline) BEFORE scanning disk so removed Tier 6 flags never quarantine files
       try {
         const cachedVerified: string[] = JSON.parse(localStorage.getItem("sanctuary_verified_hashes") || "[]");
         if (!isOfflineMode) {
           const { data: malwareData } = await supabase
             .from("mod_versions")
             .select("dna_hash, mods!inner(compliance_tier)")
-            .eq("mods.compliance_tier", 5);
+            .eq("mods.compliance_tier", 6);
           if (malwareData) {
             const malwareHashes = malwareData.map((d: any) => d.dna_hash).filter(Boolean);
             localStorage.setItem("sanctuary_malware_hashes", JSON.stringify(malwareHashes));
@@ -381,7 +381,7 @@ export function useRadarLogic(checkNetworkUpdates: (currentModList: any[], isMan
       });
       const localMods = Array.from(uniqueMap.values()).filter((m: any) => {
         if (
-          Number(m?.compliance_tier) === 5 ||
+          Number(m?.compliance_tier) === 6 ||
           String(m?.status || "").toUpperCase() === "QUARANTINED"
         ) {
           return true;
@@ -445,7 +445,7 @@ export function useRadarLogic(checkNetworkUpdates: (currentModList: any[], isMan
       let restrictedHashTierMap = getCachedComplianceHashTiers();
       const restrictedHashesSet = new Set<string>();
       restrictedHashTierMap.forEach((tier, h) => {
-        if (tier >= 1 && tier <= 4) restrictedHashesSet.add(h);
+        if (tier >= 1 && tier <= 5) restrictedHashesSet.add(h);
       });
       let flavorData: any[] = [],
         flavorGroupNames: Record<string, string> = {},
@@ -500,7 +500,7 @@ export function useRadarLogic(checkNetworkUpdates: (currentModList: any[], isMan
 
         restrictedHashTierMap = resolvedTierMap;
         resolvedTierMap.forEach((tier, normH) => {
-          if ((tier >= 1 && tier <= 4) || tier === 6) {
+          if (tier >= 1 && tier <= 5) {
             restrictedHashesSet.add(normH);
           }
         });
@@ -511,8 +511,8 @@ export function useRadarLogic(checkNetworkUpdates: (currentModList: any[], isMan
           const rawHash = row?.dna_hash ? String(row.dna_hash).trim() : "";
           const normHash = normalizeComplianceHash(rawHash);
           const rpcTier = normHash ? restrictedHashTierMap.get(normHash) : undefined;
-          const isTValRestricted = (tVal >= 1 && tVal <= 4) || tVal === 6;
-          const isRpcRestricted = typeof rpcTier === "number" && ((rpcTier >= 1 && rpcTier <= 4) || rpcTier === 6);
+          const isTValRestricted = tVal >= 1 && tVal <= 5;
+          const isRpcRestricted = typeof rpcTier === "number" && rpcTier >= 1 && rpcTier <= 5;
           if (isTValRestricted || isRpcRestricted) {
             const effTier = isTValRestricted ? tVal : Number(rpcTier);
             if (rawHash) restrictedHashesSet.add(rawHash);
@@ -534,7 +534,7 @@ export function useRadarLogic(checkNetworkUpdates: (currentModList: any[], isMan
       const isCloudMetadataRestricted = (dbM: any) => {
         if (!dbM) return true;
         const tier = Number(dbM.compliance_tier ?? 0);
-        if ((tier >= 1 && tier <= 4) || tier === 6) return true;
+        if (tier >= 1 && tier <= 5) return true;
         if (String(dbM.status || "").toLowerCase() === "unverified") return true;
         return false;
       };
@@ -543,7 +543,7 @@ export function useRadarLogic(checkNetworkUpdates: (currentModList: any[], isMan
           .filter((c) => {
             const dbMod = getDbMod(c);
             const h = c?.dna_hash ? String(c.dna_hash).trim() : "";
-            return Boolean(h) && !restrictedHashesSet.has(h) && dbMod && !isCloudMetadataRestricted(dbMod) && Number(dbMod.compliance_tier ?? 0) !== 5;
+            return Boolean(h) && !restrictedHashesSet.has(h) && dbMod && !isCloudMetadataRestricted(dbMod) && Number(dbMod.compliance_tier ?? 0) !== 6;
           })
           .map((c) => String(c.dna_hash).trim());
         if (verifiedCloudHashes.length > 0 || restrictedHashesSet.size > 0) {
@@ -1734,7 +1734,7 @@ export function useRadarLogic(checkNetworkUpdates: (currentModList: any[], isMan
       const activePersistentQuarantine = persistentQuarantineItems.filter(
         (q: any) => q?.name && !recentlyShreddedSet.has(q.name)
       );
-      const detectedMalware = masterList.filter((m: any) => (m.compliance_tier === 5 || (typeof m.status === 'string' && m.status.includes("QUARANTINED") && ![1, 2, 3, 4, 6].includes(m.compliance_tier))) && !m.isVirtual && !m.isLocalOverride);
+      const detectedMalware = masterList.filter((m: any) => (m.compliance_tier === 6 || (typeof m.status === 'string' && m.status.includes("QUARANTINED") && !(Number(m.compliance_tier ?? 0) >= 1 && Number(m.compliance_tier ?? 0) <= 5))) && !m.isVirtual && !m.isLocalOverride);
       if (detectedMalware.length > 0) {
         const hydratedDetectedMalware = await Promise.all(
           detectedMalware.map(async (m: any) => {

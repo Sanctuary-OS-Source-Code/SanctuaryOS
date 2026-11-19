@@ -286,7 +286,7 @@ export default function BlueprintMatrix({
       const normHash = normalizeComplianceHash(resolvedHash);
       const rpcTier = normHash ? hashTierMap.get(normHash) : undefined;
       const resolvedTier =
-        typeof rpcTier === "number" && rpcTier >= 1 && rpcTier <= 5
+        typeof rpcTier === "number" && rpcTier >= 1 && rpcTier <= 6
           ? rpcTier
           : typeof mod?.compliance_tier === "number"
             ? mod.compliance_tier
@@ -987,7 +987,7 @@ export default function BlueprintMatrix({
             <p className="text-xs font-semibold text-[var(--subtext)] leading-relaxed">
               {t(
                 "matrix_rig_transfer_desc",
-                "Bypass public Tier 0 restrictions using Zero-PII AES-256-GCM encryption. Sends all {mods} in this {Blueprint} (including Tier 1–4, Unknown/Local {mods}, and Load Order rules) directly to your personal Signature Queue on your Steam Deck or other rigs."
+                "Bypass public Tier 0 restrictions using Zero-PII AES-256-GCM encryption. Sends all {mods} in this {Blueprint} (including Tier 1–5, Unknown/Local {mods}, and Load Order rules) directly to your personal Signature Queue on your Steam Deck or other rigs."
               )}
             </p>
             <ActionButton
@@ -1214,7 +1214,7 @@ export default function BlueprintMatrix({
                 <DashboardStatTile
                   variant="filter"
                   icon={t("icon_shield", "shield")}
-                  label={`${t("stat_tier", "Tier")} 4`}
+                  label={`${t("stat_tier", "Tier")} 4+`}
                   value={tier4RestrictedMods.length}
                   isActive={isRestrictedPanelOpen && restrictedFilter === "TIER_4"}
                   onClick={() => {
@@ -1431,7 +1431,7 @@ export default function BlueprintMatrix({
               title={`${blockedMods.length.toLocaleString()} ${t("flagged", "Flagged")} ${t("mods", "{Mods}")}`}
               description={t(
                 "nexus_flag_tier0_desc",
-                "Only verified Tier 0 {mods} are permitted in {Nexus} {Blueprints}. Remove Tier 1–5 or unknown {mods} below and re-upload to restore your {Blueprint} listing."
+                "Only verified Tier 0 {mods} are permitted in {Nexus} {Blueprints}. Remove Tier 1–6 or unknown {mods} below and re-upload to restore your {Blueprint} listing."
               )}
               variant="danger"
             >
@@ -1505,7 +1505,7 @@ export default function BlueprintMatrix({
               <DashboardStatTile
                 variant="filter"
                 icon={t("icon_shield", "shield")}
-                label={`${t("stat_tier", "Tier")} 4`}
+                label={`${t("stat_tier", "Tier")} 4+`}
                 value={tier4RestrictedMods.length}
                 isActive={restrictedFilter === "TIER_4"}
                 onClick={() => {

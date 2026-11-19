@@ -2,7 +2,7 @@ import type { DirectiveBuilderSchema, DirectiveBuilderCard } from "../types";
 import { CURRENT_DIRECTIVE_SCHEMA_VERSION } from "../types";
 
 export function buildMasterArchitectureSchema(
-  t: (key: string, fallback?: string) => string,
+  t: (key: string, fallback: string) => string,
   g: (txt: string) => string,
   elevatedRolesCards: DirectiveBuilderCard[]
 ): DirectiveBuilderSchema {
@@ -46,7 +46,7 @@ export function buildMasterArchitectureSchema(
                   icon: t("icon_memory", "memory"),
                   title: g("Deck Overdrive & Native Kernel"),
                   desc: g(
-                    "Native Tauri v2 Rust core: Multi-Tier Version Ripper (PE, Info.plist, manifests, storefronts), Deck Overdrive Steam Deck controller + Proton compatdata/user_settings resolver, SQLite .sanctuary_cache.db delta scanner, WebAuthn FIDO2 bridge, and cross-platform auto-updater."
+                    "Native Tauri v2 Rust core: Multi-Tier Version Ripper (pelite PE, Info.plist, manifests, storefronts), Deck Overdrive Steam Deck controller + Proton compatdata/user_settings resolver, Cloud-Sync Folder Sentinel (OneDrive/Dropbox/iCloud/GDrive guard), SQLite .sanctuary_cache.db delta scanner, WebAuthn FIDO2 bridge, and cross-platform auto-updater."
                   ),
                 },
                 {
@@ -54,7 +54,7 @@ export function buildMasterArchitectureSchema(
                   icon: t("icon_schema", "schema"),
                   title: g("Universal Master Schema"),
                   desc: g(
-                    "Declarative Schema Forge JSON editor governing binaries, secondary install_routes, config_extensions watcher, topological DAG + slot_buckets load ordering, container TOC analyzers, database-driven public.taxonomy Categories, and exception matchers."
+                    "Declarative Schema Forge JSON editor governing binaries, secondary install_routes, config_extensions watcher, topological DAG + slot_buckets load ordering, container TOC analyzers, 27 built-in engine presets, database-driven public.taxonomy Categories, and exception matchers."
                   ),
                 },
                 {
@@ -62,7 +62,7 @@ export function buildMasterArchitectureSchema(
                   icon: t("icon_translate", "translate"),
                   title: g("Code-Switch"),
                   desc: g(
-                    "21 Dynamic {Glossary} Tokens interpolated across 6,800+ keys with smart article grammar, Sparse Delta Override packs, Guided Icon Overrides, and 1-click auto-translation across 28+ languages."
+                    "21 Dynamic {Glossary} Tokens interpolated across 7,300+ keys with smart article grammar, Sparse Delta Override packs, Guided Icon Overrides, and 1-click auto-translation across 28+ languages."
                   ),
                 },
               ],
@@ -93,7 +93,7 @@ export function buildMasterArchitectureSchema(
                   icon: t("icon_hub", "hub"),
                   title: g("Core Hub & Spoke Sovereignty"),
                   desc: g(
-                    "Core OS Hub (schema_os.sql) governs global SSO, FIDO2 passkeys, sanctuary_schemas, keeper_heuristic_signatures & system_directives; Spokes (schema.sql) own 100% of their 52 community tables."
+                    "Core OS Hub (schema_os.sql — 28 tables) governs global SSO, FIDO2 passkeys, sanctuary_schemas (27 engine presets), keeper_heuristic_signatures, dmca_compliance_notices & system_directives; Spokes (schema.sql — 61 tables) own 100% of their community data + sanctuary.fork.json overlays."
                   ),
                 },
                 {
@@ -109,7 +109,7 @@ export function buildMasterArchitectureSchema(
                   icon: t("icon_cloud_done", "cloud_done"),
                   title: g("Edge Pulse & Direct Push"),
                   desc: g(
-                    "6-provider 1-click OS Auto-Push (.sanctuary.manifest.json & catalog.json) and concurrent Rust HTTP GET polling with ETag/304 caching and automatic previous_hashes lineage rollover."
+                    "6-provider 1-click OS Auto-Push (.sanctuary.manifest.json & catalog.json), concurrent Rust HTTP GET polling with ETag/304 caching & Direct HTTPS CDN downloader, tri-OS Deep Links (sanctuary://, nxm://, ror2mm://, curseforge://), optional local DPAPI BYO-API-Key Broker, and static Glass Emails."
                   ),
                 },
                 {
@@ -148,7 +148,7 @@ export function buildMasterArchitectureSchema(
                   icon: t("icon_inventory_2", "inventory_2"),
                   title: g("Symlink Airgap & Config Watcher"),
                   desc: g(
-                    "Projects {mods} from {Vault}/{Mods}/ into live game folders and secondary install_routes while deduplicating stray root configs and syncing in-game config_extensions writes back to the {Vault}."
+                    "Differential Rayon VFS + SQLite Radar cache projects {mods} from {Vault}/{Mods}/ into live game folders and secondary install_routes while deduplicating stray root configs and syncing in-game config_extensions writes back to the {Vault}."
                   ),
                 },
                 {
@@ -156,7 +156,7 @@ export function buildMasterArchitectureSchema(
                   icon: t("icon_layers", "layers"),
                   title: g("Priority Compiler & Conflict Radar 2.0"),
                   desc: g(
-                    "5-Tier Severity Matrix, 1-click 'Set Winner' priority tier assignment, The Highlander Rule swap prompts, and Schema-Driven Load Order compilation with topological cycle breaking."
+                    "5-Tier Severity Matrix, 1-click 'Set Winner' priority tier assignment, The Highlander Rule swap prompts, LOOT YAML/CRC32 external rules integration, and Schema-Driven Load Order compilation with topological cycle breaking."
                   ),
                 },
                 {
@@ -172,7 +172,7 @@ export function buildMasterArchitectureSchema(
                   icon: t("icon_science", "science"),
                   title: g("Groundhog Sandbox & Time Capsule"),
                   desc: g(
-                    "Immortal Save-Verify-and-Rewind {Lab} isolation, Crash Autopsy log decoding, fullscreen PCM audio chimes, and zero-bloat Copy-on-Write OS hardlink snapshots with additive save restores."
+                    "Save-airgapped Creator Airlock external tool runner, Save Doctor per-save mod verification, Crash Autopsy decoding, fullscreen PCM audio chimes, strict opt-in OFF defaults for Lab cloud certificates & Pocket Radar sync, and Copy-on-Write OS hardlink snapshots with additive save restores."
                   ),
                 },
               ],
@@ -203,7 +203,7 @@ export function buildMasterArchitectureSchema(
                   icon: t("icon_admin_panel_settings", "admin_panel_settings"),
                   title: g("6-Tier Clearance Hierarchy"),
                   desc: g(
-                    "Decouples Game Spoke roles ({Citizen}, Verified {Mason}, Architect, Oversight, Wayfinder) from Global Core OS Hub roles (Keeper) with Pending Tier 1–4 compliance gating."
+                    "Decouples Game Spoke roles ({Citizen}, Verified {Mason}, Architect, Oversight, Wayfinder) from Global Core OS Hub roles (Keeper) with Tier 1 Spoke-routed DMCA holds & Tiers 2–5 compliance gating."
                   ),
                 },
                 {
@@ -227,7 +227,7 @@ export function buildMasterArchitectureSchema(
                   icon: t("icon_gpp_bad", "gpp_bad"),
                   title: g("Zero-Choice Lockdown & Bytecode Hound"),
                   desc: g(
-                    "Merges Core + Spoke heuristics with Zlib/Zstd decompression to halt launches on Tier 5 Malware and lock the OS shell until a {Citizen}-signed Secure Shred."
+                    "Merges Core + Spoke heuristics with Zlib/Zstd decompression to halt launches on Tier 6 Malware and lock the OS shell until a {Citizen}-signed Secure Shred."
                   ),
                 },
               ],

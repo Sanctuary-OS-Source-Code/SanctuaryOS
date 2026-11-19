@@ -497,6 +497,31 @@ export async function handleKeeperHubActions(ctx: {
       })
     }
 
+    if (action === 'list_spoke_dmca_notices' && hubRole === 'keeper') {
+      const data = await handleListSpokeDmcaNotices({
+        payload: payload || {},
+        hubRole,
+        supabaseAdmin,
+      })
+      return new Response(JSON.stringify(data), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        status: 200,
+      })
+    }
+
+    if (action === 'execute_dmca_triage_action' && hubRole === 'keeper') {
+      const data = await handleExecuteDmcaTriageAction({
+        payload,
+        v_user_id,
+        hubRole,
+        supabaseAdmin,
+      })
+      return new Response(JSON.stringify(data), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        status: 200,
+      })
+    }
+
   return null;
 }
 
@@ -568,31 +593,6 @@ export async function handlePreClientSpokeAdminActions(ctx: {
       })
       invalidateSpokeGameConfigCache();
       return new Response(JSON.stringify({ success: true, severed_by: 'keeper', schema_id: game.schema_id }), {
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        status: 200,
-      })
-    }
-
-    if (action === 'list_spoke_dmca_notices' && hubRole === 'keeper') {
-      const data = await handleListSpokeDmcaNotices({
-        payload,
-        hubRole,
-        supabaseAdmin,
-      })
-      return new Response(JSON.stringify(data), {
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        status: 200,
-      })
-    }
-
-    if (action === 'execute_dmca_triage_action' && hubRole === 'keeper') {
-      const data = await handleExecuteDmcaTriageAction({
-        payload,
-        v_user_id,
-        hubRole,
-        supabaseAdmin,
-      })
-      return new Response(JSON.stringify(data), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         status: 200,
       })

@@ -57,7 +57,7 @@ jobs:
         run: npx tsc -p supabase/functions/tsconfig.json --noEmit
         working-directory: ${{ steps.paths.outputs.dir }}
 
-      - name: Run Vitest suite
+      - name: Run Vitest Ironclad Gauntlet suites
         run: npm test
         working-directory: ${{ steps.paths.outputs.dir }}
 
@@ -96,6 +96,6 @@ jobs:
         with:
           workspaces: "${{ steps.paths.outputs.dir }}/src-tauri -> target"
 
-      - name: Run Rust unit tests
+      - name: Run Rust core engine and integration tests
         run: cargo test
         working-directory: ${{ steps.paths.outputs.dir }}/src-tauri

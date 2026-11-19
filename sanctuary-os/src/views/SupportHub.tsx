@@ -13,6 +13,7 @@ import {
   SidePanel,
   SidePanelFilterBar,
   DashboardStatTile,
+  UniversalGroup,
   VAULT_CHIP_CLASS,
 } from "../shared";
 import { useStore } from "../store";
@@ -60,7 +61,9 @@ function findDirtyLogTraces(text: string, modList: any[], activeGameSchema: any)
   return [...new Set(dirtyTraces)];
 }
 
-export default function SupportHub() {
+export default function SupportHub({
+  onOpenModDossier,
+}: { onOpenModDossier?: (mod: any) => void } = {}) {
   const activeGameSchema = useStore(state => state.activeGameSchema);
   const { t } = useLexicon();
   const modList = useStore((state) => state.modList);
@@ -93,8 +96,6 @@ export default function SupportHub() {
   );
 
   const [activeTab, setActiveTab] = useState("BUG_MOD");
-  const [activeCardIndex, setActiveCardIndex] = useState(0);
-  const [maxReachedIndex, setMaxReachedIndex] = useState(0);
   const [showDraftPrompt, setShowDraftPrompt] = useState(false);
   const [draftData, setDraftData] = useState<any>(null);
 
@@ -112,7 +113,6 @@ export default function SupportHub() {
 
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string>("");
-  const [, setCurrentStep] = useState<number>(1);
   const [policyViolations, setPolicyViolations] = useState<string[]>([]);
   const [optedOutSources, setOptedOutSources] = useState<string[]>([]);
   const [submitAnonymously, setSubmitAnonymously] = useState(false);
@@ -215,11 +215,6 @@ export default function SupportHub() {
       </>
     ) : null;
 
-  // Update maxReachedIndex when activeCardIndex changes
-  useEffect(() => {
-    setMaxReachedIndex(prev => Math.max(prev, activeCardIndex));
-  }, [activeCardIndex]);
-
   // Load Draft Logic (stored in volatile sessionStorage; migrate/clear any legacy localStorage draft)
   useEffect(() => {
     if (!isOpen) return;
@@ -237,7 +232,7 @@ export default function SupportHub() {
     if (draft) {
       try {
         const parsed = JSON.parse(draft);
-        if (parsed.activeCardIndex > 0 || parsed.title || parsed.description || parsed.targetModId || parsed.targetUserId || Object.keys(parsed.customFieldsData || {}).length > 0) {
+        if (parsed.title || parsed.description || parsed.targetModId || parsed.targetUserId || Object.keys(parsed.customFieldsData || {}).length > 0) {
           setDraftData(parsed);
           setShowDraftPrompt(true);
         }
@@ -256,8 +251,6 @@ export default function SupportHub() {
       supportStream,
       osPlatform,
       activeTab,
-      activeCardIndex,
-      maxReachedIndex,
       title: scrubLogUserData(title || ""),
       description: scrubLogUserData(description || ""),
       targetModId,
@@ -270,7 +263,7 @@ export default function SupportHub() {
       sessionStorage.setItem('support_draft', JSON.stringify(data));
       localStorage.removeItem('support_draft');
     } catch {}
-  }, [isOpen, showDraftPrompt, supportStream, osPlatform, activeTab, activeCardIndex, maxReachedIndex, title, description, targetModId, targetUserId, logs, customFieldsData, optedOutSources]);
+  }, [isOpen, showDraftPrompt, supportStream, osPlatform, activeTab, title, description, targetModId, targetUserId, logs, customFieldsData, optedOutSources]);
 
   const loadDraft = () => {
     if (draftData) {
@@ -279,8 +272,6 @@ export default function SupportHub() {
       }
       if (draftData.osPlatform) setOsPlatform(draftData.osPlatform);
       setActiveTab(draftData.activeTab || "BUG_MOD");
-      setActiveCardIndex(draftData.activeCardIndex || 0);
-      setMaxReachedIndex(draftData.maxReachedIndex || 0);
       setTitle(scrubLogUserData(draftData.title || ""));
       setDescription(scrubLogUserData(draftData.description || ""));
       setTargetModId(draftData.targetModId || "");
@@ -297,8 +288,6 @@ export default function SupportHub() {
     localStorage.removeItem('support_draft');
     setDraftData(null);
     setShowDraftPrompt(false);
-    setActiveCardIndex(0);
-    setMaxReachedIndex(0);
     setTitle("");
     setDescription("");
     setTargetModId("");
@@ -306,19 +295,6 @@ export default function SupportHub() {
     setLogs("");
     setCustomFieldsData({});
   };
-
-  // Auto-focus Logic
-  useEffect(() => {
-    if (!isOpen || showDraftPrompt) return;
-    const timeout = setTimeout(() => {
-      const activeCard = document.getElementById(`support-card-${activeCardIndex}`);
-      if (activeCard) {
-        const input = activeCard.querySelector('input:not([type="checkbox"]):not([type="radio"]), textarea') as HTMLElement;
-        if (input) input.focus();
-      }
-    }, 100);
-    return () => clearTimeout(timeout);
-  }, [activeCardIndex, isOpen, showDraftPrompt]);
 
   const attachLog = async () => {
     try {
@@ -455,62 +431,19 @@ export default function SupportHub() {
 
   const activeCategory = categories.find(c => c.category_code === activeTab) || categories[0];
 
-  // When changing tabs or streams, reset card step cleanly
+  // Clear error notices when switching category tabs or streams
   useEffect(() => {
     setError("");
     setPolicyViolations([]);
-    setActiveCardIndex(0);
-    setMaxReachedIndex(0);
   }, [activeTab, supportStream]);
-
-  const cards = React.useMemo(() => {
-    if (supportStream === "os_bug") {
-      return [
-        { id: "os_details", type: "OS_DETAILS", label: t("support_os_bug_details", "OS Bug Details"), required: true },
-        { id: "telemetry", type: "TELEMETRY", label: t("ticket_attached_logs", "Attached Logs"), required: false },
-        { id: "review", type: "REVIEW", label: t("support_ready_to_submit", "Ready to Submit"), required: false },
-      ];
-    }
-    if (!activeCategory) return [];
-
-    const params: any[] = [];
-    params.push({ id: 'classification', type: 'CLASSIFICATION', label: t("comp_type", "Classification") || "Classification", required: true });
-
-    if (activeCategory.requires_target_mod) {
-      params.push({ id: 'target_mod', type: 'TARGET_MOD', label: t("target_artifact", "Target {Mod}") || "Target Mod", required: true });
-    }
-    if (activeCategory.requires_target_user) {
-      params.push({ id: 'target_user', type: 'TARGET_USER', label: t("support_target_user_label", "Target User ID") || "Target User", required: true });
-    }
-
-    if (activeCategory.custom_fields?.length > 0) {
-      activeCategory.custom_fields.forEach((f: any) => {
-        params.push({ id: f.id, type: 'CUSTOM', label: f.label, required: f.required, field: f });
-      });
-    }
-
-    if (String(activeCategory.show_description_box) !== "false") {
-      params.push({ id: 'description', type: 'DESCRIPTION', label: t("support_desc", "Ticket Description") || "Description", required: true });
-    }
-
-    if (activeCategory.telemetry_config?.sources?.length > 0 || String(activeCategory.show_logs_box) !== "false") {
-      params.push({ id: 'telemetry', type: 'TELEMETRY', label: t("ticket_attached_logs", "Attached Logs") || "Attached Logs", required: false });
-    }
-
-    params.push({ id: 'review', type: 'REVIEW', label: t("support_ready_to_submit", "Ready to Submit"), required: false });
-
-    return params;
-  }, [supportStream, activeCategory, t]);
 
   useEffect(() => {
     if (!isOpen) {
-      setCurrentStep(1);
       setCustomFieldsData({});
       setTitle("");
       setDescription("");
       setFiles([]);
       setError("");
-      setActiveCardIndex(0);
       setIsEditingRawTelemetry(false);
       setSubmitAnonymously(false);
       setIncludeLoadoutDiagnostics(false);
@@ -1108,68 +1041,94 @@ export default function SupportHub() {
     t("support_stream_community", "Community Support");
 
   const isFormDisabled = supportStream === "community" && activeSupportLockMods.length > 0;
-  const currentCard = cards[activeCardIndex];
-  const isCurrentCardInvalid = Boolean(
-    currentCard && (
-      (currentCard.type === 'OS_DETAILS' && (!title.trim() || !description.trim())) ||
-      (currentCard.type === 'TARGET_MOD' && activeCategory?.requires_target_mod && !targetModId) ||
-      (currentCard.type === 'TARGET_USER' && activeCategory?.requires_target_user && !targetUserId) ||
-      (currentCard.type === 'CUSTOM' && currentCard.field?.required && (!customFieldsData[currentCard.id] || (Array.isArray(customFieldsData[currentCard.id]) && customFieldsData[currentCard.id].length === 0))) ||
-      (currentCard.type === 'DESCRIPTION' && currentCard.required && !description.trim()) ||
-      (currentCard.type === 'DESCRIPTION' && String(activeCategory?.show_title_box) !== "false" && !title.trim())
-    )
-  );
-
   const eligibleTargetMods = modList.filter((m: any) => isLocalModKnownTier0(m));
   const selectedModItem = eligibleTargetMods.find(
     (m: any) => m.dbId === targetModId || m.id === targetModId || m.hash === targetModId
   );
+  const resolvedSelectedModItem =
+    selectedModItem ||
+    (targetModId
+      ? modList.find(
+          (m: any) => m.dbId === targetModId || m.id === targetModId || m.hash === targetModId
+        )
+      : null);
 
-  const getStepSummary = (card: any): string => {
-    if (card.type === "OS_DETAILS") {
-      if (title.trim()) return `${osPlatform} • ${title.trim()}`;
-      return osPlatform;
+  const supportMissingReasons: string[] = [];
+  if (isFormDisabled) {
+    supportMissingReasons.push(
+      t(
+        "support_blueprint_lock_short",
+        "Unequip non-Tier-0 {mods} from active {blueprint} (or switch to OS Bug Report)"
+      )
+    );
+  } else if (supportStream === "os_bug") {
+    if (!title.trim()) {
+      supportMissingReasons.push(t("ticket_subject_label", "Ticket Subject"));
     }
-    if (card.type === "CLASSIFICATION") {
-      return activeCategory?.category_name || activeTab;
+    if (!description.trim()) {
+      supportMissingReasons.push(t("support_step_desc", "Issue Description"));
     }
-    if (card.type === "TARGET_MOD") {
-      return selectedModItem?.displayName || selectedModItem?.name || targetModId || t("none", "None");
+  } else {
+    if (activeCategory?.requires_target_mod && !targetModId) {
+      supportMissingReasons.push(t("target_artifact", "Target {Mod}"));
     }
-    if (card.type === "TARGET_USER") {
-      return targetUserId || t("none", "None");
+    if (activeCategory?.requires_target_user && !targetUserId.trim()) {
+      supportMissingReasons.push(t("support_target_user_label", "Target User ID"));
     }
-    if (card.type === "CUSTOM") {
-      const val = customFieldsData[card.id];
-      if (Array.isArray(val)) return val.join(", ") || t("none", "None");
-      if (val === "true") return t("label_yes", "Yes");
-      return String(val || t("none", "None"));
-    }
-    if (card.type === "DESCRIPTION") {
-      if (title.trim() && description.trim()) {
-        return `${title.trim()} • ${description.trim()}`;
+    if (Array.isArray(activeCategory?.custom_fields)) {
+      for (const field of activeCategory.custom_fields) {
+        if (field.required) {
+          const val = customFieldsData[field.id];
+          if (
+            val === undefined ||
+            val === null ||
+            val === "" ||
+            (Array.isArray(val) && val.length === 0)
+          ) {
+            supportMissingReasons.push(String(field.label || field.id));
+          }
+        }
       }
-      return title.trim() || description.trim() || t("none", "None");
     }
-    if (card.type === "TELEMETRY") {
-      const activeCount = effectiveTelemetrySources.filter(
-        (s) => !optedOutSources.includes(s.id)
-      ).length;
-      return `${activeCount} ${t("ticket_attached_logs", "Attached Logs")}`;
+    if (String(activeCategory?.show_title_box) !== "false" && !title.trim()) {
+      supportMissingReasons.push(t("ticket_subject_label", "Ticket Subject"));
     }
-    return "";
-  };
+    if (String(activeCategory?.show_description_box) !== "false" && !description.trim()) {
+      supportMissingReasons.push(t("support_step_desc", "Issue Description"));
+    }
+  }
 
-  const getStepIcon = (card: any): string => {
-    if (card.type === "OS_DETAILS") return t("icon_bug_report", "bug_report");
-    if (card.type === "CLASSIFICATION") return t("icon_category", "category");
-    if (card.type === "TARGET_MOD") return t("icon_extension", "extension");
-    if (card.type === "TARGET_USER") return t("icon_person", "person");
-    if (card.type === "DESCRIPTION") return t("icon_description", "description");
-    if (card.type === "TELEMETRY") return t("icon_terminal", "terminal");
-    if (card.type === "REVIEW") return t("icon_task_alt", "task_alt");
-    return t("icon_checklist", "checklist");
-  };
+  const isSubmitDisabled = isSubmitting || isScanning || supportMissingReasons.length > 0;
+  const supportSubmitTooltipTitle =
+    isSubmitting || isScanning
+      ? t("scanning", "Submitting...")
+      : supportMissingReasons.length > 0
+        ? t("form_incomplete_tooltip_title", "Complete Required Fields to Submit")
+        : t("support_submit", "Submit Ticket");
+  const supportSubmitTooltipSub =
+    !(isSubmitting || isScanning) && supportMissingReasons.length > 0
+      ? `${t("form_missing_prefix", "Missing:")} ${supportMissingReasons.slice(0, 4).join(" • ")}${
+          supportMissingReasons.length > 4
+            ? ` (+${supportMissingReasons.length - 4})`
+            : ""
+        }`
+      : undefined;
+
+  const showTelemetrySection =
+    supportStream === "os_bug" ||
+    Boolean(activeCategory?.telemetry_config?.sources?.length > 0) ||
+    String(activeCategory?.show_logs_box) !== "false";
+
+  const selectedModTitle =
+    resolvedSelectedModItem?.displayName ||
+    resolvedSelectedModItem?.name ||
+    targetModId;
+  const selectedModAuthor =
+    resolvedSelectedModItem?.author ||
+    resolvedSelectedModItem?.master_author ||
+    t("label_unknown_author", "Unknown Author");
+  const selectedModVersion =
+    resolvedSelectedModItem?.version || resolvedSelectedModItem?.version_label || "";
 
   return (
     <>
@@ -1180,32 +1139,23 @@ export default function SupportHub() {
         subtitle={t("sidebar_support", "Support & Feedback")}
         icon={t("icon_support_agent", "support_agent")}
         iconColorClass="text-[var(--accent)]"
-        widthClass="w-[90vw] md:w-[800px]"
+        widthClass="w-[92vw] md:w-[760px]"
         headerActions={
-          !showDraftPrompt && currentCard ? (
+          !showDraftPrompt ? (
             <PanelHeaderGroup>
               <PanelHeaderButton
                 icon={t("icon_restart_alt", "restart_alt")}
                 tooltip={t("reset", "Reset")}
                 onClick={clearDraft}
               />
-              {currentCard.type === 'REVIEW' ? (
-                <PanelHeaderButton
-                  icon={isSubmitting || isScanning ? t("icon_sync", "sync") : t("icon_send", "send")}
-                  tooltip={isSubmitting || isScanning ? t("scanning", "Submitting...") : t("support_submit", "Submit Ticket")}
-                  variant="accent"
-                  disabled={isSubmitting || isScanning || isFormDisabled}
-                  onClick={submitTicket}
-                />
-              ) : (
-                <PanelHeaderButton
-                  icon={t("icon_done", "done")}
-                  tooltip={t("confirm", "Confirm")}
-                  variant="accent"
-                  disabled={isCurrentCardInvalid || (isFormDisabled && currentCard.type !== 'CLASSIFICATION')}
-                  onClick={() => setActiveCardIndex(Math.min(cards.length - 1, activeCardIndex + 1))}
-                />
-              )}
+              <PanelHeaderButton
+                icon={isSubmitting || isScanning ? t("icon_sync", "sync") : t("icon_send", "send")}
+                tooltip={supportSubmitTooltipTitle}
+                tooltipSubtitle={supportSubmitTooltipSub}
+                variant="accent"
+                disabled={isSubmitDisabled}
+                onClick={submitTicket}
+              />
             </PanelHeaderGroup>
           ) : undefined
         }
@@ -1240,11 +1190,9 @@ export default function SupportHub() {
                 ? t("support_os_bug_subtitle", "Report an issue with the Sanctuary OS app directly to Keepers Core without attaching any game or {mod} data.")
                 : activeCategory?.description || t("support_wizard_subtitle", "Select a support channel and complete each step below to submit your ticket.")
             }
-            badge={`${activeCardIndex + 1} / ${cards.length}`}
-            badgeIcon={t("icon_checklist", "checklist")}
             variant={isFormDisabled ? "warning" : "accent"}
           >
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 w-full">
               <StatBox
                 label={t("support_category", "Category")}
                 value={
@@ -1256,9 +1204,27 @@ export default function SupportHub() {
                 iconColorClass="text-[var(--accent)]"
               />
               <StatBox
-                label={t("wizard_progress_label", "Progress")}
-                value={`${activeCardIndex + 1} / ${cards.length}`}
-                icon={t("icon_checklist", "checklist")}
+                label={
+                  supportStream === "os_bug"
+                    ? t("landing_feedback_form_platform", "Target Platform")
+                    : activeCategory?.requires_target_mod
+                      ? t("target_artifact", "Target {Mod}")
+                      : t("tab_workspace", "Workspace")
+                }
+                value={
+                  supportStream === "os_bug"
+                    ? osPlatform
+                    : activeCategory?.requires_target_mod
+                      ? (targetModId ? selectedModTitle : t("none", "None"))
+                      : activeSpokeName
+                }
+                icon={
+                  supportStream === "os_bug"
+                    ? t("icon_desktop_windows", "desktop_windows")
+                    : activeCategory?.requires_target_mod
+                      ? t("icon_extension", "extension")
+                      : t("icon_hub", "hub")
+                }
                 iconColorClass="text-[var(--success)]"
               />
             </div>
@@ -1286,647 +1252,496 @@ export default function SupportHub() {
             </SidePanelFilterBar>
           )}
 
-          <div className="flex flex-col w-full gap-4">
-
-            {error && (
-              <div className="glass-panel border border-[color-mix(in_srgb,var(--text)_14%,transparent)] rounded-2xl flex flex-col relative shadow-md group">
-                <div className="flex items-start gap-4 p-5 relative z-10">
-                  <div className="w-10 h-10 rounded-xl glass-surface border border-[var(--glass-card-icon-border,rgba(255,255,255,0.22))] bg-[var(--glass-card-icon-bg,rgba(255,255,255,0.08))] shadow-[var(--glass-card-icon-shadow)] flex items-center justify-center shrink-0 text-[var(--danger)]">
-                    <span className="material-symbols-outlined !text-[20px]">{t("icon_warning", "warning")}</span>
-                  </div>
-                  <div className="flex flex-col gap-1.5 pt-0.5 w-full pr-8">
-                    <span className="text-sm font-black text-[var(--danger)] tracking-wide">{t("support_err_failed", "Submission Failed")}</span>
-                    <span className="text-xs font-medium text-[var(--subtext)] leading-relaxed pr-4">{error}</span>
-                  </div>
-                  <button
-                    onClick={() => { setError(""); setPolicyViolations([]); }}
-                    className="absolute top-4 right-4 w-7 h-7 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[var(--subtext)] hover:text-[var(--danger)] hover:border-[color-mix(in_srgb,var(--text)_24%,transparent)] flex items-center justify-center transition-all shrink-0 cursor-pointer"
-                  >
-                    <span className="material-symbols-outlined !text-[15px]">{t("icon_close", "close")}</span>
-                  </button>
+          {error && (
+            <div className="glass-panel border border-[color-mix(in_srgb,var(--text)_14%,transparent)] rounded-2xl flex flex-col relative shadow-md group">
+              <div className="flex items-start gap-4 p-5 relative z-10">
+                <div className="w-10 h-10 rounded-xl glass-surface border border-[var(--glass-card-icon-border,rgba(255,255,255,0.22))] bg-[var(--glass-card-icon-bg,rgba(255,255,255,0.08))] shadow-[var(--glass-card-icon-shadow)] flex items-center justify-center shrink-0 text-[var(--danger)]">
+                  <span className="material-symbols-outlined !text-[20px]">{t("icon_warning", "warning")}</span>
                 </div>
-                {policyViolations.length > 0 && (
-                  <div className="glass-surface p-4 border-t border-[color-mix(in_srgb,var(--text)_10%,transparent)] flex flex-col gap-3 max-h-32 overflow-y-auto custom-scrollbar relative z-10">
-                    <span className="text-[9px] font-black tracking-widest text-[var(--subtext)] capitalize">{t("auto_restricted_artifacts_detected_34", "Restricted {mods}")}</span>
-                    <div className="flex flex-wrap gap-2">
-                      {policyViolations.map((mod, i) => (
-                        <div key={i} className={VAULT_CHIP_CLASS}>
-                          <span className="material-symbols-outlined !text-[12px] text-[var(--danger)]">{t("auto_extension", "extension")}</span>
-                          <span className="truncate">{mod.split(/[\\/]/).pop()?.replace(getExtensionRegex(activeGameSchema), '').replace(/[-_]/g, ' ') || mod.replace(/[-_]/g, ' ')}</span>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
+                <div className="flex flex-col gap-1.5 pt-0.5 w-full pr-8">
+                  <span className="text-sm font-black text-[var(--danger)] tracking-wide">{t("support_err_failed", "Submission Failed")}</span>
+                  <span className="text-xs font-medium text-[var(--subtext)] leading-relaxed pr-4">{error}</span>
+                </div>
+                <button
+                  onClick={() => { setError(""); setPolicyViolations([]); }}
+                  className="absolute top-4 right-4 w-7 h-7 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[var(--subtext)] hover:text-[var(--danger)] hover:border-[color-mix(in_srgb,var(--text)_24%,transparent)] flex items-center justify-center transition-all shrink-0 cursor-pointer"
+                >
+                  <span className="material-symbols-outlined !text-[15px]">{t("icon_close", "close")}</span>
+                </button>
               </div>
-            )}
+              {policyViolations.length > 0 && (
+                <div className="glass-surface p-4 border-t border-[color-mix(in_srgb,var(--text)_10%,transparent)] flex flex-col gap-3 max-h-32 overflow-y-auto custom-scrollbar relative z-10">
+                  <span className="text-[9px] font-black tracking-widest text-[var(--subtext)] capitalize">{t("auto_restricted_artifacts_detected_34", "Restricted {mods}")}</span>
+                  <div className="flex flex-wrap gap-2">
+                    {policyViolations.map((mod, i) => (
+                      <div key={i} className={VAULT_CHIP_CLASS}>
+                        <span className="material-symbols-outlined !text-[12px] text-[var(--danger)]">{t("auto_extension", "extension")}</span>
+                        <span className="truncate">{mod.split(/[\\/]/).pop()?.replace(getExtensionRegex(activeGameSchema), '').replace(/[-_]/g, ' ') || mod.replace(/[-_]/g, ' ')}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
 
-            {supportStream === "community" && activeSupportLockMods.length > 0 && (
-              <SidePanelHeroCard
-                icon={t("icon_lock", "lock")}
-                overline={t("support_blueprint_lock", "{Blueprint} Support Lock")}
-                title={t("support_blueprint_lock_title", "{Blueprint} Support Lock Active")}
-                description={t(
-                  "support_blueprint_lock_desc",
-                  "Community tickets only allow verified safe (Tier 0) {mods}. Unequip restricted or unknown {mods} from your active {blueprint} to continue — your files stay untouched — or switch to OS Bug Report to report a Sanctuary OS issue."
-                )}
-                badge={`${activeSupportLockMods.length}`}
-                badgeIcon={t("icon_warning", "warning")}
-                variant="warning"
+          {supportStream === "community" && activeSupportLockMods.length > 0 && (
+            <SidePanelHeroCard
+              icon={t("icon_lock", "lock")}
+              overline={t("support_blueprint_lock", "{Blueprint} Support Lock")}
+              title={t("support_blueprint_lock_title", "{Blueprint} Support Lock Active")}
+              description={t(
+                "support_blueprint_lock_desc",
+                "Community tickets only allow verified safe (Tier 0) {mods}. Unequip restricted or unknown {mods} from your active {blueprint} to continue — your files stay untouched — or switch to OS Bug Report to report a Sanctuary OS issue."
+              )}
+              badge={`${activeSupportLockMods.length}`}
+              badgeIcon={t("icon_warning", "warning")}
+              variant="warning"
+            >
+              <div className="flex flex-wrap items-center justify-end gap-2 w-full pt-1">
+                <ActionButton
+                  variant="glass"
+                  icon={t("icon_bug_report", "bug_report")}
+                  label={t("support_switch_os_bug", "Report OS Bug Instead")}
+                  onClick={() => setSupportStream("os_bug")}
+                />
+                <ActionButton
+                  variant="warning"
+                  icon={t("icon_playlist_remove", "playlist_remove")}
+                  label={t("support_review_locked_mods", "Review & Unequip")}
+                  onClick={() => setIsResolutionOpen(true)}
+                />
+              </div>
+            </SidePanelHeroCard>
+          )}
+
+          {supportStream === "os_bug" ? (
+            <UniversalGroup
+              title={t("support_os_bug_details", "OS Bug Details")}
+              icon={t("icon_bug_report", "bug_report")}
+            >
+              <div className="flex flex-col gap-1.5 relative z-[60]">
+                <label className="text-[10px] font-black uppercase tracking-widest text-[var(--subtext)] opacity-75 px-1 leading-tight">
+                  {t("landing_feedback_form_platform", "Target Platform")}
+                </label>
+                <CustomDropdown
+                  disableTint={true}
+                  value={osPlatform}
+                  options={[
+                    { id: "Desktop App", label: t("landing_fb_desktop_title", "Desktop App") },
+                    { id: "Website", label: t("landing_fb_web_title", "Website") },
+                    { id: "Mobile PWA", label: t("landing_fb_pwa_title", "Mobile PWA") },
+                  ]}
+                  onChange={(val: string[]) =>
+                    setOsPlatform((val[0] as "Desktop App" | "Website" | "Mobile PWA") || "Desktop App")
+                  }
+                  allowMultiSelect={false}
+                />
+              </div>
+              <UniversalInput
+                label={`${t("ticket_subject_label", "Ticket Subject")} *`}
+                value={title}
+                onChange={setTitle}
+                placeholder={t("support_placeholder_title", "Enter a concise title...")}
+              />
+              <UniversalTextArea
+                label={`${t("support_step_desc", "Issue Description")} *`}
+                value={description}
+                onChange={setDescription}
+                placeholder={t("support_placeholder_desc", "Describe your issue and reproduction steps...")}
+                className="min-h-[170px] sm:min-h-[200px]"
+              />
+            </UniversalGroup>
+          ) : (
+            <>
+              <UniversalGroup
+                title={t("support_category", "Category")}
+                icon={t("icon_category", "category")}
               >
-                <div className="flex flex-wrap items-center justify-end gap-2 w-full pt-1">
-                  <ActionButton
-                    variant="glass"
-                    icon={t("icon_bug_report", "bug_report")}
-                    label={t("support_switch_os_bug", "Report OS Bug Instead")}
-                    onClick={() => setSupportStream("os_bug")}
-                  />
-                  <ActionButton
-                    variant="warning"
-                    icon={t("icon_playlist_remove", "playlist_remove")}
-                    label={t("support_review_locked_mods", "Review & Unequip")}
-                    onClick={() => setIsResolutionOpen(true)}
+                <div className="relative z-[70]">
+                  <CustomDropdown
+                    disableTint={true}
+                    value={activeTab}
+                    options={categories.map(c => ({ id: c.category_code, label: c.category_name }))}
+                    onChange={(val: string[]) => setActiveTab(val[0])}
+                    allowMultiSelect={false}
                   />
                 </div>
-              </SidePanelHeroCard>
-            )}
 
-            <div className="flex flex-col w-full transition-all duration-300">
-              <div className="w-full pb-24 flex flex-col gap-3.5">
-                {cards.map((card, idx) => {
-                  if (idx > maxReachedIndex) return null;
-
-                  const isActive = idx === activeCardIndex;
-
-                  if (!isActive) {
-                    const summaryText = getStepSummary(card);
-                    return (
-                      <div
-                        key={idx}
-                        onClick={() => setActiveCardIndex(idx)}
-                        className="glass-panel p-4 rounded-2xl border border-[color-mix(in_srgb,var(--text)_12%,transparent)] flex items-center justify-between gap-3 cursor-pointer group hover:border-[color-mix(in_srgb,var(--text)_24%,transparent)] transition-all shrink-0 w-full"
-                      >
-                        <div className="flex items-center gap-3.5 min-w-0 flex-1">
-                          <div className="w-10 h-10 rounded-xl glass-surface border border-[var(--glass-card-icon-border,rgba(255,255,255,0.22))] bg-[var(--glass-card-icon-bg,rgba(255,255,255,0.08))] shadow-[var(--glass-card-icon-shadow)] flex items-center justify-center shrink-0 text-[var(--success)]">
-                            <span className="material-symbols-outlined !text-[18px]">
-                              {t("icon_check_circle", "check_circle")}
-                            </span>
-                          </div>
-                          <div className="flex flex-col gap-0.5 min-w-0">
-                            <span className="text-[10px] font-black text-[var(--accent)] uppercase tracking-widest flex items-center gap-1.5">
-                              <span>{t("completed_step", "Step Completed")}</span>
-                              <span className="opacity-60">• {idx + 1} / {cards.length}</span>
-                            </span>
-                            <h4 className="text-sm font-black text-[var(--text)] truncate">
-                              {card.label}
-                            </h4>
-                            {summaryText && (
-                              <p className="text-xs text-[var(--subtext)] opacity-80 truncate font-mono">
-                                {summaryText}
-                              </p>
-                            )}
-                          </div>
-                        </div>
-                        <div className="w-8 h-8 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] group-hover:border-[color-mix(in_srgb,var(--text)_24%,transparent)] flex items-center justify-center shrink-0 text-[var(--subtext)] group-hover:text-[var(--accent)] transition-all">
-                          <span className="material-symbols-outlined !text-[16px]">
-                            {t("icon_edit", "edit")}
-                          </span>
-                        </div>
+                {activeCategory && (
+                  <div className="glass-surface p-4 rounded-2xl border border-[color-mix(in_srgb,var(--text)_12%,transparent)] flex flex-col gap-3">
+                    <div className="flex items-start gap-3">
+                      <div className="w-9 h-9 rounded-xl glass-surface border border-[var(--glass-card-icon-border,rgba(255,255,255,0.22))] bg-[var(--glass-card-icon-bg,rgba(255,255,255,0.08))] shadow-[var(--glass-card-icon-shadow)] flex items-center justify-center shrink-0 text-[var(--accent)]">
+                        <span className="material-symbols-outlined !text-[18px]">
+                          {t("icon_info", "info")}
+                        </span>
                       </div>
-                    );
-                  }
-
-                  const isBlockDisabled = isFormDisabled && card.type !== 'CLASSIFICATION';
-
-                  const handleAdvance = (e: React.KeyboardEvent) => {
-                    if (e.key === 'Enter') {
-                      if (e.shiftKey) return;
-                      e.preventDefault();
-
-                      const isInvalid =
-                        (card.type === 'OS_DETAILS' && (!title.trim() || !description.trim())) ||
-                        (card.type === 'TARGET_MOD' && activeCategory?.requires_target_mod && !targetModId) ||
-                        (card.type === 'TARGET_USER' && activeCategory?.requires_target_user && !targetUserId) ||
-                        (card.type === 'CUSTOM' && card.field?.required && (!customFieldsData[card.id] || (Array.isArray(customFieldsData[card.id]) && customFieldsData[card.id].length === 0))) ||
-                        (card.type === 'DESCRIPTION' && card.required && !description.trim()) ||
-                        (card.type === 'DESCRIPTION' && String(activeCategory?.show_title_box) !== "false" && !title.trim());
-
-                      if (!isInvalid) {
-                        setActiveCardIndex(Math.min(cards.length - 1, idx + 1));
-                      }
-                    }
-                  };
-
-                  return (
-                    <div
-                      id={`support-card-${idx}`}
-                      key={idx}
-                      className={`w-full glass-panel border border-[color-mix(in_srgb,var(--text)_16%,transparent)] rounded-3xl p-6 md:p-7 flex flex-col gap-5 shrink-0 relative animate-in zoom-in-95 duration-300 shadow-[0_20px_50px_rgba(0,0,0,0.35)] ${
-                        isBlockDisabled ? "opacity-35 pointer-events-none grayscale select-none" : ""
-                      }`}
-                    >
-                      {/* Active Step Header */}
-                      <div className="flex flex-col gap-2">
-                        <div className="flex items-center justify-between gap-2">
+                      <div className="flex flex-col gap-1 min-w-0">
+                        <span className="text-xs font-black text-[var(--text)]">
+                          {activeCategory.category_name}
+                        </span>
+                        <p className="text-xs text-[var(--subtext)] leading-relaxed m-0">
+                          {activeCategory.description || t("support_wizard_subtitle", "Select a support channel and complete each step below to submit your ticket.")}
+                        </p>
+                      </div>
+                    </div>
+                    {(activeCategory.requires_target_mod ||
+                      activeCategory.requires_target_user ||
+                      activeCategory.telemetry_config?.sources?.length > 0 ||
+                      String(activeCategory.show_logs_box) !== "false" ||
+                      supporterPerkChips) && (
+                      <div className="flex flex-wrap gap-1.5 pt-1">
+                        {activeCategory.requires_target_mod && (
                           <span className={VAULT_CHIP_CLASS}>
-                            <span className="material-symbols-outlined !text-[13px] text-[var(--accent)]">
-                              {getStepIcon(card)}
+                            <span className="material-symbols-outlined !text-[12px] text-[var(--accent)]">
+                              {t("icon_extension", "extension")}
                             </span>
-                            <span>{`${t("step", "STEP")} ${idx + 1} / ${cards.length}`}</span>
+                            <span>{t("target_artifact", "Target {Mod}")}</span>
                           </span>
-                          {idx < maxReachedIndex && (
-                            <button
-                              type="button"
-                              onClick={() => setActiveCardIndex(maxReachedIndex)}
-                              className="text-[10px] font-black text-[var(--subtext)] hover:text-[var(--text)] uppercase tracking-widest flex items-center gap-1 cursor-pointer transition-colors"
-                            >
-                              <span>{t("jump_to_latest", "Jump to Latest")}</span>
-                              <span className="material-symbols-outlined !text-xs">
-                                {t("icon_fast_forward", "fast_forward")}
-                              </span>
-                            </button>
-                          )}
-                        </div>
-                        <h3 className="text-xl font-black text-[var(--text)] tracking-tight mt-0.5">
-                          {card.label} {card.required && <span className="text-[var(--danger)]">*</span>}
-                        </h3>
+                        )}
+                        {activeCategory.requires_target_user && (
+                          <span className={VAULT_CHIP_CLASS}>
+                            <span className="material-symbols-outlined !text-[12px] text-[var(--accent)]">
+                              {t("icon_person", "person")}
+                            </span>
+                            <span>{t("support_target_user_label", "Target User ID")}</span>
+                          </span>
+                        )}
+                        {(activeCategory.telemetry_config?.sources?.length > 0 || String(activeCategory.show_logs_box) !== "false") && (
+                          <span className={VAULT_CHIP_CLASS}>
+                            <span className="material-symbols-outlined !text-[12px] text-[var(--accent)]">
+                              {t("icon_terminal", "terminal")}
+                            </span>
+                            <span>{t("ticket_attached_logs", "Attached Logs")}</span>
+                          </span>
+                        )}
+                        {supporterPerkChips}
                       </div>
+                    )}
+                  </div>
+                )}
+              </UniversalGroup>
 
-                      {/* Card Body */}
-                      <div className="flex flex-col gap-4">
-                        {card.type === 'OS_DETAILS' && (
-                          <div className="flex flex-col gap-4 w-full">
-                            <div className="flex flex-col gap-1.5 relative z-[60]">
-                              <span className="text-[10px] font-black uppercase tracking-widest text-[var(--subtext)] px-1">
-                                {t("landing_feedback_form_platform", "Target Platform")}
-                              </span>
-                              <CustomDropdown
-                                disableTint={true}
-                                value={osPlatform}
-                                options={[
-                                  { id: "Desktop App", label: t("landing_fb_desktop_title", "Desktop App") },
-                                  { id: "Website", label: t("landing_fb_web_title", "Website") },
-                                  { id: "Mobile PWA", label: t("landing_fb_pwa_title", "Mobile PWA") },
-                                ]}
-                                onChange={(val: string[]) =>
-                                  setOsPlatform((val[0] as "Desktop App" | "Website" | "Mobile PWA") || "Desktop App")
-                                }
-                                allowMultiSelect={false}
-                              />
-                            </div>
-                            <UniversalInput
-                              label={`${t("ticket_subject_label", "Ticket Subject")} *`}
-                              value={title}
-                              onChange={setTitle}
-                              onKeyDown={handleAdvance}
-                              placeholder={t("support_placeholder_title", "Enter a concise title...")}
-                            />
-                            <UniversalTextArea
-                              label={`${t("support_step_desc", "Issue Description")} *`}
-                              value={description}
-                              onChange={setDescription}
-                              placeholder={t("support_placeholder_desc", "Describe your issue and reproduction steps...")}
-                              className="min-h-[180px] sm:min-h-[220px]"
-                            />
-                          </div>
-                        )}
-
-                        {card.type === 'CLASSIFICATION' && (
-                          <div className="flex flex-col gap-4">
-                            <div className="relative z-[70]">
-                              <CustomDropdown
-                                disableTint={true}
-                                value={activeTab}
-                                options={categories.map(c => ({ id: c.category_code, label: c.category_name }))}
-                                onChange={(val: string[]) => setActiveTab(val[0])}
-                                allowMultiSelect={false}
-                              />
-                            </div>
-
-                            {activeCategory && (
-                              <div className="glass-surface p-4 rounded-2xl border border-[color-mix(in_srgb,var(--text)_12%,transparent)] flex flex-col gap-3">
-                                <div className="flex items-start gap-3">
-                                  <div className="w-9 h-9 rounded-xl glass-surface border border-[var(--glass-card-icon-border,rgba(255,255,255,0.22))] bg-[var(--glass-card-icon-bg,rgba(255,255,255,0.08))] shadow-[var(--glass-card-icon-shadow)] flex items-center justify-center shrink-0 text-[var(--accent)]">
-                                    <span className="material-symbols-outlined !text-[18px]">
-                                      {t("icon_info", "info")}
-                                    </span>
-                                  </div>
-                                  <div className="flex flex-col gap-1 min-w-0">
-                                    <span className="text-xs font-black text-[var(--text)]">
-                                      {activeCategory.category_name}
-                                    </span>
-                                    <p className="text-xs text-[var(--subtext)] leading-relaxed">
-                                      {activeCategory.description || t("support_wizard_subtitle", "Select a support channel and complete each step below to submit your ticket.")}
-                                    </p>
-                                  </div>
-                                </div>
-                                <div className="flex flex-wrap gap-1.5 pt-1">
-                                  {activeCategory.requires_target_mod && (
-                                    <span className={VAULT_CHIP_CLASS}>
-                                      <span className="material-symbols-outlined !text-[12px] text-[var(--accent)]">
-                                        {t("icon_extension", "extension")}
-                                      </span>
-                                      <span>{t("target_artifact", "Target {Mod}")}</span>
-                                    </span>
-                                  )}
-                                  {activeCategory.requires_target_user && (
-                                    <span className={VAULT_CHIP_CLASS}>
-                                      <span className="material-symbols-outlined !text-[12px] text-[var(--accent)]">
-                                        {t("icon_person", "person")}
-                                      </span>
-                                      <span>{t("support_target_user_label", "Target User ID")}</span>
-                                    </span>
-                                  )}
-                                  {(activeCategory.telemetry_config?.sources?.length > 0 || String(activeCategory.show_logs_box) !== "false") && (
-                                    <span className={VAULT_CHIP_CLASS}>
-                                      <span className="material-symbols-outlined !text-[12px] text-[var(--accent)]">
-                                        {t("icon_terminal", "terminal")}
-                                      </span>
-                                      <span>{t("ticket_attached_logs", "Attached Logs")}</span>
-                                    </span>
-                                  )}
-                                  <span className={VAULT_CHIP_CLASS}>
-                                    <span className="material-symbols-outlined !text-[12px] text-[var(--success)]">
-                                      {t("icon_checklist", "checklist")}
-                                    </span>
-                                    <span>{`${cards.length} ${t("steps", "Steps")}`}</span>
-                                  </span>
-                                  {supporterPerkChips}
-                                </div>
-                              </div>
-                            )}
-                          </div>
-                        )}
-
-                        {card.type === 'TARGET_MOD' && (
-                          <div className="flex flex-col gap-4 relative z-[60]">
+              <div className={isFormDisabled ? "flex flex-col gap-4 opacity-40 pointer-events-none select-none" : "flex flex-col gap-4"}>
+                {(activeCategory?.requires_target_mod || activeCategory?.requires_target_user) && (
+                  <UniversalGroup
+                    title={t("support_group_target", "Target Selection")}
+                    icon={t("icon_extension", "extension")}
+                  >
+                    {activeCategory?.requires_target_mod && (
+                      <div className="flex flex-col gap-3 relative z-[60]">
+                        {!targetModId ? (
+                          <div className="flex flex-col gap-1.5">
+                            <label className="text-[10px] font-black uppercase tracking-widest text-[var(--subtext)] opacity-75 px-1 leading-tight">
+                              {`${t("target_artifact", "Target {Mod}")} *`}
+                            </label>
                             <ModSearchDropdown
                               modList={eligibleTargetMods}
                               placeholder={t("support_placeholder_mod_uuid", "{Mod} UUID...") || "Select Mod..."}
-                              selectedItem={selectedModItem || (targetModId ? { displayName: targetModId } : null)}
+                              selectedItem={null}
                               onSelect={(m: any) => setTargetModId(m.dbId || m.id || m.hash)}
                               onClear={() => setTargetModId("")}
+                              onPreviewItem={onOpenModDossier}
                             />
-                            {matchedSupporterPass && (
-                              <div className="glass-surface rounded-2xl p-4 border border-[color-mix(in_srgb,var(--text)_12%,transparent)] flex items-start gap-3.5 animate-in fade-in duration-300">
-                                <div className="w-10 h-10 rounded-xl glass-surface border border-[var(--glass-card-icon-border,rgba(255,255,255,0.22))] bg-[var(--glass-card-icon-bg,rgba(255,255,255,0.08))] shadow-[var(--glass-card-icon-shadow)] flex items-center justify-center text-[var(--success)] shrink-0">
-                                  <span className="material-symbols-outlined !text-[20px]">{t("icon_bolt", "bolt")}</span>
-                                </div>
-                                <div className="flex flex-col gap-1">
-                                  <span className="text-xs font-black uppercase tracking-widest text-[var(--success)] flex items-center gap-1.5">
-                                    {t("supporter_ticket_expedited_banner", "Verified {Mason} Supporter — Priority Support Active")}
+                          </div>
+                        ) : (
+                          <div className="glass-surface rounded-2xl p-3.5 border border-[color-mix(in_srgb,var(--text)_14%,transparent)] flex flex-wrap sm:flex-nowrap items-center justify-between gap-3">
+                            <div className="flex items-center gap-3 min-w-0 flex-1">
+                              <div className="w-10 h-10 rounded-xl glass-surface border border-[var(--glass-card-icon-border,rgba(255,255,255,0.22))] bg-[var(--glass-card-icon-bg,rgba(255,255,255,0.08))] shadow-[var(--glass-card-icon-shadow)] flex items-center justify-center shrink-0 text-[var(--accent)]">
+                                <span className="material-symbols-outlined !text-[18px]">
+                                  {t("icon_extension", "extension")}
+                                </span>
+                              </div>
+                              <div className="flex flex-col gap-0.5 min-w-0 flex-1">
+                                <span className="text-sm font-black text-[var(--text)] truncate">
+                                  {selectedModTitle}
+                                </span>
+                                <span className="text-xs text-[var(--subtext)] truncate">
+                                  {`${selectedModAuthor}${selectedModVersion ? ` • ${selectedModVersion}` : ""} • #${String(targetModId).slice(0, 8)}`}
+                                </span>
+                              </div>
+                            </div>
+
+                            <div className="ml-auto flex items-center gap-2 shrink-0">
+                              {resolvedSelectedModItem && onOpenModDossier && (
+                                <button
+                                  type="button"
+                                  onClick={() => onOpenModDossier(resolvedSelectedModItem)}
+                                  className="px-3 py-1.5 rounded-xl glass-surface border border-[color-mix(in_srgb,var(--text)_14%,transparent)] hover:border-[var(--accent)] text-[11px] font-black text-[var(--text)] flex items-center gap-1.5 cursor-pointer transition-all"
+                                >
+                                  <span className="material-symbols-outlined !text-[14px] text-[var(--accent)]">
+                                    {t("icon_menu_book", "menu_book")}
                                   </span>
-                                  <p className="text-[11px] font-semibold text-[var(--subtext)] leading-relaxed">
-                                    {t("supporter_ticket_expedited_desc", "Your local Supporter Pass was verified for this {mason}. This ticket will be flagged for Priority Queue routing without exposing your subscription list.")}
-                                  </p>
-                                </div>
-                              </div>
-                            )}
-                          </div>
-                        )}
-
-                        {card.type === 'TARGET_USER' && (
-                          <UniversalInput
-                            label={t("support_target_user_label", "Target User ID")}
-                            value={targetUserId}
-                            onChange={setTargetUserId}
-                            onKeyDown={handleAdvance}
-                            placeholder={t("support_placeholder_user_uuid", "User UUID...")}
-                            className="font-mono"
-                          />
-                        )}
-
-                        {card.type === 'CUSTOM' && (
-                          <div className="flex flex-col w-full">
-                            {card.field?.type === "TEXT INPUT" && (
-                              <UniversalInput
-                                value={customFieldsData[card.id] || ""}
-                                onChange={(val: string) => setCustomFieldsData(prev => ({ ...prev, [card.id]: val }))}
-                                onKeyDown={handleAdvance}
-                                placeholder={card.label}
-                              />
-                            )}
-                            {card.field?.type === "TEXTAREA" && (
-                              <UniversalTextArea
-                                value={customFieldsData[card.id] || ""}
-                                onChange={(val: string) => setCustomFieldsData(prev => ({ ...prev, [card.id]: val }))}
-                                placeholder={card.label}
-                                className="min-h-[160px]"
-                              />
-                            )}
-                            {card.field?.type === "DROPDOWN" && (
-                              <div className="relative z-[50]">
-                                <CustomDropdown
-                                  disableTint={true}
-                                  value={customFieldsData[card.id] || (card.field.allow_multi_select ? [] : "")}
-                                  options={card.field.options?.map((opt: string) => ({ id: opt, label: opt })) || []}
-                                  onChange={(val: any) => setCustomFieldsData(prev => ({ ...prev, [card.id]: card.field.allow_multi_select ? val : val[0] }))}
-                                  allowMultiSelect={card.field.allow_multi_select}
-                                />
-                              </div>
-                            )}
-                            {card.field?.type === "CHECKBOX" && (
-                              (!card.field.options || card.field.options.length === 0) ? (
-                                <UniversalToggle
-                                  checked={customFieldsData[card.id] === "true"}
-                                  onChange={(val: boolean) => setCustomFieldsData(prev => ({ ...prev, [card.id]: val ? "true" : "" }))}
-                                  label={t("label_yes", "Yes") || "Yes"}
-                                />
-                              ) : (
-                                <div className="flex flex-col gap-2.5">
-                                  {card.field.options.map((opt: string) => {
-                                    const isChecked = card.field.allow_multi_select
-                                      ? (customFieldsData[card.id] || []).includes(opt)
-                                      : customFieldsData[card.id] === opt;
-                                    return (
-                                      <SidePanelPillToggle
-                                        key={opt}
-                                        checked={isChecked}
-                                        label={opt}
-                                        onChange={() => {
-                                          setCustomFieldsData(prev => {
-                                            if (card.field.allow_multi_select) {
-                                              const arr = (Array.isArray(prev[card.id]) ? prev[card.id] : []) as string[];
-                                              if (arr.includes(opt)) return { ...prev, [card.id]: arr.filter((x: string) => x !== opt) };
-                                              else return { ...prev, [card.id]: [...arr, opt] };
-                                            } else {
-                                              return { ...prev, [card.id]: isChecked ? "" : opt };
-                                            }
-                                          });
-                                        }}
-                                      />
-                                    );
-                                  })}
-                                </div>
-                              )
-                            )}
-                          </div>
-                        )}
-
-                        {card.type === 'DESCRIPTION' && (
-                          <div className="flex flex-col gap-4 w-full">
-                            {String(activeCategory?.show_title_box) !== "false" && (
-                              <UniversalInput
-                                label={`${t("ticket_subject_label", "Ticket Subject")} *`}
-                                value={title}
-                                onChange={setTitle}
-                                onKeyDown={handleAdvance}
-                                placeholder={t("support_placeholder_title", "Enter a concise title...")}
-                              />
-                            )}
-                            <UniversalTextArea
-                              label={`${t("support_step_desc", "Issue Description")} *`}
-                              value={description}
-                              onChange={setDescription}
-                              placeholder={t("support_placeholder_desc", "Describe your issue in detail...")}
-                              className="min-h-[180px] sm:min-h-[220px]"
-                            />
-                          </div>
-                        )}
-
-                        {card.type === 'TELEMETRY' && (
-                          <div className="flex flex-col gap-4">
-                            <div className="glass-surface p-4 rounded-2xl border border-[color-mix(in_srgb,var(--text)_12%,transparent)] flex flex-col gap-3.5">
-                              <div className="flex flex-wrap items-center justify-between gap-2">
-                                <div className="flex items-center gap-2.5 min-w-0">
-                                  <div className="w-9 h-9 rounded-xl glass-surface border border-[var(--glass-card-icon-border,rgba(255,255,255,0.22))] bg-[var(--glass-card-icon-bg,rgba(255,255,255,0.08))] shadow-[var(--glass-card-icon-shadow)] flex items-center justify-center shrink-0 text-[var(--accent)]">
-                                    <span className="material-symbols-outlined !text-[18px]">
-                                      {t("icon_terminal", "terminal")}
-                                    </span>
-                                  </div>
-                                  <div className="flex flex-col min-w-0">
-                                    <span className="text-xs font-black text-[var(--text)] truncate">
-                                      {t("ticket_attached_logs", "Attached Logs")}
-                                    </span>
-                                    <span className="text-[10px] font-mono text-[var(--subtext)] truncate">
-                                      {t("support_telemetry_opt", "Automatic Diagnostics")}
-                                    </span>
-                                  </div>
-                                </div>
-
-                                {(supportStream === "os_bug" || String(activeCategory?.show_logs_box) !== "false") && (
-                                  <div className="ml-auto flex flex-wrap items-center justify-end gap-2 shrink-0">
-                                    <button
-                                      type="button"
-                                      onClick={(e) => {
-                                        e.stopPropagation();
-                                        attachLog();
-                                      }}
-                                      className="px-2.5 py-1.5 rounded-xl glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_24%,transparent)] text-[10px] font-black uppercase tracking-wider text-[var(--text)] flex items-center gap-1.5 cursor-pointer transition-all"
-                                    >
-                                      <span className="material-symbols-outlined !text-[14px] text-[var(--accent)]">
-                                        {t("icon_upload_file", "upload_file")}
-                                      </span>
-                                      <span>{t("attach_logs", "Attach Logs")}</span>
-                                    </button>
-                                    <button
-                                      type="button"
-                                      onClick={() => setIsEditingRawTelemetry((prev) => !prev)}
-                                      className="px-2.5 py-1.5 rounded-xl glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_24%,transparent)] text-[10px] font-black uppercase tracking-wider text-[var(--accent)] flex items-center gap-1 cursor-pointer transition-all"
-                                    >
-                                      <span className="material-symbols-outlined !text-[14px]">
-                                        {isEditingRawTelemetry ? t("icon_check", "check") : t("icon_edit", "edit")}
-                                      </span>
-                                      <span>
-                                        {isEditingRawTelemetry
-                                          ? t("done", "Done")
-                                          : t("landing_bug_btn_edit_telemetry", "Edit Details")}
-                                      </span>
-                                    </button>
-                                  </div>
-                                )}
-                              </div>
-
-                              {effectiveTelemetrySources.length > 0 && (
-                                <div className="flex flex-col gap-2">
-                                  {effectiveTelemetrySources.map((source: any) => {
-                                    if (source.type === "OS") {
-                                      return (
-                                        <SidePanelPillToggle
-                                          key={source.id}
-                                          checked={includeLoadoutDiagnostics}
-                                          icon={t("icon_memory", "memory")}
-                                          label={t("support_include_diag_toggle", "Include Scrubbed {Vault} & System Diagnostics")}
-                                          description={
-                                            includeLoadoutDiagnostics
-                                              ? t("support_include_diag_on", "Scrubbed {Blueprint}, OS & session logs included")
-                                              : t("support_include_diag_off", "Excluded by default — zero loadout telemetry sent")
-                                          }
-                                          onChange={() => setIncludeLoadoutDiagnostics((v) => !v)}
-                                        />
-                                      );
-                                    }
-                                    const isOptedOut = optedOutSources.includes(source.id);
-                                    return (
-                                      <SidePanelPillToggle
-                                        key={source.id}
-                                        checked={!isOptedOut}
-                                        icon={t("icon_folder", "folder")}
-                                        label={source.label}
-                                        description={
-                                          !isOptedOut
-                                            ? t("data_included", "Data Included")
-                                            : t("excluded_from_report", "Excluded from report")
-                                        }
-                                        onChange={() => {
-                                          if (!isOptedOut) {
-                                            setOptedOutSources((prev) => [...prev, source.id]);
-                                          } else {
-                                            setOptedOutSources((prev) => prev.filter((id) => id !== source.id));
-                                          }
-                                        }}
-                                      />
-                                    );
-                                  })}
-                                </div>
+                                  <span>{t("view_dossier", "View Dossier")}</span>
+                                </button>
                               )}
-
-                              {previewTelemetryLogs && (
-                                <TicketLogViewer logs={previewTelemetryLogs} />
-                              )}
-
-                              {isEditingRawTelemetry && (supportStream === "os_bug" || String(activeCategory?.show_logs_box) !== "false") && (
-                                <div className="pt-2 border-t border-[color-mix(in_srgb,var(--text)_10%,transparent)]">
-                                  <UniversalTextArea
-                                    label={t("support_logs", "Attach Additional Logs")}
-                                    value={logs}
-                                    onChange={setLogs}
-                                    placeholder={t("support_placeholder_logs", "No logs attached.")}
-                                    className="min-h-[140px] font-mono text-xs"
-                                  />
-                                </div>
-                              )}
+                              <button
+                                type="button"
+                                aria-label={t("btn_remove", "{Remove}")}
+                                onClick={() => setTargetModId("")}
+                                className="w-8 h-8 rounded-xl glass-surface border border-[color-mix(in_srgb,var(--text)_14%,transparent)] hover:border-[var(--danger)] text-[var(--subtext)] hover:text-[var(--danger)] flex items-center justify-center cursor-pointer transition-all shrink-0"
+                              >
+                                <span className="material-symbols-outlined !text-[15px]">
+                                  {t("icon_close", "close")}
+                                </span>
+                              </button>
                             </div>
                           </div>
                         )}
 
-                        {card.type === 'REVIEW' && (
-                          <div className="flex flex-col gap-4">
-                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                              <StatBox
-                                label={t("support_category", "Category")}
-                                value={
-                                  supportStream === "os_bug"
-                                    ? `${t("support_stream_os_bug", "OS Bug Report")} (${osPlatform})`
-                                    : activeCategory?.category_name || activeTab
-                                }
-                                icon={supportStream === "os_bug" ? t("icon_bug_report", "bug_report") : t("icon_category", "category")}
-                                iconColorClass="text-[var(--accent)]"
-                              />
-                              <StatBox
-                                label={t("ticket_subject_label", "Ticket Subject")}
-                                value={title || activeCategory?.category_name || t("support_title", "Support Ticket")}
-                                icon={t("icon_receipt_long", "receipt_long")}
-                                iconColorClass="text-[var(--accent)]"
-                              />
-                              {supportStream === "community" && activeCategory?.requires_target_mod && (
-                                <StatBox
-                                  label={t("target_artifact", "Target {Mod}")}
-                                  value={selectedModItem?.displayName || selectedModItem?.name || targetModId || t("none", "None")}
-                                  icon={t("icon_extension", "extension")}
-                                  iconColorClass="text-[var(--accent)]"
-                                />
-                              )}
-                              {supportStream === "community" && activeCategory?.requires_target_user && (
-                                <StatBox
-                                  label={t("support_target_user_label", "Target User ID")}
-                                  value={targetUserId || t("none", "None")}
-                                  icon={t("icon_person", "person")}
-                                  iconColorClass="text-[var(--accent)]"
-                                />
-                              )}
+                        {matchedSupporterPass && (
+                          <div className="glass-surface rounded-2xl p-4 border border-[color-mix(in_srgb,var(--text)_12%,transparent)] flex items-start gap-3.5 animate-in fade-in duration-300">
+                            <div className="w-10 h-10 rounded-xl glass-surface border border-[var(--glass-card-icon-border,rgba(255,255,255,0.22))] bg-[var(--glass-card-icon-bg,rgba(255,255,255,0.08))] shadow-[var(--glass-card-icon-shadow)] flex items-center justify-center text-[var(--success)] shrink-0">
+                              <span className="material-symbols-outlined !text-[20px]">{t("icon_bolt", "bolt")}</span>
                             </div>
-
-                            {supporterPerkChips && (
-                              <div className="flex flex-wrap items-center gap-2">
-                                {supporterPerkChips}
-                              </div>
-                            )}
-
-                            {description && (
-                              <div className="glass-surface rounded-2xl p-4 border border-[color-mix(in_srgb,var(--text)_12%,transparent)] flex flex-col gap-1.5">
-                                <span className="text-[10px] font-black uppercase tracking-widest text-[var(--subtext)]">
-                                  {t("upload_desc", "Description")}
-                                </span>
-                                <p className="text-xs text-[var(--text)] leading-relaxed whitespace-pre-wrap">
-                                  {description}
-                                </p>
-                              </div>
-                            )}
-
-                            {previewTelemetryLogs && (
-                              <div className="glass-surface rounded-2xl p-4 border border-[color-mix(in_srgb,var(--text)_12%,transparent)] flex flex-col gap-2.5">
-                                <span className="text-[10px] font-black uppercase tracking-widest text-[var(--subtext)]">
-                                  {t("ticket_attached_logs", "Attached Logs")}
-                                </span>
-                                <TicketLogViewer logs={previewTelemetryLogs} />
-                              </div>
-                            )}
-
-                            <SidePanelPillToggle
-                              checked={submitAnonymously}
-                              icon={t("icon_visibility_off", "visibility_off")}
-                              label={t("support_submit_anon_toggle", "Submit Ticket Anonymously")}
-                              description={t("support_submit_anon_desc", "Omit your account ID from this ticket submission.")}
-                              onChange={() => setSubmitAnonymously((v) => !v)}
-                            />
-
-                            <div className="flex flex-wrap items-center justify-end gap-2.5 pt-3 border-t border-[color-mix(in_srgb,var(--text)_8%,transparent)]">
-                              {idx > 0 && (
-                                <ActionButton
-                                  variant="glass"
-                                  icon={t("icon_arrow_back", "arrow_back")}
-                                  label={t("back", "Back")}
-                                  onClick={() => setActiveCardIndex(idx - 1)}
-                                />
-                              )}
-                              <ActionButton
-                                icon={isSubmitting || isScanning ? t("icon_sync", "sync") : t("icon_send", "send")}
-                                label={isSubmitting || isScanning ? t("scanning", "Submitting...") : t("support_submit", "Submit Ticket")}
-                                variant="accent"
-                                disabled={isSubmitting || isScanning || isFormDisabled}
-                                onClick={submitTicket}
-                              />
+                            <div className="flex flex-col gap-1">
+                              <span className="text-xs font-black uppercase tracking-widest text-[var(--success)] flex items-center gap-1.5">
+                                {t("supporter_ticket_expedited_banner", "Verified {Mason} Supporter — Priority Support Active")}
+                              </span>
+                              <p className="text-[11px] font-semibold text-[var(--subtext)] leading-relaxed m-0">
+                                {t("supporter_ticket_expedited_desc", "Your local Supporter Pass was verified for this {mason}. This ticket will be flagged for Priority Queue routing without exposing your subscription list.")}
+                              </p>
                             </div>
                           </div>
                         )}
                       </div>
+                    )}
 
-                      {/* Active Step Action Footer */}
-                      {card.type !== 'REVIEW' && isActive && (
-                        <div className="flex flex-wrap items-center justify-end gap-2.5 pt-3 border-t border-[color-mix(in_srgb,var(--text)_8%,transparent)]">
-                          {idx > 0 && (
-                            <ActionButton
-                              variant="glass"
-                              icon={t("icon_arrow_back", "arrow_back")}
-                              label={t("back", "Back")}
-                              onClick={() => setActiveCardIndex(idx - 1)}
-                            />
-                          )}
-                          <ActionButton
-                            label={t("confirm", "Confirm")}
-                            icon={t("icon_done", "done")}
-                            disabled={
-                              (card.type === 'OS_DETAILS' && (!title.trim() || !description.trim())) ||
-                              (card.type === 'TARGET_MOD' && activeCategory?.requires_target_mod && !targetModId) ||
-                              (card.type === 'TARGET_USER' && activeCategory?.requires_target_user && !targetUserId) ||
-                              (card.type === 'CUSTOM' && card.field?.required && (!customFieldsData[card.id] || (Array.isArray(customFieldsData[card.id]) && customFieldsData[card.id].length === 0))) ||
-                              (card.type === 'DESCRIPTION' && card.required && !description.trim()) ||
-                              (card.type === 'DESCRIPTION' && String(activeCategory?.show_title_box) !== "false" && !title.trim())
-                            }
-                            onClick={() => setActiveCardIndex(Math.min(cards.length - 1, idx + 1))}
-                            variant="accent"
+                    {activeCategory?.requires_target_user && (
+                      <UniversalInput
+                        label={`${t("support_target_user_label", "Target User ID")} *`}
+                        value={targetUserId}
+                        onChange={setTargetUserId}
+                        placeholder={t("support_placeholder_user_uuid", "User UUID...")}
+                        className="font-mono"
+                      />
+                    )}
+                  </UniversalGroup>
+                )}
+
+                {activeCategory?.custom_fields?.length > 0 && (
+                  <UniversalGroup
+                    title={t("support_group_additional", "Additional Details")}
+                    icon={t("icon_tune", "tune")}
+                  >
+                    {activeCategory.custom_fields.map((field: any) => (
+                      <div key={field.id} className="flex flex-col gap-1.5 w-full">
+                        <label className="text-[10px] font-black uppercase tracking-widest text-[var(--subtext)] opacity-75 px-1 leading-tight">
+                          {`${field.label}${field.required ? " *" : ""}`}
+                        </label>
+                        {field.type === "TEXT INPUT" && (
+                          <UniversalInput
+                            value={customFieldsData[field.id] || ""}
+                            onChange={(val: string) => setCustomFieldsData(prev => ({ ...prev, [field.id]: val }))}
+                            placeholder={field.label}
                           />
-                        </div>
-                      )}
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
+                        )}
+                        {field.type === "TEXTAREA" && (
+                          <UniversalTextArea
+                            value={customFieldsData[field.id] || ""}
+                            onChange={(val: string) => setCustomFieldsData(prev => ({ ...prev, [field.id]: val }))}
+                            placeholder={field.label}
+                            className="min-h-[140px]"
+                          />
+                        )}
+                        {field.type === "DROPDOWN" && (
+                          <div className="relative z-[50]">
+                            <CustomDropdown
+                              disableTint={true}
+                              value={customFieldsData[field.id] || (field.allow_multi_select ? [] : "")}
+                              options={field.options?.map((opt: string) => ({ id: opt, label: opt })) || []}
+                              onChange={(val: any) => setCustomFieldsData(prev => ({ ...prev, [field.id]: field.allow_multi_select ? val : val[0] }))}
+                              allowMultiSelect={field.allow_multi_select}
+                            />
+                          </div>
+                        )}
+                        {field.type === "CHECKBOX" && (
+                          (!field.options || field.options.length === 0) ? (
+                            <UniversalToggle
+                              checked={customFieldsData[field.id] === "true"}
+                              onChange={(val: boolean) => setCustomFieldsData(prev => ({ ...prev, [field.id]: val ? "true" : "" }))}
+                              label={t("label_yes", "Yes") || "Yes"}
+                            />
+                          ) : (
+                            <div className="flex flex-col gap-2">
+                              {field.options.map((opt: string) => {
+                                const isChecked = field.allow_multi_select
+                                  ? (customFieldsData[field.id] || []).includes(opt)
+                                  : customFieldsData[field.id] === opt;
+                                return (
+                                  <SidePanelPillToggle
+                                    key={opt}
+                                    checked={isChecked}
+                                    label={opt}
+                                    onChange={() => {
+                                      setCustomFieldsData(prev => {
+                                        if (field.allow_multi_select) {
+                                          const arr = (Array.isArray(prev[field.id]) ? prev[field.id] : []) as string[];
+                                          if (arr.includes(opt)) return { ...prev, [field.id]: arr.filter((x: string) => x !== opt) };
+                                          else return { ...prev, [field.id]: [...arr, opt] };
+                                        } else {
+                                          return { ...prev, [field.id]: isChecked ? "" : opt };
+                                        }
+                                      });
+                                    }}
+                                  />
+                                );
+                              })}
+                            </div>
+                          )
+                        )}
+                      </div>
+                    ))}
+                  </UniversalGroup>
+                )}
 
+                {String(activeCategory?.show_description_box) !== "false" && (
+                  <UniversalGroup
+                    title={t("support_desc", "Ticket Description")}
+                    icon={t("icon_description", "description")}
+                  >
+                    {String(activeCategory?.show_title_box) !== "false" && (
+                      <UniversalInput
+                        label={`${t("ticket_subject_label", "Ticket Subject")} *`}
+                        value={title}
+                        onChange={setTitle}
+                        placeholder={t("support_placeholder_title", "Enter a concise title...")}
+                      />
+                    )}
+                    <UniversalTextArea
+                      label={`${t("support_step_desc", "Issue Description")} *`}
+                      value={description}
+                      onChange={setDescription}
+                      placeholder={t("support_placeholder_desc", "Describe your issue in detail...")}
+                      className="min-h-[170px] sm:min-h-[200px]"
+                    />
+                  </UniversalGroup>
+                )}
+              </div>
+            </>
+          )}
+
+          {showTelemetrySection && (
+            <UniversalGroup
+              title={t("ticket_attached_logs", "Attached Logs")}
+              icon={t("icon_terminal", "terminal")}
+              className={isFormDisabled ? "opacity-40 pointer-events-none select-none" : undefined}
+              headerAction={
+                (supportStream === "os_bug" || String(activeCategory?.show_logs_box) !== "false") && (
+                  <div className="flex flex-wrap items-center gap-2 py-2">
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        attachLog();
+                      }}
+                      className="px-2.5 py-1.5 rounded-xl glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] hover:border-[var(--accent)] text-[10px] font-black uppercase tracking-wider text-[var(--text)] flex items-center gap-1.5 cursor-pointer transition-all"
+                    >
+                      <span className="material-symbols-outlined !text-[14px] text-[var(--accent)]">
+                        {t("icon_upload_file", "upload_file")}
+                      </span>
+                      <span>{t("attach_logs", "Attach Logs")}</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setIsEditingRawTelemetry((prev) => !prev)}
+                      className="px-2.5 py-1.5 rounded-xl glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] hover:border-[var(--accent)] text-[10px] font-black uppercase tracking-wider text-[var(--accent)] flex items-center gap-1 cursor-pointer transition-all"
+                    >
+                      <span className="material-symbols-outlined !text-[14px]">
+                        {isEditingRawTelemetry ? t("icon_check", "check") : t("icon_edit", "edit")}
+                      </span>
+                      <span>
+                        {isEditingRawTelemetry
+                          ? t("done", "Done")
+                          : t("landing_bug_btn_edit_telemetry", "Edit Details")}
+                      </span>
+                    </button>
+                  </div>
+                )
+              }
+            >
+              {effectiveTelemetrySources.length > 0 && (
+                <div className="flex flex-col gap-2">
+                  {effectiveTelemetrySources.map((source: any) => {
+                    if (source.type === "OS") {
+                      return (
+                        <SidePanelPillToggle
+                          key={source.id}
+                          checked={includeLoadoutDiagnostics}
+                          icon={t("icon_memory", "memory")}
+                          label={t("support_include_diag_toggle", "Include Scrubbed {Vault} & System Diagnostics")}
+                          description={
+                            includeLoadoutDiagnostics
+                              ? t("support_include_diag_on", "Scrubbed {Blueprint}, OS & session logs included")
+                              : t("support_include_diag_off", "Excluded by default — zero loadout telemetry sent")
+                          }
+                          onChange={() => setIncludeLoadoutDiagnostics((v) => !v)}
+                        />
+                      );
+                    }
+                    const isOptedOut = optedOutSources.includes(source.id);
+                    return (
+                      <SidePanelPillToggle
+                        key={source.id}
+                        checked={!isOptedOut}
+                        icon={t("icon_folder", "folder")}
+                        label={source.label}
+                        description={
+                          !isOptedOut
+                            ? t("data_included", "Data Included")
+                            : t("excluded_from_report", "Excluded from report")
+                        }
+                        onChange={() => {
+                          if (!isOptedOut) {
+                            setOptedOutSources((prev) => [...prev, source.id]);
+                          } else {
+                            setOptedOutSources((prev) => prev.filter((id) => id !== source.id));
+                          }
+                        }}
+                      />
+                    );
+                  })}
+                </div>
+              )}
+
+              {previewTelemetryLogs && (
+                <TicketLogViewer logs={previewTelemetryLogs} />
+              )}
+
+              {isEditingRawTelemetry && (supportStream === "os_bug" || String(activeCategory?.show_logs_box) !== "false") && (
+                <div className="pt-2 border-t border-[color-mix(in_srgb,var(--text)_10%,transparent)]">
+                  <UniversalTextArea
+                    label={t("support_logs", "Attach Additional Logs")}
+                    value={logs}
+                    onChange={setLogs}
+                    placeholder={t("support_placeholder_logs", "No logs attached.")}
+                    className="min-h-[140px] font-mono text-xs"
+                  />
+                </div>
+              )}
+            </UniversalGroup>
+          )}
+
+          <div className={isFormDisabled ? "flex flex-col gap-4 opacity-40 pointer-events-none select-none" : "flex flex-col gap-4"}>
+            <SidePanelPillToggle
+              checked={submitAnonymously}
+              icon={t("icon_visibility_off", "visibility_off")}
+              label={t("support_submit_anon_toggle", "Submit Ticket Anonymously")}
+              description={t("support_submit_anon_desc", "Omit your account ID from this ticket submission.")}
+              onChange={() => setSubmitAnonymously((v) => !v)}
+            />
           </div>
 
+          <ActionButton
+            variant="primary"
+            className="w-full"
+            icon={isSubmitting || isScanning ? t("icon_sync", "sync") : t("icon_send", "send")}
+            label={isSubmitting || isScanning ? t("scanning", "Submitting...") : t("support_submit", "Submit Ticket")}
+            disabled={isSubmitDisabled}
+            tooltip={supportSubmitTooltipTitle}
+            tooltipSubtitle={supportSubmitTooltipSub}
+            onClick={submitTicket}
+          />
         </div>
         )}
 

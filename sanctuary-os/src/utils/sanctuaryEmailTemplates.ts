@@ -1,4 +1,5 @@
 import { EMAIL_PNG_ASSETS } from "./sanctuaryEmailAssetData";
+import { SANCTUARY_CONFIG } from "../supabase";
 
 /**
  * Sanctuary OS Unified <UniversalCard> Liquid Glass HTML Email Renderer & Email Privacy Masking.
@@ -41,8 +42,9 @@ export interface SanctuaryAuthEmailTemplate {
   previewHtml: string;
 }
 
-const LIVE_EMAIL_ASSET_BASE =
-  "https://tpsbtaqxlczrysqqmanp.supabase.co/functions/v1/keeper-email-dispatch/assets";
+const LIVE_EMAIL_ASSET_BASE = `${String(
+  SANCTUARY_CONFIG.supabaseUrl || "https://tpsbtaqxlczrysqqmanp.supabase.co"
+).replace(/\/+$/, "")}/functions/v1/keeper-email-dispatch/assets`;
 
 /** Masks a single email address to l•••@d•••.tld so full addresses are never flashed in UI/logs. */
 export function maskEmailAddress(email: string): string {

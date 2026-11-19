@@ -1093,108 +1093,118 @@ pub fn launch_game(
 
 
 #[tauri::command]
-pub fn discover_schema_external_tools(
+pub async fn discover_schema_external_tools(
     live_path: Option<String>,
     mods_path: Option<String>,
     state: tauri::State<'_, AppState>,
 ) -> Result<Vec<serde_json::Value>, String> {
-    let game_schema = state.active_schema.lock().unwrap_or_else(|e| e.into_inner()).clone();
-    let Some(tools) = game_schema.as_ref().and_then(|s| s.external_tools.as_ref()) else {
-        return Ok(Vec::new());
-    };
-    let coords = get_saved_coordinates();
-    let eff_live = live_path
-        .as_deref()
-        .map(str::trim)
-        .filter(|s| !s.is_empty())
-        .unwrap_or(&coords.live_path);
-    let eff_mods = mods_path
-        .as_deref()
-        .map(str::trim)
-        .filter(|s| !s.is_empty())
-        .unwrap_or(&coords.mods_path);
-    let live_root = crate::game_logic::resolve_game_engine_root(eff_live, &game_schema);
-    let mods_root = (!eff_mods.is_empty()).then(|| PathBuf::from(eff_mods));
-
-    let mut out = Vec::new();
-    for tool_val in tools {
-        let Some(obj) = tool_val.as_object() else {
-            continue;
+    let game_schema = state
+        .active_schema
+        .lock()
+        .unwrap_or_else(|e| e.into_inner())
+        .clone();
+    tauri::async_runtime::spawn_blocking(move || -> Result<Vec<serde_json::Value>, String> {
+        let Some(tools) = game_schema.as_ref().and_then(|s| s.external_tools.as_ref()) else {
+            return Ok(Vec::new());
         };
-        let id = obj
-            .get("id")
-            .and_then(|v| v.as_str())
-            .unwrap_or("")
-            .trim()
-            .to_string();
-        let label = obj
-            .get("label")
-            .or_else(|| obj.get("name"))
-            .and_then(|v| v.as_str())
-            .unwrap_or(&id)
-            .to_string();
-        let rel_exe = obj
-            .get("executable")
-            .or_else(|| obj.get("exe"))
-            .or_else(|| obj.get("path"))
-            .and_then(|v| v.as_str())
-            .unwrap_or("")
-            .trim()
-            .to_string();
-        if rel_exe.is_empty() {
-            continue;
-        }
-        let rel_p = Path::new(&rel_exe);
-        let safe_rel = !rel_p.is_absolute()
-            && !rel_p.components().any(|c| {
-                matches!(
-                    c,
-                    std::path::Component::ParentDir | std::path::Component::Prefix(_)
-                )
-            });
+        let coords = get_saved_coordinates();
+        let eff_live = live_path
+            .as_deref()
+            .map(str::trim)
+            .filter(|s| !s.is_empty())
+            .unwrap_or(&coords.live_path);
+        let eff_mods = mods_path
+            .as_deref()
+            .map(str::trim)
+            .filter(|s| !s.is_empty())
+            .unwrap_or(&coords.mods_path);
+        let live_root = crate::game_logic::resolve_game_engine_root(eff_live, &game_schema);
+        let mods_root = (!eff_mods.is_empty()).then(|| PathBuf::from(eff_mods));
 
-        let mut resolved_path: Option<String> = None;
-        if safe_rel {
-            let mut search_roots = Vec::new();
-            if !live_root.as_os_str().is_empty() {
-                search_roots.push(live_root.clone());
+        let mut out = Vec::new();
+        for tool_val in tools {
+            let Some(obj) = tool_val.as_object() else {
+                continue;
+            };
+            let id = obj
+                .get("id")
+                .and_then(|v| v.as_str())
+                .unwrap_or("")
+                .trim()
+                .to_string();
+            let label = obj
+                .get("label")
+                .or_else(|| obj.get("name"))
+                .and_then(|v| v.as_str())
+                .unwrap_or(&id)
+                .to_string();
+            let rel_exe = obj
+                .get("executable")
+                .or_else(|| obj.get("exe"))
+                .or_else(|| obj.get("path"))
+                .and_then(|v| v.as_str())
+                .unwrap_or("")
+                .trim()
+                .to_string();
+            if rel_exe.is_empty() {
+                continue;
             }
-            if !eff_live.is_empty() {
-                let p = PathBuf::from(eff_live);
-                if !search_roots.contains(&p) {
-                    search_roots.push(p);
-                }
-            }
-            if let Some(ref mr) = mods_root {
-                if !search_roots.contains(mr) {
-                    search_roots.push(mr.clone());
-                }
-            }
-            for sr in search_roots {
-                let cand = crate::utils::resolve_case_insensitive_path(&sr, &rel_exe);
-                if (cand.is_file() || cand.is_dir()) && !is_blocked_shell_or_interpreter_binary(&cand) {
-                    resolved_path = Some(cand.to_string_lossy().to_string());
-                    break;
-                }
-            }
-        }
-        let args = obj.get("args").or_else(|| obj.get("launch_args")).cloned();
-        let description = obj
-            .get("description")
-            .and_then(|v| v.as_str())
-            .map(String::from);
+            let rel_p = Path::new(&rel_exe);
+            let safe_rel = !rel_p.is_absolute()
+                && !rel_p.components().any(|c| {
+                    matches!(
+                        c,
+                        std::path::Component::ParentDir | std::path::Component::Prefix(_)
+                    )
+                });
 
-        out.push(serde_json::json!({
-            "id": id,
-            "label": label,
-            "executable": rel_exe,
-            "resolved_path": resolved_path,
-            "installed": resolved_path.is_some(),
-            "args": args,
-            "description": description,
-        }));
-    }
-    Ok(out)
+            let mut resolved_path: Option<String> = None;
+            if safe_rel {
+                let mut search_roots = Vec::new();
+                if !live_root.as_os_str().is_empty() {
+                    search_roots.push(live_root.clone());
+                }
+                if !eff_live.is_empty() {
+                    let p = PathBuf::from(eff_live);
+                    if !search_roots.contains(&p) {
+                        search_roots.push(p);
+                    }
+                }
+                if let Some(ref mr) = mods_root {
+                    if !search_roots.contains(mr) {
+                        search_roots.push(mr.clone());
+                    }
+                }
+                for sr in search_roots {
+                    let cand = crate::utils::resolve_case_insensitive_path(&sr, &rel_exe);
+                    if (cand.is_file() || cand.is_dir())
+                        && !is_blocked_shell_or_interpreter_binary(&cand)
+                    {
+                        resolved_path = Some(cand.to_string_lossy().to_string());
+                        break;
+                    }
+                }
+            }
+            let args = obj.get("args").or_else(|| obj.get("launch_args")).cloned();
+            let description = obj
+                .get("description")
+                .and_then(|v| v.as_str())
+                .map(String::from);
+
+            out.push(serde_json::json!({
+                "id": id,
+                "label": label,
+                "executable": rel_exe,
+                "resolved_path": resolved_path,
+                "installed": resolved_path.is_some(),
+                "args": args,
+                "description": description,
+            }));
+        }
+        Ok(out)
+    })
+    .await
+    .map_err(|e| e.to_string())?
 }
 
 #[tauri::command]

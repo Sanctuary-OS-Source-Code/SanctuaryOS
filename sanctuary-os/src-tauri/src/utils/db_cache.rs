@@ -50,7 +50,17 @@ pub(super) static DB_CONNECTION_POOL: std::sync::OnceLock<
     std::sync::Mutex<HashMap<PathBuf, std::sync::Arc<std::sync::Mutex<Connection>>>>,
 > = std::sync::OnceLock::new();
 
+static INITIALIZED_DB_PATHS: std::sync::OnceLock<
+    std::sync::Mutex<std::collections::HashSet<PathBuf>>,
+> = std::sync::OnceLock::new();
+
 pub(super) fn initialize_vault_sqlite_schema(conn: &Connection, db_path: &Path, vault_path: &str) {
+    let init_set = INITIALIZED_DB_PATHS.get_or_init(|| std::sync::Mutex::new(std::collections::HashSet::new()));
+    if let Ok(guard) = init_set.lock() {
+        if guard.contains(db_path) {
+            return;
+        }
+    }
     let _ = conn.pragma_update(None, "journal_mode", "WAL");
     let _ = conn.pragma_update(None, "synchronous", "NORMAL");
     let _ = conn.busy_timeout(std::time::Duration::from_millis(5000));
@@ -205,6 +215,17 @@ pub(super) fn initialize_vault_sqlite_schema(conn: &Connection, db_path: &Path, 
         [],
     );
     let _ = conn.execute(
+        "CREATE TABLE IF NOT EXISTS radar_analyzer_cache (
+            file_path TEXT NOT NULL,
+            analyzer_sig TEXT NOT NULL,
+            mtime INTEGER NOT NULL,
+            file_size INTEGER NOT NULL,
+            keys_json TEXT NOT NULL,
+            PRIMARY KEY (file_path, analyzer_sig)
+        )",
+        [],
+    );
+    let _ = conn.execute(
         "CREATE INDEX IF NOT EXISTS idx_cache_hash ON cache (dna_hash)",
         [],
     );
@@ -306,6 +327,12 @@ pub(super) fn initialize_vault_sqlite_schema(conn: &Connection, db_path: &Path, 
             }
         }
     }
+
+    if let Some(init_set) = INITIALIZED_DB_PATHS.get() {
+        if let Ok(mut guard) = init_set.lock() {
+            guard.insert(db_path.to_path_buf());
+        }
+    }
 }
 
 pub fn open_db_conn(
@@ -347,12 +374,36 @@ pub fn open_db_conn(
     Ok(entry.clone())
 }
 
+/// Opens a non-blocking read-only SQLite WAL connection so UI queries and boot hydration
+/// never stall waiting on background writer transactions holding `DB_CONNECTION_POOL`.
+pub(super) fn open_read_db_conn(vault_path: &str) -> Result<Connection, String> {
+    if vault_path.trim().is_empty() {
+        return Err("Vault path is not configured.".to_string());
+    }
+    let path = get_cache_path(vault_path);
+    let already_initialized = INITIALIZED_DB_PATHS
+        .get()
+        .and_then(|set| set.lock().ok())
+        .map(|g| g.contains(&path))
+        .unwrap_or(false);
+
+    if !already_initialized || !path.exists() {
+        let _ = open_db_conn(vault_path)?;
+    }
+
+    let flags = rusqlite::OpenFlags::SQLITE_OPEN_READ_ONLY | rusqlite::OpenFlags::SQLITE_OPEN_NO_MUTEX;
+    let conn = Connection::open_with_flags(&path, flags)
+        .map_err(|e| format!("Failed to open read-only Vault database {:?}: {}", path, e))?;
+    let _ = conn.busy_timeout(std::time::Duration::from_millis(2500));
+    let _ = conn.pragma_update(None, "query_only", true);
+    Ok(conn)
+}
+
 pub fn get_vault_kv(vault_path: &str, key: &str) -> Option<(String, u64)> {
     if vault_path.trim().is_empty() {
         return None;
     }
-    let db = open_db_conn(vault_path).ok()?;
-    let conn = db.lock().ok()?;
+    let conn = open_read_db_conn(vault_path).ok()?;
     conn.query_row(
         "SELECT payload_json, updated_at FROM vault_kv_store WHERE cache_key = ?1",
         params![key],
@@ -457,10 +508,7 @@ pub(super) fn load_cache_from_conn(conn: &Connection) -> BunkerCache {
 }
 
 pub fn load_cache(vault_path: &str) -> BunkerCache {
-    let Ok(db) = open_db_conn(vault_path) else {
-        return HashMap::new();
-    };
-    let Ok(conn) = db.lock() else {
+    let Ok(conn) = open_read_db_conn(vault_path) else {
         return HashMap::new();
     };
     load_cache_from_conn(&conn)
@@ -593,10 +641,7 @@ pub fn load_preview_thumbnails_map(vault_path: &str) -> HashMap<String, (u64, St
     if vault_path.trim().is_empty() {
         return out;
     }
-    let Ok(db) = open_db_conn(vault_path) else {
-        return out;
-    };
-    let Ok(conn) = db.lock() else {
+    let Ok(conn) = open_read_db_conn(vault_path) else {
         return out;
     };
     let Ok(mut stmt) = conn.prepare_cached("SELECT file_path, mtime, data_url FROM preview_thumbnails") else {
@@ -639,6 +684,25 @@ pub fn save_preview_thumbnails_batch(vault_path: &str, rows: &[(String, u64, Str
     let _ = tx.commit();
 }
 
+const MAX_RADAR_CHUNK_INDEX_ROWS: usize = 250_000;
+const MAX_CACHED_KEYS_PER_FILE: usize = 16_384;
+
+pub(crate) fn normalize_crash_chunk_token(raw: &str) -> Option<String> {
+    let low = raw.trim().to_ascii_lowercase();
+    if low.len() < 4 {
+        return None;
+    }
+    let bare_hex = low.strip_prefix("0x").unwrap_or(low.as_str());
+    if bare_hex.len() >= 16 && bare_hex.chars().all(|c| c.is_ascii_hexdigit()) {
+        // Canonical 16-hex-char Instance ID suffix unifies full 32-char keys and 0x64-bit log hex tokens into 1 DB row
+        return Some(bare_hex[bare_hex.len() - 16..].to_string());
+    }
+    if bare_hex.len() >= 6 && low.starts_with("0x") && bare_hex.chars().all(|c| c.is_ascii_hexdigit()) {
+        return Some(bare_hex.to_string());
+    }
+    Some(low)
+}
+
 pub fn replace_radar_chunk_index(vault_path: &str, rows: &[(String, String)]) {
     if vault_path.trim().is_empty() {
         return;
@@ -653,6 +717,26 @@ pub fn replace_radar_chunk_index(vault_path: &str, rows: &[(String, String)]) {
         .duration_since(std::time::UNIX_EPOCH)
         .map(|d| d.as_secs() as i64)
         .unwrap_or(0);
+
+    let mut deduped: Vec<(String, String)> = Vec::with_capacity(rows.len().min(MAX_RADAR_CHUNK_INDEX_ROWS));
+    let mut seen = std::collections::HashSet::<(String, String)>::new();
+    for (token, mod_name) in rows {
+        let Some(canon_tok) = normalize_crash_chunk_token(token) else {
+            continue;
+        };
+        let mod_clean = mod_name.trim();
+        if mod_clean.is_empty() {
+            continue;
+        }
+        let pair = (canon_tok, mod_clean.to_string());
+        if seen.insert(pair.clone()) {
+            deduped.push(pair);
+            if deduped.len() >= MAX_RADAR_CHUNK_INDEX_ROWS {
+                break;
+            }
+        }
+    }
+
     let Ok(tx) = conn.transaction() else {
         return;
     };
@@ -660,13 +744,8 @@ pub fn replace_radar_chunk_index(vault_path: &str, rows: &[(String, String)]) {
     if let Ok(mut stmt) = tx.prepare_cached(
         "INSERT OR IGNORE INTO radar_chunk_index (resource_token, mod_name, updated_at) VALUES (?1, ?2, ?3)",
     ) {
-        for (token, mod_name) in rows {
-            let tok_low = token.trim().to_ascii_lowercase();
-            let mod_clean = mod_name.trim();
-            if tok_low.len() < 4 || mod_clean.is_empty() {
-                continue;
-            }
-            let _ = stmt.execute(params![tok_low, mod_clean, now_secs]);
+        for (canon_tok, mod_clean) in &deduped {
+            let _ = stmt.execute(params![canon_tok, mod_clean, now_secs]);
         }
     }
     let _ = tx.commit();
@@ -680,10 +759,7 @@ pub fn query_radar_chunk_owners(
     if vault_path.trim().is_empty() || tokens.is_empty() {
         return out;
     }
-    let Ok(db) = open_db_conn(vault_path) else {
-        return out;
-    };
-    let Ok(conn) = db.lock() else {
+    let Ok(conn) = open_read_db_conn(vault_path) else {
         return out;
     };
     let Ok(mut stmt) = conn.prepare_cached(
@@ -698,16 +774,133 @@ pub fn query_radar_chunk_owners(
         if tok_low.len() < 4 || !seen.insert(tok_low.clone()) {
             continue;
         }
-        if let Ok(rows) = stmt.query_map(params![&tok_low], |row| row.get::<_, String>(0)) {
-            let mut owners: Vec<String> = rows.flatten().collect();
-            if !owners.is_empty() {
-                owners.sort();
-                owners.dedup();
-                out.insert(tok_low, owners);
+        let mut lookup_keys: Vec<String> = Vec::with_capacity(4);
+        lookup_keys.push(tok_low.clone());
+        if let Some(canon) = normalize_crash_chunk_token(&tok_low) {
+            if !lookup_keys.contains(&canon) {
+                lookup_keys.push(canon);
             }
+        }
+        let bare_hex = tok_low.strip_prefix("0x").unwrap_or(tok_low.as_str());
+        if bare_hex != tok_low && bare_hex.len() >= 4 {
+            let b_str = bare_hex.to_string();
+            if !lookup_keys.contains(&b_str) {
+                lookup_keys.push(b_str);
+            }
+        }
+        if bare_hex.chars().all(|c| c.is_ascii_hexdigit()) && bare_hex.len() >= 6 && bare_hex.len() < 16 {
+            let padded16 = format!("{:0>16}", bare_hex);
+            if !lookup_keys.contains(&padded16) {
+                lookup_keys.push(padded16);
+            }
+        }
+
+        let mut owners: Vec<String> = Vec::new();
+        for lk in &lookup_keys {
+            if let Ok(rows) = stmt.query_map(params![lk], |row| row.get::<_, String>(0)) {
+                owners.extend(rows.flatten());
+            }
+        }
+        if !owners.is_empty() {
+            owners.sort();
+            owners.dedup();
+            out.insert(tok_low, owners);
         }
     }
     out
+}
+
+#[derive(Clone, Debug)]
+pub struct RadarCachedKeys {
+    pub mtime: u64,
+    pub file_size: u64,
+    pub keys: Vec<String>,
+}
+
+pub fn load_radar_analyzer_cache_map(
+    vault_path: &str,
+) -> HashMap<(String, String), RadarCachedKeys> {
+    let mut out = HashMap::new();
+    if vault_path.trim().is_empty() {
+        return out;
+    }
+    let Ok(conn) = open_read_db_conn(vault_path) else {
+        return out;
+    };
+    let Ok(mut stmt) = conn.prepare_cached(
+        "SELECT file_path, analyzer_sig, mtime, file_size, keys_json FROM radar_analyzer_cache",
+    ) else {
+        return out;
+    };
+    if let Ok(rows) = stmt.query_map([], |row| {
+        let fp: String = row.get(0)?;
+        let sig: String = row.get(1)?;
+        let mtime: u64 = row.get::<_, i64>(2).unwrap_or(0).max(0) as u64;
+        let file_size: u64 = row.get::<_, i64>(3).unwrap_or(0).max(0) as u64;
+        let raw_keys: String = row.get(4).unwrap_or_default();
+        Ok((fp, sig, mtime, file_size, raw_keys))
+    }) {
+        for r in rows.flatten() {
+            let trimmed = r.4.trim();
+            let keys: Vec<String> = if trimmed.is_empty() {
+                Vec::new()
+            } else if trimmed.starts_with('[') {
+                serde_json::from_str(trimmed).unwrap_or_default()
+            } else {
+                trimmed
+                    .lines()
+                    .map(|l| l.trim().to_string())
+                    .filter(|l| !l.is_empty())
+                    .collect()
+            };
+            out.insert(
+                (r.0, r.1),
+                RadarCachedKeys {
+                    mtime: r.2,
+                    file_size: r.3,
+                    keys,
+                },
+            );
+        }
+    }
+    out
+}
+
+pub fn save_radar_analyzer_cache_batch(
+    vault_path: &str,
+    rows: &[(String, String, u64, u64, Vec<String>)],
+) {
+    if rows.is_empty() || vault_path.trim().is_empty() {
+        return;
+    }
+    let Ok(db) = open_db_conn(vault_path) else {
+        return;
+    };
+    let Ok(mut conn) = db.lock() else {
+        return;
+    };
+    let Ok(tx) = conn.transaction() else {
+        return;
+    };
+    if let Ok(mut stmt) = tx.prepare_cached(
+        "INSERT INTO radar_analyzer_cache (file_path, analyzer_sig, mtime, file_size, keys_json)
+         VALUES (?1, ?2, ?3, ?4, ?5)
+         ON CONFLICT(file_path, analyzer_sig) DO UPDATE SET
+            mtime = excluded.mtime,
+            file_size = excluded.file_size,
+            keys_json = excluded.keys_json",
+    ) {
+        for (fp, sig, mtime, file_size, keys) in rows {
+            let compact = keys
+                .iter()
+                .take(MAX_CACHED_KEYS_PER_FILE)
+                .map(|k| k.as_str())
+                .collect::<Vec<&str>>()
+                .join("\n");
+            let _ = stmt.execute(params![fp, sig, *mtime as i64, *file_size as i64, compact]);
+        }
+    }
+    let _ = tx.commit();
 }
 
 #[cfg(test)]

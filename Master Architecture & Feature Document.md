@@ -8,14 +8,14 @@ Sanctuary OS is a cross-platform (Windows, macOS & Linux / SteamOS), local-first
 
 Sanctuary OS pairs a native multi-threaded Rust systems backend with a 60+ FPS WebGL2 optical glassmorphic UI and full handheld/mobile parity:
 
-- **Frontend Runtime (`React 18 + TypeScript + Vite + Tailwind CSS v4`):**
-  - **Liquid Glass Optics (`webgl_glass_v61` / `rev_74`) & Zero-Bloat Chameleon Wallpapers:** Real-time 1:1 physical-pixel background projection (`background-attachment: fixed` parity) with crystal-clear interiors (`4px–6px` diffusion), `8px–13px` 3D Snell's Law refractive edge bevels, a dedicated `layer2` WebGL2 overlay pipeline for floating dropdowns (`.sa-dropdown-popover`) and custom Liquid Glass hovertips, concentric rounded-square geometry, translucent Chameleon `::selection` highlights, 8 `2560×1440` lossless built-in wallpapers, and content-addressed `<= 250 KB` WebP Chameleon wallpapers (`1-year` CDN cache, external HTTPS URLs, and `{Vault}/Data/Themes/` offline storage).
+- **Frontend Runtime (`React 19 + TypeScript + Vite + Tailwind CSS v4`):**
+  - **Liquid Glass Optics (`webgl_glass_v61` / `rev_74`) & Zero-Bloat Chameleon Wallpapers:** Real-time 1:1 physical-pixel background projection (`background-attachment: fixed` parity) with crystal-clear interiors (`4px–6px` diffusion), `8px–13px` 3D Snell's Law refractive edge bevels, a dedicated `layer2` WebGL2 overlay pipeline for floating dropdowns (`.sa-dropdown-popover`) and custom Liquid Glass hovertips, concentric rounded-square geometry, translucent Chameleon `::selection` highlights, **7** `2560×1440` lossless built-in wallpapers, and content-addressed `<= 250 KB` WebP Chameleon wallpapers (`1-year` CDN cache, external HTTPS URLs, and `{Vault}/Data/Themes/` offline storage).
   - **6 Live Theme Forge Optical Sliders & Per-Space Aesthetics Matrix:** Real-time control over **Glass Opacity**, **Refractive Blur**, **Refractive Saturation**, **Rim Light Intensity**, **Specular Glare**, and **Elevation Depth**, paired with a **Per-Space `{Chameleons}` & `{Lexicons}` Assignment Matrix** (`Settings -> Appearance`) so `Keepers Core` and each mounted Spoke workspace maintain independent visual and language profiles.
   - **Jump Gate (`Ctrl+K` / `Cmd+K`), Responsive Mobile Filter Drawers & Control Capsule:** Consolidates the Active Workspace Selector, System Queues & Utilities, Notifications, **Jump Gate** command palette, and **7-Domain `{Settings}`**, alongside universal OS-wide right-click flyouts, unified **Mod Dossier** action headers, and responsive mobile filter selector pills collapsing 2+ filter tiles on `< 768px` mobile screens into a Liquid Glass Selector Pill + Portal Popover across 51+ drawers.
   - **Live System Telemetry Toast & System Log History:** Transient bottom-right Liquid Glass toast displaying live scan progress and system alerts without cluttering the bottom screen edge, opening the **System Log History** drawer on click alongside **Command Center** quick actions for Radar Sweep and `{Vault}` Lockdown.
 - **Code-Switch (`Zustand` + Lexicon V2):**
   - Atomic selector subscriptions (`useShallow`), Rollup code-splitting, virtualized list/grid rendering, and AppData FS Desktop `{Blueprint}` persistence preventing `localStorage` quota exhaustion.
-  - **6,166-Key Baseline, Sparse Delta Packs & 1-Click Auto-Translate:** Static source extraction (`npm run lexicon:sync`) maintains `en-default.json` while compacting `en-sanctuary.json`, Spoke packs, and community packs into lightweight **Sparse Delta Override Packs** with O(1) memoized lookups, **21 Dynamic `{Glossary}` Tokens**, a Source-First 4-tab **Lexicon Visual Studio**, and **1-Click Neural Auto-Translate** across **28+ languages**.
+  - **7,400+-Key Baseline, Sparse Delta Packs & 1-Click Auto-Translate:** Static source extraction (`npm run lexicon:sync`) maintains `en-default.json` while compacting `en-sanctuary.json`, Spoke packs, and community packs into lightweight **Sparse Delta Override Packs** with O(1) memoized lookups, **21 Dynamic `{Glossary}` Tokens**, a Source-First 4-tab **Lexicon Visual Studio**, and **1-Click Neural Auto-Translate** across **28+ languages**.
 - **Tri-Platform Native Desktop Engine (`Tauri v2 + Rust` — Windows, macOS & Linux / SteamOS):**
   - **The Cartographer, Binary Version Ripper & Gatekeeper Clearance:** Native builds for Windows (`SanctuaryOS.exe` with signed `tauri-plugin-updater` and 1-click cross-drive UAC symlink unlock), macOS (`.dmg` / `.app` Universal Binary with **Gatekeeper Clearance** Touch ID passkeys, Full Disk Access diagnostics, and `com.apple.quarantine` stripping), and Linux / SteamOS (`.AppImage` / `.deb` with AMD RDNA2 acceleration and **Binary Version Ripper** across PE headers, `Info.plist`, `.acf`, and `json_key`).
   - **Deck Overdrive:** Unified XWayland surface binding under Gamescope (`GDK_BACKEND=x11`), dynamic `/dev/input` + `/sys/class/hidraw` discovery with `evdev`/`joydev` deduplication and 64-byte `SteamDeckStatePacket_t` decoding, **60 FPS Chameleon Virtual Pointer**, **2D Spatial Focus**, `L1`/`R1` tab cycling, Trackpad scrolling, Steam OSK auto-summon, and Valve Proton `compatdata/<AppID>/pfx/` prefix auto-resolution across internal storage and SD cards.
@@ -27,23 +27,23 @@ Sanctuary OS pairs a native multi-threaded Rust systems backend with a 60+ FPS W
 
 Sanctuary OS eliminates centralized lock-in by separating global identity from community-owned game databases and creator-owned static manifests:
 
-- **Core OS Hub Database (`schema_os.sql` — Project `tpsbtaqxlczrysqqmanp`):**
-  - Governed by **Keepers Core**. Hosts global SSO authentication (`OWASP 600,000-iteration PBKDF2 + Bcrypt` password stretching and `600k` blinded email aliases), `user_passkeys` & Live Companion Passkey Handshakes (with W3C Web Push), `hardware_bans` (**Nuclear Override** domain-salted one-way SHA-256 HWID ledger), `sanctuary_games` (including `is_keepers_only` dev-spoke cloaking), Split-Custody Double-Envelope `sanctuary_internal.spoke_credentials` (`HKDF-SHA256` + `AES-256-GCM` with bound AAD + Supabase Vault + Edge `SPOKE_VAULT_MASTER_KEY`), Vault-sealed `sanctuary_internal.runtime_secrets`, Core Schemas/Lexicons/Themes, `system_directives`, and `keeper_heuristic_signatures`.
-- **Community Game Spoke Databases (`schema.sql`):**
-  - 100% owned and hosted by each game community's **Wayfinder**, with non-permissive RLS, indexed FKs, and Postgres triggers (`protect_spoke_donation_fields`) isolating community donation settings strictly to the Wayfinder. Stores pseudonymous Spoke `profiles`, `sanctuary_schemas` (`v12`), Sparse Delta `sanctuary_lexicons`, `mods`, `mod_versions`, `flavor_groups` (**The Highlander Rule** Exclusive Slots), `masons`, `blueprints`, Verified-Mason-governed `nexus_assets`, `citizen_staging_queue` (`10 MB` GZIP + AES-256-GCM **Beam to Rig** sync for **Personal Rig Blueprints**, **Pocket Radar**, **Echo Suppressor** sync, and **Multi-Rig Mason Support Perks**), and `sanctuary_internal.spoke_relink_commitments`.
-- **Cut the Cord, `SRK1` Relink & Standalone Fork (`src/supabase.ts`):**
-  - Supports modern Supabase `sb_publishable_*` and `sb_secret_*` opaque keys, sub-second Elevated Hub loading via `spoke_query_batch` + microtask coalescing, high-friction **`"CUT THE CORD"`** bilateral severance, and **Cryptographic `SRK1` Spoke Relink Commitments** (`SRK1.<hub_uuid>.<relink_secret>`) so returning Citizens safely claim legacy profiles on severed Spin-Off forks without username hijacking. Editing only `SANCTUARY_CONFIG` in `src/supabase.ts` runs the entire OS in 1-database Standalone Mode with zero Edge Functions.
-- **Sovereign Covenants, Cost Ledgers & Edge Pulse:**
-  - `0%` platform cut across Mason and Partner Spoke donations (`+30 days` Global Dev Builds per `$5` donated), itemized **Monthly Cost vs. Spending Reports** with automatic carryover ledgers, and concurrent Rust **Edge Pulse** polling (across `.sanctuary.manifest.json`, `.sanctuary.override.json`, and `catalog.json` with `ETag` / `304` caching and 6-provider **Edge Direct Push**).
+- **Core OS Hub Database (`schema_os.sql` — 28 Tables • Project `tpsbtaqxlczrysqqmanp`):**
+  - Governed by **Keepers Core**. Hosts global SSO authentication (`OWASP 600,000-iteration PBKDF2 + Bcrypt` password stretching and `600k` blinded email aliases), `user_passkeys` & Live Companion Passkey Handshakes (with W3C Web Push), `hardware_bans` (opt-in/submitted threat ledger; **Nuclear Override** toggles offline airgap mode bidirectionally), `sanctuary_games` (including `is_keepers_only` dev-spoke cloaking), Split-Custody Double-Envelope `sanctuary_internal.spoke_credentials` (`HKDF-SHA256` + `AES-256-GCM` with bound AAD + Supabase Vault + Edge `SPOKE_VAULT_MASTER_KEY`), Vault-sealed `sanctuary_internal.runtime_secrets`, Core Schemas/Lexicons/Themes, `system_directives`, immutable **`dmca_compliance_notices`** Spoke-DMCA audit ledger, static **Glass Emails** (`public/email-assets/` + `keeper-email-dispatch`), and `keeper_heuristic_signatures`.
+- **Community Game Spoke Databases (`schema.sql` — 61 Tables):**
+  - 100% owned and hosted by each game community's **Wayfinder**, with non-permissive RLS, indexed FKs, `counter_shards` hot-row buffering, statement-level batched Web Push triggers (`pwa-web-push`), Spoke-owned wallpaper Storage buckets, versioned `migrations/spoke/` (`0003_compliance_tiers_0_to_6_remapping`), and Postgres triggers (`protect_spoke_donation_fields`) isolating community donation settings strictly to the Wayfinder. Stores pseudonymous Spoke `profiles`, `sanctuary_schemas`, DB-driven `public.taxonomy` & `public.known_exception_rules`, Sparse Delta `sanctuary_lexicons`, `mods`, `mod_versions`, `flavor_groups` (**The Highlander Rule** Exclusive Slots), `masons`, `blueprints`, Verified-Mason-governed `nexus_assets`, `citizen_staging_queue` (`10 MB` GZIP + AES-256-GCM **Beam to Rig** sync; **Pocket Radar** sync defaults strict **opt-in OFF**), and `sanctuary_internal.spoke_relink_commitments`.
+- **Cut the Cord, `SRK1` Relink & Zero-Conflict Forking (`sanctuary.fork.json`):**
+  - Supports modern Supabase `sb_publishable_*` and `sb_secret_*` opaque keys, sub-second Elevated Hub loading via `spoke_query_batch` + microtask coalescing, high-friction **`"CUT THE CORD"`** bilateral severance, and **Cryptographic `SRK1` Spoke Relink Commitments** (`SRK1.<hub_uuid>.<relink_secret>`) so returning Citizens safely claim legacy profiles on severed Spin-Off forks without username hijacking. Configure `sanctuary-os/sanctuary.fork.json` + `npm run fork:configure` (`scripts/configure-fork.mjs`) for zero-merge-conflict Standalone or Federation builds without editing tracked source files.
+- **Sovereign Covenants, Cost Ledgers, Edge Pulse, Direct HTTPS & Deep Links:**
+  - `0%` platform cut across Mason and Partner Spoke donations (`+30 days` Global Dev Builds per `$5` donated), itemized **Monthly Cost vs. Spending Reports** with automatic carryover ledgers, concurrent Rust **Edge Pulse** polling (across `.sanctuary.manifest.json`, `.sanctuary.override.json`, and `catalog.json` with `ETag` / `304` caching and 6-provider **Edge Direct Push** including S3/R2 SigV4 & Ed25519 manifests), **Direct HTTPS** SHA-256 transfers, tri-OS **Deep Links** (`sanctuary://`, `sanctuary-uplink://`, and opt-in `nxm://`, `ror2mm://`, `curseforge://`), and an optional hardware-sealed local DPAPI **BYO-API-Key Broker**.
 
 ---
 
-## Pillar 3: Universal Master Schema, Patch Fire Drill & Groundhog Sandbox
+## Pillar 3: Universal Master Schema, Differential VFS & Groundhog Sandbox
 
 Sanctuary OS is 100% engine- and format-agnostic across Rust, TypeScript, Edge Functions, and SQL:
 
-- **Universal Master Schema & Conflict Radar 2.0:**
-  - **7 Engine Presets** and **Schema Forge** (4-Tab Visual Editor) supporting multi-folder asset tree preservation (`preserve_auxiliary_assets`), `archive_containers`, structured `load_order` XML/manifest templates (including BG3 `modsettings.lsx`), secondary `install_routes`, `editable_config_formats`, `"json_key"` version probing, **Priority Compiler**, and declarative `conflict_analyzers` across a 5-Tier Severity Matrix (`S1–S5`).
+- **Universal Master Schema (`27` Presets) & Conflict Radar 2.0:**
+  - **27 Engine Presets** and **Schema Forge** (4-Tab Visual Editor) supporting multi-folder asset tree preservation (`preserve_auxiliary_assets`), `archive_containers`, `runtime_output_capture` (`Overwrite`), `ini_mutations`, `profile_isolated_dirs`, `post_deploy_hooks`, structured `load_order` XML/manifest templates (including BG3 `modsettings.lsx`), secondary `install_routes`, `editable_config_formats`, multi-tier Version Ripper (`pelite` PE, `Info.plist`, `json_key`, storefront manifests), **Priority Compiler** with external **LOOT** YAML/CRC32 rules, differential Rayon VFS deployment (`Cloud-Sync Folder Sentinel` guards against OneDrive/Dropbox/iCloud/GDrive reparse locks), SQLite Radar caching, and declarative `conflict_analyzers` across a 5-Tier Severity Matrix (`S1–S5`).
 - **Patch Fire Drill, 3-Mode Sync & The Highlander Rule:**
   - **Patch Fire Drill:** Evaluates every `{Blueprint}` against any target game build with 1-to-1 deduplicated `{Mod}` count parity, multi-pass Atomic Logic & transitive dependency checks, **Nuclear Family Cohesion** folder coupling, `Auto-Swap Ready` local version matching, 1-click **Get Dependency** acquisition, diagnostics, and 1-click **Clone Ready**.
   - **The Highlander Rule & Swap Alerts:** Pairs `mods.highlander_group_id` and Static Edge `atomic_logic.highlander_group` rules with explicit **Swap / Keep Both / Cancel** prompts across `{Vault}` cards and **Mod Dossier** drawers—never silently evicting equipped `{Mods}`.
@@ -59,17 +59,17 @@ Sanctuary OS is 100% engine- and format-agnostic across Rust, TypeScript, Edge F
 
 Security and operational governance are enforced across 6 clearance tiers, sub-second Command Hubs, and hardware-backed cryptographic gates:
 
-- **6-Tier Clearance Hierarchy & Strict Role Boundaries:**
-  1. **Tier 1 — Citizen (`citizen`):** Full access to all 9 Citizen modules, inherited local **Creator Airlock** (`Sandbox`, `IDE`, `3-Tile Artifact Studio`, `Theme Forge`, **Edge Direct Push**), local JSON export/import, Cloud `{Blueprint}` sharing (`Public` / `Unlisted` / `Private`), and Scout Queue submissions.
-  2. **Tier 2 — Verified Mason (`mason` / `isVerifiedMason`):** Direct `{Nexus}` publishing for `{Mods}`, `{Lexicons}`, `{Chameleons}`, and `Workbench Templates`, Verified Mason Queue fast-lane, Public Mason Profile showcase, and 0%-cut Supporter Bridge.
-  3. **Tier 3 — Architect (`architect` — Strict Tier 0 Isolation):** **Public Verified** (Tier 0) Registry curation (`Stable` telemetry, atomic logic, conflict rules, **Crash Autopsy** Known Error rules, live **Workbench Template Previews**), Scout & `{Mason}` Queue triage, and exclusive **`Claimed`** Citizen Support Desk queues—routing Tier 1–4 flags into `Oversight > Compliance` as **`Pending`**.
-  4. **Tier 4 — Oversight (`oversight`):** Spoke Heuristic Signatures, **`Pending` Tier 1–4 Compliance confirmation** (`purge_flagged_hash_from_blueprints` strips Cloud `{Blueprints}` once confirmed) & Tier 5 **Zero-Choice Lockdown** blacklisting, **DEFCON 1 Shield** lockdowns, Game/DLC patch registration, read/export-only Audit Log review, and Spoke Identity Matrix governance (excluding Oversight/Wayfinders).
-  5. **Tier 5 — Wayfinder (`wayfinder`):** Full Spoke Sovereignty (`Spoke Control` & `Spoke Aesthetics`), **Schema Forge** & **Code-Switch**, in-hub `Mass Update` & `Patch Management`, Identity Matrix up to Wayfinder, 100% isolated Non-Custodial Community Donations, and unilateral **Cut the Cord** severance.
-  6. **Tier 6 — Keeper (`keeper` on Core Hub):** Global OS Hub governance, Partner Spoke onboarding & `is_keepers_only` dev-node cloaking, Core Heuristics, Keepers Core Default Schema, Global Lexicons/Chameleons, **Mirror Uplink**, and Global Audit Logs—strictly isolated from Partner Spoke operations beyond compliance severance.
+- **6-Tier Clearance Hierarchy & Strict Role Boundaries (`Compliance Tiers 0–6`):**
+  1. **Tier 1 — Citizen (`citizen`):** Full access to all 9 Citizen modules, inherited local **Open Mason Workshop** (`Sandbox`, `Mason IDE`, `3-Tile Artifact Studio`, `Theme Forge`, **Edge Direct Push**), local JSON export/import, Cloud `{Blueprint}` sharing (`Public` / `Unlisted` / `Private`), and Scout Queue submissions (plus Homestead Lab's **Creator Airlock** for external-tool save isolation).
+  2. **Tier 2 — Verified Mason (`mason` / `isVerifiedMason`):** Direct `{Nexus}` publishing for `{Mods}`, `{Lexicons}`, `{Chameleons}`, and `Workbench Templates`, Verified Mason Queue fast-lane, Public Mason Profile showcase, and 0%-cut Supporter Bridge (Tier 0 public; Tiers 2–5 self-hosted via Edge Pulse).
+  3. **Tier 3 — Architect (`architect` — Strict Tier 0 Isolation):** **Public Verified** (Tier 0) Registry curation (`Stable` telemetry, atomic logic, conflict rules, **Crash Autopsy** Known Error rules, live **Workbench Template Previews**), Scout & `{Mason}` Queue triage, and exclusive **`Claimed`** Citizen Support Desk queues—routing Tier 1–5 flags into `Oversight > Compliance` as **`Pending`**.
+  4. **Tier 4 — Oversight (`oversight`):** Spoke Heuristic Signatures, **`Pending` Tier 1 Legal/DMCA & Tiers 2–5 Compliance confirmation** (`purge_flagged_hash_from_blueprints` strips Cloud `{Blueprints}` once confirmed) & **Tier 6 Malware Zero-Choice Lockdown** blacklisting, **DEFCON 1 Shield** lockdowns, Game/DLC patch registration, **`Mass Update`** batch sweeps (`Oversight`-only), **Mason Linker**, read/export-only Audit Log review, and Spoke Identity Matrix governance (up to Architect).
+  5. **Tier 5 — Wayfinder (`wayfinder`):** Full Spoke Sovereignty (`Spoke Control` & `Spoke Aesthetics`), **Schema Forge** & **Code-Switch**, Identity Matrix up to Wayfinder, Partner Spoke `48h` DMCA compliance SLA governance, 100% isolated Non-Custodial Community Donations, and unilateral **Cut the Cord** severance.
+  6. **Tier 6 — Keeper (`keeper` on Core Hub):** Global OS Hub governance, Partner Spoke onboarding & `is_keepers_only` dev-node cloaking, Core Heuristics, Keepers Core Default Schema, Global Lexicons/Chameleons, **Mirror Uplink**, immutable `dmca_compliance_notices` audit logging, and Global Audit Logs—strictly isolated from Partner Spoke operations beyond compliance severance.
 - **Sub-Second Landing-Page Command Screens & `2x3` Hub Metrics:**
   - All 5 Elevated Hubs load in under a second via batch-coalesced queries (`spoke_query_batch`) and warm hub caching, opening to full-coverage landing-page overviews with section-jump headers, direct in-drawer workflows, and right-rail `2x3` Hub Metrics.
-- **Zero-Knowledge Seal, Ghost Scrubber & Zero-Choice Lockdown:**
-  - 12-hour Device-Bound Passkey Seal (`sanctuary_passkey_seal_v2`), **Gatekeeper Clearance** Touch ID, Live Phone/PC Companion Passkey Handshake via W3C Web Push, Tier 0 Known-Hash Architect submission gating backed by `_lab_cert_proof`, multi-OS **Ghost Scrubber** PII sanitization, and **Bytecode Hound** triggering **Zero-Choice Lockdown** with Citizen-signed **Secure Shred**.
+- **Zero-Knowledge Seal, Ghost Scrubber & Zero-Choice Lockdown (`Tier 6 Malware`):**
+  - 12-hour Device-Bound Passkey Seal (`sanctuary_passkey_seal_v2`), **Gatekeeper Clearance** Touch ID, Live Phone/PC Companion Passkey Handshake via W3C Web Push, strict opt-in OFF defaults for Lab cloud certificates (`_lab_cert_proof`) and Pocket Radar companion sync, multi-OS **Ghost Scrubber** in-memory PII sanitization, and **Bytecode Hound** triggering **Zero-Choice Lockdown** (`compliance_tier = 6`) with Citizen-signed **Secure Shred**.
 
 <!-- SANCTUARY_DIRECTIVE_BUILDER_JSON:
 {
@@ -90,7 +90,7 @@ Security and operational governance are enforced across 6 clearance tiers, sub-s
           "overline": "ARCHITECTURE PILLAR 1 • CORE ENGINE, OPTICS & STUDIOS",
           "badge": "Active",
           "title": "Tauri v2 Kernel, Liquid Glass Optics, Schema Forge & Code-Switch",
-          "footerMeta": "Tauri v2 • React 18 • Liquid Glass Optics • Win, Mac & Linux / SteamOS",
+          "footerMeta": "Tauri v2 • React 19 • Liquid Glass Optics • Win, Mac & Linux / SteamOS",
           "desc": "Sanctuary OS combines a zero-overhead native Rust backend across Windows, macOS, and Linux / SteamOS (Deck Overdrive) with GPU-pinned Liquid Glass Optics, Universal Master Schema tooling, and the Code-Switch.",
           "subCards": [
             {
@@ -103,19 +103,19 @@ Security and operational governance are enforced across 6 clearance tiers, sub-s
               "id": "arch_p1_c2",
               "icon": "memory",
               "title": "Deck Overdrive & Native Kernel",
-              "desc": "Native Tauri v2 Rust core: Binary Version Ripper (PE & Info.plist), Deck Overdrive Steam Deck controller + Proton compatdata resolver, SQLite .sanctuary_cache.db delta scanner, WebAuthn FIDO2 bridge, and cross-platform auto-updater."
+              "desc": "Native Tauri v2 Rust core: Multi-Tier Version Ripper (pelite PE, Info.plist, manifests, storefronts), Deck Overdrive Steam Deck controller + Proton compatdata/user_settings resolver, Cloud-Sync Folder Sentinel (OneDrive/Dropbox/iCloud/GDrive guard), SQLite .sanctuary_cache.db delta scanner, WebAuthn FIDO2 bridge, and cross-platform auto-updater."
             },
             {
               "id": "arch_p1_c3",
               "icon": "schema",
               "title": "Universal Master Schema",
-              "desc": "Declarative Schema Forge JSON editor governing binaries, secondary install_routes, config_extensions watcher, topological load order strategies, mod_categories, and exception matchers."
+              "desc": "Declarative Schema Forge JSON editor governing binaries, secondary install_routes, config_extensions watcher, topological DAG + slot_buckets load ordering, container TOC analyzers, 27 built-in engine presets, database-driven public.taxonomy Categories, and exception matchers."
             },
             {
               "id": "arch_p1_c4",
               "icon": "translate",
               "title": "Code-Switch",
-              "desc": "21 Dynamic {Glossary} Tokens interpolated across 6,166+ keys with smart article grammar, Sparse Delta Override packs, Guided Icon Overrides, and 1-click auto-translation across 28+ languages."
+              "desc": "21 Dynamic {Glossary} Tokens interpolated across 7,300+ keys with smart article grammar, Sparse Delta Override packs, Guided Icon Overrides, and 1-click auto-translation across 28+ languages."
             }
           ]
         }
@@ -140,7 +140,7 @@ Security and operational governance are enforced across 6 clearance tiers, sub-s
               "id": "arch_p2_c1",
               "icon": "hub",
               "title": "Core Hub & Spoke Sovereignty",
-              "desc": "Core OS Hub (schema_os.sql) governs global SSO, FIDO2 passkeys, sanctuary_schemas, keeper_heuristic_signatures & system_directives; Spokes (schema.sql) own 100% of their 52 community tables."
+              "desc": "Core OS Hub (schema_os.sql — 28 tables) governs global SSO, FIDO2 passkeys, sanctuary_schemas (27 engine presets), keeper_heuristic_signatures, dmca_compliance_notices & system_directives; Spokes (schema.sql — 61 tables) own 100% of their community data + sanctuary.fork.json overlays."
             },
             {
               "id": "arch_p2_c2",
@@ -152,7 +152,7 @@ Security and operational governance are enforced across 6 clearance tiers, sub-s
               "id": "arch_p2_c3",
               "icon": "cloud_done",
               "title": "Edge Pulse & Direct Push",
-              "desc": "6-provider 1-click OS Auto-Push (.sanctuary.manifest.json & catalog.json) and concurrent Rust HTTP GET polling with ETag/304 caching and automatic previous_hashes lineage rollover."
+              "desc": "6-provider 1-click OS Auto-Push (.sanctuary.manifest.json & catalog.json), concurrent Rust HTTP GET polling with ETag/304 caching & Direct HTTPS CDN downloader, tri-OS Deep Links (sanctuary://, nxm://, ror2mm://, curseforge://), optional local DPAPI BYO-API-Key Broker, and static Glass Emails."
             },
             {
               "id": "arch_p2_c4",
@@ -183,13 +183,13 @@ Security and operational governance are enforced across 6 clearance tiers, sub-s
               "id": "arch_p3_c1",
               "icon": "inventory_2",
               "title": "Symlink Airgap & Config Watcher",
-              "desc": "Projects {mods} from {Vault}/{Mods}/ into live game folders and secondary install_routes while deduplicating stray root configs and syncing in-game config_extensions writes back to the {Vault}."
+              "desc": "Differential Rayon VFS + SQLite Radar cache projects {mods} from {Vault}/{Mods}/ into live game folders and secondary install_routes while deduplicating stray root configs and syncing in-game config_extensions writes back to the {Vault}."
             },
             {
               "id": "arch_p3_c2",
               "icon": "layers",
               "title": "Priority Compiler & Conflict Radar 2.0",
-              "desc": "5-Tier Severity Matrix, 1-click 'Set Winner' priority tier assignment, The Highlander Rule swap prompts, and Schema-Driven Load Order compilation with topological cycle breaking."
+              "desc": "5-Tier Severity Matrix, 1-click 'Set Winner' priority tier assignment, The Highlander Rule swap prompts, LOOT YAML/CRC32 external rules integration, and Schema-Driven Load Order compilation with topological cycle breaking."
             },
             {
               "id": "arch_p3_c3",
@@ -201,7 +201,7 @@ Security and operational governance are enforced across 6 clearance tiers, sub-s
               "id": "arch_p3_c4",
               "icon": "science",
               "title": "Groundhog Sandbox & Time Capsule",
-              "desc": "Immortal Save-Verify-and-Rewind {Lab} isolation, Crash Autopsy log decoding, fullscreen PCM audio chimes, and zero-bloat Copy-on-Write OS hardlink snapshots with additive save restores."
+              "desc": "Save-airgapped Creator Airlock external tool runner, Save Doctor per-save mod verification, Crash Autopsy decoding, fullscreen PCM audio chimes, strict opt-in OFF defaults for Lab cloud certificates & Pocket Radar sync, and Copy-on-Write OS hardlink snapshots with additive save restores."
             }
           ]
         }
@@ -226,7 +226,7 @@ Security and operational governance are enforced across 6 clearance tiers, sub-s
               "id": "arch_p4_c1",
               "icon": "admin_panel_settings",
               "title": "6-Tier Clearance Hierarchy",
-              "desc": "Decouples Game Spoke roles ({Citizen}, Verified {Mason}, Architect, Oversight, Wayfinder) from Global Core OS Hub roles (Keeper) with Pending Tier 1–4 compliance gating."
+              "desc": "Decouples Game Spoke roles ({Citizen}, Verified {Mason}, Architect, Oversight, Wayfinder) from Global Core OS Hub roles (Keeper) with Tier 1 Spoke-routed DMCA holds & Tiers 2–5 compliance gating."
             },
             {
               "id": "arch_p4_c2",
@@ -244,13 +244,13 @@ Security and operational governance are enforced across 6 clearance tiers, sub-s
               "id": "arch_p4_c4",
               "icon": "gpp_bad",
               "title": "Zero-Choice Lockdown & Bytecode Hound",
-              "desc": "Merges Core + Spoke heuristics with Zlib/Zstd decompression to halt launches on Tier 5 Malware and lock the OS shell until a {Citizen}-signed Secure Shred."
+              "desc": "Merges Core + Spoke heuristics with Zlib/Zstd decompression to halt launches on Tier 6 Malware and lock the OS shell until a {Citizen}-signed Secure Shred."
             }
           ]
         }
       ]
     }
   ],
-  "_bodySig": 1539929614
+  "_bodySig": 3884708503
 }
 -->

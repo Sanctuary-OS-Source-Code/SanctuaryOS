@@ -173,8 +173,8 @@ export function FileVerificationSidePanel({ isOpen, onClose, onJumpToArtifact, i
   else if (isHashing) statusState = "SCANNING";
   else if (filePath && !fileHash) statusState = "SCANNING";
   else if (fileHash && matchedMod) {
-    if (matchedTierNum === 5) statusState = "MALWARE";
-    else if (matchedTierNum >= 1 && matchedTierNum <= 4) statusState = "RESTRICTED";
+    if (matchedTierNum === 6) statusState = "MALWARE";
+    else if (matchedTierNum >= 1 && matchedTierNum <= 5) statusState = "RESTRICTED";
     else statusState = "VERIFIED";
   }
   else if (fileHash && !matchedMod) statusState = "MISMATCH";
@@ -407,7 +407,7 @@ export function FileVerificationSidePanel({ isOpen, onClose, onJumpToArtifact, i
                   value={flagTier}
                   onChange={setFlagTier}
                   minTier={1}
-                  maxTier={4}
+                  maxTier={5}
                 />
               </div>
               <UniversalTextArea
@@ -460,8 +460,8 @@ export function FileVerificationSidePanel({ isOpen, onClose, onJumpToArtifact, i
             <div className="flex flex-col gap-2.5 w-full">
               {sessionHistory.map((item, i) => {
                 const histTier = Number(item.matchedMod?.compliance_tier ?? 0);
-                const isMalware = histTier === 5;
-                const isRestricted = histTier >= 1 && histTier <= 4;
+                const isMalware = histTier === 6;
+                const isRestricted = histTier >= 1 && histTier <= 5;
                 const isVerified = Boolean(item.matchedMod && !isMalware && !isRestricted);
                 const itemColor = isMalware
                   ? "var(--danger)"

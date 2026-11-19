@@ -217,7 +217,7 @@ export function useWebDirectiveCatalogs(t: (key: string, fallback: string) => st
             ),
             desc: t(
               "sd_guide_s6_c2_desc",
-              "Author custom 'Must Load After / Before' rules, assign explicit Priority Tiers (Base to Sanctuary3), and resolve circular dependency loops with 1-click Break Loop."
+              "Author custom 'Must Load After / Before' rules, assign explicit Priority Tiers (Base to Tier 3), and resolve circular dependency loops with 1-click Break Loop."
             ),
           },
           {
@@ -365,7 +365,7 @@ export function useWebDirectiveCatalogs(t: (key: string, fallback: string) => st
             title: t("sd_guide_s9_c4_title", "Full-OS Malware Lockdown & Secure Shred"),
             desc: t(
               "sd_guide_s9_c4_desc",
-              "If Tier 5 Malware is detected, Sanctuary isolates the file in Quarantine, locks the workspace shell, displays the exact trigger & source in the side panel, and overwrites the file with zeros upon your Secure Shred signature."
+              "If Tier 6 Malware is detected, Sanctuary isolates the file in Quarantine, locks the workspace shell, displays the exact trigger & source in the side panel, and overwrites the file with zeros upon your Secure Shred signature."
             ),
           },
         ],
@@ -503,7 +503,7 @@ export function useWebDirectiveCatalogs(t: (key: string, fallback: string) => st
           {
             icon: t("icon_tag", "tag"),
             name: t("dir_walk_s4_c3_name", "6-Digit Cloud Uplink (SNCXXX)"),
-            desc: t("dir_walk_s4_c3_desc", "Generates a 6-character share code (SNCXXX) or publishes your {Blueprint} to The Nexus while auto-stripping flagged Tier 1–4 hashes."),
+            desc: t("dir_walk_s4_c3_desc", "Generates a 6-character share code (SNCXXX) or publishes your {Blueprint} to The Nexus while auto-stripping flagged Tier 1–5 hashes."),
           },
         ],
       },
@@ -592,7 +592,7 @@ export function useWebDirectiveCatalogs(t: (key: string, fallback: string) => st
             name: t("dir_walk_s7_c3_name", "Universal AV Quarantine & Threat Manifest"),
             desc: t(
               "dir_walk_s7_c3_desc",
-              "Tier 5 Malware locks the entire OS shell and opens the Quarantine Lockdown drawer with Triggered By diagnostics, Detection Source, and Secure Shred."
+              "Tier 6 Malware locks the entire OS shell and opens the Quarantine Lockdown drawer with Triggered By diagnostics, Detection Source, and Secure Shred."
             ),
           },
         ],
@@ -697,7 +697,7 @@ export function useWebDirectiveCatalogs(t: (key: string, fallback: string) => st
             title: t("dir_role_mas_s4_title", "0%-Cut Supporter Bridge & Static Manifests"),
             desc: t(
               "dir_role_mas_s4_desc",
-              "Connect Patreon, Ko-fi, or custom supporter links with 0% Sanctuary cut, and publish Tier 1–4 {mods} responsibly via decentralized Static Edge manifests."
+              "Connect Patreon, Ko-fi, or custom supporter links with 0% Sanctuary cut, and publish Tier 2–5 or self-hosted Tier 0 {mods} cleanly via decentralized Static Edge manifests."
             ),
           },
         ],
@@ -728,7 +728,7 @@ export function useWebDirectiveCatalogs(t: (key: string, fallback: string) => st
             title: t("dir_role_arc_s2_title", "Verified {Mason} & Scout Queue Triage"),
             desc: t(
               "dir_role_arc_s2_desc",
-              "Review unknown/unverified community submissions in Dedicated Queues, run Check Hash verification, and escalate Tier 1–4 flags cleanly to Oversight."
+              "Review unknown/unverified community submissions in Dedicated Queues, run Check Hash verification, and escalate Tier 1–5 flags cleanly to Oversight."
             ),
           },
           {
@@ -758,28 +758,25 @@ export function useWebDirectiveCatalogs(t: (key: string, fallback: string) => st
         badge: t("dir_proto_r4_tier", "Tier 4 • Spoke Security Admin"),
         desc: t(
           "dir_proto_r4_scope",
-          "Unlocks Oversight Command: Tier 1–4 & Pending Flag Confirmation, Spoke Heuristic Signatures, Tier 5 Malware blacklisting, DEFCON 1 override, Game/DLC patch registration, Mass Batch Updater, {Mason} Linker, and Spoke Identity Matrix (up to Architect)."
-        ),
-        requiresPasskey: true,
-        subCards: [
-          {
-            id: "role_ovr_s1",
-            icon: t("icon_security", "security"),
-            title: t("dir_role_ovr_s1_title", "Tier 1–4 Compliance & Pending Flag Review"),
-            desc: t(
-              "dir_role_ovr_s1_desc",
-              "Exclusive reviewer for escalated Tier 1–4 records and Pending community flags—auto-hidden publicly until confirmed or cleared."
-            ),
-          },
-          {
-            id: "role_ovr_s2",
-            icon: t("icon_gpp_bad", "gpp_bad"),
-            title: t("dir_role_ovr_s2_title", "Spoke Heuristics, Tier 5 Blacklists & DEFCON 1"),
-            desc: t(
-              "dir_role_ovr_s2_desc",
-              "Author game-specific antivirus signatures, blacklist Tier 5 Malware SHA-256 hashes, and engage DEFCON 1 pre-patch shields."
-            ),
-          },
+            "Unlocks Oversight Command: Tier 1 DMCA / Tiers 2–5 & Pending Flag Confirmation, Spoke Heuristic Signatures, Tier 6 Malware blacklisting, DEFCON 1 override, Game/DLC patch registration, Mass Batch Updater, {Mason} Linker, and Spoke Identity Matrix (up to Architect)."
+          ),
+          sections: [
+            {
+              icon: t("icon_security", "security"),
+              title: t("dir_role_ovr_s1_title", "Tier 1–5 Compliance, DMCA & Pending Flag Review"),
+              desc: t(
+                "dir_role_ovr_s1_desc",
+                "Exclusive reviewer for Tier 1 Legal/DMCA notices forwarded to the Spoke, escalated Tiers 2–5 records, and Pending community flags—auto-hidden publicly until confirmed or cleared."
+              ),
+            },
+            {
+              icon: t("icon_gpp_bad", "gpp_bad"),
+              title: t("dir_role_ovr_s2_title", "Spoke Heuristics, Tier 6 Blacklists & DEFCON 1"),
+              desc: t(
+                "dir_role_ovr_s2_desc",
+                "Author game-specific antivirus signatures, blacklist Tier 6 Malware SHA-256 hashes, and engage DEFCON 1 pre-patch shields."
+              ),
+            },
           {
             id: "role_ovr_s3",
             icon: t("icon_published_with_changes", "published_with_changes"),
@@ -832,10 +829,10 @@ export function useWebDirectiveCatalogs(t: (key: string, fallback: string) => st
           {
             id: "role_way_s3",
             icon: t("icon_manage_accounts", "manage_accounts"),
-            title: t("dir_role_way_s3_title", "Full Identity Matrix & Tier 1–4 Authority"),
+            title: t("dir_role_way_s3_title", "Full Identity Matrix & Tier 1–5 Authority"),
             desc: t(
               "dir_role_way_s3_desc",
-              "Appoint Oversight admins and peer Wayfinders, confirm or dismiss compliance flags, and run in-hub Mass Update compatibility sweeps."
+              "Appoint Oversight admins and peer Wayfinders, fulfill Tier 1 DMCA / Tiers 2–5 compliance governance within the Spoke SLA, and oversee Oversight compatibility operations."
             ),
           },
           {
@@ -915,16 +912,161 @@ export function useWebDirectiveCatalogs(t: (key: string, fallback: string) => st
   const roadmapPhases = useMemo(
     () => [
       {
-        num: 12,
+        num: 16,
+        status: "planned" as const,
+        icon: t("icon_verified", "verified"),
+        code: t("sd_roadmap_p16_period", "PHASE 16 (V1.0.0 GA) • PLANNED"),
+        title: t("sd_roadmap_p16_title", "Global GA — Reproducible Signed Builds & Sovereign Ecosystem"),
+        sub: t(
+          "sd_roadmap_p16_focus",
+          "Notarized Multi-OS Signing • Audited Crypto • Spoke SLA & Abandonment Automation • V1.0 Spec Freeze"
+        ),
+        desc: t(
+          "sd_roadmap_p16_summary",
+          "General Availability release delivering reproducible Authenticode EV / notarized Apple / GPG-signed desktop binaries, third-party cryptographic and VFS security audits, automated Keepers Core Spoke DMCA/abandonment tooling, and the frozen v1.0 Master Schema specification."
+        ),
+        milestones: [
+          {
+            title: t("sd_roadmap_p16_m1_title", "Reproducible Multi-OS Code Signing & Notarization"),
+            desc: t("sd_roadmap_p16_m1_desc", "Production Windows Authenticode EV / Azure Trusted Signing, notarized Apple Universal .dmg binaries, and GPG-signed Linux AppImage/DEB releases with build provenance attestations."),
+            pending: true,
+          },
+          {
+            title: t("sd_roadmap_p16_m2_title", "External Cryptography & VFS Security Audit"),
+            desc: t("sd_roadmap_p16_m2_desc", "Independent third-party verification of Split-Custody HKDF-SHA256 / AES-256-GCM envelopes, Ed25519 manifests, WebAuthn FIDO2 gates, and Rust extraction/path-traversal sandboxing."),
+            pending: true,
+          },
+          {
+            title: t("sd_roadmap_p16_m3_title", "Partner Spoke SLA & Succession Automation"),
+            desc: t("sd_roadmap_p16_m3_desc", "In-hub UI tooling for 48h Spoke DMCA compliance logs, automated Abandoned Spoke / Wayfinder Succession handoffs, and zero-downtime spoke schema migrations."),
+            pending: true,
+          },
+          {
+            title: t("sd_roadmap_p16_m4_title", "Global Lexicon Registry & V1.0 Stability Freeze"),
+            desc: t("sd_roadmap_p16_m4_desc", "Public community translation pack index, frozen v1.0 sanctuary_schemas contract, and production multi-region Core Hub Federation SLA guarantees."),
+            pending: true,
+          },
+        ],
+      },
+      {
+        num: 15,
+        status: "planned" as const,
+        icon: t("icon_upcoming", "upcoming"),
+        code: t("sd_roadmap_p15_period", "PHASE 15 (V0.7.0 BETA) • PLANNED"),
+        title: t("sd_roadmap_p15_title", "Beta Stabilization — 27-Preset Soak, Fire Drill & Opt-In Controls"),
+        sub: t(
+          "sd_roadmap_p15_focus",
+          "Real-Game E2E Soak • Automated Patch Fire Drill • Opt-In Telemetry Granularity • 50k-Mod Performance Budgets"
+        ),
+        desc: t(
+          "sd_roadmap_p15_summary",
+          "Pre-GA public beta stabilization delivering real-game end-to-end soak verification across all 27 engine presets, automated Patch Fire Drill & Groundhog bisect orchestration, granular opt-in cloud mirroring controls, and in-hub Spoke SQL migration runners."
+        ),
+        milestones: [
+          {
+            title: t("sd_roadmap_p15_m1_title", "27-Preset Real-Game End-to-End Soak Suite"),
+            desc: t("sd_roadmap_p15_m1_desc", "Cross-platform storefront verification (Steam, GOG, Epic, Xbox Store, Proton) testing real binary version ripping, hardlink/junction deployment, and runtime Overwrite capture."),
+            pending: true,
+          },
+          {
+            title: t("sd_roadmap_p15_m2_title", "Patch Fire Drill & Groundhog Bisect Polish"),
+            desc: t("sd_roadmap_p15_m2_desc", "Automated pre-patch dry-run staging simulation and interactive 1-click binary search mod isolation sweeps inside Homestead Lab."),
+            pending: true,
+          },
+          {
+            title: t("sd_roadmap_p15_m3_title", "Granular Opt-In Cloud Mirroring Controls"),
+            desc: t("sd_roadmap_p15_m3_desc", "Unified per-device consent dashboard governing opt-in Lab verification certificates, Pocket Radar encrypted staging queues, and optional Zero-PII Threat Manifest uploads."),
+            pending: true,
+          },
+          {
+            title: t("sd_roadmap_p15_m4_title", "In-Hub Spoke Migrator & 60 FPS Scale Budgets"),
+            desc: t("sd_roadmap_p15_m4_desc", "Interactive Wayfinder migrations/spoke/ version upgrader (v1 -> v3+), WebGL2 Low-Power / Reduced-Motion presets, and 50,000+-mod UI frame budgets."),
+            pending: true,
+          },
+        ],
+      },
+      {
+        num: 14,
         status: "active" as const,
+        icon: t("icon_science", "science"),
+        code: t("sd_roadmap_p14_period", "PHASE 14 (V0.6.0-DEV.15) • NOVEMBER 2026 — ACTIVE ERA"),
+        title: t("sd_roadmap_p14_title", "Agnostic Multi-Engine Expansion, Differential VFS & Scale Architecture"),
+        sub: t(
+          "sd_roadmap_p14_focus",
+          "Creator Airlock • Quartermaster • Zero-Copy Exodus • Rosetta Protocol • Save Doctor • 27 Presets • Differential VFS"
+        ),
+        desc: t(
+          "sd_roadmap_p14_summary",
+          "Major v0.6.0 expansion shipping Creator Airlock external tool save isolation, The Quartermaster FOMOD/BAIN wizard, Zero-Copy Exodus MO2/Vortex migration, The Rosetta Protocol modlist translation + .sanctuary-blueprint.lock.json hydration, Save Doctor, Crash Autopsy, Cloud-Sync Folder Sentinel, Deck Overdrive, Code-Switch (7,300+ strings), Conflict Radar 2.0 (TES4/BSA/BA2/LSPK/PAK/UTOC/RDAR/RPF7 + LOOT), Differential Rayon VFS, Million-Citizen Cloud Scale, and the Ironclad Test Gauntlet."
+        ),
+        milestones: [
+          {
+            title: t("sd_roadmap_p14_m1_title", "Creator Airlock & Quartermaster FOMOD/BAIN Wizard"),
+            desc: t("sd_roadmap_p14_m1_desc", "Save-airgapped external modding tool launch (Creator Airlock inside Homestead Lab) alongside full UTF-16/UTF-8 FOMOD & BAIN package wizardry with dependency/flag evaluation and non-destructive reconfiguration."),
+            pending: false,
+          },
+          {
+            title: t("sd_roadmap_p14_m2_title", "Zero-Copy Exodus, Rosetta Protocol & Lockfile Hydration"),
+            desc: t("sd_roadmap_p14_m2_desc", "Hardlink migration from MO2/Vortex staging trees, modlist translation from .mrpack/CurseForge/Nexus Collections/.wabbajack, and 1-click parallel .sanctuary-blueprint.lock.json hydration."),
+            pending: false,
+          },
+          {
+            title: t("sd_roadmap_p14_m3_title", "27 Engine Presets, Binary TOCs & Differential Rayon VFS"),
+            desc: t("sd_roadmap_p14_m3_desc", "Schema-driven deployment across 27 presets (Creation Engine, Unreal, Source, Unity/BepInEx, REDEngine, RAGE, RimWorld, Sims, etc.), Overwrite capture, LOOT rules, SQLite Radar caching, and sub-second differential VFS reconciliation."),
+            pending: false,
+          },
+          {
+            title: t("sd_roadmap_p14_m4_title", "Save Doctor, Cloud-Sync Sentinel & Compliance Tiers 0–6"),
+            desc: t("sd_roadmap_p14_m4_desc", "Per-save mod manifests + Crash Autopsy correlation, active OneDrive/Dropbox/iCloud/GDrive reparse guards, opt-in Lab cert & Pocket Radar defaults, 61 Spoke tables, Spoke-routed Tier 1 DMCA, Tiers 2–5 Restricted, Tier 6 Malware, and 87 Rust + 15 Vitest test suites."),
+            pending: false,
+          },
+          {
+            title: t("sd_roadmap_p14_m5_title", "Patch Fire Drill & Groundhog Bisect Automation"),
+            desc: t("sd_roadmap_p14_m5_desc", "Homestead 1v1 sandbox & log scrubbing live; automated headless pre-patch dry-run simulation and binary bisect automation finalizing for v0.7.0 Beta."),
+            pending: true,
+          },
+        ],
+      },
+      {
+        num: 13,
+        status: "completed" as const,
+        icon: t("icon_auto_awesome", "auto_awesome"),
+        code: t("sd_roadmap_p13_period", "PHASE 13 (V5.8) • OCTOBER 2026"),
+        title: t("sd_roadmap_p13_title", "Multi-Engine Studios, Bytecode Hound & Sovereign Covenants"),
+        sub: t("sd_roadmap_p13_focus", "Schema Forge • Lexicon Codex • Bytecode Hound • Edge Direct Push • Mirror Uplink"),
+        desc: t(
+          "sd_roadmap_p13_summary",
+          "Delivered the 2-column Schema Forge & Lexicon Codex, Zlib/Zstd-decompressing Bytecode Hound malware defense, 6-provider Edge Direct Push (with S3/R2 & Ed25519 signing), zero-conflict sanctuary.fork.json CLI, and Keepers Core Bilateral Mirror Uplink."
+        ),
+        milestones: [
+          {
+            title: t("sd_roadmap_p13_m1_title", "Schema Forge & Database Taxonomy"),
+            desc: t("sd_roadmap_p13_m1_desc", "Visual Master Schema editor with decoupled Spoke public.taxonomy category and exception rule catalogs."),
+            pending: false,
+          },
+          {
+            title: t("sd_roadmap_p13_m2_title", "Bytecode Hound & Edge Direct Push"),
+            desc: t("sd_roadmap_p13_m2_desc", "Stream/bytecode malware inspection and 6-provider 1-click creator release publishing."),
+            pending: false,
+          },
+          {
+            title: t("sd_roadmap_p13_m3_title", "Sovereign Covenants & Mirror Uplink"),
+            desc: t("sd_roadmap_p13_m3_desc", "Partner Spoke legal gating, 0%-cut donations, $5 = +30 Days Dev Builds, and live bilateral directive/schema synchronization."),
+            pending: false,
+          },
+        ],
+      },
+      {
+        num: 12,
+        status: "completed" as const,
         icon: t("icon_rocket_launch", "rocket_launch"),
-        code: t("sd_roadmap_p12_period", "PHASE 12 • JULY 15, 2026 — IN PROGRESS"),
+        code: t("sd_roadmap_p12_period", "PHASE 12 • JULY 15 – OCTOBER 2026"),
         title: t(
           "sd_roadmap_p12_title",
           "Agnostic Future — Multi-Workspace, Sanctuary V6 Liquid Glass & Web PWA"
         ),
         sub: t("sd_roadmap_p12_focus", "{Citizens} Workbench / {Mason} IDE, Lexicon Revamp, Sanctuary Partners, V6 Liquid Glass & Website V2"),
-        desc: t("sd_roadmap_p12_summary", "Dual-Vision {Mason} IDE & Cloud Lexicons (Completed), Multi-Workspace Master Schemas & the 0%-cut Sanctuary Partners Agreement, the Sanctuary V6 3D Liquid Glass Engine & 18-Section Revamp, and Website V2 / Mobile PWA."),
+        desc: t("sd_roadmap_p12_summary", "Dual-Vision {Mason} IDE & Cloud Lexicons, Multi-Workspace Master Schemas & the 0%-cut Sanctuary Partners Agreement, the Sanctuary V6 3D Liquid Glass Engine & 18-Section Revamp, and Website V2 / Mobile PWA."),
         milestones: [
           {
             title: t("sd_roadmap_p12_m5_title", "{Citizens} Workbench & {Mason} IDE 2.0"),
@@ -939,22 +1081,22 @@ export function useWebDirectiveCatalogs(t: (key: string, fallback: string) => st
           {
             title: t("sd_roadmap_p12_m7_title", "Multi-Workspace & Sanctuary Partners"),
             desc: t("sd_roadmap_p12_m7_desc", "Shared Core App and SSO with per-game Master Schemas, 100% Partner DB ownership ('Cut the Cord'), 0%-cut Partner Donations, and 1-File Standalone Forking."),
-            pending: true,
+            pending: false,
           },
           {
             title: t("sd_roadmap_p12_m8_title", "Sanctuary V6 & Liquid Glass Engine"),
             desc: t("sd_roadmap_p12_m8_desc", "4-layer 3D Refractive Liquid Glass Engine, revamped Default Themes + Partner Spoke {Chameleon} themes, and Chameleon {Chameleon} Forge 2.0."),
-            pending: true,
+            pending: false,
           },
           {
             title: t("sd_roadmap_p12_m10_title", "Dynamic Alert Tiles & 18-Section Revamp"),
             desc: t("sd_roadmap_p12_m10_desc", "Floating 2-Pill Title Bar, Hover Dock, 5 Dynamic Alert Stat Tiles (Permissions, Global, Critical, System, Updates), and a full 18-section UI overhaul."),
-            pending: true,
+            pending: false,
           },
           {
             title: t("sd_roadmap_p12_m9_title", "Website V2, Mobile PWA & Remote Queuing"),
             desc: t("sd_roadmap_p12_m9_desc", "Unified single-codebase Web OS & PWA across game workspaces with live Comm-Link, Nexus, Support Desk, Command Hubs, and Web-to-PC {Blueprint} queuing."),
-            pending: true,
+            pending: false,
           },
           {
             title: t("sd_roadmap_p12_m11_title", "Schema-Driven Load Order Compiler"),
@@ -1010,10 +1152,10 @@ export function useWebDirectiveCatalogs(t: (key: string, fallback: string) => st
         code: t("sd_roadmap_p10_period", "PHASE 10 • MAY 10 – MAY 16, 2026"),
         title: t(
           "sd_roadmap_p10_title",
-          "Post-Alpha Revamp, Visual Protocol Manager & Senior Architect Mass Update"
+          "Post-Alpha Revamp, Visual Protocol Manager & Oversight Mass Update"
         ),
         sub: t("sd_roadmap_p10_focus", "Dev Sandbox, Visual Protocol Schema, Theme Forge & Mass Triage"),
-        desc: t("sd_roadmap_p10_summary", "Launched the isolated Dev Sandbox & 'Sync to Network' creator pipeline, visual database-schema Protocol Manager, Folder Structure builder, Senior Architect Mass Update console, The Nexus registry, and Chameleon {Chameleon} Forge."),
+        desc: t("sd_roadmap_p10_summary", "Launched the isolated Dev Sandbox & 'Sync to Network' creator pipeline, visual database-schema Protocol Manager, Folder Structure builder, Oversight Mass Update console, The Nexus registry, and Chameleon {Chameleon} Forge."),
         milestones: [
           {
             title: t("sd_roadmap_p10_m5_title", "Isolated Dev Sandbox & Sync to Network"),
@@ -1024,8 +1166,8 @@ export function useWebDirectiveCatalogs(t: (key: string, fallback: string) => st
             desc: t("sd_roadmap_p10_m6_desc", "Database-schema visual Protocol Manager (Core & Addons, Flavors, Dependencies, DLC) and visual Folder Structure builder enforced by Sanitize {Vault}."),
           },
           {
-            title: t("sd_roadmap_p10_m7_title", "Senior Architect Mass Update & Filters"),
-            desc: t("sd_roadmap_p10_m7_desc", "Bulk post-patch triage console for Senior Architects alongside 'Game Version', 'Currently Eligible', and 'Exclude Unowned DLC' filters."),
+            title: t("sd_roadmap_p10_m7_title", "Oversight Mass Update & Filters"),
+            desc: t("sd_roadmap_p10_m7_desc", "Bulk post-patch triage console for Oversight Command alongside 'Game Version', 'Currently Eligible', and 'Exclude Unowned DLC' filters."),
           },
           {
             title: t("sd_roadmap_p10_m8_title", "The Nexus Discovery Registry"),
@@ -1053,7 +1195,7 @@ export function useWebDirectiveCatalogs(t: (key: string, fallback: string) => st
         sub: t("sd_roadmap_p9_focus", "Proving Grounds Simulation, macOS Universal Pipeline & Command Hubs"),
         desc: t(
           "sd_roadmap_p9_summary",
-          "Transitioned Homestead Proving Grounds into a live simulation laboratory with real-time log monitoring, deployed the Senior Architect & Wayfinder Command Hubs, automated signed macOS Universal (.dmg) builds, and enforced Florida Compliance Tiers 1–4."
+          "Transitioned Homestead Proving Grounds into a live simulation laboratory with real-time log monitoring, deployed the Oversight & Wayfinder Command Hubs, automated signed macOS Universal (.dmg) builds, and enforced Compliance Tiers 0–6."
         ),
         milestones: [
           {
@@ -1069,7 +1211,7 @@ export function useWebDirectiveCatalogs(t: (key: string, fallback: string) => st
             desc: t("sd_roadmap_p9_m7_desc", "Interactive ticket dossiers equipped with PII-scrubbed crash logs, response macros, and cross-tier escalation between Architects and Oversight."),
           },
           {
-            title: t("sd_roadmap_p9_m8_title", "Florida Compliance Tiers 1–4"),
+            title: t("sd_roadmap_p9_m8_title", "Compliance Tiers 0–6 Matrix"),
             desc: t("sd_roadmap_p9_m8_desc", "Automated public feed scrubbing and Cloud {Blueprint} hash purge triggers protecting public discovery while preserving local {Vault} freedom."),
           },
         ],
@@ -1099,7 +1241,7 @@ export function useWebDirectiveCatalogs(t: (key: string, fallback: string) => st
             desc: t("sd_roadmap_p8_m7_desc", "Real-time network listener that intercepts game launches during breaking engine patches to prompt an emergency {Backups} backup."),
           },
           {
-            title: t("sd_roadmap_p8_m8_title", "Tier 5 Malware Scanner & Secure Shred"),
+            title: t("sd_roadmap_p8_m8_title", "Tier 6 Malware Scanner & Secure Shred"),
             desc: t("sd_roadmap_p8_m8_desc", "Byte-level heuristic malware scanner, {Citizen}-signed zero-fill Secure Shredding, and the privacy-first hardware_bans Nuclear Override."),
           },
         ],
@@ -1210,7 +1352,7 @@ export function useWebDirectiveCatalogs(t: (key: string, fallback: string) => st
           },
           {
             title: t("sd_roadmap_p4_m7_title", "Priority Tier Folders & Dynamic Load Manifests"),
-            desc: t("sd_roadmap_p4_m7_desc", "Multi-tier override directories (Sanctuary1–Sanctuary3) paired with automated load-order manifest priority depth compilation."),
+            desc: t("sd_roadmap_p4_m7_desc", "Multi-tier override directories (Priority Tiers 1–3) paired with automated load-order manifest priority depth compilation."),
           },
           {
             title: t("sd_roadmap_p4_m8_title", "Architect Console & Crowd-Sourced Scout Queue"),

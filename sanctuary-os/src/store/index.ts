@@ -550,15 +550,17 @@ const workspaceHasDatabaseConfig = (wsId: string): boolean => {
     if (rawGames) {
       const parsed = JSON.parse(rawGames);
       if (Array.isArray(parsed)) {
+        const norm = wsId.trim().toLowerCase();
         const match = parsed.find(
           (g: any) =>
-            String(g?.id || '').toLowerCase() === wsId.toLowerCase() ||
-            String(g?.schema_id || '').toLowerCase() === wsId.toLowerCase()
+            String(g?.id || '').trim().toLowerCase() === norm ||
+            String(g?.schema_id || '').trim().toLowerCase() === norm ||
+            String(g?.game_id || '').trim().toLowerCase() === norm
         );
         if (match) {
           const url = typeof match.supabase_url === 'string' ? match.supabase_url.trim() : '';
           const key = typeof match.supabase_anon_key === 'string' ? match.supabase_anon_key.trim() : '';
-          return /^https?:\/\//i.test(url) && key.length > 0;
+          return /^https?:\/\/[^/\s]+\.[^/\s]+/i.test(url) && key.length > 0;
         }
       }
     }
@@ -2174,12 +2176,23 @@ export const syncGameDatabases = async (preloadedLocalWorkspaces?: any[]) => {
   };
 
   if (cachedGames.length > 0) {
-    // Already hydrated from local cache in 0ms; refresh in the background without blocking workspace boot
-    performNetworkSync();
-    return;
+    // Already hydrated from local cache in 0ms; refresh in the background unless Web subdomain is missing from cache
+    const webSub = !isDesktop() ? String(getSubdomain() || '').trim().toLowerCase() : '';
+    const hasWebSubMatch =
+      !webSub ||
+      cachedGames.some(
+        (g: any) =>
+          String(g?.schema_id || '').trim().toLowerCase() === webSub ||
+          String(g?.id || '').trim().toLowerCase() === webSub ||
+          String(g?.game_id || '').trim().toLowerCase() === webSub
+      );
+    if (hasWebSubMatch) {
+      performNetworkSync();
+      return;
+    }
   }
 
-  // First-time cold boot without cache: bound network wait to 2500ms so a slow connection never hangs boot
+  // First-time cold boot without cache (or missing web subdomain): bound network wait to 2500ms so a slow connection never hangs boot
   await Promise.race([
     performNetworkSync(),
     new Promise<void>((resolve) => setTimeout(() => {

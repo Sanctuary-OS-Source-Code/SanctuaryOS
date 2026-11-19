@@ -273,10 +273,10 @@ export default function CitizenTickets({
   );
 
   const gridClassName = isSidePanel
-    ? "w-full grid grid-cols-1 sm:grid-cols-2 gap-4 content-start items-start auto-rows-max relative z-10"
+    ? "w-full grid grid-cols-1 sm:grid-cols-2 gap-5 content-start items-start auto-rows-max relative z-10"
     : embedded
-      ? "w-full grid grid-cols-[repeat(auto-fill,minmax(280px,1fr))] gap-6 content-start items-start auto-rows-max relative z-10"
-      : "w-full flex flex-col sm:grid sm:grid-cols-2 gap-4 px-6 md:px-8 pb-20 content-start sm:items-start sm:auto-rows-max";
+      ? "w-full grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 content-start items-start auto-rows-max relative z-10"
+      : "w-full grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 px-6 md:px-8 pb-20 content-start items-start auto-rows-max";
 
   return (
     <div className={`flex flex-col w-full text-[var(--text)] ${isFlush ? "" : "min-h-full"}`}>

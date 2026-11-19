@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { useLexicon } from "../LexiconContext";
 import { useStore } from "../store";
+import { findWorkspaceByIdentifier } from "../supabase";
 import {
   SidePanel,
   SidePanelHeroCard,
@@ -572,9 +573,7 @@ export function CommunitySupportSidePanel({
       return;
     }
 
-    const activeWs = (workspaces || []).find(
-      (w: any) => w.id === activeWorkspaceId
-    );
+    const activeWs = findWorkspaceByIdentifier(workspaces, activeWorkspaceId);
     const activeSchemaId = (
       activeWs?.schema_id ||
       activeGameSchema?.schema_id ||

@@ -11,7 +11,9 @@ import { SharedMetadataEditorSidePanel } from '../side-panels/SharedMetadataEdit
 import { ElevatedHubLayout, HubOverviewLanding, HubOverviewSection, HubListGrid, SidePanelTitleInput, UniversalGroup, UniversalTextArea } from '../components/layouts/ElevatedHubLayout';
 import { logArchitectAction } from '../lib/audit';
 import { invalidateNexusCatalogCache } from '../utils/nexusCatalogStats';
-import DmcaOversightQueueSection from './compliance/DmcaOversightQueueSection';
+import DmcaOversightQueueSection, {
+  fetchDmcaQueueNotices,
+} from './compliance/DmcaOversightQueueSection';
 
 export default function SAComplianceOversight({ initialFilter, setInitialFilter, onOpenManualFlag }: any) {
   const { t } = useLexicon();
@@ -25,7 +27,9 @@ export default function SAComplianceOversight({ initialFilter, setInitialFilter,
     return null;
   });
   const [filterStatus, setFilterStatus] = useState<string>(() => {
-    if (initialFilter === "quarantined") return "confirmed";
+    if (initialFilter === "dmca") return "dmca";
+    if (initialFilter === "quarantined" || initialFilter === "confirmed") return "confirmed";
+    if (initialFilter === "pending") return "pending";
     return "overview";
   });
   const [search, setSearch] = useState("");
@@ -36,6 +40,7 @@ export default function SAComplianceOversight({ initialFilter, setInitialFilter,
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [status, setStatus] = useState("");
   const [dmcaCount, setDmcaCount] = useState<number>(0);
+  const [dmcaActivityFilter, setDmcaActivityFilter] = useState<"all" | "active" | "settled">("all");
 
   // Family & Tracked Hashes state inside Enforcement drawer
   const [trackedHashes, setTrackedHashes] = useState<any[]>([]);
@@ -230,14 +235,14 @@ export default function SAComplianceOversight({ initialFilter, setInitialFilter,
     setLoading(true);
     const { data } = await spokeOversightFrom('mods')
       .select('id, name, master_author, compliance_tier, status, status_reason, mason_id, image_url')
-      .in('compliance_tier', [1, 2, 3, 4, 6])
+      .in('compliance_tier', [1, 2, 3, 4, 5])
       .order('compliance_tier', { ascending: false });
 
     if (data) {
       setMods(
         data.filter((m: any) => {
           const tier = Number(m?.compliance_tier || 0);
-          return (tier >= 1 && tier <= 4) || tier === 6;
+          return tier >= 1 && tier <= 5;
         })
       );
     }
@@ -334,7 +339,7 @@ export default function SAComplianceOversight({ initialFilter, setInitialFilter,
       return;
     }
     const confirmedTier = Math.max(0, Math.min(6, Number(editTier ?? mod.compliance_tier ?? 1)));
-    const confirmedStatus = confirmedTier === 5 ? 'blacklisted' : 'verified';
+    const confirmedStatus = confirmedTier === 6 ? 'blacklisted' : 'verified';
     setIsSubmitting(true);
     setLoading(true);
     try {
@@ -378,8 +383,29 @@ export default function SAComplianceOversight({ initialFilter, setInitialFilter,
   };
 
   useEffect(() => {
+    if (
+      initialFilter === "dmca" ||
+      initialFilter === "pending" ||
+      initialFilter === "confirmed" ||
+      initialFilter === "overview"
+    ) {
+      setFilterStatus(initialFilter);
+    } else if (initialFilter === "quarantined") {
+      setFilterStatus("confirmed");
+    }
+  }, [initialFilter]);
+
+  useEffect(() => {
     fetchMods();
-    const onUpdated = () => { fetchMods(); };
+    fetchDmcaQueueNotices()
+      .then((res) => setDmcaCount(res.activeCount))
+      .catch(() => {});
+    const onUpdated = () => {
+      fetchMods();
+      fetchDmcaQueueNotices()
+        .then((res) => setDmcaCount(res.activeCount))
+        .catch(() => {});
+    };
     window.addEventListener('sanctuary-compliance-updated', onUpdated);
     return () => window.removeEventListener('sanctuary-compliance-updated', onUpdated);
   }, []);
@@ -408,7 +434,7 @@ export default function SAComplianceOversight({ initialFilter, setInitialFilter,
 
     try {
       const targetTier = Math.max(0, Math.min(6, Number(editTier ?? 0)));
-      const nextStatus = targetTier === 5 ? 'blacklisted' : 'verified';
+      const nextStatus = targetTier === 6 ? 'blacklisted' : 'verified';
       const { error } = await supabase.rpc('secure_upsert_cloud_file', {
         p_token: useStore.getState().session?.access_token || '',
         p_target: 'mods',
@@ -471,13 +497,13 @@ export default function SAComplianceOversight({ initialFilter, setInitialFilter,
 
   const getTierDetails = (tier: number) => {
     switch (tier) {
-      case 1: return { label: t("tier_1_label", "Tier 1"), color: 'text-[var(--warning)]', border: 'border-[color-mix(in_srgb,var(--warning)_40%,transparent)]' };
-      case 2: return { label: t("tier_2_label", "Tier 2"), color: 'text-[var(--warning)]', border: 'border-[color-mix(in_srgb,var(--warning)_40%,transparent)]' };
-      case 3: return { label: t("tier_3_label", "Tier 3"), color: 'text-[var(--danger)]', border: 'border-[color-mix(in_srgb,var(--danger)_40%,transparent)]' };
-      case 4: return { label: t("tier_4_label", "Tier 4"), color: 'text-[var(--danger)]', border: 'border-[color-mix(in_srgb,var(--danger)_40%,transparent)]' };
-      case 5: return { label: t("tier_5_label", "Tier 5"), color: 'text-[var(--danger)]', border: 'border-[color-mix(in_srgb,var(--danger)_40%,transparent)]' };
-      case 6: return { label: t("tier_6_label", "DMCA / Copyright Hold (T6)"), color: 'text-[var(--warning)]', border: 'border-[color-mix(in_srgb,var(--warning)_40%,transparent)]' };
-      default: return { label: t("tier_0_label", "Tier 0"), color: 'text-[var(--success)]', border: 'border-[color-mix(in_srgb,var(--success)_40%,transparent)]' };
+      case 1: return { label: t("tier_1_label", "Legal / DMCA Hold (T1)"), color: 'text-[var(--warning)]', border: 'border-[color-mix(in_srgb,var(--warning)_40%,transparent)]' };
+      case 2: return { label: t("tier_2_label", "Explicit Content (T2)"), color: 'text-[var(--warning)]', border: 'border-[color-mix(in_srgb,var(--warning)_40%,transparent)]' };
+      case 3: return { label: t("tier_3_label", "Illicit / Substance (T3)"), color: 'text-[var(--warning)]', border: 'border-[color-mix(in_srgb,var(--warning)_40%,transparent)]' };
+      case 4: return { label: t("tier_4_label", "Extreme Violence (T4)"), color: 'text-[var(--danger)]', border: 'border-[color-mix(in_srgb,var(--danger)_40%,transparent)]' };
+      case 5: return { label: t("tier_5_label", "Taboo / Prohibited (T5)"), color: 'text-[var(--danger)]', border: 'border-[color-mix(in_srgb,var(--danger)_40%,transparent)]' };
+      case 6: return { label: t("tier_6_label", "Malware / Security Threat (T6)"), color: 'text-[var(--danger)]', border: 'border-[color-mix(in_srgb,var(--danger)_40%,transparent)]' };
+      default: return { label: t("tier_0_label", "Clean / Public Safe (T0)"), color: 'text-[var(--success)]', border: 'border-[color-mix(in_srgb,var(--success)_40%,transparent)]' };
     }
   };
 
@@ -630,33 +656,63 @@ export default function SAComplianceOversight({ initialFilter, setInitialFilter,
       activeTab={filterStatus === 'overview' ? 'overview' : filterStatus}
       onTabChange={(id) => setFilterStatus(id as any)}
       tabs={tabs}
-      primaryPopover={filterStatus !== 'overview' && filterStatus !== 'dmca' ? {
-        icon: t("icon_tune", "tune"),
-        label: t("filters", "Filters"),
-        content: (
-          <div className="flex flex-col w-[300px] p-4 text-left">
-            <div className="flex flex-col mb-5 w-full">
-              <div className="text-[10px] font-black uppercase tracking-widest text-[var(--subtext)] opacity-80 mb-2.5 px-1 flex items-center gap-2">
-                {t("filters", "Filter")}
-              </div>
-              <CustomDropdown
-                flat={true}
-                variant="pill"
-                value={filterTier === null ? "all" : filterTier}
-                onChange={(v: any[]) => setFilterTier(v[0] === "all" ? null : v[0])}
-                options={[
-                  { id: "all", label: t("comp_filter_all_alerts", "All Alerts") },
-                  { id: 1, label: getTierDetails(1).label },
-                  { id: 2, label: getTierDetails(2).label },
-                  { id: 3, label: getTierDetails(3).label },
-                  { id: 4, label: getTierDetails(4).label },
-                  { id: 6, label: getTierDetails(6).label }
-                ]}
-              />
-            </div>
-          </div>
-        )
-      } : undefined}
+      primaryPopover={
+        filterStatus === 'dmca'
+          ? {
+              icon: t("icon_tune", "tune"),
+              label: t("filters", "Filters"),
+              content: (
+                <div className="flex flex-col w-[300px] p-4 text-left">
+                  <div className="flex flex-col w-full gap-2">
+                    <div className="text-[10px] font-black uppercase tracking-widest text-[var(--subtext)] opacity-80 px-1 flex items-center gap-2">
+                      {t("status", "Status")}
+                    </div>
+                    <CustomDropdown
+                      flat={true}
+                      variant="pill"
+                      value={dmcaActivityFilter}
+                      onChange={(v: any[]) => setDmcaActivityFilter((v[0] as any) || "all")}
+                      options={[
+                        { id: "all", label: t("dmca_filter_all_notices", "All Notices") },
+                        { id: "active", label: t("dmca_filter_active_only", "Active Only") },
+                        { id: "settled", label: t("dmca_filter_settled_only", "Settled Only") },
+                      ]}
+                      disableTint={true}
+                    />
+                  </div>
+                </div>
+              ),
+            }
+          : filterStatus !== 'overview'
+            ? {
+                icon: t("icon_tune", "tune"),
+                label: t("filters", "Filters"),
+                content: (
+                  <div className="flex flex-col w-[300px] p-4 text-left">
+                    <div className="flex flex-col mb-5 w-full">
+                      <div className="text-[10px] font-black uppercase tracking-widest text-[var(--subtext)] opacity-80 mb-2.5 px-1 flex items-center gap-2">
+                        {t("filters", "Filter")}
+                      </div>
+                      <CustomDropdown
+                        flat={true}
+                        variant="pill"
+                        value={filterTier === null ? "all" : filterTier}
+                        onChange={(v: any[]) => setFilterTier(v[0] === "all" ? null : v[0])}
+                        options={[
+                          { id: "all", label: t("comp_filter_all_alerts", "All Alerts") },
+                          { id: 1, label: getTierDetails(1).label },
+                          { id: 2, label: getTierDetails(2).label },
+                          { id: 3, label: getTierDetails(3).label },
+                          { id: 4, label: getTierDetails(4).label },
+                          { id: 5, label: getTierDetails(5).label }
+                        ]}
+                      />
+                    </div>
+                  </div>
+                )
+              }
+            : undefined
+      }
       actions={[
         {
           id: "manual_flag",
@@ -669,6 +725,7 @@ export default function SAComplianceOversight({ initialFilter, setInitialFilter,
       {filterStatus === 'dmca' ? (
         <DmcaOversightQueueSection
           searchQuery={search}
+          activityFilter={dmcaActivityFilter}
           onCountChange={setDmcaCount}
           onTriageCompleted={fetchMods}
         />
@@ -734,7 +791,7 @@ export default function SAComplianceOversight({ initialFilter, setInitialFilter,
             description={t("hub_compliance_subtitle", "Manage and review system compliance and {mod} safety")}
             badge={getTierDetails(editTier).label}
             badgeIcon={t("icon_policy", "policy")}
-            variant={editTier >= 3 ? "danger" : editTier >= 1 ? "warning" : "success"}
+            variant={editTier >= 4 ? "danger" : editTier >= 1 ? "warning" : "success"}
           >
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
               <StatBox

@@ -552,7 +552,7 @@ export function NexusReportsViewer({ onOpenDossier, setStatus, hubRole }: any) {
         }
         const { error: flagErr } = await supabase.rpc('flag_mod_for_compliance', {
           p_mod_id: candidateModId,
-          p_tier: Math.min(4, Math.max(1, Number(flagComplianceTier || 1))),
+          p_tier: Math.min(5, Math.max(1, Number(flagComplianceTier || 1))),
           p_reason: resolutionReason || selectedReport.description || 'Escalated from Reports Console',
         });
         if (flagErr) throw flagErr;
@@ -1158,7 +1158,7 @@ export function NexusReportsViewer({ onOpenDossier, setStatus, hubRole }: any) {
                         options={[
                           { id: "dismiss", label: t("btn_dismiss_report", "Dismiss Report") },
                           { id: "remove", label: t("btn_remove_asset", "Remove {Mod}") },
-                          { id: "flag_compliance", label: t("btn_flag_compliance_pending", "Flag Compliance (Tier 1–4 → Oversight)") },
+                          { id: "flag_compliance", label: t("btn_flag_compliance_pending", "Flag Compliance (Tier 1–5 → Oversight)") },
                           ...(canBanAuthors
                             ? [{ id: "ban", label: t("btn_revoke_mason", "Revoke {Mason} Privileges") }]
                             : []),
@@ -1172,7 +1172,7 @@ export function NexusReportsViewer({ onOpenDossier, setStatus, hubRole }: any) {
                             value={flagComplianceTier}
                             onChange={(val) => setFlagComplianceTier(val)}
                             minTier={1}
-                            maxTier={4}
+                            maxTier={5}
                           />
                           <UniversalInput
                             label={t("target_mod_uuid", "Target {Mod} UUID")}

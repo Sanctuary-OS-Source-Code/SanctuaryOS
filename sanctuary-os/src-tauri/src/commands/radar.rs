@@ -1,6 +1,8 @@
 use crate::schema::SchemaConflictAnalyzer;
 use crate::state::*;
 use crate::utils::*;
+use rayon::prelude::*;
+use sha2::{Digest, Sha256};
 use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet};
 use std::fs::File;
 use std::io::{BufReader, Read, Seek, SeekFrom};
@@ -10,6 +12,219 @@ use walkdir::WalkDir;
 const MAX_RADAR_FILES: usize = 50_000;
 const MAX_ARCHIVE_MEMBERS: usize = 8_192;
 const MAX_BINARY_INDEX_ENTRIES: u64 = 65_536;
+
+pub(crate) fn compute_analyzer_sig(analyzer: &SchemaConflictAnalyzer) -> String {
+    let serialized = serde_json::to_vec(analyzer).unwrap_or_default();
+    let digest = Sha256::digest(&serialized);
+    hex::encode(&digest[..12])
+}
+
+struct ActiveRadarFile<'a> {
+    full_path: &'a PathBuf,
+    rel_path: &'a PathBuf,
+    rel_norm: &'a str,
+    mod_owner: String,
+    opt_vpath: Option<String>,
+    ext_lower: String,
+}
+
+struct RadarFileEval {
+    mod_owner: String,
+    file_mtime: u64,
+    file_size: u64,
+    route_key: Option<String>,
+    vfs_key: Option<String>,
+    archive_keys: Vec<String>,
+    binary_hits: Vec<(String, Vec<String>)>,
+    json_hits: Vec<(String, String, Vec<String>)>,
+    cache_misses: Vec<(String, String, u64, u64, Vec<String>)>,
+    cache_hits_count: usize,
+}
+
+fn evaluate_single_radar_file(
+    item: &ActiveRadarFile<'_>,
+    install_routes: &[crate::schema::SchemaInstallRoute],
+    live_root: &Path,
+    docs_root: &Path,
+    mods_dir: &Path,
+    vfs_ext_filter: &Option<HashSet<String>>,
+    archive_exts: &HashSet<String>,
+    manifest_lower: &str,
+    configured_analyzers: &[SchemaConflictAnalyzer],
+    analyzer_sigs: &[String],
+    existing_cache: &HashMap<(String, String), crate::utils::RadarCachedKeys>,
+) -> RadarFileEval {
+    let full_path = item.full_path;
+    let rel_path = item.rel_path;
+    let rel_norm = item.rel_norm;
+    let ext_lower = &item.ext_lower;
+
+    let (mtime_secs, file_size) = std::fs::metadata(full_path)
+        .map(|m| {
+            let mt = m
+                .modified()
+                .ok()
+                .and_then(|t| t.duration_since(std::time::UNIX_EPOCH).ok())
+                .map(|d| d.as_secs())
+                .unwrap_or(0);
+            (mt, m.len())
+        })
+        .unwrap_or((0, 0));
+    let norm_fp = crate::utils::normalize_path_key(full_path);
+
+    let mut route_key = None;
+    if !install_routes.is_empty() {
+        if let Some((routed_dest, _, _, _)) = crate::commands::deployment::resolve_route_for_file(
+            full_path,
+            rel_norm,
+            install_routes,
+            live_root,
+            docs_root,
+            mods_dir,
+        ) {
+            let rk = routed_dest.to_string_lossy().replace('\\', "/").to_lowercase();
+            if !rk.is_empty() {
+                route_key = Some(rk);
+            }
+        }
+    }
+
+    let mut vfs_key = None;
+    if let Some(ref vpath) = item.opt_vpath {
+        let include_vfs = match vfs_ext_filter {
+            Some(allowed) => allowed.contains(ext_lower),
+            None => true,
+        };
+        if include_vfs && !vpath.is_empty() {
+            vfs_key = Some(vpath.clone());
+        }
+    }
+
+    let mut cache_misses = Vec::new();
+    let mut cache_hits_count = 0usize;
+
+    let mut archive_keys = Vec::new();
+    if archive_exts.contains(ext_lower) {
+        let arch_sig = format!("__archive_member__:{}", manifest_lower);
+        if let Some(cached) = existing_cache.get(&(norm_fp.clone(), arch_sig.clone())) {
+            if cached.mtime == mtime_secs && cached.file_size == file_size {
+                archive_keys = cached.keys.clone();
+                cache_hits_count += 1;
+            }
+        }
+        if archive_keys.is_empty() && cache_hits_count == 0 {
+            let extracted = extract_archive_member_keys(full_path, manifest_lower);
+            cache_misses.push((
+                norm_fp.clone(),
+                arch_sig,
+                mtime_secs,
+                file_size,
+                extracted.clone(),
+            ));
+            archive_keys = extracted;
+        }
+    }
+
+    let mut binary_hits = Vec::new();
+    let mut json_hits = Vec::new();
+    for (idx, analyzer) in configured_analyzers.iter().enumerate() {
+        let ext_matches = analyzer.extensions.is_empty()
+            || analyzer
+                .extensions
+                .iter()
+                .any(|e| e.trim_start_matches('.').eq_ignore_ascii_case(ext_lower));
+        if !ext_matches {
+            continue;
+        }
+        let a_sig = &analyzer_sigs[idx];
+        let cache_lookup = existing_cache
+            .get(&(norm_fp.clone(), a_sig.clone()))
+            .filter(|c| c.mtime == mtime_secs && c.file_size == file_size);
+
+        let keys = if let Some(cached) = cache_lookup {
+            cache_hits_count += 1;
+            cached.keys.clone()
+        } else {
+            let parsed = match analyzer.analyzer_type.as_str() {
+                "binary_chunk_index" => extract_binary_chunk_keys(full_path, analyzer),
+                "container_toc" => {
+                    crate::commands::radar_containers::extract_container_toc_keys(
+                        full_path, analyzer,
+                    )
+                }
+                "chunked_record_stream" => {
+                    crate::commands::radar_containers::extract_chunked_record_keys(
+                        full_path, analyzer,
+                    )
+                }
+                "selector_path" => {
+                    crate::commands::radar_containers::extract_selector_path_keys(
+                        full_path, analyzer,
+                    )
+                }
+                "json_xml_key" => extract_json_top_level_keys(full_path),
+                _ => Vec::new(),
+            };
+            cache_misses.push((
+                norm_fp.clone(),
+                a_sig.clone(),
+                mtime_secs,
+                file_size,
+                parsed.clone(),
+            ));
+            parsed
+        };
+
+        if keys.is_empty() {
+            continue;
+        }
+
+        match analyzer.analyzer_type.as_str() {
+            "binary_chunk_index" | "container_toc" | "chunked_record_stream" => {
+                let analyzer_id = if analyzer.id.trim().is_empty() {
+                    analyzer.analyzer_type.clone()
+                } else {
+                    analyzer.id.clone()
+                };
+                binary_hits.push((analyzer_id, keys));
+            }
+            "selector_path" => {
+                let analyzer_id = if analyzer.id.trim().is_empty() {
+                    "selector_path".to_string()
+                } else {
+                    analyzer.id.clone()
+                };
+                json_hits.push((analyzer_id, String::new(), keys));
+            }
+            "json_xml_key" => {
+                let analyzer_id = if analyzer.id.trim().is_empty() {
+                    "json_xml_key".to_string()
+                } else {
+                    analyzer.id.clone()
+                };
+                let vprefix = rel_path
+                    .file_name()
+                    .map(|n| n.to_string_lossy().to_lowercase())
+                    .unwrap_or_default();
+                json_hits.push((analyzer_id, vprefix, keys));
+            }
+            _ => {}
+        }
+    }
+
+    RadarFileEval {
+        mod_owner: item.mod_owner.clone(),
+        file_mtime: mtime_secs,
+        file_size,
+        route_key,
+        vfs_key,
+        archive_keys,
+        binary_hits,
+        json_hits,
+        cache_misses,
+        cache_hits_count,
+    }
+}
 
 fn is_non_conflicting_doc_or_meta_file(file_name_lower: &str, manifest_lower: &str) -> bool {
     if file_name_lower == SANCTUARY_EDGE_MANIFEST_FILE
@@ -805,6 +1020,7 @@ pub async fn run_conflict_radar(
         let mut json_key_owners_by_analyzer: HashMap<String, BTreeMap<String, BTreeSet<String>>> =
             HashMap::new();
 
+        let mut active_files: Vec<ActiveRadarFile<'_>> = Vec::with_capacity(discovered_files.len());
         for (full_path, rel_path, rel_norm) in &discovered_files {
             let (mod_owner, opt_vpath) =
                 resolve_mod_owner_and_virtual_path(rel_path, &tier_folders_lower);
@@ -853,161 +1069,113 @@ pub async fn run_conflict_radar(
                 .map(|e| e.to_lowercase())
                 .unwrap_or_default();
 
-            // 0. Routed install_routes destination collisions (native proxy DLLs / configs / script extenders)
-            if !install_routes.is_empty() {
-                if let Some((routed_dest, _, _, _)) =
-                    crate::commands::deployment::resolve_route_for_file(
-                        full_path,
-                        rel_norm,
-                        &install_routes,
-                        &live_root,
-                        &docs_root,
-                        mods_dir,
-                    )
-                {
-                    let routed_key = routed_dest.to_string_lossy().replace('\\', "/").to_lowercase();
-                    if !routed_key.is_empty() {
-                        route_owners
-                            .entry(routed_key)
-                            .or_default()
-                            .insert(mod_owner.clone());
-                    }
+            active_files.push(ActiveRadarFile {
+                full_path,
+                rel_path,
+                rel_norm: rel_norm.as_str(),
+                mod_owner,
+                opt_vpath,
+                ext_lower,
+            });
+        }
+
+        let cache_root = if !saved_coords.vault_path.trim().is_empty() {
+            saved_coords.vault_path.clone()
+        } else {
+            mods_dir.to_string_lossy().to_string()
+        };
+        let existing_cache = if !cache_root.trim().is_empty() && Path::new(&cache_root).exists() {
+            crate::utils::load_radar_analyzer_cache_map(&cache_root)
+        } else {
+            HashMap::new()
+        };
+        let analyzer_sigs: Vec<String> = configured_analyzers
+            .iter()
+            .map(compute_analyzer_sig)
+            .collect();
+
+        // Parse cache-miss containers, binary chunk tables, TOCs, and JSON selectors in parallel via Rayon
+        let evaluated: Vec<RadarFileEval> = active_files
+            .par_iter()
+            .map(|item| {
+                evaluate_single_radar_file(
+                    item,
+                    &install_routes,
+                    &live_root,
+                    &docs_root,
+                    mods_dir,
+                    &vfs_ext_filter,
+                    &archive_exts,
+                    &manifest_lower,
+                    &configured_analyzers,
+                    &analyzer_sigs,
+                    &existing_cache,
+                )
+            })
+            .collect();
+
+        let mut cache_misses_batch: Vec<(String, String, u64, u64, Vec<String>)> = Vec::new();
+        let mut sig_hasher = Sha256::new();
+        for a_sig in &analyzer_sigs {
+            sig_hasher.update(a_sig.as_bytes());
+            sig_hasher.update(b";");
+        }
+        for ev in evaluated {
+            sig_hasher.update(ev.mod_owner.as_bytes());
+            sig_hasher.update(ev.file_mtime.to_le_bytes());
+            sig_hasher.update(ev.file_size.to_le_bytes());
+            if !ev.cache_misses.is_empty() {
+                cache_misses_batch.extend(ev.cache_misses);
+            }
+            if let Some(rk) = ev.route_key {
+                route_owners
+                    .entry(rk)
+                    .or_default()
+                    .insert(ev.mod_owner.clone());
+            }
+            if let Some(vk) = ev.vfs_key {
+                vfs_owners
+                    .entry(vk)
+                    .or_default()
+                    .insert(ev.mod_owner.clone());
+            }
+            for member in ev.archive_keys {
+                archive_owners
+                    .entry(member)
+                    .or_default()
+                    .insert(ev.mod_owner.clone());
+            }
+            for (analyzer_id, keys) in ev.binary_hits {
+                let bucket = binary_owners_by_analyzer
+                    .entry(analyzer_id)
+                    .or_default();
+                for key in keys {
+                    bucket.entry(key).or_default().insert(ev.mod_owner.clone());
                 }
             }
-
-            // 1. Virtual FS relative path collisions across distinct mod owners
-            if let Some(vpath) = opt_vpath {
-                let include_vfs = match &vfs_ext_filter {
-                    Some(allowed) => allowed.contains(&ext_lower),
-                    None => true,
-                };
-                if include_vfs && !vpath.is_empty() {
-                    vfs_owners
-                        .entry(vpath)
+            for (analyzer_id, vprefix, keys) in ev.json_hits {
+                let bucket = json_key_owners_by_analyzer
+                    .entry(analyzer_id)
+                    .or_default();
+                for key in keys {
+                    let formatted = if vprefix.is_empty() {
+                        key
+                    } else {
+                        format!("{}#{}", vprefix, key)
+                    };
+                    bucket
+                        .entry(formatted)
                         .or_default()
-                        .insert(mod_owner.clone());
+                        .insert(ev.mod_owner.clone());
                 }
             }
+        }
 
-            // 2. Archive internal member collisions (.zip / .jar / schema archive_member)
-            if archive_exts.contains(&ext_lower) {
-                for member in extract_archive_member_keys(full_path, &manifest_lower) {
-                    archive_owners
-                        .entry(member)
-                        .or_default()
-                        .insert(mod_owner.clone());
-                }
-            }
-
-            // 3. Declarative binary_chunk_index & json_xml_key analyzers from GameSchema
-            for analyzer in &configured_analyzers {
-                let ext_matches = analyzer.extensions.is_empty()
-                    || analyzer
-                        .extensions
-                        .iter()
-                        .any(|e| e.trim_start_matches('.').eq_ignore_ascii_case(&ext_lower));
-                if !ext_matches {
-                    continue;
-                }
-
-                match analyzer.analyzer_type.as_str() {
-                    "binary_chunk_index" => {
-                        let analyzer_id = if analyzer.id.trim().is_empty() {
-                            "binary_chunk_index".to_string()
-                        } else {
-                            analyzer.id.clone()
-                        };
-                        let keys = extract_binary_chunk_keys(full_path, analyzer);
-                        if !keys.is_empty() {
-                            let bucket = binary_owners_by_analyzer
-                                .entry(analyzer_id)
-                                .or_default();
-                            for key in keys {
-                                bucket.entry(key).or_default().insert(mod_owner.clone());
-                            }
-                        }
-                    }
-                    "container_toc" => {
-                        let analyzer_id = if analyzer.id.trim().is_empty() {
-                            "container_toc".to_string()
-                        } else {
-                            analyzer.id.clone()
-                        };
-                        let keys = crate::commands::radar_containers::extract_container_toc_keys(
-                            full_path, analyzer,
-                        );
-                        if !keys.is_empty() {
-                            let bucket = binary_owners_by_analyzer
-                                .entry(analyzer_id)
-                                .or_default();
-                            for key in keys {
-                                bucket.entry(key).or_default().insert(mod_owner.clone());
-                            }
-                        }
-                    }
-                    "chunked_record_stream" => {
-                        let analyzer_id = if analyzer.id.trim().is_empty() {
-                            "chunked_record_stream".to_string()
-                        } else {
-                            analyzer.id.clone()
-                        };
-                        let keys =
-                            crate::commands::radar_containers::extract_chunked_record_keys(
-                                full_path, analyzer,
-                            );
-                        if !keys.is_empty() {
-                            let bucket = binary_owners_by_analyzer
-                                .entry(analyzer_id)
-                                .or_default();
-                            for key in keys {
-                                bucket.entry(key).or_default().insert(mod_owner.clone());
-                            }
-                        }
-                    }
-                    "selector_path" => {
-                        let analyzer_id = if analyzer.id.trim().is_empty() {
-                            "selector_path".to_string()
-                        } else {
-                            analyzer.id.clone()
-                        };
-                        let keys = crate::commands::radar_containers::extract_selector_path_keys(
-                            full_path, analyzer,
-                        );
-                        if !keys.is_empty() {
-                            let bucket = json_key_owners_by_analyzer
-                                .entry(analyzer_id)
-                                .or_default();
-                            for key in keys {
-                                bucket.entry(key).or_default().insert(mod_owner.clone());
-                            }
-                        }
-                    }
-                    "json_xml_key" => {
-                        let analyzer_id = if analyzer.id.trim().is_empty() {
-                            "json_xml_key".to_string()
-                        } else {
-                            analyzer.id.clone()
-                        };
-                        let vprefix = rel_path
-                            .file_name()
-                            .map(|n| n.to_string_lossy().to_lowercase())
-                            .unwrap_or_default();
-                        let keys = extract_json_top_level_keys(full_path);
-                        if !keys.is_empty() {
-                            let bucket = json_key_owners_by_analyzer
-                                .entry(analyzer_id)
-                                .or_default();
-                            for key in keys {
-                                bucket
-                                    .entry(format!("{}#{}", vprefix, key))
-                                    .or_default()
-                                    .insert(mod_owner.clone());
-                            }
-                        }
-                    }
-                    _ => {}
-                }
-            }
+        if !cache_misses_batch.is_empty()
+            && !cache_root.trim().is_empty()
+            && Path::new(&cache_root).exists()
+        {
+            crate::utils::save_radar_analyzer_cache_batch(&cache_root, &cache_misses_batch);
         }
 
         let mut pair_map: BTreeMap<(String, String), PairCollisionAccumulator> = BTreeMap::new();
@@ -1112,55 +1280,52 @@ pub async fn run_conflict_radar(
                 .then_with(|| a.mod_pair.cmp(&b.mod_pair))
         });
 
-        // Persist resource keys / hex InstanceID suffixes into `.sanctuary_cache.db` for <10ms crash autopsy correlation
-        if !saved_coords.vault_path.trim().is_empty() {
+        // Persist canonical resource keys into `.sanctuary_cache.db` for <10ms crash autopsy correlation
+        // Skip SQLite DELETE+INSERT rewrite completely when active files & analyzer signatures are unchanged
+        let chunk_index_sig = hex::encode(&sig_hasher.finalize()[..16]);
+        let index_already_current = cache_misses_batch.is_empty()
+            && !saved_coords.vault_path.trim().is_empty()
+            && crate::utils::get_vault_kv(&saved_coords.vault_path, "radar_chunk_index_sig")
+                .map(|(stored, _)| stored == chunk_index_sig)
+                .unwrap_or(false);
+
+        if !saved_coords.vault_path.trim().is_empty() && !index_already_current {
             let mut chunk_rows: Vec<(String, String)> = Vec::new();
-            let push_token_variants = |tok: &str, owners: &BTreeSet<String>, out: &mut Vec<(String, String)>| {
+            let mut seen_pairs: HashSet<(String, String)> = HashSet::new();
+            let mut push_canon_token = |tok: &str, owners: &BTreeSet<String>| {
                 let low = tok.trim().to_ascii_lowercase();
                 if low.len() < 4 {
                     return;
                 }
                 for owner in owners {
-                    out.push((low.clone(), owner.clone()));
-                    if low.len() == 32 && low.chars().all(|c| c.is_ascii_hexdigit()) {
-                        let inst16 = &low[16..32];
-                        out.push((inst16.to_string(), owner.clone()));
-                        out.push((format!("0x{}", inst16), owner.clone()));
-                        let trimmed16 = inst16.trim_start_matches('0');
-                        if trimmed16.len() >= 6 {
-                            out.push((format!("0x{}", trimmed16), owner.clone()));
-                        }
-                        let inst8 = &low[24..32];
-                        out.push((format!("0x{}", inst8), owner.clone()));
-                    } else if low.len() >= 8 && low.chars().all(|c| c.is_ascii_hexdigit()) {
-                        out.push((format!("0x{}", low), owner.clone()));
+                    if seen_pairs.insert((low.clone(), owner.clone())) {
+                        chunk_rows.push((low.clone(), owner.clone()));
                     }
                 }
             };
             for (_, bucket) in &binary_owners_by_analyzer {
                 for (key, owners) in bucket {
-                    push_token_variants(key, owners, &mut chunk_rows);
+                    push_canon_token(key, owners);
                 }
             }
             for (vpath, owners) in &vfs_owners {
-                for owner in owners {
-                    chunk_rows.push((vpath.clone(), owner.clone()));
-                }
+                push_canon_token(vpath, owners);
             }
             for (member, owners) in &archive_owners {
-                for owner in owners {
-                    chunk_rows.push((member.clone(), owner.clone()));
-                }
+                push_canon_token(member, owners);
             }
             for (_, bucket) in &json_key_owners_by_analyzer {
                 for (key, owners) in bucket {
-                    for owner in owners {
-                        chunk_rows.push((key.to_ascii_lowercase(), owner.clone()));
-                    }
+                    push_canon_token(key, owners);
                 }
             }
             if !chunk_rows.is_empty() {
                 crate::utils::replace_radar_chunk_index(&saved_coords.vault_path, &chunk_rows);
+                crate::utils::set_vault_kv(
+                    &saved_coords.vault_path,
+                    "radar_chunk_index_sig",
+                    &chunk_index_sig,
+                );
             }
         }
 
@@ -1172,4 +1337,104 @@ pub async fn run_conflict_radar(
     })
     .await
     .map_err(|e| e.to_string())?
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_radar_analyzer_sqlite_cache_hit_and_mtime_invalidation() {
+        let base = std::env::temp_dir().join(format!(
+            "sanctuary_radar_cache_test_{}",
+            uuid::Uuid::new_v4()
+        ));
+        let vault_dir = base.join("Vault");
+        let mods_dir = base.join("LiveMods");
+        let mod_folder = mods_dir.join("JsonMod");
+        std::fs::create_dir_all(&vault_dir).unwrap();
+        std::fs::create_dir_all(&mod_folder).unwrap();
+
+        let json_file = mod_folder.join("tuning.json");
+        std::fs::write(&json_file, br#"{"alpha_key":1,"beta_key":2}"#).unwrap();
+
+        let analyzer = SchemaConflictAnalyzer {
+            id: "json_rules".into(),
+            analyzer_type: "json_xml_key".into(),
+            extensions: vec![".json".into()],
+            ..Default::default()
+        };
+        let sig = compute_analyzer_sig(&analyzer);
+        let configured = vec![analyzer];
+        let sigs = vec![sig.clone()];
+
+        let item = ActiveRadarFile {
+            full_path: &json_file,
+            rel_path: &PathBuf::from("JsonMod/tuning.json"),
+            rel_norm: "JsonMod/tuning.json",
+            mod_owner: "JsonMod".to_string(),
+            opt_vpath: Some("tuning.json".to_string()),
+            ext_lower: "json".to_string(),
+        };
+
+        // Pass 1: empty SQLite cache -> cache miss parses & populates batch
+        let vault_str = vault_dir.to_string_lossy().to_string();
+        let cache1 = crate::utils::load_radar_analyzer_cache_map(&vault_str);
+        let ev1 = evaluate_single_radar_file(
+            &item,
+            &[],
+            base.as_path(),
+            base.as_path(),
+            &mods_dir,
+            &None,
+            &HashSet::new(),
+            "",
+            &configured,
+            &sigs,
+            &cache1,
+        );
+        assert_eq!(ev1.cache_hits_count, 0);
+        assert_eq!(ev1.cache_misses.len(), 1);
+        crate::utils::save_radar_analyzer_cache_batch(&vault_str, &ev1.cache_misses);
+
+        // Pass 2: unchanged mtime + size + analyzer sig -> instant SQLite cache hit!
+        let cache2 = crate::utils::load_radar_analyzer_cache_map(&vault_str);
+        let ev2 = evaluate_single_radar_file(
+            &item,
+            &[],
+            base.as_path(),
+            base.as_path(),
+            &mods_dir,
+            &None,
+            &HashSet::new(),
+            "",
+            &configured,
+            &sigs,
+            &cache2,
+        );
+        assert_eq!(ev2.cache_hits_count, 1);
+        assert!(ev2.cache_misses.is_empty());
+        assert_eq!(ev2.json_hits[0].2.len(), 2);
+
+        // Pass 3: file size changes -> cache invalidated automatically!
+        std::fs::write(&json_file, br#"{"alpha_key":1,"beta_key":2,"gamma_key":3}"#).unwrap();
+        let ev3 = evaluate_single_radar_file(
+            &item,
+            &[],
+            base.as_path(),
+            base.as_path(),
+            &mods_dir,
+            &None,
+            &HashSet::new(),
+            "",
+            &configured,
+            &sigs,
+            &cache2,
+        );
+        assert_eq!(ev3.cache_hits_count, 0);
+        assert_eq!(ev3.cache_misses.len(), 1);
+        assert_eq!(ev3.json_hits[0].2.len(), 3);
+
+        let _ = crate::utils::remove_dir_all_clearing_readonly(&base);
+    }
 }

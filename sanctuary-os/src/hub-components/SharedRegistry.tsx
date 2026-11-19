@@ -1123,7 +1123,7 @@ export function ArchitectRegistry({
                   <CustomComplianceDropdown
                     value={activeMod.compliance_tier || 0}
                     onChange={(newTier: number) => setActiveMod({ ...activeMod, compliance_tier: newTier })}
-                    maxTier={4}
+                    maxTier={5}
                   />
                 </div>
               </div>

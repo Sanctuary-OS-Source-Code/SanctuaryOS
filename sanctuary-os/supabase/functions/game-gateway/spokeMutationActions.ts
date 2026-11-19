@@ -23,6 +23,7 @@ import {
   handleExecuteDmcaTriageAction,
   handleListSpokeDmcaNotices,
 } from './dmcaComplianceActions.ts'
+import { fetchAllPaginatedRows } from './rateLimitAndAuth.ts'
 
 export function createSpokeOwnershipHelpers(ctx: {
   gameDb: any;
@@ -470,24 +471,30 @@ export async function handleSpokeMutationAction(ctx: {
               throw new Error('Forbidden: You can only notify followers of your own Creator profile')
             }
           }
-          const { data: followerRows, error: folErr } = await gameDb
-            .from('mason_followers')
-            .select('user_id')
-            .eq('mason_id', mason_id)
-          if (folErr) throw folErr
-          recipientIds = (followerRows || [])
+          const followerRows = await fetchAllPaginatedRows<{ user_id: string }>((from, to) =>
+            gameDb
+              .from('mason_followers')
+              .select('user_id')
+              .eq('mason_id', mason_id)
+              .order('user_id', { ascending: true })
+              .range(from, to)
+          )
+          recipientIds = followerRows
             .map((r: any) => String(r.user_id || ''))
             .filter(Boolean)
         } else {
           if (!isCallerStaff) {
             throw new Error('Forbidden: Staff clearance required for community-wide broadcast notifications')
           }
-          const { data: profRows, error: profErr } = await gameDb
-            .from('profiles')
-            .select('id')
-            .eq('is_banned', false)
-          if (profErr) throw profErr
-          recipientIds = (profRows || [])
+          const profRows = await fetchAllPaginatedRows<{ id: string }>((from, to) =>
+            gameDb
+              .from('profiles')
+              .select('id')
+              .eq('is_banned', false)
+              .order('id', { ascending: true })
+              .range(from, to)
+          )
+          recipientIds = profRows
             .map((r: any) => String(r.id || ''))
             .filter(Boolean)
         }
@@ -497,7 +504,7 @@ export async function handleSpokeMutationAction(ctx: {
         )
 
         let insertedCount = 0
-        const CHUNK_SIZE = 500
+        const CHUNK_SIZE = 1000
         for (let i = 0; i < uniqueRecipients.length; i += CHUNK_SIZE) {
           const batch = uniqueRecipients.slice(i, i + CHUNK_SIZE).map((uid) => ({
             user_id: uid,
@@ -586,11 +593,11 @@ export async function handleSpokeMutationAction(ctx: {
           normalizeSpokeTableRow(cleanTable, r)
         )
 
-        // Architects flagging Tier 1-4 on mods/collections always route to Oversight Compliance as 'pending'
+        // Architects flagging Tier 1-5 on mods/collections always route to Oversight Compliance as 'pending'
         if (isArchitectOnlyStaff && (cleanTable === 'mods' || cleanTable === 'collections')) {
           for (const row of rawRows) {
             if (row && typeof row === 'object' && Number(row.compliance_tier || 0) >= 1) {
-              row.compliance_tier = Math.min(4, Math.max(1, Math.round(Number(row.compliance_tier))))
+              row.compliance_tier = Math.min(5, Math.max(1, Math.round(Number(row.compliance_tier))))
               row.status = 'pending'
             }
           }
@@ -1361,9 +1368,9 @@ export async function handleSpokeMutationAction(ctx: {
         const canApproveCompliance = callerSpokeRole === 'oversight' || callerSpokeRole === 'wayfinder' || callerSpokeRole === 'admin' || isFoundryTestNodeKeeper
         const rawTier = Math.round(Number(payload?.tier || 1))
         const requestedTier =
-          canApproveCompliance && rawTier === 6
-            ? 6
-            : Math.min(4, Math.max(1, Number.isFinite(rawTier) ? rawTier : 1))
+          canApproveCompliance && (rawTier === 1 || rawTier === 6)
+            ? rawTier
+            : Math.min(5, Math.max(1, Number.isFinite(rawTier) ? rawTier : 1))
         const cleanReason = String(payload?.reason || '').trim().slice(0, 1000) || `Flagged Tier ${requestedTier} for Compliance Review`
 
         let modId = rawModId
@@ -1446,15 +1453,15 @@ export async function handleSpokeMutationAction(ctx: {
           const isConfirmedActiveOrBlocked = currentTier >= 1 && !isCurrentlyPending
 
           updatedMod = existingMod
-          if (!isConfirmedActiveOrBlocked || requestedTier > currentTier || (canApproveCompliance && requestedTier === 6)) {
+          if (!isConfirmedActiveOrBlocked || requestedTier > currentTier || (canApproveCompliance && (requestedTier === 1 || requestedTier === 6))) {
             const nextTier =
-              requestedTier === 6 && canApproveCompliance
-                ? 6
+              (requestedTier === 1 || requestedTier === 6) && canApproveCompliance
+                ? requestedTier
                 : isCurrentlyPending
                   ? Math.max(currentTier, requestedTier)
                   : requestedTier
             const nextStatus = canApproveCompliance
-              ? (isCurrentlyPending ? 'pending' : 'verified')
+              ? (nextTier === 6 ? 'blacklisted' : isCurrentlyPending ? 'pending' : 'verified')
               : 'pending'
             const nextReason =
               isConfirmedActiveOrBlocked && existingMod.status_reason
@@ -1664,67 +1671,92 @@ export async function handleSpokeMutationAction(ctx: {
         const shaHex = Array.from(new Uint8Array(digestBuf))
           .map((b) => b.toString(16).padStart(2, '0'))
           .join('')
-        const bucket = 'backgrounds'
-        const storagePath = `themes/${safeKind}_${shaHex}.${actualExt}`
-
-        // Ensure bucket exists with 512 KB cap on newly onboarded Spokes
-        const { error: getBucketErr } = await gameDb.storage.getBucket(bucket)
-        if (getBucketErr && resolvedCredentialKind !== 'spoke_gateway') {
-          await gameDb.storage
-            .createBucket(bucket, {
-              public: true,
-              fileSizeLimit: 524288,
-              allowedMimeTypes: ['image/webp', 'image/png', 'image/jpeg'],
-            })
-            .catch(() => {})
-        }
-
-        let finalPublicUrl: string | null = null
-        let finalStoragePath = storagePath
-        const { error: uploadErr } = await gameDb.storage
-          .from(bucket)
-          .upload(storagePath, bytes, {
-            contentType: actualMime,
-            cacheControl: '31536000',
-            upsert: true,
-          })
-
-        if (!uploadErr) {
-          const { data: pubData } = gameDb.storage.from(bucket).getPublicUrl(storagePath)
-          finalPublicUrl = pubData?.publicUrl || null
-        } else if (resolvedCredentialKind === 'spoke_gateway') {
-          // Storage API only evaluates JWT roles on some projects; fall back safely to Hub's hardened backgrounds CDN
-          const spokeSlug = String(game.schema_id || 'spoke').toLowerCase().replace(/[^a-z0-9_-]/g, '') || 'spoke'
-          finalStoragePath = `spoke-themes/${spokeSlug}/${safeKind}_${shaHex}.${actualExt}`
-          const { error: hubBucketErr } = await supabaseAdmin.storage.getBucket(bucket)
-          if (hubBucketErr) {
-            await supabaseAdmin.storage
-              .createBucket(bucket, {
-                public: true,
-                fileSizeLimit: 524288,
-                allowedMimeTypes: ['image/webp', 'image/png', 'image/jpeg'],
-              })
-              .catch(() => {})
+        const spokeSlug =
+          String(game.schema_id || 'spoke').toLowerCase().replace(/[^a-z0-9_-]/g, '') || 'spoke'
+        const storagePath = `spoke-themes/${spokeSlug}/${safeKind}_${shaHex}.${actualExt}`
+        const uploadToSpokeBucket = async (targetBucket: string): Promise<string | null> => {
+          if (resolvedCredentialKind !== 'spoke_gateway') {
+            const { error: getBucketErr } = await gameDb.storage.getBucket(targetBucket)
+            if (getBucketErr) {
+              await gameDb.storage
+                .createBucket(targetBucket, {
+                  public: true,
+                  fileSizeLimit: 524288,
+                  allowedMimeTypes: ['image/webp', 'image/png', 'image/jpeg'],
+                })
+                .catch(() => {})
+            }
           }
-          const { error: hubUpErr } = await supabaseAdmin.storage
-            .from(bucket)
-            .upload(finalStoragePath, bytes, {
+
+          if (String(payload?.mode || '').trim().toLowerCase() === 'create_signed_upload') {
+            const { data: signedData, error: signedErr } = await gameDb.storage
+              .from(targetBucket)
+              .createSignedUploadUrl(storagePath, { upsert: true })
+            if (!signedErr && signedData?.token) {
+              const { data: pubData } = gameDb.storage.from(targetBucket).getPublicUrl(storagePath)
+              return JSON.stringify({
+                signedUrl: signedData.signedUrl,
+                token: signedData.token,
+                path: signedData.path || storagePath,
+                publicUrl: pubData?.publicUrl || null,
+                bucket: targetBucket,
+              })
+            }
+          }
+
+          const { error: directErr } = await gameDb.storage
+            .from(targetBucket)
+            .upload(storagePath, bytes, {
               contentType: actualMime,
               cacheControl: '31536000',
               upsert: true,
             })
-          if (hubUpErr) {
-            throw new Error(`Theme wallpaper upload failed: ${hubUpErr.message}`)
+          if (!directErr) {
+            const { data: pubData } = gameDb.storage.from(targetBucket).getPublicUrl(storagePath)
+            return pubData?.publicUrl || null
           }
-          const { data: hubPub } = supabaseAdmin.storage.from(bucket).getPublicUrl(finalStoragePath)
-          finalPublicUrl = hubPub?.publicUrl || null
-        } else {
-          throw new Error(`Theme wallpaper upload failed: ${uploadErr.message}`)
+
+          // Try signed Spoke upload URL flow when direct multipart upload is restricted on Spoke Storage
+          const { data: signedData, error: signedErr } = await gameDb.storage
+            .from(targetBucket)
+            .createSignedUploadUrl(storagePath, { upsert: true })
+          if (!signedErr && signedData?.token) {
+            const { error: signedUpErr } = await gameDb.storage
+              .from(targetBucket)
+              .uploadToSignedUrl(signedData.path || storagePath, signedData.token, bytes, {
+                contentType: actualMime,
+                cacheControl: '31536000',
+                upsert: true,
+              })
+            if (!signedUpErr) {
+              const { data: pubData } = gameDb.storage.from(targetBucket).getPublicUrl(storagePath)
+              return pubData?.publicUrl || null
+            }
+          }
+          return null
+        }
+
+        if (String(payload?.mode || '').trim().toLowerCase() === 'create_signed_upload') {
+          const signedJson =
+            (await uploadToSpokeBucket('backgrounds')) ||
+            (await uploadToSpokeBucket('sanctuary_theme_images'))
+          if (!signedJson) {
+            throw new Error('Spoke Storage failed to issue a signed wallpaper upload URL')
+          }
+          resultData = JSON.parse(signedJson)
+          break
+        }
+
+        const finalPublicUrl =
+          (await uploadToSpokeBucket('backgrounds')) ||
+          (await uploadToSpokeBucket('sanctuary_theme_images'))
+        if (!finalPublicUrl) {
+          throw new Error('Spoke theme wallpaper upload failed on target Spoke Storage bucket')
         }
 
         resultData = {
           publicUrl: finalPublicUrl,
-          storagePath: finalStoragePath,
+          storagePath,
           sha256: shaHex,
           byteLength: bytes.byteLength,
         }

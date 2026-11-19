@@ -49,7 +49,7 @@ function extractMarkdownSubCards(
   sectionBody: string,
   idPrefix: string,
   fallbackSubs: DirectiveBuilderSubCard[] | undefined,
-  t: (key: string, fallback?: string) => string
+  t: (key: string, fallback: string) => string
 ): DirectiveBuilderSubCard[] {
   const lines = sectionBody.replace(/\r\n/g, "\n").split("\n");
   const rawItems: {
@@ -72,7 +72,9 @@ function extractMarkdownSubCards(
         const rawRest = topMatch[2].trim();
         const combinedMeta = `${rawHeading} ${rawRest}`;
         let explicitStatus: RoadmapMilestoneStatus | undefined = undefined;
-        if (
+        if (/\bplanned\b/i.test(combinedMeta)) {
+          explicitStatus = "planned";
+        } else if (
           /in\s+testing|in\s+dev\s+build/i.test(combinedMeta) ||
           combinedMeta.includes("\u{1F9EA}")
         ) {
@@ -92,18 +94,18 @@ function extractMarkdownSubCards(
         }
         const cleanTitle = rawHeading
           .replace(
-            /^\[(?:In Progress|In Testing(?:\s*\[In Dev Build\])?|Complete|Completed)[^\]]*\]\s*/i,
+            /^\[(?:Planned|In Progress|In Testing(?:\s*\[In Dev Build\])?|Complete|Completed)[^\]]*\]\s*/i,
             ""
           )
           .replace(
-            /\s*(?:\((?:Completed|Complete|In Progress|In Testing[^)]*)\)|\[(?:In Progress|In Testing[^\]]*|Complete[^\]]*)\])+/gi,
+            /\s*(?:\((?:Planned|Completed|Complete|In Progress|In Testing[^)]*)\)|\[(?:Planned|In Progress|In Testing[^\]]*|Complete[^\]]*)\])+/gi,
             ""
           )
           .replace(/:\s*$/, "")
           .trim();
         const cleanInline = rawRest
           .replace(
-            /^(?:\((?:Completed|Complete|In Progress|In Testing[^)]*)\)|\[(?:In Progress|In Testing[^\]]*|Complete[^\]]*)\]):?\s*/i,
+            /^(?:\((?:Planned|Completed|Complete|In Progress|In Testing[^)]*)\)|\[(?:Planned|In Progress|In Testing[^\]]*|Complete[^\]]*)\]):?\s*/i,
             ""
           )
           .trim();
@@ -241,7 +243,7 @@ function extractSectionIntroParagraph(sectionBody: string, fallbackDesc: string)
 export function parseMarkdownToDirectiveSchema(
   rawContent: string,
   slug: DirectiveSlug,
-  t: (key: string, fallback?: string) => string = defaultT
+  t: (key: string, fallback: string) => string = defaultT
 ): DirectiveBuilderSchema {
   const baseSchema = getDefaultDirectiveBuilderSchema(slug, t);
   const clean = stripDirectiveBuilderComment(rawContent);
@@ -456,16 +458,19 @@ export function parseMarkdownToDirectiveSchema(
           /\*\*Status:\*\*\s*`?([^`\n|]+)`?/i
         );
         const rawStatusText = (statusLineMatch?.[1] || "").trim();
-        let resolvedCardStatus: "active" | "in_testing" | "completed" =
+        let resolvedCardStatus: "planned" | "active" | "in_testing" | "completed" =
           idx === 0 ? "active" : "completed";
-        if (/in\s+testing|in\s+dev\s+build/i.test(rawStatusText)) {
+        if (/\bplanned\b/i.test(rawStatusText)) {
+          resolvedCardStatus = "planned";
+        } else if (/in\s+testing|in\s+dev\s+build/i.test(rawStatusText)) {
           resolvedCardStatus = "in_testing";
         } else if (/active|in\s+progress/i.test(rawStatusText)) {
           resolvedCardStatus = "active";
         } else if (/complete/i.test(rawStatusText)) {
           resolvedCardStatus = "completed";
         }
-        const isActiveStatus = resolvedCardStatus !== "completed";
+        const isActiveStatus =
+          resolvedCardStatus === "active" || resolvedCardStatus === "in_testing";
 
         const dateMatch = sectionBody.match(
           /\*\*(?:Date Range|Start Date|Target Launch):\*\*\s*([^\n|]+)/i
@@ -492,21 +497,25 @@ export function parseMarkdownToDirectiveSchema(
               : fallback?.subCards || [];
 
         const resolvedBadge =
-          resolvedCardStatus === "in_testing"
-            ? "In Testing [In Dev Build]"
-            : resolvedCardStatus === "active"
-              ? "In Progress"
-              : "Completed";
+          resolvedCardStatus === "planned"
+            ? "Planned"
+            : resolvedCardStatus === "in_testing"
+              ? "In Testing [In Dev Build]"
+              : resolvedCardStatus === "active"
+                ? "In Progress"
+                : "Completed";
 
         return {
           id: fallback?.id || `phase_${phaseNum}`,
           icon:
             fallback?.icon ||
-            (resolvedCardStatus === "in_testing"
-              ? t("icon_science", "science")
-              : isActiveStatus
-                ? t("icon_auto_awesome", "auto_awesome")
-                : t("icon_rocket_launch", "rocket_launch")),
+            (resolvedCardStatus === "planned"
+              ? t("icon_upcoming", "upcoming")
+              : resolvedCardStatus === "in_testing"
+                ? t("icon_science", "science")
+                : isActiveStatus
+                  ? t("icon_auto_awesome", "auto_awesome")
+                  : t("icon_rocket_launch", "rocket_launch")),
           overline: computedOverline,
           badge: resolvedBadge,
           title,
@@ -746,7 +755,7 @@ export function parseMarkdownToDirectiveSchema(
 
       nextTabs[2] = {
         ...nextTabs[2],
-        label: `${totalProtocols || 30} RULES`,
+        label: `${totalProtocols || 37} RULES`,
         cards: domainCards,
       };
     }
@@ -773,7 +782,7 @@ export function parseMarkdownToDirectiveSchema(
 export function extractDirectiveBuilderSchema(
   content?: string | null,
   slug?: DirectiveSlug,
-  t: (key: string, fallback?: string) => string = defaultT
+  t: (key: string, fallback: string) => string = defaultT
 ): DirectiveBuilderSchema | null {
   if (!content) {
     return slug ? getDefaultDirectiveBuilderSchema(slug, t) : null;
@@ -799,9 +808,12 @@ export function extractDirectiveBuilderSchema(
           if (
             effectiveSlug === "phase_roadmap" &&
             (parsed.tabs.length !== 1 ||
-              (parsed.tabs[0]?.cards?.[0]?.subCards?.length || 0) < 19 ||
-              !parsed.tabs[0]?.cards?.[0]?.subCards?.some((sc) =>
-                (sc.title || "").includes("Zero-Copy Exodus")
+              !parsed.tabs[0]?.cards?.some(
+                (c) =>
+                  (c.subCards?.length || 0) >= 19 &&
+                  c.subCards?.some((sc) =>
+                    (sc.title || "").includes("Zero-Copy Exodus")
+                  )
               ))
           ) {
             return parseMarkdownToDirectiveSchema(content, effectiveSlug, t);
@@ -889,16 +901,18 @@ export function compileDirectiveSchemaToMarkdown(
             const subStatus = resolveRoadmapSubCardStatus(sub);
             const cleanSubTitle = (sub.title || "")
               .replace(
-                /\s*(?:\((?:Completed|Complete|In Progress|In Testing[^)]*)\)|\[(?:In Progress|In Testing[^\]]*|Complete[^\]]*)\])+/gi,
+                /\s*(?:\((?:Planned|Completed|Complete|In Progress|In Testing[^)]*)\)|\[(?:Planned|In Progress|In Testing[^\]]*|Complete[^\]]*)\])+/gi,
                 ""
               )
               .trim();
             const statusSuffix =
-              subStatus === "in_testing"
-                ? " (In Testing [In Dev Build])"
-                : subStatus === "in_progress"
-                  ? " (In Progress)"
-                  : " (Complete)";
+              subStatus === "planned"
+                ? " (Planned)"
+                : subStatus === "in_testing"
+                  ? " (In Testing [In Dev Build])"
+                  : subStatus === "in_progress"
+                    ? " (In Progress)"
+                    : " (Complete)";
             lines.push(`- **${cleanSubTitle}${statusSuffix}:** ${sub.desc}`);
           } else {
             lines.push(`- **${sub.title}:** ${sub.desc}`);

@@ -1,5 +1,6 @@
 mod airgap;
 mod airgap_journal;
+mod differential_vfs;
 mod lab_save_and_telemetry;
 mod lab_session;
 mod lab_staging;

@@ -305,8 +305,12 @@ CREATE TABLE IF NOT EXISTS public.sanctuary_games (
     payment_processor TEXT DEFAULT 'custom',
     is_active BOOLEAN DEFAULT true,
     is_keepers_only BOOLEAN NOT NULL DEFAULT false,
+    spoke_schema_version INTEGER NOT NULL DEFAULT 2,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
+
+ALTER TABLE public.sanctuary_games
+    ADD COLUMN IF NOT EXISTS spoke_schema_version INTEGER NOT NULL DEFAULT 2;
 
 -- Envelope-Encrypted & Vault-Sealed Spoke Credentials (Split-Custody, service_role only)
 DROP TABLE IF EXISTS public.sanctuary_game_secrets CASCADE;
@@ -392,6 +396,7 @@ CREATE TABLE IF NOT EXISTS public.keeper_support_categories (
     category_name TEXT NOT NULL,
     description TEXT,
     ticket_destination TEXT DEFAULT 'keepers',
+    support_domain TEXT NOT NULL DEFAULT 'platform',
     escalation_path TEXT DEFAULT 'standard',
     is_active BOOLEAN DEFAULT true,
     custom_fields JSONB DEFAULT '[]'::jsonb,
@@ -592,6 +597,7 @@ CREATE TABLE IF NOT EXISTS public.pwa_push_subscriptions (
 ALTER TABLE IF EXISTS public.keeper_tickets ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW();
 ALTER TABLE IF EXISTS public.keeper_tickets ADD COLUMN IF NOT EXISTS assigned_to UUID REFERENCES public.profiles(id) ON DELETE SET NULL;
 ALTER TABLE IF EXISTS public.keeper_support_categories ADD COLUMN IF NOT EXISTS telemetry_config JSONB DEFAULT '{}'::jsonb;
+ALTER TABLE IF EXISTS public.keeper_support_categories ADD COLUMN IF NOT EXISTS support_domain TEXT NOT NULL DEFAULT 'platform';
 ALTER TABLE IF EXISTS public.system_broadcasts ADD COLUMN IF NOT EXISTS has_pending_flag BOOLEAN NOT NULL DEFAULT false;
 ALTER TABLE IF EXISTS public.keeper_email_dispatches
     ADD COLUMN IF NOT EXISTS thread_id UUID,
@@ -703,7 +709,17 @@ SECURITY DEFINER
 SET search_path = public
 AS $$
 BEGIN
-    DELETE FROM public.citizen_staging_queue WHERE expires_at < NOW();
+    IF pg_try_advisory_xact_lock(hashtext('sanctuary_staging_queue_gc')) THEN
+        DELETE FROM public.citizen_staging_queue
+        WHERE id IN (
+            SELECT id
+            FROM public.citizen_staging_queue
+            WHERE expires_at < NOW()
+            ORDER BY expires_at ASC
+            LIMIT 250
+            FOR UPDATE SKIP LOCKED
+        );
+    END IF;
     RETURN NEW;
 END;
 $$;
@@ -2582,4 +2598,26 @@ $$;
 REVOKE ALL ON FUNCTION public.get_spoke_webhook_secrets(TEXT) FROM PUBLIC, anon, authenticated;
 GRANT EXECUTE ON FUNCTION public.get_spoke_webhook_secrets(TEXT) TO service_role;
 
-SELECT 'Sanctuary OS Core Hub Schema V0.6.0-Dev.13 Initialized Successfully' AS status;
+-- ============================================================================
+-- HUB SCHEMA MIGRATION REGISTRY
+-- ============================================================================
+CREATE TABLE IF NOT EXISTS public.schema_migrations (
+    version INTEGER PRIMARY KEY,
+    name TEXT NOT NULL,
+    applied_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW()
+);
+
+ALTER TABLE public.schema_migrations ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "hub_schema_migrations_select" ON public.schema_migrations;
+CREATE POLICY "hub_schema_migrations_select" ON public.schema_migrations
+    FOR SELECT TO public USING (true);
+DROP POLICY IF EXISTS "hub_schema_migrations_service_write" ON public.schema_migrations;
+CREATE POLICY "hub_schema_migrations_service_write" ON public.schema_migrations
+    FOR ALL TO service_role USING (true) WITH CHECK (true);
+
+INSERT INTO public.schema_migrations (version, name) VALUES
+    (1, '0001_hub_baseline'),
+    (2, '0002_hub_schema_versioning_and_staging_scale')
+ON CONFLICT (version) DO NOTHING;
+
+SELECT 'Sanctuary OS Core Hub Schema V0.6.0-Dev.15 Initialized Successfully' AS status;

@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useMemo } from "react";
-import { supabase, supabaseAuth, getActiveGameClient } from "../supabase";
+import { supabase, supabaseAuth, getActiveGameClient, findWorkspaceByIdentifier } from "../supabase";
 import { useLexicon } from "../LexiconContext";
 import { useStore, getSafeSchema } from "../store";
 import {
@@ -58,7 +58,7 @@ export default function WayfinderMasterSchemas({
   const canManageSpokeDonations = userRole === "wayfinder";
   const workspaces = useStore((state: any) => state.workspaces);
   const activeWorkspaceId = useStore((state: any) => state.activeWorkspaceId);
-  const activeWs = (workspaces || []).find((w: any) => w.id === activeWorkspaceId);
+  const activeWs = findWorkspaceByIdentifier(workspaces, activeWorkspaceId);
 
   const resolveInitialTab = (tab: string) => {
     if (tab === "audit_logs") return "audit_logs";

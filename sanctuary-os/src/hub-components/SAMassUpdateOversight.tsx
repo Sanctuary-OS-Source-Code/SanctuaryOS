@@ -139,7 +139,7 @@ export function MassUpdateOversight() {
         .order('created_at', { ascending: false })
         .limit(50),
     ]);
-    if (modsRes.data) setMods(modsRes.data.filter((m: any) => Number(m?.compliance_tier || 0) < 5));
+    if (modsRes.data) setMods(modsRes.data.filter((m: any) => Number(m?.compliance_tier || 0) < 6));
     if (relRes.data) setModRelationships(relRes.data);
     if (masonsRes.data) setMasonsList(masonsRes.data);
     if (auditRes.data) setRecentChanges(auditRes.data);
@@ -1368,12 +1368,13 @@ export function MassUpdateOversight() {
                   onChange={(v: string[]) => setMassCompliance(v[0])}
                   options={[
                     { id: "", label: t("no_change", "No Change") },
-                    { id: "0", label: t("tier_0_label", "Clean / Safe (T0)") },
-                    { id: "1", label: t("tier_1_label", "Adult / NSFW (T1)") },
-                    { id: "2", label: t("tier_2_label", "Illicit / Substance (T2)") },
-                    { id: "3", label: t("tier_3_label", "Extreme / Violence (T3)") },
-                    { id: "4", label: t("tier_4_label", "Taboo / Sensitive (T4)") },
-                    { id: "5", label: t("tier_5_label", "Malware / Security Threat (T5)") }
+                    { id: "0", label: t("tier_0_label", "Clean / Public Safe (T0)") },
+                    { id: "1", label: t("tier_1_label", "Legal / DMCA Hold (T1)") },
+                    { id: "2", label: t("tier_2_label", "Explicit Content (T2)") },
+                    { id: "3", label: t("tier_3_label", "Illicit / Substance (T3)") },
+                    { id: "4", label: t("tier_4_label", "Extreme Violence (T4)") },
+                    { id: "5", label: t("tier_5_label", "Taboo / Prohibited (T5)") },
+                    { id: "6", label: t("tier_6_label", "Malware / Security Threat (T6)") }
                   ]}
                 />
               </div>

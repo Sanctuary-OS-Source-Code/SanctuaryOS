@@ -4,130 +4,134 @@ use std::path::PathBuf;
 use tauri::Manager;
 
 #[tauri::command]
-pub fn delete_local_file(
+pub async fn delete_local_file(
     path: String,
     state: tauri::State<'_, crate::AppState>,
 ) -> Result<String, String> {
-    let p = std::path::Path::new(&path);
-    if !crate::utils::is_safe_user_file_path(p) {
-        return Err("Refusing to delete protected or unsafe path.".into());
-    }
-
-    let saved_coords = crate::commands::state_ops::get_saved_coordinates();
     let active_schema = state
         .active_schema
         .lock()
         .unwrap_or_else(|e| e.into_inner())
         .clone();
-    if crate::utils::is_protected_save_or_airgap_path(p, &saved_coords, &active_schema) {
-        return Err("Refusing to delete protected user save or Lab Airgap vault file.".into());
-    }
-    let mut allowed_roots = crate::utils::get_allowed_workspace_roots(&saved_coords);
-    for user_dir in [
-        dirs::download_dir(),
-        dirs::desktop_dir(),
-        dirs::document_dir(),
-    ]
-    .into_iter()
-    .flatten()
-    {
-        allowed_roots.push(user_dir);
-    }
-    if allowed_roots.is_empty() {
-        return Err("Refusing to delete file before workspace roots are configured.".into());
-    }
-    let sym_meta = std::fs::symlink_metadata(p);
-    let is_link = sym_meta
-        .as_ref()
-        .map(|m| m.file_type().is_symlink())
-        .unwrap_or(false)
-        || std::fs::read_link(p).is_ok();
-    if is_link {
-        if let Some(parent) = p.parent() {
-            crate::utils::ensure_path_within_roots(parent, &allowed_roots)?;
-        } else {
-            return Err("Invalid symlink path.".into());
+    tauri::async_runtime::spawn_blocking(move || {
+        let p = std::path::Path::new(&path);
+        if !crate::utils::is_safe_user_file_path(p) {
+            return Err("Refusing to delete protected or unsafe path.".into());
         }
-    } else {
-        crate::utils::ensure_strict_descendant_of_roots(p, &allowed_roots)?;
-    }
 
-    if p.exists() || sym_meta.is_ok() {
-        let mut deleted_file_names: Vec<String> = Vec::new();
+        let saved_coords = crate::commands::state_ops::get_saved_coordinates();
+        if crate::utils::is_protected_save_or_airgap_path(p, &saved_coords, &active_schema) {
+            return Err("Refusing to delete protected user save or Lab Airgap vault file.".into());
+        }
+        let mut allowed_roots = crate::utils::get_allowed_workspace_roots(&saved_coords);
+        for user_dir in [
+            dirs::download_dir(),
+            dirs::desktop_dir(),
+            dirs::document_dir(),
+        ]
+        .into_iter()
+        .flatten()
+        {
+            allowed_roots.push(user_dir);
+        }
+        if allowed_roots.is_empty() {
+            return Err("Refusing to delete file before workspace roots are configured.".into());
+        }
+        let sym_meta = std::fs::symlink_metadata(p);
+        let is_link = sym_meta
+            .as_ref()
+            .map(|m| m.file_type().is_symlink())
+            .unwrap_or(false)
+            || std::fs::read_link(p).is_ok();
         if is_link {
-            if let Some(fname) = p.file_name().and_then(|n| n.to_str()) {
-                deleted_file_names.push(fname.to_string());
+            if let Some(parent) = p.parent() {
+                crate::utils::ensure_path_within_roots(parent, &allowed_roots)?;
+            } else {
+                return Err("Invalid symlink path.".into());
             }
-            if crate::utils::remove_file_clearing_readonly(p).is_err() {
-                std::fs::remove_dir(p).map_err(|e| e.to_string())?;
-            }
-        } else if p.is_dir() {
-            for entry in walkdir::WalkDir::new(p)
-                .follow_links(false)
-                .into_iter()
-                .filter_map(|e| e.ok())
-            {
-                if entry.file_type().is_file() {
-                    if let Some(fname) = entry.file_name().to_str() {
-                        deleted_file_names.push(fname.to_string());
-                    }
-                }
-            }
-            crate::utils::remove_dir_all_clearing_readonly(p).map_err(|e| e.to_string())?;
         } else {
-            if let Some(fname) = p.file_name().and_then(|n| n.to_str()) {
-                deleted_file_names.push(fname.to_string());
-            }
-            for companion in crate::utils::collect_companion_sibling_paths(p, &active_schema) {
-                if !crate::utils::is_protected_save_or_airgap_path(&companion, &saved_coords, &active_schema)
-                    && crate::utils::ensure_strict_descendant_of_roots(&companion, &allowed_roots).is_ok()
-                {
-                    if let Some(cf) = companion.file_name().and_then(|n| n.to_str()) {
-                        deleted_file_names.push(cf.to_string());
-                    }
-                    let _ = crate::utils::remove_file_clearing_readonly(&companion);
-                }
-            }
-            crate::utils::remove_file_clearing_readonly(p).map_err(|e| e.to_string())?;
+            crate::utils::ensure_strict_descendant_of_roots(p, &allowed_roots)?;
         }
 
-        let mods_root = PathBuf::from(saved_coords.mods_path.trim());
-        let vault_root = PathBuf::from(saved_coords.vault_path.trim());
-        let live_root = PathBuf::from(saved_coords.live_path.trim());
-
-        let mut current = p.parent().map(|d| d.to_path_buf());
-        while let Some(dir) = current {
-            if (!mods_root.as_os_str().is_empty() && dir == mods_root)
-                || (!vault_root.as_os_str().is_empty() && dir == vault_root)
-                || (!live_root.as_os_str().is_empty() && dir == live_root)
-            {
-                break;
+        if p.exists() || sym_meta.is_ok() {
+            let mut deleted_file_names: Vec<String> = Vec::new();
+            if is_link {
+                if let Some(fname) = p.file_name().and_then(|n| n.to_str()) {
+                    deleted_file_names.push(fname.to_string());
+                }
+                if crate::utils::remove_file_clearing_readonly(p).is_err() {
+                    std::fs::remove_dir(p).map_err(|e| e.to_string())?;
+                }
+            } else if p.is_dir() {
+                for entry in walkdir::WalkDir::new(p)
+                    .follow_links(false)
+                    .into_iter()
+                    .filter_map(|e| e.ok())
+                {
+                    if entry.file_type().is_file() {
+                        if let Some(fname) = entry.file_name().to_str() {
+                            deleted_file_names.push(fname.to_string());
+                        }
+                    }
+                }
+                crate::utils::remove_dir_all_clearing_readonly(p).map_err(|e| e.to_string())?;
+            } else {
+                if let Some(fname) = p.file_name().and_then(|n| n.to_str()) {
+                    deleted_file_names.push(fname.to_string());
+                }
+                for companion in crate::utils::collect_companion_sibling_paths(p, &active_schema) {
+                    if !crate::utils::is_protected_save_or_airgap_path(&companion, &saved_coords, &active_schema)
+                        && crate::utils::ensure_strict_descendant_of_roots(&companion, &allowed_roots).is_ok()
+                    {
+                        if let Some(cf) = companion.file_name().and_then(|n| n.to_str()) {
+                            deleted_file_names.push(cf.to_string());
+                        }
+                        let _ = crate::utils::remove_file_clearing_readonly(&companion);
+                    }
+                }
+                crate::utils::remove_file_clearing_readonly(p).map_err(|e| e.to_string())?;
             }
-            if let Some(dir_name) = dir.file_name().and_then(|s| s.to_str()) {
-                let lower = dir_name.to_lowercase();
-                if matches!(
-                    lower.as_str(),
-                    "mods" | "_mods" | "data" | "paks" | "~mods" | "plugins" | "scripts" | "mod"
-                ) {
+
+            let mods_root = PathBuf::from(saved_coords.mods_path.trim());
+            let vault_root = PathBuf::from(saved_coords.vault_path.trim());
+            let live_root = PathBuf::from(saved_coords.live_path.trim());
+
+            let mut current = p.parent().map(|d| d.to_path_buf());
+            while let Some(dir) = current {
+                if (!mods_root.as_os_str().is_empty() && dir == mods_root)
+                    || (!vault_root.as_os_str().is_empty() && dir == vault_root)
+                    || (!live_root.as_os_str().is_empty() && dir == live_root)
+                {
                     break;
                 }
+                if let Some(dir_name) = dir.file_name().and_then(|s| s.to_str()) {
+                    let lower = dir_name.to_lowercase();
+                    if matches!(
+                        lower.as_str(),
+                        "mods" | "_mods" | "data" | "paks" | "~mods" | "plugins" | "scripts" | "mod"
+                    ) {
+                        break;
+                    }
+                }
+                if std::fs::remove_dir(&dir).is_err() {
+                    break;
+                }
+                current = dir.parent().map(|d| d.to_path_buf());
             }
-            if std::fs::remove_dir(&dir).is_err() {
-                break;
-            }
-            current = dir.parent().map(|d| d.to_path_buf());
+
+            crate::utils::cleanup_live_counterparts_on_delete(p, &deleted_file_names);
+
+            Ok("Deleted".into())
+        } else {
+            crate::utils::cleanup_live_counterparts_on_delete(p, &[]);
+            Err("File not found".into())
         }
-
-        crate::utils::cleanup_live_counterparts_on_delete(p, &deleted_file_names);
-
-        Ok("Deleted".into())
-    } else {
-        crate::utils::cleanup_live_counterparts_on_delete(p, &[]);
-        Err("File not found".into())
-    }
+    })
+    .await
+    .map_err(|e| e.to_string())?
 }
 
-#[tauri::command]
+#[tauri::command(async)]
 pub fn get_hardware_id() -> Result<String, String> {
     use sha2::{Digest, Sha256};
     match machine_uid::get() {
@@ -148,7 +152,7 @@ pub fn get_hardware_id() -> Result<String, String> {
     }
 }
 
-#[tauri::command]
+#[tauri::command(async)]
 pub fn check_symlink_permissions() -> Result<bool, String> {
     #[cfg(target_os = "windows")]
     {
@@ -540,6 +544,29 @@ fn register_windows_url_scheme(scheme: &str, label: &str, exe_str: &str) {
     let default_icon_val = format!("\"{}\",0", exe_str);
     let command_val = format!("\"{}\" \"%1\"", exe_str);
 
+    // Skip spawning 5 `reg add` child processes when the current executable & marker are already registered
+    let cmd_matches = std::process::Command::new("reg")
+        .args(["query", &format!(r"{}\shell\open\command", base_key), "/ve"])
+        .creation_flags(CREATE_NO_WINDOW)
+        .output()
+        .map(|o| {
+            o.status.success()
+                && String::from_utf8_lossy(&o.stdout)
+                    .to_ascii_lowercase()
+                    .contains(&command_val.to_ascii_lowercase())
+        })
+        .unwrap_or(false);
+    let owned_matches = cmd_matches
+        && std::process::Command::new("reg")
+            .args(["query", &base_key, "/v", "SanctuaryOwned"])
+            .creation_flags(CREATE_NO_WINDOW)
+            .output()
+            .map(|o| o.status.success() && String::from_utf8_lossy(&o.stdout).contains("1"))
+            .unwrap_or(false);
+    if cmd_matches && owned_matches {
+        return;
+    }
+
     let _ = std::process::Command::new("reg")
         .args(["add", &base_key, "/ve", "/t", "REG_SZ", "/d", &url_desc, "/f"])
         .creation_flags(CREATE_NO_WINDOW)
@@ -829,7 +856,7 @@ pub fn sync_os_url_protocol_handlers(prefs: &crate::state::ProtocolHandlerPrefer
     }
 }
 
-#[tauri::command]
+#[tauri::command(async)]
 pub fn send_sanctuary_notification(
     app: tauri::AppHandle,
     title: String,
@@ -906,7 +933,7 @@ fn resolve_directive_file_path(slug: &str) -> Result<PathBuf, String> {
     Ok(PathBuf::from(format!("../../{}", filename)))
 }
 
-#[tauri::command]
+#[tauri::command(async)]
 pub fn read_local_directives() -> Result<Vec<LocalDirectiveSnapshot>, String> {
     #[cfg(not(debug_assertions))]
     {
@@ -953,7 +980,7 @@ pub fn read_local_directives() -> Result<Vec<LocalDirectiveSnapshot>, String> {
     }
 }
 
-#[tauri::command]
+#[tauri::command(async)]
 pub fn write_local_directive(slug: String, content: String) -> Result<u64, String> {
     #[cfg(not(debug_assertions))]
     {
@@ -1005,14 +1032,14 @@ pub fn resolve_screenshots_base_dir() -> PathBuf {
         .join("Sanctuary_Screenshots")
 }
 
-#[tauri::command]
+#[tauri::command(async)]
 pub fn get_screenshots_root_dir() -> Result<String, String> {
     let base = resolve_screenshots_base_dir();
     let _ = std::fs::create_dir_all(&base);
     Ok(base.to_string_lossy().to_string())
 }
 
-#[tauri::command]
+#[tauri::command(async)]
 pub fn open_screenshots_dir() -> Result<String, String> {
     let base = resolve_screenshots_base_dir();
     let _ = std::fs::create_dir_all(&base);
@@ -1041,7 +1068,7 @@ pub fn open_screenshots_dir() -> Result<String, String> {
     Ok(path_str)
 }
 
-#[tauri::command]
+#[tauri::command(async)]
 pub fn open_folder(path: String) -> Result<(), String> {
     let raw_p = PathBuf::from(path.trim());
     if !raw_p.exists() {

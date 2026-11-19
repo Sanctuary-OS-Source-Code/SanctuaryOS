@@ -23,8 +23,9 @@ vi.hoisted(() => {
 import { resolveSanctuaryConfig } from "../supabase";
 import { useStore } from "../store";
 import { resolveSchemaPriorityTiers } from "../components/staging-editor/stagingEditorHelpers";
+import { isTransientChunkLoadError, loadModuleWithRetry } from "../utils/lazyWithRetry";
 
-describe("Section 4 — Store Sync, Uplink Cold Boot & Schema Staging Tiers", () => {
+describe("Store Sync, Uplink Cold Boot & Schema Staging Tiers", () => {
   it("parses lowercase URL-safe base64 sanctuary-uplink:// bundles cleanly during cold boot", () => {
     const payload = btoa(
       JSON.stringify({
@@ -93,5 +94,69 @@ describe("Section 4 — Store Sync, Uplink Cold Boot & Schema Staging Tiers", ()
     });
     expect(custom.map((t) => t.id)).toEqual(["early", "late"]);
     expect(custom[0].fallback).toBe("Early Loaders");
+  });
+
+  it("retries transient dynamic chunk fetch failures and avoids pre-bundling blindspots in vite.config.ts", async () => {
+    expect(
+      isTransientChunkLoadError(
+        new TypeError(
+          "Failed to fetch dynamically imported module: http://localhost:1420/src/side-panels/UpdateSidePanel.tsx"
+        )
+      )
+    ).toBe(true);
+    expect(isTransientChunkLoadError(new Error("504 (Outdated Optimize Dep)"))).toBe(true);
+    expect(isTransientChunkLoadError(new SyntaxError("Unexpected token"))).toBe(false);
+
+    let attempts = 0;
+    const recovered = await loadModuleWithRetry(
+      async () => {
+        attempts += 1;
+        if (attempts < 3) {
+          throw new TypeError("Failed to fetch dynamically imported module");
+        }
+        return { default: "ok" };
+      },
+      2,
+      1
+    );
+    expect(recovered.default).toBe("ok");
+    expect(attempts).toBe(3);
+
+    let fatalAttempts = 0;
+    await expect(
+      loadModuleWithRetry(
+        async () => {
+          fatalAttempts += 1;
+          throw new Error("ReferenceError inside module");
+        },
+        2,
+        1
+      )
+    ).rejects.toThrow("ReferenceError inside module");
+    expect(fatalAttempts).toBe(1);
+
+    const fsMod = "node:fs";
+    const pathMod = "node:path";
+    const fs: any = await import(/* @vite-ignore */ fsMod);
+    const path: any = await import(/* @vite-ignore */ pathMod);
+    const cwd = (globalThis as any).process.cwd();
+    const osRoot = fs.existsSync(path.resolve(cwd, "vite.config.ts"))
+      ? cwd
+      : path.resolve(cwd, "sanctuary-os");
+
+    const viteConfigSrc = fs.readFileSync(
+      path.resolve(osRoot, "vite.config.ts"),
+      "utf-8"
+    );
+    expect(viteConfigSrc).toContain("optimizeDeps:");
+    expect(viteConfigSrc).toContain('"@tauri-apps/plugin-process"');
+    expect(viteConfigSrc).toContain('"@tauri-apps/plugin-clipboard-manager"');
+
+    const updatePanelSrc = fs.readFileSync(
+      path.resolve(osRoot, "src/side-panels/UpdateSidePanel.tsx"),
+      "utf-8"
+    );
+    expect(updatePanelSrc).not.toMatch(/import\s*\{[^}]*relaunch[^}]*\}\s*from\s*["']@tauri-apps\/plugin-process["']/);
+    expect(updatePanelSrc).toContain('import("@tauri-apps/plugin-process")');
   });
 });

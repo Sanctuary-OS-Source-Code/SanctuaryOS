@@ -319,7 +319,10 @@ export function useWebLandingSubmissionFlows({
               good_faith_attested: typedDraft.goodFaithAttested,
               perjury_authority_attested: typedDraft.perjuryAuthorityAttested,
               jurisdiction_attested: typedDraft.jurisdictionAttested,
-              forwarding_acknowledged: typedDraft.forwardingAcknowledged,
+              forwarding_acknowledged:
+                typedDraft.subType !== 'privacy_general'
+                  ? true
+                  : typedDraft.forwardingAcknowledged,
               electronic_signature:
                 typedDraft.electronicSignature.trim() ||
                 typedDraft.fullLegalName.trim(),

@@ -42,7 +42,7 @@ export function buildRadarPhysicalMods({
         const normHash = normalizeComplianceHash(mod.hash);
         const rpcRestrictedTier = normHash ? restrictedHashTierMap.get(normHash) : undefined;
         const isHashRestricted = Boolean(
-          (typeof rpcRestrictedTier === "number" && rpcRestrictedTier >= 1 && rpcRestrictedTier <= 4) ||
+          (typeof rpcRestrictedTier === "number" && rpcRestrictedTier >= 1 && rpcRestrictedTier <= 5) ||
           (rawModHash && restrictedHashesSet.has(rawModHash)) ||
           (normHash && restrictedHashesSet.has(normHash))
         );
@@ -50,7 +50,7 @@ export function buildRadarPhysicalMods({
         const rawDbMod = isHashRestricted ? null : getDbMod(rawCloudMatch);
         const rawExplicitTier = Number(rawDbMod?.compliance_tier ?? mod.compliance_tier ?? 0);
         const detectedComplianceTier =
-          typeof rpcRestrictedTier === "number" && rpcRestrictedTier >= 1 && rpcRestrictedTier <= 5
+          typeof rpcRestrictedTier === "number" && rpcRestrictedTier >= 1 && rpcRestrictedTier <= 6
             ? rpcRestrictedTier
             : rawDbMod
               ? Number(rawDbMod.compliance_tier ?? 0)

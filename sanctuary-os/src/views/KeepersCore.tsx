@@ -13,7 +13,9 @@ const WayfinderChameleons = React.lazy(() =>
   import('../hub-components/WayfinderChameleons').then((m) => ({ default: m.WayfinderChameleons }))
 );
 const KeepersActiveGames = React.lazy(() => import('../hub-components/KeepersActiveGames'));
-const KeepersSupportTickets = React.lazy(() => import('../hub-components/KeepersSupportTickets'));
+const KeepersSpokeSupportView = React.lazy(() => import('../hub-components/keepers-support/KeepersSpokeSupportView'));
+const KeepersPlatformSupportView = React.lazy(() => import('../hub-components/keepers-support/KeepersPlatformSupportView'));
+const KeepersComplianceContactView = React.lazy(() => import('../hub-components/keepers-support/KeepersComplianceContactView'));
 const KeepersDispatchEditor = React.lazy(() =>
   import('../hub-components/KeepersDispatchEditor').then((m) => ({ default: m.KeepersDispatchEditor }))
 );
@@ -43,8 +45,12 @@ export default function KeepersCore() {
     audit_logs: t("audit_logs", "Audit Logs"),
     identities: t("citizen_oversight", "{Citizen} Management"),
     heuristics: t("core_heuristics_tab", "Core Heuristics"),
-    support: t("support_tickets", "Support Center"),
-    support_settings: t("term_settings", "Support"),
+    spoke_support: t("keepers_tab_spoke_support", "Spoke Support"),
+    platform_support: t("keepers_tab_platform_support", "Platform Support"),
+    compliance_contact: t("keepers_tab_compliance_contact", "Compliance & Contact"),
+    support: t("keepers_tab_platform_support", "Platform Support"),
+    support_dmca: t("keepers_tab_compliance_contact", "Compliance & Contact"),
+    support_settings: t("keepers_tab_platform_support", "Platform Support"),
     chameleons: t("keepers_tab_core_aesthetics", "Core Aesthetics"),
   };
 
@@ -104,7 +110,9 @@ export default function KeepersCore() {
           <VerticalTabButton id="active_games" icon={t("icon_dns", "dns")} label={t("keepers_tab_partner_spokes", "Partner Spokes")} activeTab={["active_games", "partner_apps", "ide", "schemas", "audit_logs"].includes(activeTab) ? "active_games" : activeTab} setTab={setActiveTab} />
           <VerticalTabButton id="identities" icon={t("icon_group", "group")} label={t("citizen_oversight", "{Citizen} Management")} activeTab={activeTab} setTab={setActiveTab} />
           <VerticalTabButton id="heuristics" icon={t("icon_shield_lock", "shield_lock")} label={t("core_heuristics_tab", "Core Heuristics")} activeTab={activeTab} setTab={setActiveTab} />
-          <VerticalTabButton id="support" icon={t("icon_support_agent", "support_agent")} label={t("support_tickets", "Support Center")} activeTab={activeTab === "support_settings" ? "support" : activeTab} setTab={setActiveTab} />
+          <VerticalTabButton id="spoke_support" icon={t("icon_hub", "hub")} label={t("keepers_tab_spoke_support", "Spoke Support")} activeTab={activeTab} setTab={setActiveTab} />
+          <VerticalTabButton id="platform_support" icon={t("icon_bug_report", "bug_report")} label={t("keepers_tab_platform_support", "Platform Support")} activeTab={activeTab === "support" || activeTab === "support_settings" ? "platform_support" : activeTab} setTab={setActiveTab} />
+          <VerticalTabButton id="compliance_contact" icon={t("icon_gavel", "gavel")} label={t("keepers_tab_compliance_contact", "Compliance & Contact")} activeTab={activeTab === "support_dmca" ? "compliance_contact" : activeTab} setTab={setActiveTab} />
           <VerticalTabButton id="chameleons" icon={t("icon_palette", "palette")} label={t("keepers_tab_core_aesthetics", "Core Aesthetics")} activeTab={activeTab} setTab={setActiveTab} />
         </HoverTabDrawer>
       </div>
@@ -152,8 +160,14 @@ export default function KeepersCore() {
             />
           )}
           {activeTab === "heuristics" && <KeepersHeuristicsOversight />}
-          {(activeTab === "support" || activeTab === "support_settings") && (
-            <KeepersSupportTickets initialTab={activeTab === "support_settings" ? "settings" : undefined} />
+          {activeTab === "spoke_support" && <KeepersSpokeSupportView />}
+          {(activeTab === "platform_support" || activeTab === "support" || activeTab === "support_settings") && (
+            <KeepersPlatformSupportView
+              initialTab={activeTab === "support_settings" ? "settings" : undefined}
+            />
+          )}
+          {(activeTab === "compliance_contact" || activeTab === "support_dmca") && (
+            <KeepersComplianceContactView />
           )}
           {activeTab === "chameleons" && <WayfinderChameleons isKeepers={true} />}
         </Suspense>

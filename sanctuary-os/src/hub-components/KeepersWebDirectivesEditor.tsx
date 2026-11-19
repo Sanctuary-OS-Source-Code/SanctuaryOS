@@ -30,6 +30,7 @@ import {
 import {
   CANONICAL_DIRECTIVES,
   CANONICAL_LEGAL_DOCS,
+  DIRECTIVE_ORDER,
   LEGAL_DOC_CATEGORIES,
   LegalDocCategory,
   DirectiveSlug,
@@ -65,6 +66,88 @@ import {
 import { useDirectivesBuilderActions } from "./directives-editor/useDirectivesBuilderActions";
 import { useDirectivesCardRenderers } from "./directives-editor/DirectivesHubCards";
 import { DirectivesEditorSidePanel } from "./directives-editor/DirectivesEditorSidePanel";
+
+let cachedDirectiveCards: any[] | null = null;
+let cachedNewsPosts: any[] | null = null;
+let cachedLegalDocsMap: Record<string, any> | null = null;
+
+function buildInitialCanonicalDirectiveCards(
+  t: (key: string, fallback: string) => string
+): any[] {
+  const nowIso = new Date().toISOString();
+  return DIRECTIVE_ORDER.map((slug) => {
+    const def = CANONICAL_DIRECTIVES[slug];
+    const extracted = extractDirectiveBuilderSchema(def.bundledContent, slug, t);
+    return {
+      id: slug,
+      slug,
+      record_kind: "directive" as EditorRecordKind,
+      is_canonical_directive: true,
+      file_name: def.file_path,
+      version_tag: CURRENT_DIRECTIVE_SCHEMA_VERSION,
+      title: extracted?.title || def.title,
+      description: extracted?.summary || def.summary,
+      content: def.bundledContent,
+      message: def.bundledContent,
+      published_content: def.bundledContent,
+      published_title: extracted?.title || def.title,
+      published_summary: extracted?.summary || def.summary,
+      published_at: nowIso,
+      has_unpublished_changes: false,
+      has_local_md_changes: false,
+      revision: 1,
+      updated_by: "Keepers Core",
+      category: def.category,
+      target_audience: "Public",
+      action_required: "No Action Required",
+      is_active: extracted?.isActive !== false,
+      is_pinned: false,
+      created_at: nowIso,
+      updated_at: nowIso,
+      mason_id: "system",
+      masons: {
+        name: "Sanctuary Foundry",
+      },
+    };
+  });
+}
+
+function buildInitialCanonicalLegalDocsMap(): Record<string, any> {
+  const map: Record<string, any> = {
+    EULA: null,
+    Privacy: null,
+    Terms: null,
+    PartnersAgreement: null,
+    ComplianceProtocol: null,
+  };
+  const nowIso = new Date().toISOString();
+  for (const legalCat of LEGAL_DOC_CATEGORIES) {
+    const canonicalLegal = CANONICAL_LEGAL_DOCS[legalCat];
+    if (canonicalLegal) {
+      map[legalCat] = {
+        id: `legal_${legalCat.toLowerCase()}`,
+        title: canonicalLegal.title,
+        message: canonicalLegal.bundledContent,
+        content: canonicalLegal.bundledContent,
+        published_title: canonicalLegal.title,
+        published_content: canonicalLegal.bundledContent,
+        published_at: nowIso,
+        has_unpublished_changes: false,
+        has_local_md_changes: false,
+        revision: 1,
+        updated_by: "Keepers Core",
+        category: legalCat,
+        file_name: canonicalLegal.file_path,
+        created_at: nowIso,
+        updated_at: nowIso,
+        is_active: true,
+        record_kind: "legal" as EditorRecordKind,
+      };
+    }
+  }
+  return map;
+}
+
 export default function KeepersWebDirectivesEditor({
   isSidePanel = false,
   initialTab,
@@ -76,15 +159,13 @@ export default function KeepersWebDirectivesEditor({
   const currentUserId = session?.user?.id;
   const { t } = useLexicon();
 
-  const [directivePosts, setDirectivePosts] = useState<any[]>([]);
-  const [newsPosts, setNewsPosts] = useState<any[]>([]);
-  const [legalDocsMap, setLegalDocsMap] = useState<Record<string, any>>({
-    EULA: null,
-    Privacy: null,
-    Terms: null,
-    PartnersAgreement: null,
-    ComplianceProtocol: null,
-  });
+  const [directivePosts, setDirectivePosts] = useState<any[]>(
+    () => cachedDirectiveCards || buildInitialCanonicalDirectiveCards(t)
+  );
+  const [newsPosts, setNewsPosts] = useState<any[]>(() => cachedNewsPosts || []);
+  const [legalDocsMap, setLegalDocsMap] = useState<Record<string, any>>(
+    () => cachedLegalDocsMap || buildInitialCanonicalLegalDocsMap()
+  );
 
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
@@ -184,8 +265,8 @@ export default function KeepersWebDirectivesEditor({
     const rawKey = key.includes("::directive:")
       ? key.split("::directive:")[1]
       : key.includes("::")
-      ? key.split("::")[1]
-      : key;
+        ? key.split("::")[1]
+        : key;
 
     if (!CANONICAL_DIRECTIVES[rawKey as DirectiveSlug]) {
       if (!draftObj?.isDirty) return true;
@@ -585,122 +666,128 @@ export default function KeepersWebDirectivesEditor({
   const fetchPostsAndAssets = async (refreshOpenDoc = false) => {
     setIsSyncing(true);
     try {
-      // 1. Canonical Directives (Hub-Authoritative + Published-Only Safe Local Fallback)
-      const syncedList = await syncDirectivesBidirectional({
-        canWriteHub: true,
-      });
+      const [dirResult, newsResult, legalResult] = await Promise.allSettled([
+        syncDirectivesBidirectional({
+          canWriteHub: true,
+        }),
+        supabaseAuth
+          .from("system_broadcasts")
+          .select("*")
+          .in("category", NEWS_CATEGORIES)
+          .ilike("target_audience", "%Public%")
+          .order("created_at", { ascending: false }),
+        syncLegalAndCovenantsBidirectional({
+          canWriteHub: true,
+        }),
+      ]);
 
-      const canonicalCards = syncedList.map((rec) => {
-        const extracted = extractDirectiveBuilderSchema(
-          rec.content,
-          rec.slug,
-          t
-        );
-        return {
-          id: rec.slug,
-          slug: rec.slug,
-          record_kind: "directive" as EditorRecordKind,
-          is_canonical_directive: true,
-          file_name: rec.file_path,
-          version_tag: rec.version,
-          title: extracted?.title || rec.title,
-          description: extracted?.summary || rec.summary,
-          content: rec.content,
-          message: rec.content,
-          published_content: rec.published_content || rec.content,
-          published_title: rec.published_title || rec.title,
-          published_summary: rec.published_summary || rec.summary,
-          published_at: rec.published_at || rec.updated_at,
-          has_unpublished_changes: Boolean(rec.has_unpublished_changes),
-          has_local_md_changes: Boolean(rec.has_local_md_changes),
-          local_md_content: rec.local_md_content,
-          revision: Number(rec.revision || 1),
-          updated_by: rec.updated_by || "Keepers Core",
-          category: rec.category,
-          target_audience: "Public",
-          action_required: "No Action Required",
-          is_active: extracted?.isActive !== false,
-          is_pinned: false,
-          created_at: rec.updated_at || new Date().toISOString(),
-          updated_at: rec.updated_at || new Date().toISOString(),
-          mason_id: "system",
-          masons: {
-            name: rec.updated_by || "Sanctuary Foundry",
-          },
-        };
-      });
-
-      setDirectivePosts(canonicalCards);
-
-      // 2. Website News Posts (Announcement, Blog, Press, Update, Maintenance)
-      const { data: newsData } = await supabaseAuth
-        .from("system_broadcasts")
-        .select("*")
-        .in("category", NEWS_CATEGORIES)
-        .ilike("target_audience", "%Public%")
-        .order("created_at", { ascending: false });
-
-      if (newsData) {
-        setNewsPosts(
-          newsData.map((post: any) => ({
-            ...post,
-            record_kind: "news" as EditorRecordKind,
-            mason_id: post.mason_id || "system",
+      let canonicalCards = directivePosts;
+      if (dirResult.status === "fulfilled" && Array.isArray(dirResult.value)) {
+        canonicalCards = dirResult.value.map((rec) => {
+          const extracted = extractDirectiveBuilderSchema(
+            rec.content,
+            rec.slug,
+            t
+          );
+          return {
+            id: rec.slug,
+            slug: rec.slug,
+            record_kind: "directive" as EditorRecordKind,
+            is_canonical_directive: true,
+            file_name: rec.file_path,
+            version_tag: rec.version,
+            title: extracted?.title || rec.title,
+            description: extracted?.summary || rec.summary,
+            content: rec.content,
+            message: rec.content,
+            published_content: rec.published_content || rec.content,
+            published_title: rec.published_title || rec.title,
+            published_summary: rec.published_summary || rec.summary,
+            published_at: rec.published_at || rec.updated_at,
+            has_unpublished_changes: Boolean(rec.has_unpublished_changes),
+            has_local_md_changes: Boolean(rec.has_local_md_changes),
+            local_md_content: rec.local_md_content,
+            revision: Number(rec.revision || 1),
+            updated_by: rec.updated_by || "Keepers Core",
+            category: rec.category,
+            target_audience: "Public",
+            action_required: "No Action Required",
+            is_active: extracted?.isActive !== false,
+            is_pinned: false,
+            created_at: rec.updated_at || new Date().toISOString(),
+            updated_at: rec.updated_at || new Date().toISOString(),
+            mason_id: "system",
             masons: {
-              ...post.masons,
-              name: "Sanctuary Foundry",
+              name: rec.updated_by || "Sanctuary Foundry",
             },
-          }))
-        );
+          };
+        });
+        cachedDirectiveCards = canonicalCards;
+        setDirectivePosts(canonicalCards);
       }
 
-      // 3. Legal & Sovereign Covenant Documents (EULA, Privacy, Terms, PartnersAgreement, ComplianceProtocol)
-      const syncedLegalMap = await syncLegalAndCovenantsBidirectional({
-        canWriteHub: true,
-      });
-      const latestLegal: Record<string, any> = {
-        EULA: null,
-        Privacy: null,
-        Terms: null,
-        PartnersAgreement: null,
-        ComplianceProtocol: null,
-      };
-      for (const legalCat of LEGAL_DOC_CATEGORIES) {
-        const rec = syncedLegalMap[legalCat];
-        const canonicalLegal = CANONICAL_LEGAL_DOCS[legalCat];
-        if (rec || canonicalLegal) {
-          const resolvedBody =
-            rec?.message ||
-            rec?.content ||
-            canonicalLegal?.bundledContent ||
-            "";
-          const resolvedDate =
-            rec?.updated_at ||
-            rec?.created_at ||
-            new Date().toISOString();
-          latestLegal[legalCat] = {
-            id: rec?.id || `legal_${legalCat.toLowerCase()}`,
-            title: rec?.title || canonicalLegal?.title || legalCat,
-            message: resolvedBody,
-            content: resolvedBody,
-            published_title: rec?.published_title || rec?.title || canonicalLegal?.title,
-            published_content: rec?.published_content || resolvedBody,
-            published_at: rec?.published_at || resolvedDate,
-            has_unpublished_changes: Boolean(rec?.has_unpublished_changes),
-            has_local_md_changes: Boolean(rec?.has_local_md_changes),
-            local_md_content: rec?.local_md_content,
-            revision: Number(rec?.revision || 1),
-            updated_by: rec?.updated_by || "Keepers Core",
-            category: legalCat,
-            file_name: rec?.file_path || canonicalLegal?.file_path,
-            created_at: resolvedDate,
-            updated_at: resolvedDate,
-            is_active: rec?.is_active !== false,
-            record_kind: "legal" as EditorRecordKind,
-          };
-        }
+      if (newsResult.status === "fulfilled" && Array.isArray(newsResult.value?.data)) {
+        const mappedNews = newsResult.value.data.map((post: any) => ({
+          ...post,
+          record_kind: "news" as EditorRecordKind,
+          mason_id: post.mason_id || "system",
+          masons: {
+            ...post.masons,
+            name: "Sanctuary Foundry",
+          },
+        }));
+        cachedNewsPosts = mappedNews;
+        setNewsPosts(mappedNews);
       }
-      setLegalDocsMap(latestLegal);
+
+      let latestLegal = legalDocsMap;
+      if (legalResult.status === "fulfilled" && legalResult.value) {
+        const syncedLegalMap = legalResult.value;
+        latestLegal = {
+          EULA: null,
+          Privacy: null,
+          Terms: null,
+          PartnersAgreement: null,
+          ComplianceProtocol: null,
+        };
+        for (const legalCat of LEGAL_DOC_CATEGORIES) {
+          const rec = syncedLegalMap[legalCat];
+          const canonicalLegal = CANONICAL_LEGAL_DOCS[legalCat];
+          if (rec || canonicalLegal) {
+            const resolvedBody =
+              rec?.message ||
+              rec?.content ||
+              canonicalLegal?.bundledContent ||
+              "";
+            const resolvedDate =
+              rec?.updated_at ||
+              rec?.created_at ||
+              new Date().toISOString();
+            latestLegal[legalCat] = {
+              id: rec?.id || `legal_${legalCat.toLowerCase()}`,
+              title: rec?.title || canonicalLegal?.title || legalCat,
+              message: resolvedBody,
+              content: resolvedBody,
+              published_title: rec?.published_title || rec?.title || canonicalLegal?.title,
+              published_content: rec?.published_content || resolvedBody,
+              published_at: rec?.published_at || resolvedDate,
+              has_unpublished_changes: Boolean(rec?.has_unpublished_changes),
+              has_local_md_changes: Boolean(rec?.has_local_md_changes),
+              local_md_content: rec?.local_md_content,
+              revision: Number(rec?.revision || 1),
+              updated_by: rec?.updated_by || "Keepers Core",
+              category: legalCat,
+              file_name: rec?.file_path || canonicalLegal?.file_path,
+              created_at: resolvedDate,
+              updated_at: resolvedDate,
+              is_active: rec?.is_active !== false,
+              record_kind: "legal" as EditorRecordKind,
+            };
+          }
+        }
+        cachedLegalDocsMap = latestLegal;
+        setLegalDocsMap(latestLegal);
+      }
 
       // Update currently open editor cleanly if not dirty, or surface upstream conflict if dirty
       if (isEditorOpenRef.current) {
@@ -836,10 +923,10 @@ export default function KeepersWebDirectivesEditor({
       asset.type === "mod"
         ? "Artifact"
         : asset.type === "blueprint"
-        ? "Blueprint"
-        : asset.type === "chameleon"
-        ? "Theme"
-        : "Lexicon";
+          ? "Blueprint"
+          : asset.type === "chameleon"
+            ? "Theme"
+            : "Lexicon";
     const translatedType =
       t(typeKey, defaultTypeLabel) !== typeKey
         ? t(typeKey, defaultTypeLabel)
@@ -933,24 +1020,24 @@ export default function KeepersWebDirectivesEditor({
       (post?.is_canonical_directive || CATEGORY_TO_SLUG[post?.category]
         ? "directive"
         : LEGAL_CATEGORIES.includes(post?.category)
-        ? "legal"
-        : "news");
+          ? "legal"
+          : "news");
 
     setEditingRecordKind(recordKind);
 
     const resolvedDirectiveSlug: DirectiveSlug | null =
       recordKind === "directive"
         ? (post?.slug && CANONICAL_DIRECTIVES[post.slug as DirectiveSlug]
-            ? (post.slug as DirectiveSlug)
-            : CATEGORY_TO_SLUG[post?.category]) || "citizen_guide"
+          ? (post.slug as DirectiveSlug)
+          : CATEGORY_TO_SLUG[post?.category]) || "citizen_guide"
         : null;
 
     const docKey =
       recordKind === "legal"
         ? getDocKey("legal", post?.category || "EULA")
         : recordKind === "directive"
-        ? getDocKey("directive", resolvedDirectiveSlug)
-        : getDocKey("news", undefined, post?.id || "new");
+          ? getDocKey("directive", resolvedDirectiveSlug)
+          : getDocKey("news", undefined, post?.id || "new");
 
     const scopedDraftId = getScopedDraftKey(docKey);
     const legacyDraftId = post ? post.id : `new_${recordKind}`;
@@ -1095,22 +1182,22 @@ export default function KeepersWebDirectivesEditor({
       const slug: DirectiveSlug | null =
         recordKind === "directive"
           ? (post.slug && CANONICAL_DIRECTIVES[post.slug as DirectiveSlug]
-              ? (post.slug as DirectiveSlug)
-              : null) ||
-            CATEGORY_TO_SLUG[nextCat] ||
-            null
+            ? (post.slug as DirectiveSlug)
+            : null) ||
+          CATEGORY_TO_SLUG[nextCat] ||
+          null
           : null;
 
       setTitle(nextTitle);
       setDescription(nextDesc);
       setTargetAudience(
         draft?.targetAudience ??
-          (post.target_audience ? post.target_audience.split(",") : ["Public"])
+        (post.target_audience ? post.target_audience.split(",") : ["Public"])
       );
       setCategory(nextCat);
       setActionRequired(
         draft?.actionRequired ??
-          (parsedMeta.actionRequired || "No Action Required")
+        (parsedMeta.actionRequired || "No Action Required")
       );
       setPollData(
         draft?.pollData !== undefined ? draft.pollData : post.poll_data || null
@@ -1139,8 +1226,8 @@ export default function KeepersWebDirectivesEditor({
           draft?.isActive !== undefined
             ? draft.isActive
             : extractedSchema.isActive !== undefined
-            ? extractedSchema.isActive
-            : post.is_active !== false;
+              ? extractedSchema.isActive
+              : post.is_active !== false;
         const resolvedTitle =
           draft?.title ?? (extractedSchema.title || nextTitle);
         const resolvedSummary =
@@ -1320,13 +1407,13 @@ export default function KeepersWebDirectivesEditor({
           .pushStatus(
             publishLive
               ? t(
-                  "dir_toast_published_live",
-                  "Published live to {Citizens} and synced with local .md file!"
-                )
+                "dir_toast_published_live",
+                "Published live to {Citizens} and synced with local .md file!"
+              )
               : t(
-                  "dir_toast_staged_hub",
-                  "Saved shared draft to Keepers Core! Click Publish when ready to push live & sync .md."
-                ),
+                "dir_toast_staged_hub",
+                "Saved shared draft to Keepers Core! Click Publish when ready to push live & sync .md."
+              ),
             "success"
           );
       } else {
@@ -1345,18 +1432,18 @@ export default function KeepersWebDirectivesEditor({
     const canonicalSlug: DirectiveSlug | null =
       editingRecordKind === "directive"
         ? (editingPost?.is_canonical_directive && editingPost?.slug) ||
-          CATEGORY_TO_SLUG[category] ||
-          null
+        CATEGORY_TO_SLUG[category] ||
+        null
         : null;
 
     if (canonicalSlug && builderSchema) {
       const baseSchema =
         editorMode !== "visual" && finalMarkdownBody.trim()
           ? parseMarkdownToDirectiveSchema(
-              finalMarkdownBody,
-              canonicalSlug,
-              t
-            ) || builderSchema
+            finalMarkdownBody,
+            canonicalSlug,
+            t
+          ) || builderSchema
           : builderSchema;
       const syncedSchema: DirectiveBuilderSchema = {
         ...baseSchema,
@@ -1453,13 +1540,13 @@ export default function KeepersWebDirectivesEditor({
           .pushStatus(
             publishLive
               ? t(
-                  "dir_toast_published_live",
-                  "Published live to {Citizens} and synced with local .md file!"
-                )
+                "dir_toast_published_live",
+                "Published live to {Citizens} and synced with local .md file!"
+              )
               : t(
-                  "dir_toast_staged_hub",
-                  "Saved shared draft to Keepers Core! Click Publish when ready to push live & sync .md."
-                ),
+                "dir_toast_staged_hub",
+                "Saved shared draft to Keepers Core! Click Publish when ready to push live & sync .md."
+              ),
             "success"
           );
       } else {
@@ -1494,15 +1581,15 @@ export default function KeepersWebDirectivesEditor({
     setIsSubmitting(true);
     const sanitizedPoll =
       pollData &&
-      pollData.question.trim() &&
-      pollData.options.filter((o) => o.label.trim()).length >= 2
+        pollData.question.trim() &&
+        pollData.options.filter((o) => o.label.trim()).length >= 2
         ? {
-            ...pollData,
-            question: pollData.question.trim(),
-            options: pollData.options
-              .filter((o) => o.label.trim())
-              .map((o) => ({ ...o, label: o.label.trim() })),
-          }
+          ...pollData,
+          question: pollData.question.trim(),
+          options: pollData.options
+            .filter((o) => o.label.trim())
+            .map((o) => ({ ...o, label: o.label.trim() })),
+        }
         : null;
 
     const payload: any = {
@@ -1776,70 +1863,70 @@ export default function KeepersWebDirectivesEditor({
       primaryPopover={
         activeViewTab === "directives" || activeViewTab === "news"
           ? {
-              icon: t("icon_tune", "tune"),
-              label: t("filters", "Filters"),
-              content: (
-                <div className="flex flex-col w-[300px] p-4 max-w-[calc(100vw-40px)] gap-4">
-                  <div className="flex flex-col gap-2">
-                    <span className="text-[10px] font-black uppercase tracking-widest text-[var(--subtext)]">
-                      {t("category", "Category")}
-                    </span>
-                    <CustomDropdown
-                      flat={true}
-                      variant="pill"
-                      disableTint={true}
-                      value={filterCategory}
-                      onChange={(v: string[]) => setFilterCategory(v[0])}
-                      options={
-                        activeViewTab === "news"
-                          ? [
-                              {
-                                id: "All",
-                                label: t("all_classes", "All Categories"),
-                              },
-                              ...NEWS_CATEGORIES.map((c) => ({
-                                id: c,
-                                label: c,
-                              })),
-                            ]
-                          : [
-                              {
-                                id: "All",
-                                label: t("all_classes", "All Categories"),
-                              },
-                              {
-                                id: "Citizen Guide",
-                                label: t("cat_citizen_guide", "{Citizen} Guide"),
-                              },
-                              {
-                                id: "Forking Guide",
-                                label: t("sd_card_fork_title", "Forking Guide"),
-                              },
-                              {
-                                id: "Phase Roadmap",
-                                label: t("cat_phase_roadmap", "Phase Roadmap"),
-                              },
-                              {
-                                id: "Master Architecture",
-                                label: t(
-                                  "cat_master_architecture",
-                                  "Master Architecture"
-                                ),
-                              },
-                              {
-                                id: "Master Protocol List",
-                                label: t(
-                                  "cat_master_protocol",
-                                  "Master Protocol List"
-                                ),
-                              },
-                            ]
-                      }
-                    />
-                  </div>
+            icon: t("icon_tune", "tune"),
+            label: t("filters", "Filters"),
+            content: (
+              <div className="flex flex-col w-[300px] p-4 max-w-[calc(100vw-40px)] gap-4">
+                <div className="flex flex-col gap-2">
+                  <span className="text-[10px] font-black uppercase tracking-widest text-[var(--subtext)]">
+                    {t("category", "Category")}
+                  </span>
+                  <CustomDropdown
+                    flat={true}
+                    variant="pill"
+                    disableTint={true}
+                    value={filterCategory}
+                    onChange={(v: string[]) => setFilterCategory(v[0])}
+                    options={
+                      activeViewTab === "news"
+                        ? [
+                          {
+                            id: "All",
+                            label: t("all_classes", "All Categories"),
+                          },
+                          ...NEWS_CATEGORIES.map((c) => ({
+                            id: c,
+                            label: c,
+                          })),
+                        ]
+                        : [
+                          {
+                            id: "All",
+                            label: t("all_classes", "All Categories"),
+                          },
+                          {
+                            id: "Citizen Guide",
+                            label: t("cat_citizen_guide", "{Citizen} Guide"),
+                          },
+                          {
+                            id: "Forking Guide",
+                            label: t("sd_card_fork_title", "Forking Guide"),
+                          },
+                          {
+                            id: "Phase Roadmap",
+                            label: t("cat_phase_roadmap", "Phase Roadmap"),
+                          },
+                          {
+                            id: "Master Architecture",
+                            label: t(
+                              "cat_master_architecture",
+                              "Master Architecture"
+                            ),
+                          },
+                          {
+                            id: "Master Protocol List",
+                            label: t(
+                              "cat_master_protocol",
+                              "Master Protocol List"
+                            ),
+                          },
+                        ]
+                    }
+                  />
                 </div>
-              ),
-            }
+              </div>
+            ),
+          }
           : undefined
       }
       actions={[
@@ -1917,11 +2004,11 @@ export default function KeepersWebDirectivesEditor({
           >
             {(filteredNews.length > 0
               ? [
-                  ...filteredNews.slice(0, 2).map(renderNewsCard),
-                  ...filteredDirectives
-                    .slice(2, 4)
-                    .map(renderCanonicalDirectiveCard),
-                ]
+                ...filteredNews.slice(0, 2).map(renderNewsCard),
+                ...filteredDirectives
+                  .slice(2, 4)
+                  .map(renderCanonicalDirectiveCard),
+              ]
               : filteredDirectives.slice(0, 4).map(renderCanonicalDirectiveCard)
             ).slice(0, 4)}
           </HubOverviewSection>

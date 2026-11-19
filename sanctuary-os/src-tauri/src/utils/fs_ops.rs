@@ -98,6 +98,7 @@ pub fn atomic_write_bytes(path: &Path, bytes: &[u8]) -> Result<(), String> {
     Ok(())
 }
 
+#[allow(dead_code)]
 pub fn process_structure_nodes(
     schema: &Option<crate::schema::GameSchema>,
     nodes: &[StructureNode],
@@ -713,7 +714,7 @@ pub(crate) fn dir_looks_like_shared_game_folder(
     false
 }
 
-pub(super) fn rescue_untracked_mod_file(
+pub(crate) fn rescue_untracked_mod_file(
     file_path: &std::path::Path,
     root_mods_dir: &std::path::Path,
     vault_mods_lane: &std::path::Path,

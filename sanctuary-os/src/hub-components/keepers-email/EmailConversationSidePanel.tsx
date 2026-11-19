@@ -24,6 +24,16 @@ import {
 } from "../../utils/sanctuaryEmailTemplates";
 import type { KeeperEmailResponseTemplate } from "../../utils/supporterManager";
 
+interface ThreadAttachmentItem {
+  id?: string;
+  filename: string;
+  content_type: string;
+  size?: number;
+  is_inline?: boolean;
+  download_url?: string | null;
+  data_url?: string | null;
+}
+
 interface ThreadMessage {
   id: string;
   thread_id?: string | null;
@@ -34,8 +44,10 @@ interface ThreadMessage {
   to_email?: string;
   subject?: string;
   body_text?: string;
+  attachments?: ThreadAttachmentItem[];
   status?: string;
   provider?: string;
+  provider_message_id?: string | null;
   created_at?: string;
 }
 
@@ -79,8 +91,17 @@ export default function EmailConversationSidePanel({
   const [revealRecipient, setRevealRecipient] = useState(false);
   const [manualToEmail, setManualToEmail] = useState("");
   const [replyBody, setReplyBody] = useState("");
+  const [inboundSyncStatus, setInboundSyncStatus] = useState<string | null>(null);
+  const [inboundSyncDetail, setInboundSyncDetail] = useState<string>("");
+  const [previewImage, setPreviewImage] = useState<{
+    src: string;
+    filename: string;
+    contentType: string;
+  } | null>(null);
+  const [previewActualSize, setPreviewActualSize] = useState(false);
+  const [downloadingKey, setDownloadingKey] = useState<string | null>(null);
 
-  const loadThread = async () => {
+  const loadThread = async (forceSync = false) => {
     if (!isOpen || (!threadId && !dispatchId && !ticketId)) return;
     setIsLoading(true);
     try {
@@ -90,6 +111,7 @@ export default function EmailConversationSidePanel({
           thread_id: threadId || undefined,
           dispatch_id: dispatchId || undefined,
           ticket_id: ticketId || undefined,
+          force_sync: forceSync,
         },
       });
       if (error || data?.ok === false) {
@@ -101,6 +123,17 @@ export default function EmailConversationSidePanel({
       setExternalEmail(data?.external_email || null);
       setExternalEmailMasked(data?.external_email_masked || "");
       setSubject(data?.subject || initialSubject || "");
+      setInboundSyncStatus(data?.inbound_sync?.status || null);
+      setInboundSyncDetail(data?.inbound_sync?.detail || "");
+      if (forceSync && data?.inbound_sync?.synced_count > 0) {
+        useStore
+          .getState()
+          .pushStatus(
+            t("keepers_email_inbound_synced_count", "Synced new inbound email replies."),
+            "success"
+          );
+        onThreadUpdated?.();
+      }
     } catch (err: any) {
       useStore.getState().pushStatus(err?.message || String(err), "error");
     } finally {
@@ -113,9 +146,87 @@ export default function EmailConversationSidePanel({
       setRevealRecipient(false);
       setManualToEmail("");
       setReplyBody("");
-      loadThread();
+      setInboundSyncStatus(null);
+      setInboundSyncDetail("");
+      loadThread(false);
+    } else {
+      setPreviewImage(null);
+      setPreviewActualSize(false);
     }
   }, [isOpen, threadId, dispatchId, ticketId]);
+
+  const resolveAttachmentDataUrl = async (
+    msg: ThreadMessage,
+    att: ThreadAttachmentItem
+  ): Promise<string | null> => {
+    if (att.data_url) return att.data_url;
+    if (!msg.provider_message_id) {
+      useStore
+        .getState()
+        .pushStatus(
+          t("keepers_email_att_fetch_failed", "Unable to load email attachment."),
+          "error"
+        );
+      return null;
+    }
+    try {
+      const { data, error } = await supabaseAuth.functions.invoke("keeper-email-dispatch", {
+        body: {
+          action: "fetch_email_attachment",
+          provider_message_id: msg.provider_message_id,
+          attachment_id: att.id,
+          filename: att.filename,
+        },
+      });
+      if (error || !data?.ok || !data?.data_url) {
+        throw new Error(error?.message || data?.error || "Attachment fetch failed");
+      }
+      const hydratedUrl = String(data.data_url);
+      setMessages((prev) =>
+        prev.map((m) =>
+          m.id !== msg.id
+            ? m
+            : {
+                ...m,
+                attachments: (m.attachments || []).map((item) =>
+                  (att.id && item.id === att.id) || item.filename === att.filename
+                    ? { ...item, data_url: hydratedUrl }
+                    : item
+                ),
+              }
+        )
+      );
+      return hydratedUrl;
+    } catch {
+      useStore
+        .getState()
+        .pushStatus(
+          t("keepers_email_att_fetch_failed", "Unable to load email attachment."),
+          "error"
+        );
+      return null;
+    }
+  };
+
+  const triggerAttachmentDownload = (dataUrl: string, filename: string) => {
+    const match = /^data:([^;]+);base64,(.+)$/i.exec(dataUrl);
+    if (!match) return;
+    const mime = match[1] || "application/octet-stream";
+    const bin = atob(match[2]);
+    const bytes = new Uint8Array(bin.length);
+    for (let i = 0; i < bin.length; i++) {
+      bytes[i] = bin.charCodeAt(i);
+    }
+    const blob = new Blob([bytes], { type: mime });
+    const objUrl = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = objUrl;
+    link.download = filename || "attachment";
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    setTimeout(() => URL.revokeObjectURL(objUrl), 2500);
+  };
 
   const handleSendReply = async () => {
     const cleanBody = replyBody.trim();
@@ -159,6 +270,7 @@ export default function EmailConversationSidePanel({
       : externalEmailMasked || maskEmailsInText(externalEmail || "");
 
   return (
+    <>
     <SidePanel
       isOpen={isOpen}
       onClose={onClose}
@@ -190,7 +302,7 @@ export default function EmailConversationSidePanel({
           <PanelHeaderButton
             icon={isLoading ? t("icon_sync", "sync") : t("icon_refresh", "refresh")}
             tooltip={t("refresh", "Refresh")}
-            onClick={loadThread}
+            onClick={() => loadThread(true)}
           />
         </PanelHeaderGroup>
       }
@@ -211,6 +323,29 @@ export default function EmailConversationSidePanel({
           badgeIcon={t("icon_forum", "forum")}
           variant="accent"
         />
+
+        {inboundSyncStatus === "send_only_api_key" && (
+          <div className="glass-surface rounded-2xl p-3.5 border border-[color-mix(in_srgb,var(--warning)_35%,transparent)] flex items-start gap-3">
+            <span className="material-symbols-outlined !text-[18px] text-[var(--warning)] shrink-0 mt-0.5">
+              {t("icon_warning", "warning")}
+            </span>
+            <div className="flex flex-col gap-1 min-w-0">
+              <span className="text-xs font-black text-[var(--warning)]">
+                {t(
+                  "keepers_email_send_only_key_title",
+                  "Resend Key Needs Full Access + Receiving Enabled"
+                )}
+              </span>
+              <span className="text-[11px] text-[var(--subtext)] leading-relaxed">
+                {inboundSyncDetail ||
+                  t(
+                    "keepers_email_send_only_key_desc",
+                    "The saved Resend API key only has Sending Access. Save a Full Access Resend API key in Settings and enable Domain Receiving (MX) on your domain to sync inbound email replies."
+                  )}
+              </span>
+            </div>
+          </div>
+        )}
 
         <UniversalGroup
           title={t("keepers_email_thread_history", "Conversation History")}
@@ -286,9 +421,111 @@ export default function EmailConversationSidePanel({
                       </div>
                     </div>
 
-                    <div className="text-xs font-medium text-[var(--text)] leading-relaxed whitespace-pre-wrap break-words px-0.5">
-                      {msg.body_text || t("keepers_email_empty_body", "(No message body)")}
-                    </div>
+                    {(msg.body_text || !(msg.attachments && msg.attachments.length > 0)) && (
+                      <div className="text-xs font-medium text-[var(--text)] leading-relaxed whitespace-pre-wrap break-words px-0.5">
+                        {msg.body_text || t("keepers_email_empty_body", "(No message body)")}
+                      </div>
+                    )}
+
+                    {Array.isArray(msg.attachments) && msg.attachments.length > 0 && (
+                      <div className="flex flex-col gap-2 pt-1">
+                        {msg.attachments.map((att, attIdx) => {
+                          const attKey = att.id || `${msg.id}_att_${attIdx}`;
+                          const src = att.data_url || att.download_url || "";
+                          const isImage =
+                            Boolean(src) &&
+                            String(att.content_type || "").toLowerCase().startsWith("image/");
+                          const isDownloading = downloadingKey === attKey;
+
+                          const handleInspectImage = async () => {
+                            const resolved =
+                              att.data_url ||
+                              (await resolveAttachmentDataUrl(msg, att)) ||
+                              att.download_url;
+                            if (!resolved) return;
+                            setPreviewActualSize(false);
+                            setPreviewImage({
+                              src: resolved,
+                              filename: att.filename,
+                              contentType: att.content_type,
+                            });
+                          };
+
+                          const handleDownloadAtt = async () => {
+                            if (isDownloading) return;
+                            setDownloadingKey(attKey);
+                            try {
+                              const dataUrl = await resolveAttachmentDataUrl(msg, att);
+                              if (dataUrl) {
+                                triggerAttachmentDownload(dataUrl, att.filename);
+                              }
+                            } finally {
+                              setDownloadingKey(null);
+                            }
+                          };
+
+                          if (isImage) {
+                            return (
+                              <div
+                                key={attKey}
+                                className="flex flex-col gap-1.5"
+                              >
+                                <img
+                                  src={src}
+                                  alt={att.filename}
+                                  className="max-h-72 w-auto max-w-full rounded-xl border border-[color-mix(in_srgb,var(--text)_14%,transparent)] object-contain cursor-pointer bg-black/20"
+                                  onClick={handleInspectImage}
+                                />
+                                <div className="flex items-center justify-between gap-2 text-[10px] text-[var(--subtext)] px-0.5">
+                                  <span className="truncate font-mono no-text-case">
+                                    {att.filename}
+                                  </span>
+                                  <div className="flex items-center gap-3 shrink-0">
+                                    <button
+                                      type="button"
+                                      onClick={handleInspectImage}
+                                      className="text-[var(--accent)] hover:underline font-bold shrink-0 cursor-pointer"
+                                    >
+                                      {t("btn_view", "View")}
+                                    </button>
+                                    <button
+                                      type="button"
+                                      disabled={isDownloading}
+                                      onClick={handleDownloadAtt}
+                                      className="text-[var(--accent)] hover:underline font-bold shrink-0 cursor-pointer disabled:opacity-50"
+                                    >
+                                      {isDownloading
+                                        ? t("loading", "Loading...")
+                                        : t("btn_download", "Download")}
+                                    </button>
+                                  </div>
+                                </div>
+                              </div>
+                            );
+                          }
+                          return (
+                            <button
+                              key={attKey}
+                              type="button"
+                              disabled={isDownloading || (!att.data_url && !att.download_url)}
+                              onClick={handleDownloadAtt}
+                              className={`${VAULT_CHIP_CLASS} w-fit cursor-pointer hover:sa-glass-pill-active transition-all disabled:opacity-50`}
+                            >
+                              <span className="material-symbols-outlined !text-[12px] text-[var(--accent)]">
+                                {isDownloading
+                                  ? t("icon_sync", "sync")
+                                  : t("icon_attach_file", "attach_file")}
+                              </span>
+                              <span className="no-text-case font-mono">
+                                {isDownloading
+                                  ? t("loading", "Loading...")
+                                  : att.filename}
+                              </span>
+                            </button>
+                          );
+                        })}
+                      </div>
+                    )}
 
                     {msg.provider && (
                       <div className="text-[9px] font-bold uppercase tracking-wider text-[var(--subtext)] opacity-60">
@@ -373,5 +610,68 @@ export default function EmailConversationSidePanel({
         </UniversalGroup>
       </div>
     </SidePanel>
+
+    <SidePanel
+      isOpen={Boolean(previewImage)}
+      onClose={() => setPreviewImage(null)}
+      backdropZ="z-[50100]"
+      panelZ="z-[50101]"
+      widthClass="w-[95vw] md:w-[920px]"
+      title={previewImage?.filename || t("preview", "Preview")}
+      subtitle={previewImage?.contentType || t("keepers_foundry_label", "Sanctuary Foundry")}
+      icon={t("icon_image", "image")}
+      headerActions={
+        previewImage ? (
+          <PanelHeaderGroup>
+            <PanelHeaderButton
+              icon={
+                previewActualSize
+                  ? t("icon_fit_screen", "fit_screen")
+                  : t("icon_zoom_in", "zoom_in")
+              }
+              tooltip={
+                previewActualSize
+                  ? t("keepers_email_img_fit", "Fit to Panel")
+                  : t("keepers_email_img_actual", "Actual Size")
+              }
+              onClick={() => setPreviewActualSize((v) => !v)}
+            />
+            <PanelHeaderButton
+              icon={t("icon_download", "download")}
+              tooltip={t("btn_download", "Download")}
+              onClick={() => {
+                if (previewImage.src.startsWith("data:")) {
+                  triggerAttachmentDownload(previewImage.src, previewImage.filename);
+                } else {
+                  useStore
+                    .getState()
+                    .pushStatus(
+                      t("keepers_email_att_fetch_failed", "Unable to load email attachment."),
+                      "error"
+                    );
+                }
+              }}
+            />
+          </PanelHeaderGroup>
+        ) : null
+      }
+    >
+      {previewImage && (
+        <div className="flex flex-col gap-4 mt-2 relative z-10 w-full pb-8">
+          <div className="glass-surface rounded-2xl border border-[color-mix(in_srgb,var(--text)_12%,transparent)] p-3 overflow-auto max-h-[78vh] flex items-center justify-center bg-black/30">
+            <img
+              src={previewImage.src}
+              alt={previewImage.filename}
+              className={
+                previewActualSize
+                  ? "max-w-none h-auto rounded-xl"
+                  : "max-w-full max-h-[75vh] w-auto h-auto object-contain rounded-xl mx-auto"
+              }
+            />
+          </div>
+        </div>
+      )}
+    </SidePanel>
+    </>
   );
 }

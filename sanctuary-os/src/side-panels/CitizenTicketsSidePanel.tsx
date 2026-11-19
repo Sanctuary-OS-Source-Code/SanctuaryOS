@@ -15,7 +15,7 @@ import CitizenTickets from "../views/CitizenTickets";
 import TicketDossierSidePanel from "./TicketDossierSidePanel";
 import { useLexicon } from "../LexiconContext";
 import { useStore } from "../store";
-import { getActiveGameClient, supabase, supabaseAuth } from "../supabase";
+import { getActiveGameClient, supabase, supabaseAuth, findWorkspaceByIdentifier } from "../supabase";
 import { isDesktop } from "../utils/envUtils";
 import { isRootDomain } from "../utils/routingUtils";
 
@@ -110,7 +110,7 @@ export default function CitizenTicketsSidePanel({
   const activeScopeCount =
     resolvedScope === "spoke" && hasLoadedSpoke ? spokeTicketCount : coreTicketCount;
   const activeWorkspaceObj = Array.isArray(availableWorkspaces)
-    ? availableWorkspaces.find((w: any) => w.id === activeWorkspaceId)
+    ? findWorkspaceByIdentifier(availableWorkspaces, activeWorkspaceId) || null
     : null;
   const activeSpokeName =
     activeGameSchema?.display_name ||

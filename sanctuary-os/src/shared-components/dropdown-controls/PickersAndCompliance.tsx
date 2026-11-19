@@ -255,6 +255,7 @@ export function ModSearchDropdown({
   onClear,
   dropUp,
   className,
+  onPreviewItem,
 }: any) {
   const { t } = useLexicon();
   const activeGameSchema = useStore((s) => s.activeGameSchema);
@@ -439,32 +440,52 @@ export function ModSearchDropdown({
                             ? `${t("landing_id_prefix", "ID: ")}${rawId.substring(0, 8).toUpperCase()}`
                             : rawName.split(/[\\/]/).pop() || "";
                     return (
-                      <button
+                      <div
                         key={`${m.hash || m.name}-${idx}`}
-                        type="button"
-                        onClick={() => {
-                          onSelect(m);
-                          setQuery("");
-                          setIsOpen(false);
-                        }}
-                        className="sa-dropdown-item w-full text-left px-3 py-2 flex flex-col gap-0.5 cursor-pointer"
+                        className="sa-dropdown-item w-full px-3 py-2 flex items-center justify-between gap-2"
                       >
-                        <div className="flex items-center justify-between gap-2 min-w-0">
-                          <span className="text-xs font-bold text-[var(--text)] truncate">
-                            {cleanTitle}
-                          </span>
-                          {extLabel && extLabel !== "UNKNOWN" && (
-                            <span className="px-1.5 py-0.5 rounded bg-transparent text-[9px] font-mono opacity-80 uppercase border border-[color-mix(in_srgb,var(--text)_18%,transparent)] shrink-0">
-                              {extLabel}
+                        <button
+                          type="button"
+                          onClick={() => {
+                            onSelect(m);
+                            setQuery("");
+                            setIsOpen(false);
+                          }}
+                          className="flex-1 min-w-0 text-left flex flex-col gap-0.5 cursor-pointer"
+                        >
+                          <div className="flex items-center justify-between gap-2 min-w-0">
+                            <span className="text-xs font-bold text-[var(--text)] truncate">
+                              {cleanTitle}
+                            </span>
+                            {extLabel && extLabel !== "UNKNOWN" && (
+                              <span className="px-1.5 py-0.5 rounded bg-transparent text-[9px] font-mono opacity-80 uppercase border border-[color-mix(in_srgb,var(--text)_18%,transparent)] shrink-0">
+                                {extLabel}
+                              </span>
+                            )}
+                          </div>
+                          {subMeta && (
+                            <span className="text-[10px] font-mono text-[var(--subtext)] opacity-70 truncate">
+                              {subMeta}
                             </span>
                           )}
-                        </div>
-                        {subMeta && (
-                          <span className="text-[10px] font-mono text-[var(--subtext)] opacity-70 truncate">
-                            {subMeta}
-                          </span>
+                        </button>
+                        {onPreviewItem && (
+                          <button
+                            type="button"
+                            aria-label={t("view_dossier", "View Dossier")}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setIsOpen(false);
+                              onPreviewItem(m);
+                            }}
+                            className="w-7 h-7 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] hover:border-[var(--accent)] text-[var(--subtext)] hover:text-[var(--accent)] flex items-center justify-center shrink-0 cursor-pointer transition-all"
+                          >
+                            <span className="material-symbols-outlined !text-[15px]">
+                              {t("icon_visibility", "visibility")}
+                            </span>
+                          </button>
                         )}
-                      </button>
+                      </div>
                     );
                   })}
                   {results.length === 0 && (
@@ -494,13 +515,13 @@ export function CustomComplianceDropdown({
 }) {
   const { t } = useLexicon();
   const allOptions = [
-    { id: 0, label: t("tier_0_label", "Clean / Safe (T0)") || "Clean / Safe (Tier 0)" },
-    { id: 1, label: t("tier_1_label", "Explicit Content (T1)") || "Explicit Content (Tier 1)" },
-    { id: 2, label: t("tier_2_label", "Illicit / Substance (T2)") || "Illicit / Substance (Tier 2)" },
-    { id: 3, label: t("tier_3_label", "Extreme Violence (T3)") || "Extreme Violence (Tier 3)" },
-    { id: 4, label: t("tier_4_label", "Taboo / Sensitive (T4)") || "Taboo / Sensitive (Tier 4)" },
-    { id: 5, label: t("tier_5_label", "Malware (T5)") || "Malware (Tier 5)" },
-    { id: 6, label: t("tier_6_label", "DMCA / Copyright Hold (T6)") || "DMCA / Copyright Hold (Tier 6)" },
+    { id: 0, label: t("tier_0_label", "Clean / Public Safe (T0)") || "Clean / Public Safe (Tier 0)" },
+    { id: 1, label: t("tier_1_label", "Legal / DMCA Hold (T1)") || "Legal / DMCA Hold (Tier 1)" },
+    { id: 2, label: t("tier_2_label", "Explicit Content (T2)") || "Explicit Content (Tier 2)" },
+    { id: 3, label: t("tier_3_label", "Illicit / Substance (T3)") || "Illicit / Substance (Tier 3)" },
+    { id: 4, label: t("tier_4_label", "Extreme Violence (T4)") || "Extreme Violence (Tier 4)" },
+    { id: 5, label: t("tier_5_label", "Taboo / Prohibited (T5)") || "Taboo / Prohibited (Tier 5)" },
+    { id: 6, label: t("tier_6_label", "Malware / Security Threat (T6)") || "Malware / Security Threat (Tier 6)" },
   ];
 
   const options = allOptions.filter((opt) => opt.id >= minTier && opt.id <= maxTier);

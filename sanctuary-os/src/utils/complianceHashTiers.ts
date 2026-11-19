@@ -84,7 +84,7 @@ function ensureEventsBound(): void {
 }
 
 /**
- * Returns a snapshot Map of lowercased SHA-256 hashes known to carry Compliance Tier 1-5.
+ * Returns a snapshot Map of lowercased SHA-256 hashes known to carry Compliance Tier 1-6.
  */
 export function getCachedComplianceHashTiers(workspaceId?: string): Map<string, number> {
   ensureEventsBound();
@@ -93,7 +93,7 @@ export function getCachedComplianceHashTiers(workspaceId?: string): Map<string, 
 }
 
 /**
- * Resolves exact Compliance Tier numbers (1-5) for caller-possessed SHA-256 hashes
+ * Resolves exact Compliance Tier numbers (1-6) for caller-possessed SHA-256 hashes
  * via the privacy-preserving `get_compliance_hash_tiers` RPC without exposing restricted metadata.
  */
 export async function resolveComplianceHashTiers(

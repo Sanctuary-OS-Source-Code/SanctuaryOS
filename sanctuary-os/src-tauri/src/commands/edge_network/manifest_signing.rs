@@ -211,7 +211,7 @@ pub(crate) fn verify_edge_manifest_signature(
     Ok(Some(pub_clean.to_string()))
 }
 
-#[tauri::command]
+#[tauri::command(async)]
 pub fn get_mason_signing_public_key() -> Result<String, String> {
     let keypair = load_or_create_creator_keypair()?;
     Ok(b64url_encode(keypair.public_key().as_ref()))

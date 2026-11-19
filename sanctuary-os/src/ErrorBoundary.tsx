@@ -1,9 +1,13 @@
 import { Component, ErrorInfo, ReactNode } from "react";
 import { useLexicon } from "./LexiconContext";
+import { SidePanel } from "./shared-components/layout";
+import { isTransientChunkLoadError } from "./utils/lazyWithRetry";
 
 interface Props {
   children?: ReactNode;
   moduleName?: string;
+  variant?: "inline" | "overlay";
+  onClose?: () => void;
 }
 
 interface State {
@@ -11,10 +15,24 @@ interface State {
   error: Error | null;
 }
 
-function ErrorBoundaryContent({ moduleName, error, resetErrorBoundary }: any) {
+function ErrorBoundaryContent({
+  moduleName,
+  error,
+  resetErrorBoundary,
+  compact = false,
+}: {
+  moduleName?: string;
+  error: Error | null;
+  resetErrorBoundary: () => void;
+  compact?: boolean;
+}) {
   const { t } = useLexicon();
   return (
-    <div className="flex flex-col items-center justify-center w-full h-full min-h-[500px] relative overflow-hidden group rounded-2xl glass-panel border border-[color-mix(in_srgb,var(--danger)_30%,transparent)] p-12">
+    <div
+      className={`flex flex-col items-center justify-center w-full h-full ${
+        compact ? "min-h-[340px] p-6" : "min-h-[500px] p-12"
+      } relative overflow-hidden group rounded-2xl glass-panel border border-[color-mix(in_srgb,var(--danger)_30%,transparent)]`}
+    >
       <div className="w-16 h-16 rounded-2xl glass-surface border border-[color-mix(in_srgb,var(--danger)_35%,transparent)] flex items-center justify-center mb-5 shadow-lg">
         <span className="material-symbols-outlined !text-[34px] text-[var(--danger)]">
           {t("icon_warning_amber", "warning_amber")}
@@ -68,6 +86,40 @@ function ErrorBoundaryContent({ moduleName, error, resetErrorBoundary }: any) {
   );
 }
 
+function OverlayErrorBoundarySidePanel({
+  moduleName,
+  error,
+  resetErrorBoundary,
+  onDismiss,
+}: {
+  moduleName?: string;
+  error: Error | null;
+  resetErrorBoundary: () => void;
+  onDismiss: () => void;
+}) {
+  const { t } = useLexicon();
+  return (
+    <SidePanel
+      isOpen={true}
+      onClose={onDismiss}
+      title={moduleName || t("err_module_fail", "Module Failure")}
+      subtitle={t(
+        "err_module_desc",
+        "The module encountered a critical error. The rest of Sanctuary OS remains operational."
+      )}
+      icon={t("icon_warning_amber", "warning_amber")}
+      iconColorClass="text-[var(--danger)]"
+    >
+      <ErrorBoundaryContent
+        moduleName={moduleName}
+        error={error}
+        resetErrorBoundary={resetErrorBoundary}
+        compact={true}
+      />
+    </SidePanel>
+  );
+}
+
 export class ErrorBoundary extends Component<Props, State> {
   public state: State = {
     hasError: false,
@@ -79,16 +131,42 @@ export class ErrorBoundary extends Component<Props, State> {
   }
 
   public componentDidCatch(error: Error, errorInfo: ErrorInfo) {
+    if (isTransientChunkLoadError(error)) {
+      console.warn("Transient chunk load failure in module:", this.props.moduleName, error, errorInfo);
+      return;
+    }
     console.error("Uncaught error in module:", this.props.moduleName, error, errorInfo);
   }
 
+  private resetErrorBoundary = () => {
+    this.setState({ hasError: false, error: null });
+  };
+
+  private handleOverlayDismiss = () => {
+    this.setState({ hasError: false, error: null });
+    this.props.onClose?.();
+  };
+
   public render() {
     if (this.state.hasError) {
-      return <ErrorBoundaryContent 
-        moduleName={this.props.moduleName} 
-        error={this.state.error} 
-        resetErrorBoundary={() => this.setState({ hasError: false, error: null })} 
-      />;
+      if (this.props.variant === "overlay") {
+        return (
+          <OverlayErrorBoundarySidePanel
+            moduleName={this.props.moduleName}
+            error={this.state.error}
+            resetErrorBoundary={this.resetErrorBoundary}
+            onDismiss={this.handleOverlayDismiss}
+          />
+        );
+      }
+
+      return (
+        <ErrorBoundaryContent
+          moduleName={this.props.moduleName}
+          error={this.state.error}
+          resetErrorBoundary={this.resetErrorBoundary}
+        />
+      );
     }
 
     return this.props.children;

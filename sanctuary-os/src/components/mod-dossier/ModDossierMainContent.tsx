@@ -134,13 +134,13 @@ export function buildModDossierHeaderActions({
           );
           const canEditDesktop = Boolean(isDesktop());
           const canShredMalware = Boolean(
-            userRole === "oversight" && mod.compliance_tier === 5
+            userRole === "oversight" && mod.compliance_tier === 6
           );
           const validLocalSha256 = /^[0-9a-f]{64}$/i.test(
             String(mod?.hash || "").trim()
           );
           const canFlagMod = Boolean(
-            !(Number(mod.compliance_tier || 0) >= 1 && Number(mod.compliance_tier || 0) <= 4) &&
+            !(Number(mod.compliance_tier || 0) >= 1 && Number(mod.compliance_tier || 0) <= 5) &&
             (targetDbId || validLocalSha256) &&
             !mod?.isVirtual &&
             !String(mod?.hash || "").startsWith("dev_sandbox_") &&

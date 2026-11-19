@@ -1621,4 +1621,85 @@ mod tests {
 
         let _ = std::fs::remove_dir_all(&root);
     }
+
+    #[test]
+    fn test_lspk_lz4_and_bsa_ba2_archive_toc_extraction() {
+        let root = std::env::temp_dir().join(format!(
+            "sanctuary_lspk_bsa_ba2_test_{}",
+            uuid::Uuid::new_v4()
+        ));
+        std::fs::create_dir_all(&root).unwrap();
+        let analyzer = SchemaConflictAnalyzer::default();
+
+        // 1. LSPK v16 (LZ4-compressed 296B file table)
+        let lspk_path = root.join("synth_container_a.bin");
+        let mut raw_entry = vec![0u8; 296];
+        let vpath_bytes = b"Public\\SynthMod\\Stats\\Items.txt";
+        raw_entry[..vpath_bytes.len()].copy_from_slice(vpath_bytes);
+        let compressed_table = lz4_flex::block::compress(&raw_entry);
+        let list_offset: u64 = 32;
+        let list_size: u32 = 8 + compressed_table.len() as u32;
+        let mut lspk = vec![0u8; 32];
+        lspk[0..4].copy_from_slice(b"LSPK");
+        lspk[4..8].copy_from_slice(&16u32.to_le_bytes());
+        lspk[8..16].copy_from_slice(&list_offset.to_le_bytes());
+        lspk[16..20].copy_from_slice(&list_size.to_le_bytes());
+        lspk.extend_from_slice(&1u32.to_le_bytes());
+        lspk.extend_from_slice(&(compressed_table.len() as u32).to_le_bytes());
+        lspk.extend_from_slice(&compressed_table);
+        std::fs::write(&lspk_path, &lspk).unwrap();
+        assert_eq!(
+            extract_container_toc_keys(&lspk_path, &analyzer),
+            vec!["lspk:public/synthmod/stats/items.txt".to_string()]
+        );
+
+        // 2. BSA\0 v105
+        let bsa_path = root.join("synth_container_b.bin");
+        let dir_str = b"textures\\actors\0";
+        let file_str = b"hero_skin.dds\0";
+        let mut bsa = Vec::new();
+        bsa.extend_from_slice(b"BSA\0");
+        bsa.extend_from_slice(&105u32.to_le_bytes());
+        bsa.extend_from_slice(&36u32.to_le_bytes()); // offset
+        bsa.extend_from_slice(&0x3u32.to_le_bytes()); // has_dir_names | has_file_names
+        bsa.extend_from_slice(&1u32.to_le_bytes()); // folder_count
+        bsa.extend_from_slice(&1u32.to_le_bytes()); // total_file_count
+        bsa.extend_from_slice(&(dir_str.len() as u32).to_le_bytes());
+        bsa.extend_from_slice(&(file_str.len() as u32).to_le_bytes());
+        bsa.extend_from_slice(&0u32.to_le_bytes()); // file_flags
+        // v105 folder record (24 bytes; file_count at [8..12])
+        bsa.extend_from_slice(&0u64.to_le_bytes());
+        bsa.extend_from_slice(&1u32.to_le_bytes());
+        bsa.extend_from_slice(&vec![0u8; 12]);
+        // folder name + file records
+        bsa.push(dir_str.len() as u8);
+        bsa.extend_from_slice(dir_str);
+        bsa.extend_from_slice(&vec![0u8; 16]);
+        // name table
+        bsa.extend_from_slice(file_str);
+        std::fs::write(&bsa_path, &bsa).unwrap();
+        assert_eq!(
+            extract_container_toc_keys(&bsa_path, &analyzer),
+            vec!["bsa:textures/actors/hero_skin.dds".to_string()]
+        );
+
+        // 3. BTDX GNRL container
+        let ba2_path = root.join("synth_container_c.bin");
+        let rel_ba2 = b"Textures\\Armor\\Helm.dds";
+        let mut ba2 = Vec::new();
+        ba2.extend_from_slice(b"BTDX");
+        ba2.extend_from_slice(&1u32.to_le_bytes());
+        ba2.extend_from_slice(b"GNRL");
+        ba2.extend_from_slice(&1u32.to_le_bytes()); // file_count
+        ba2.extend_from_slice(&24u64.to_le_bytes()); // name_table_offset
+        ba2.extend_from_slice(&(rel_ba2.len() as u16).to_le_bytes());
+        ba2.extend_from_slice(rel_ba2);
+        std::fs::write(&ba2_path, &ba2).unwrap();
+        assert_eq!(
+            extract_container_toc_keys(&ba2_path, &analyzer),
+            vec!["ba2:textures/armor/helm.dds".to_string()]
+        );
+
+        let _ = std::fs::remove_dir_all(&root);
+    }
 }

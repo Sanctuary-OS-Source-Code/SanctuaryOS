@@ -9,6 +9,7 @@ import {
   StatBox,
   ActionButton,
   CustomDropdown,
+  handleOpenUrl,
   renderTextWithIcons,
   PanelHeaderGroup,
   PanelHeaderButton,
@@ -30,8 +31,20 @@ import {
 import { UniversalCard } from "../components/universal/UniversalCard";
 import {
   getTicketSupporterFlags,
+  parseTicketPresentation,
   TicketSupporterFallback,
 } from "../components/universal/SupportTicketCard";
+import {
+  hydrateSpokeTargetsForIdentifiers,
+  makeTargetLookupKey,
+  normalizeExternalUrl,
+  type ResolvedDmcaTargetEntry,
+} from "../hub-components/compliance/dmcaQueueHelpers";
+import {
+  SpokeTargetDossierSidePanel,
+  type SpokeTargetPreResolvedMeta,
+} from "../landing/SpokeTargetDossierSidePanel";
+import type { LegalTargetItem } from "../landing/DmcaAndLegalFlowSteps";
 import {
   maskEmailAddress,
   maskEmailsInText,
@@ -86,6 +99,15 @@ export default function TicketDossierSidePanel({
   const [replies, setReplies] = useState<any[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [fetchedTargetModName, setFetchedTargetModName] = useState<string | null>(null);
+  const [hydratedDmcaTargets, setHydratedDmcaTargets] = useState<
+    Record<string, ResolvedDmcaTargetEntry>
+  >({});
+  const [hydratedGamesMap, setHydratedGamesMap] = useState<Record<string, any>>({});
+  const [dossierTarget, setDossierTarget] = useState<{
+    item: LegalTargetItem;
+    spokeGame: any | null;
+    preResolved?: SpokeTargetPreResolvedMeta;
+  } | null>(null);
   const [selectedAction, setSelectedAction] = useState<string>("");
   const [sendEmailCopy, setSendEmailCopy] = useState(false);
   const [emailRecipient, setEmailRecipient] = useState("");
@@ -104,8 +126,72 @@ export default function TicketDossierSidePanel({
 
   useEffect(() => {
     setRevealContactEmail(false);
+    setDossierTarget(null);
     const isKeepersTicket = (ticket?.table_name || tableName) === "keeper_tickets";
-    if (!isKeepersTicket || !ticket) {
+    if (!ticket) {
+      setSendEmailCopy(false);
+      setEmailRecipient("");
+      setHydratedDmcaTargets({});
+      setHydratedGamesMap({});
+      return;
+    }
+
+    const parsedTicket = parseTicketPresentation(ticket, t);
+    const targetModToken = ticket?.target_mod_id || ticket?.metadata?.target_mod_id;
+    const dmcaIds = parsedTicket.dmca?.targetIdentifiers || [];
+    const spokeIdToResolve =
+      parsedTicket.dmca?.targetSpokeId ||
+      ticket?.metadata?.target_spoke_id ||
+      ((): string | null => {
+        const st = useStore.getState();
+        const ws = Array.isArray(st.workspaces)
+          ? st.workspaces.find((w: any) => w.id === st.activeWorkspaceId)
+          : null;
+        return ws?.game_id ? String(ws.game_id) : null;
+      })();
+
+    if ((dmcaIds.length > 0 || targetModToken) && spokeIdToResolve) {
+      hydrateSpokeTargetsForIdentifiers([
+        {
+          targetSpokeId: spokeIdToResolve,
+          identifiers: [
+            ...dmcaIds,
+            ...(targetModToken ? [String(targetModToken)] : []),
+          ],
+        },
+      ])
+        .then((res) => {
+          setHydratedGamesMap(res.gamesMap);
+          setHydratedDmcaTargets(res.resolvedTargetsMap);
+        })
+        .catch(() => {});
+    } else if (dmcaIds.length > 0 && parsedTicket.dmca?.targetScope) {
+      supabaseAuth
+        .from("sanctuary_games")
+        .select("id, name, schema_id, supabase_url, supabase_anon_key, icon")
+        .ilike("name", parsedTicket.dmca.targetScope)
+        .limit(1)
+        .then(
+          ({ data: matchingGames }) => {
+            const matchedId = matchingGames?.[0]?.id;
+            if (!matchedId) return;
+            hydrateSpokeTargetsForIdentifiers(
+              [{ targetSpokeId: String(matchedId), identifiers: dmcaIds }],
+              { [String(matchedId)]: matchingGames[0] }
+            )
+              .then((res) => {
+                setHydratedGamesMap(res.gamesMap);
+                setHydratedDmcaTargets(res.resolvedTargetsMap);
+              })
+              .catch(() => {});
+          },
+          () => {}
+        );
+    } else {
+      setHydratedDmcaTargets({});
+    }
+
+    if (!isKeepersTicket) {
       setSendEmailCopy(false);
       setEmailRecipient("");
       return;
@@ -428,6 +514,17 @@ export default function TicketDossierSidePanel({
           ? t("ticket_status_pending", "Pending")
           : t("ticket_status_open", "Open");
 
+  const isKeepersSpokeViewCopy =
+    (ticket.table_name || tableName) === "keeper_tickets" &&
+    (Boolean(ticket?.metadata?.target_spoke_id || ticket?.metadata?.dmca_meta?.target_spoke_id) ||
+      String(
+        ticket?.metadata?.target_scope ||
+          ticket?.metadata?.dmca_meta?.target_scope ||
+          ""
+      ).toLowerCase() === "spoke");
+  const effectiveReadOnly = Boolean(isReadOnly || isKeepersSpokeViewCopy);
+  const effectiveCanReply = Boolean(canReply && !isKeepersSpokeViewCopy);
+
   const heroVariant = isEscalated || isRejected
     ? "danger"
     : isResolved
@@ -447,35 +544,36 @@ export default function TicketDossierSidePanel({
       iconColorClass="text-[var(--accent)]"
       widthClass="w-[92vw] md:w-[820px]"
       headerActions={
-        <PanelHeaderGroup>
-          {onClaim && !ticket.metadata?.claimed_by && (
-            <PanelHeaderButton
-              icon={t("icon_back_hand", "back_hand")}
-              tooltip={t("ticket_claim", "Claim Ticket")}
-              variant="accent"
-              onClick={onClaim}
-            />
-          )}
-          {onRelease && ticket.metadata?.claimed_by === currentUserId && (
-            <PanelHeaderButton
-              icon={t("icon_waving_hand", "waving_hand")}
-              tooltip={t("ticket_release", "Release Ticket")}
-              variant="danger"
-              onClick={onRelease}
-            />
-          )}
-          {!isReadOnly &&
-            onTakeAction &&
-            !["resolved", "rejected"].includes(statusLower) && (
+        !effectiveReadOnly ? (
+          <PanelHeaderGroup>
+            {onClaim && !ticket.metadata?.claimed_by && (
               <PanelHeaderButton
-                icon={t("icon_save", "save")}
-                tooltip={t("dossier_btn_save", "Save Action")}
-                variant="success"
-                onClick={() => onTakeAction(selectedAction as any, reason)}
-                disabled={!selectedAction || !reason.trim() || isSubmitting}
+                icon={t("icon_back_hand", "back_hand")}
+                tooltip={t("ticket_claim", "Claim Ticket")}
+                variant="accent"
+                onClick={onClaim}
               />
             )}
-        </PanelHeaderGroup>
+            {onRelease && ticket.metadata?.claimed_by === currentUserId && (
+              <PanelHeaderButton
+                icon={t("icon_waving_hand", "waving_hand")}
+                tooltip={t("ticket_release", "Release Ticket")}
+                variant="danger"
+                onClick={onRelease}
+              />
+            )}
+            {onTakeAction &&
+              !["resolved", "rejected"].includes(statusLower) && (
+                <PanelHeaderButton
+                  icon={t("icon_save", "save")}
+                  tooltip={t("dossier_btn_save", "Save Action")}
+                  variant="success"
+                  onClick={() => onTakeAction(selectedAction as any, reason)}
+                  disabled={!selectedAction || !reason.trim() || isSubmitting}
+                />
+              )}
+          </PanelHeaderGroup>
+        ) : undefined
       }
     >
       <div className="flex flex-col gap-4 mt-2 relative z-10 w-full pb-8">
@@ -505,15 +603,28 @@ export default function TicketDossierSidePanel({
             });
           }
 
+          const parsedHero = parseTicketPresentation(ticket, t);
           return (
             <SidePanelHeroCard
-              icon={t("icon_receipt_long", "receipt_long")}
-              overline={`${t("ticket_id_label", "Ticket ID")}: ${ticket.id.substring(0, 8)}`}
-              title={ticket.title || t("ticket_details_title", "Support Ticket")}
-              description={t(
-                "ticket_details_desc",
-                "Ticket details, attached logs, and support replies."
-              )}
+              icon={parsedHero.dmca ? t("icon_gavel", "gavel") : t("icon_receipt_long", "receipt_long")}
+              overline={
+                parsedHero.channelBadge ||
+                (ticket.category || ticket.ticket_type || t("support_ticket", "Support Ticket")).replace(
+                  /_/g,
+                  " "
+                )
+              }
+              title={parsedHero.cleanTitle}
+              description={
+                parsedHero.dmca
+                  ? [parsedHero.dmca.noticeTypeLabel, parsedHero.dmca.noticeId]
+                      .filter(Boolean)
+                      .join(" • ")
+                  : t(
+                      "ticket_details_desc",
+                      "Ticket details, attached logs, and support replies."
+                    )
+              }
               badge={statusLabel}
               badgeIcon={t("icon_confirmation_number", "confirmation_number")}
               badges={heroBadges.length > 0 ? heroBadges : undefined}
@@ -622,51 +733,282 @@ export default function TicketDossierSidePanel({
               </div>
             )}
 
-            {(ticket.target_mod_id || ticket.metadata?.target_mod_id) && (
-              <div className="glass-surface px-4 py-3 rounded-xl border border-[color-mix(in_srgb,var(--text)_12%,transparent)] flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                <div className="flex items-center gap-3 min-w-0">
-                  <div className="w-9 h-9 rounded-xl glass-surface border border-[var(--glass-card-icon-border,rgba(255,255,255,0.22))] bg-[var(--glass-card-icon-bg,rgba(255,255,255,0.08))] shadow-[var(--glass-card-icon-shadow)] flex items-center justify-center shrink-0 text-[var(--accent)]">
-                    <span className="material-symbols-rounded !text-[18px]">
-                      {t("icon_extension", "extension")}
-                    </span>
+            {(ticket.target_mod_id || ticket.metadata?.target_mod_id) && (() => {
+              const targetModToken = String(
+                ticket.target_mod_id || ticket.metadata?.target_mod_id || ""
+              ).trim();
+              const matchedHydrated = Object.values(hydratedDmcaTargets).find(
+                (entry) =>
+                  entry.identifier.toLowerCase() === targetModToken.toLowerCase()
+              );
+              const resolvedTitle =
+                ticket.target_mod_name ||
+                matchedHydrated?.item?.title ||
+                fetchedTargetModName ||
+                targetModToken;
+              const resolvedSub = [
+                matchedHydrated?.item?.subtitle
+                  ? `${t("by_prefix", "By")} ${matchedHydrated.item.subtitle}`
+                  : null,
+                `#${targetModToken.slice(0, 8)}`,
+              ]
+                .filter(Boolean)
+                .join(" • ");
+
+              return (
+                <div className="glass-surface rounded-2xl p-3.5 border border-[color-mix(in_srgb,var(--text)_14%,transparent)] flex flex-wrap sm:flex-nowrap items-center justify-between gap-3">
+                  <div className="flex items-center gap-3 min-w-0 flex-1">
+                    <div className="w-10 h-10 rounded-xl glass-surface border border-[var(--glass-card-icon-border,rgba(255,255,255,0.22))] bg-[var(--glass-card-icon-bg,rgba(255,255,255,0.08))] shadow-[var(--glass-card-icon-shadow)] flex items-center justify-center shrink-0 text-[var(--accent)]">
+                      <span className="material-symbols-outlined !text-[18px]">
+                        {t("icon_extension", "extension")}
+                      </span>
+                    </div>
+                    <div className="flex flex-col gap-0.5 min-w-0 flex-1">
+                      <span className="text-[10px] font-black text-[var(--subtext)] uppercase tracking-widest">
+                        {t("target_artifact", "Target {Mod}")}
+                      </span>
+                      <span className="text-sm font-black text-[var(--text)] truncate no-text-case">
+                        {resolvedTitle}
+                      </span>
+                      <span className="text-xs font-mono text-[var(--subtext)] truncate no-text-case">
+                        {resolvedSub}
+                      </span>
+                    </div>
                   </div>
-                  <div className="flex flex-col min-w-0">
-                    <span className="text-[9px] font-black text-[var(--subtext)] uppercase tracking-widest">
-                      {t("target_artifact", "Target {Mod}")}
-                    </span>
-                    <span className="text-xs font-mono font-bold text-[var(--text)] truncate">
-                      {ticket.target_mod_name ||
-                        fetchedTargetModName ||
-                        ticket.target_mod_id ||
-                        ticket.metadata?.target_mod_id}
-                    </span>
+                  <div className="ml-auto flex items-center gap-2 shrink-0">
+                    <ActionButton
+                      variant="glass"
+                      icon={t("icon_menu_book", "menu_book")}
+                      label={t("view_dossier", "View Dossier")}
+                      onClick={() =>
+                        setDossierTarget({
+                          item: matchedHydrated?.item || {
+                            identifier: targetModToken,
+                            kind: "mod",
+                            title: resolvedTitle,
+                          },
+                          spokeGame: matchedHydrated?.spokeGame || null,
+                          preResolved: matchedHydrated?.preResolved,
+                        })
+                      }
+                    />
+                    {onEditMetadata && (
+                      <ActionButton
+                        variant="glass"
+                        icon={t("icon_edit", "edit")}
+                        label={t("btn_edit", "Edit")}
+                        onClick={() => onEditMetadata(targetModToken)}
+                      />
+                    )}
                   </div>
                 </div>
-                {onEditMetadata && (
-                  <ActionButton
-                    variant="glass"
-                    icon={t("icon_edit", "edit")}
-                    label={t("btn_edit", "Edit")}
-                    onClick={() =>
-                      onEditMetadata(
-                        ticket.target_mod_id || ticket.metadata?.target_mod_id
-                      )
-                    }
-                  />
-                )}
-              </div>
-            )}
+              );
+            })()}
           </UniversalGroup>
         )}
 
-        <UniversalGroup
-          title={t("upload_desc", "Description")}
-          icon={t("icon_description", "description")}
-        >
-          <div className="w-full glass-surface rounded-xl px-4 py-3.5 text-[var(--text)] text-sm border border-[color-mix(in_srgb,var(--text)_12%,transparent)] min-h-28 whitespace-pre-wrap leading-relaxed">
-            {ticket.description}
-          </div>
-        </UniversalGroup>
+        {(() => {
+          const parsedBody = parseTicketPresentation(ticket, t);
+          if (parsedBody.dmca) {
+            const dmca = parsedBody.dmca;
+            const resolvedEntries = Object.entries(hydratedDmcaTargets);
+            const lookupHydrated = (token: string): ResolvedDmcaTargetEntry | undefined => {
+              const directKey = dmca.targetSpokeId
+                ? makeTargetLookupKey(dmca.targetSpokeId, token)
+                : "";
+              if (directKey && hydratedDmcaTargets[directKey]) {
+                return hydratedDmcaTargets[directKey];
+              }
+              const lowerTok = token.trim().toLowerCase();
+              const found = resolvedEntries.find(([k]) => k.endsWith(`::${lowerTok}`));
+              return found?.[1];
+            };
+            const firstGameObj =
+              (dmca.targetSpokeId && hydratedGamesMap[dmca.targetSpokeId]) ||
+              Object.values(hydratedGamesMap)[0] ||
+              null;
+
+            return (
+              <UniversalGroup
+                title={t("dmca_ticket_filing_group", "Legal & Compliance Filing")}
+                icon={t("icon_gavel", "gavel")}
+              >
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <StatBox
+                    label={t("dmca_request_type_label", "Request Type")}
+                    value={dmca.noticeTypeLabel}
+                    icon={t("icon_gavel", "gavel")}
+                    iconColorClass="text-[var(--warning)]"
+                  />
+                  <StatBox
+                    label={t("dmca_notice_ref_label", "Notice Reference")}
+                    value={dmca.noticeId || `#${String(ticket.id).slice(0, 8)}`}
+                    icon={t("icon_fingerprint", "fingerprint")}
+                    iconColorClass="text-[var(--accent)]"
+                  />
+                  <StatBox
+                    label={t("dmca_scope_label", "Target Scope")}
+                    value={dmca.targetScope || t("sanctuary_foundry", "Sanctuary Foundry")}
+                    icon={t("icon_hub", "hub")}
+                    iconColorClass="text-[var(--accent)]"
+                  />
+                  <StatBox
+                    label={
+                      dmca.slaDeadlineAt
+                        ? t("dmca_sla_deadline_label", "48h Spoke SLA")
+                        : t("dmca_claimant_masked_label", "Claimant")
+                    }
+                    value={
+                      dmca.slaDeadlineAt
+                        ? new Date(dmca.slaDeadlineAt).toLocaleString()
+                        : dmca.claimantMasked || authorName
+                    }
+                    icon={
+                      dmca.slaDeadlineAt
+                        ? t("icon_schedule", "schedule")
+                        : t("icon_badge", "badge")
+                    }
+                    iconColorClass="text-[var(--warning)]"
+                  />
+                </div>
+
+                {dmca.targetIdentifiers.length > 0 && (
+                  <div className="flex flex-col gap-2 mt-1">
+                    {dmca.targetIdentifiers.map((tok) => {
+                      const entry = lookupHydrated(tok);
+                      const isUrl = /^https?:\/\//i.test(tok);
+                      const isHashToken = /^[0-9a-f]{64}$/i.test(tok);
+                      const itemCard: LegalTargetItem = entry?.item || {
+                        identifier: tok,
+                        kind: "mod",
+                        title: tok,
+                        subtitle: dmca.targetScope,
+                      };
+                      const sub = entry
+                        ? [
+                            entry.item.subtitle
+                              ? `${t("by_prefix", "By")} ${entry.item.subtitle}`
+                              : dmca.targetScope,
+                            typeof entry.preResolved?.complianceTier === "number"
+                              ? `${t("stat_tier", "Tier")} ${entry.preResolved.complianceTier}`
+                              : null,
+                            `#${entry.identifier.slice(0, 8)}`,
+                          ]
+                            .filter(Boolean)
+                            .join(" • ")
+                        : isHashToken
+                          ? `SHA-256: ${tok.slice(0, 12)}...${tok.slice(-8)}`
+                          : `${dmca.targetScope} • ${tok}`;
+
+                      return (
+                        <div
+                          key={tok}
+                          className="glass-surface rounded-2xl p-3.5 border border-[color-mix(in_srgb,var(--text)_14%,transparent)] flex flex-wrap sm:flex-nowrap items-center justify-between gap-3 no-text-case"
+                        >
+                          <div className="flex items-center gap-3 min-w-0 flex-1">
+                            <div className="w-10 h-10 rounded-xl glass-surface border border-[var(--glass-card-icon-border,rgba(255,255,255,0.22))] bg-[var(--glass-card-icon-bg,rgba(255,255,255,0.08))] shadow-[var(--glass-card-icon-shadow)] flex items-center justify-center shrink-0 text-[var(--accent)]">
+                              <span className="material-symbols-outlined !text-[18px]">
+                                {itemCard.kind === "blueprint"
+                                  ? t("icon_layers", "layers")
+                                  : t("icon_inventory_2", "inventory_2")}
+                              </span>
+                            </div>
+                            <div className="flex flex-col gap-0.5 min-w-0 flex-1">
+                              <span className="text-[10px] font-black text-[var(--subtext)] uppercase tracking-widest">
+                                {t("target_artifact", "Target {Mod}")}
+                              </span>
+                              <span className="text-sm font-black text-[var(--text)] truncate no-text-case">
+                                {itemCard.title}
+                              </span>
+                              <span className="text-xs font-mono text-[var(--subtext)] truncate no-text-case">
+                                {sub}
+                              </span>
+                            </div>
+                          </div>
+                          <div className="ml-auto flex items-center gap-2 shrink-0">
+                            {isUrl ? (
+                              <ActionButton
+                                variant="glass"
+                                icon={t("icon_open_in_new", "open_in_new")}
+                                label={t("btn_open", "Open")}
+                                onClick={() => {
+                                  const safe = normalizeExternalUrl(tok);
+                                  if (safe) handleOpenUrl(safe);
+                                }}
+                              />
+                            ) : (
+                              <ActionButton
+                                variant="glass"
+                                icon={t("icon_menu_book", "menu_book")}
+                                label={t("view_dossier", "View Dossier")}
+                                onClick={() =>
+                                  setDossierTarget({
+                                    item: itemCard,
+                                    spokeGame: entry?.spokeGame || firstGameObj || null,
+                                    preResolved: entry?.preResolved,
+                                  })
+                                }
+                              />
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+
+                {dmca.workUrl && (
+                  <div className="glass-surface rounded-2xl p-3.5 border border-[color-mix(in_srgb,var(--text)_14%,transparent)] flex flex-wrap sm:flex-nowrap items-center justify-between gap-3 no-text-case">
+                    <div className="flex items-center gap-3 min-w-0 flex-1">
+                      <div className="w-10 h-10 rounded-xl glass-surface border border-[var(--glass-card-icon-border,rgba(255,255,255,0.22))] bg-[var(--glass-card-icon-bg,rgba(255,255,255,0.08))] shadow-[var(--glass-card-icon-shadow)] flex items-center justify-center shrink-0 text-[var(--accent)]">
+                        <span className="material-symbols-outlined !text-[18px]">
+                          {t("icon_link", "link")}
+                        </span>
+                      </div>
+                      <div className="flex flex-col gap-0.5 min-w-0 flex-1">
+                        <span className="text-[10px] font-black text-[var(--subtext)] uppercase tracking-widest">
+                          {t("dmca_work_url_opt_label", "Original Work / Reference URL")}
+                        </span>
+                        <span className="text-xs font-mono font-bold text-[var(--text)] truncate no-text-case">
+                          {dmca.workUrl}
+                        </span>
+                      </div>
+                    </div>
+                    <div className="ml-auto flex items-center gap-2 shrink-0">
+                      <ActionButton
+                        variant="glass"
+                        icon={t("icon_open_in_new", "open_in_new")}
+                        label={t("dmca_open_reference_url", "Open Link")}
+                        onClick={() => {
+                          const safe = normalizeExternalUrl(dmca.workUrl);
+                          if (safe) handleOpenUrl(safe);
+                        }}
+                      />
+                    </div>
+                  </div>
+                )}
+
+                <div className="glass-surface rounded-xl px-3.5 py-2.5 border border-[color-mix(in_srgb,var(--text)_10%,transparent)] flex items-center gap-2.5 text-xs text-[var(--subtext)] no-text-case">
+                  <span className="material-symbols-outlined !text-[16px] text-[var(--accent)] shrink-0">
+                    {t("icon_lock", "lock")}
+                  </span>
+                  <span>{dmca.privacyNote}</span>
+                </div>
+              </UniversalGroup>
+            );
+          }
+
+          return (
+            <UniversalGroup
+              title={t("upload_desc", "Description")}
+              icon={t("icon_description", "description")}
+            >
+              <div className="w-full glass-surface rounded-xl px-4 py-3.5 text-[var(--text)] text-sm border border-[color-mix(in_srgb,var(--text)_12%,transparent)] min-h-28 whitespace-pre-wrap leading-relaxed no-text-case">
+                {ticket.description}
+              </div>
+            </UniversalGroup>
+          );
+        })()}
 
         {ticket.metadata?.feedback_meta && (
           <UniversalGroup
@@ -943,8 +1285,8 @@ export default function TicketDossierSidePanel({
             </UniversalGroup>
           )}
 
-        {canReply &&
-          !isReadOnly &&
+        {effectiveCanReply &&
+          !effectiveReadOnly &&
           !["resolved", "rejected"].includes(statusLower) && (
             <UniversalGroup
               title={t("dossier_add_reply", "Add Reply")}
@@ -1062,7 +1404,26 @@ export default function TicketDossierSidePanel({
             </UniversalGroup>
           )}
 
-        {!isReadOnly &&
+        {isKeepersSpokeViewCopy && (
+          <UniversalGroup
+            title={t("dmca_spoke_view_copy_title", "Partner Spoke Relay Copy (Read-Only)")}
+            icon={t("icon_visibility", "visibility")}
+          >
+            <div className="glass-surface rounded-xl p-3.5 border border-[color-mix(in_srgb,var(--accent)_24%,transparent)] bg-[color-mix(in_srgb,var(--accent)_5%,transparent)] flex items-start gap-2.5 text-xs no-text-case">
+              <span className="material-symbols-outlined !text-[18px] text-[var(--accent)] shrink-0 mt-0.5">
+                {t("icon_info", "info")}
+              </span>
+              <span className="text-[11px] text-[var(--subtext)] leading-relaxed">
+                {t(
+                  "dmca_spoke_custody_note_body",
+                  "Sanctuary Foundry is non-custodial over Partner Spoke catalogs. This record is a read-only Keepers Core audit copy to track the 48-hour statutory relay SLA before Partner Spoke gateway review."
+                )}
+              </span>
+            </div>
+          </UniversalGroup>
+        )}
+
+        {!effectiveReadOnly &&
           onTakeAction &&
           !["resolved", "rejected"].includes(statusLower) && (
             <UniversalGroup
@@ -1116,6 +1477,14 @@ export default function TicketDossierSidePanel({
       templates={responseTemplates}
       fromName={senderIdentityLabel}
       onThreadUpdated={() => onReplyAdded?.(ticket?.metadata)}
+    />
+
+    <SpokeTargetDossierSidePanel
+      isOpen={Boolean(dossierTarget)}
+      onClose={() => setDossierTarget(null)}
+      item={dossierTarget?.item || null}
+      spokeGame={dossierTarget?.spokeGame || null}
+      preResolved={dossierTarget?.preResolved}
     />
   </>
   );

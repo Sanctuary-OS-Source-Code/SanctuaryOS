@@ -1767,7 +1767,7 @@ fn unseal_token_from_map(
     String::from_utf8(plain).map_err(|_| "Corrupted UTF-8 data in sealed push token.".to_string())
 }
 
-#[tauri::command]
+#[tauri::command(async)]
 pub fn get_edge_push_token(scope_key: String) -> Result<String, String> {
     let clean_scope = scope_key.trim();
     if clean_scope.is_empty() {
@@ -1786,7 +1786,7 @@ pub fn get_edge_push_token(scope_key: String) -> Result<String, String> {
     unseal_token_from_map(&map, &master_key, clean_scope)
 }
 
-#[tauri::command]
+#[tauri::command(async)]
 pub fn set_edge_push_token(scope_key: String, token: String) -> Result<(), String> {
     let clean_scope = scope_key.trim();
     if clean_scope.is_empty() {

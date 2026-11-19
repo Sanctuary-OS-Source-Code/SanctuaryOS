@@ -278,7 +278,7 @@ export function CommandScoutReviewSidePanel({
                 <CustomComplianceDropdown
                   value={complianceTier}
                   onChange={(val) => setComplianceTier(val)}
-                  maxTier={4}
+                  maxTier={5}
                 />
               </div>
               <UniversalTextArea
@@ -516,7 +516,7 @@ export function CommandMasonSubmissionSidePanel({
             <CustomComplianceDropdown
               value={complianceTier}
               onChange={(val) => setComplianceTier(val)}
-              maxTier={4}
+              maxTier={5}
             />
           </UniversalGroup>
 
@@ -1088,7 +1088,7 @@ export function CommandComplianceReviewSidePanel({
 
     setIsSubmitting(true);
     try {
-      const nextStatus = editTier === 5 ? "blacklisted" : "verified";
+      const nextStatus = editTier === 6 ? "blacklisted" : "verified";
       const { error } = await supabase.rpc("secure_upsert_cloud_file", {
         p_token: useStore.getState().session?.access_token || "",
         p_target: "mods",
@@ -1194,7 +1194,7 @@ export function CommandComplianceReviewSidePanel({
                 <CustomComplianceDropdown
                   value={editTier}
                   onChange={setEditTier}
-                  maxTier={5}
+                  maxTier={6}
                 />
               </div>
               <UniversalTextArea

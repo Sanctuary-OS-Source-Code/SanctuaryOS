@@ -780,7 +780,9 @@ export function MobileBottomNav({
                 { id: "active_games", active: ["active_games", "ide", "schemas", "audit_logs"].includes(keepersActiveTab), icon: t("icon_dns", "dns"), label: t("keepers_tab_partner_spokes", "Partner Spokes") || "Partner Spokes" },
                 { id: "identities", active: keepersActiveTab === "identities", icon: t("icon_group", "group"), label: t("citizen_oversight", "Oversight") || "Oversight" },
                 { id: "heuristics", active: keepersActiveTab === "heuristics", icon: t("icon_shield_lock", "shield_lock"), label: t("core_heuristics_tab", "Core Heuristics") || "Core Heuristics" },
-                { id: "support", active: keepersActiveTab === "support" || keepersActiveTab === "support_settings", icon: t("icon_support_agent", "support_agent"), label: (t("wf_tab_tickets", "Support") || "Support").replace(/^[^\w]*/, '').trim() },
+                { id: "spoke_support", active: keepersActiveTab === "spoke_support", icon: t("icon_hub", "hub"), label: t("keepers_tab_spoke_support", "Spoke Support") },
+                { id: "platform_support", active: keepersActiveTab === "platform_support" || keepersActiveTab === "support" || keepersActiveTab === "support_settings", icon: t("icon_bug_report", "bug_report"), label: t("keepers_tab_platform_support", "Platform Support") },
+                { id: "compliance_contact", active: keepersActiveTab === "compliance_contact" || keepersActiveTab === "support_dmca", icon: t("icon_gavel", "gavel"), label: t("keepers_tab_compliance_contact", "Compliance & Contact") },
                 { id: "chameleons", active: keepersActiveTab === "chameleons", icon: t("icon_palette", "palette"), label: (t("keepers_tab_core_aesthetics", "Core Aesthetics") || "Core Aesthetics").replace(/^[^\w]*/, '').trim() },
               ].map(tab => (
                 <MobileNavItem

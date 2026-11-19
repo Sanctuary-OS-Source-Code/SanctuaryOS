@@ -746,9 +746,9 @@ export function MasonSandbox({
       return;
     }
     const resolvedComplianceTier = Number(activeMod.compliance_tier || 0);
-    if (resolvedComplianceTier < 0 || resolvedComplianceTier >= 5) {
+    if (resolvedComplianceTier < 0 || resolvedComplianceTier >= 6) {
       useStore.getState().pushStatus(
-        t("alert_tier5_prohibited", "Prohibited Safety Tier {mods} cannot be uploaded."),
+        t("alert_tier6_prohibited", "Prohibited Safety Tier {mods} cannot be uploaded."),
         "error"
       );
       return;
@@ -821,7 +821,7 @@ export function MasonSandbox({
           highlander_group_id: activeMod.highlander_group_id || null,
           latest_version: activeMod.latest_version || "1.0.0",
         };
-        if (resolvedComplianceTier >= 1 && resolvedComplianceTier <= 4) {
+        if (resolvedComplianceTier >= 1 && resolvedComplianceTier <= 5) {
           updatePayload.status = "pending";
         }
         // Update existing mod record (when creator chose "Link to Existing Mod -> New Version")
@@ -841,7 +841,7 @@ export function MasonSandbox({
         );
       } else {
         const resolvedInitialStatus =
-          resolvedComplianceTier >= 1 && resolvedComplianceTier <= 4
+          resolvedComplianceTier >= 1 && resolvedComplianceTier <= 5
             ? "pending"
             : activeMod.status || "unverified";
         const insertPayload = {

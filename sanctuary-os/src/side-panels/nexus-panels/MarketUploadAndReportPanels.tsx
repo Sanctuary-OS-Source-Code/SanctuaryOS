@@ -601,15 +601,15 @@ export function MarketReportPanel({
               icon={t("icon_policy", "policy")}
             >
               <CustomComplianceDropdown
-                value={Math.min(4, Math.max(1, Number(reportState.complianceTier || 1)))}
+                value={Math.min(5, Math.max(1, Number(reportState.complianceTier || 1)))}
                 onChange={(val: number) =>
                   setReportState({
                     ...reportState,
-                    complianceTier: Math.min(4, Math.max(1, Number(val || 1))),
+                    complianceTier: Math.min(5, Math.max(1, Number(val || 1))),
                   })
                 }
                 minTier={1}
-                maxTier={4}
+                maxTier={5}
               />
             </UniversalGroup>
           )}

@@ -351,7 +351,7 @@ export async function stageFullBlueprintToRigQueue(
           const modRef = Array.isArray(dbRow.mods) ? dbRow.mods[0] : dbRow.mods;
           if (!modRef) continue;
           const rawTier = Number(modRef.compliance_tier ?? 0);
-          if (rawTier >= 1 && rawTier <= 4) continue;
+          if (rawTier >= 1 && rawTier <= 5) continue;
           enrichedArtifacts[i] = {
             ...item,
             dbId: item.dbId || (modRef.id ? String(modRef.id) : undefined),

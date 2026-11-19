@@ -595,10 +595,10 @@ export function parseAuditLogEntry(log: any): {
       addEdit("status", "flagged", "purged");
       if (targetName) addEdit("artifact", targetName, "Deleted");
     } else if (editsMap.size === 0 && actionLower.startsWith("cleared malware flag")) {
-      addEdit("compliance_tier", "5", "0");
+      addEdit("compliance_tier", "6", "0");
       addEdit("status", "flagged", "verified");
     } else if (editsMap.size === 0 && actionLower.startsWith("confirmed malware flag")) {
-      addEdit("compliance_tier", "0", "5");
+      addEdit("compliance_tier", "0", "6");
       addEdit("status", "under_review", "blacklisted");
     } else if (editsMap.size === 0 && actionLower.startsWith("cleared compliance flag")) {
       addEdit("compliance_tier", "2", "0");

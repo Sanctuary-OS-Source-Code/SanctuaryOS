@@ -14,33 +14,39 @@ export function getComplianceTierDisplay(
   const rawTier = item?.compliance_tier;
   const hasTier = rawTier !== null && rawTier !== undefined && rawTier !== "";
   const tier = hasTier ? Number(rawTier) : -1;
+  if (tier === 6) {
+    return {
+      value: t("tier_6_label", "Malware / Security Threat (T6)"),
+      color: "text-[var(--danger)]",
+    };
+  }
   if (tier === 5) {
     return {
-      value: t("tier_5_label", "Malware / Security Threat (T5)"),
+      value: t("tier_5_label", "Taboo / Prohibited (T5)"),
       color: "text-[var(--danger)]",
     };
   }
   if (tier === 4) {
     return {
-      value: t("tier_4_label", "Taboo / Sensitive (T4)"),
+      value: t("tier_4_label", "Extreme Violence (T4)"),
       color: "text-[var(--danger)]",
     };
   }
   if (tier === 3) {
     return {
-      value: t("tier_3_label", "Extreme / Violence (T3)"),
-      color: "text-[var(--danger)]",
+      value: t("tier_3_label", "Illicit / Substance (T3)"),
+      color: "text-[var(--warning)]",
     };
   }
   if (tier === 2) {
     return {
-      value: t("tier_2_label", "Illicit / Substance (T2)"),
+      value: t("tier_2_label", "Explicit Content (T2)"),
       color: "text-[var(--warning)]",
     };
   }
   if (tier === 1) {
     return {
-      value: t("tier_1_label", "Adult / NSFW (T1)"),
+      value: t("tier_1_label", "Legal / DMCA Hold (T1)"),
       color: "text-[var(--warning)]",
     };
   }
@@ -50,7 +56,7 @@ export function getComplianceTierDisplay(
     (isNexus || Boolean(item?.dbId || item?.isSynced || item?.id));
   if (isVerifiedTier0) {
     return {
-      value: t("tier_0_label", "Clean / Safe (T0)"),
+      value: t("tier_0_label", "Clean / Public Safe (T0)"),
       color: "text-[var(--success)]",
     };
   }

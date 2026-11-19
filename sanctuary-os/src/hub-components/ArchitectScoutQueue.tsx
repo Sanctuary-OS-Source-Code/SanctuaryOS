@@ -1107,7 +1107,7 @@ export function ScoutQueue({ modList = [], setStatus }: { modList?: any[]; setSt
                   <CustomComplianceDropdown
                     value={editForm.compliance_tier || 0}
                     onChange={(val: number) => setEditForm({ ...editForm, compliance_tier: val })}
-                    maxTier={4}
+                    maxTier={5}
                   />
                   {renderFieldCandidateChips(
                     activeScout.consensus_fields?.compliance_tier,
