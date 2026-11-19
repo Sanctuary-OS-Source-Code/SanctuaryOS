@@ -486,6 +486,7 @@ One unified codebase powers your native **Desktop client (Windows / macOS / Linu
       ]
     }
   ],
-  "_bodySig": 2273677126
+  "_bodySig": 2273677126,
+  "isActive": true
 }
 -->

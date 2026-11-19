@@ -206,8 +206,8 @@ Initialized the Tauri v2 + Rust + React 19 architecture, built The Cartographer 
         {
           "id": "phase_16",
           "icon": "verified",
-          "overline": "PHASE 16 (V1.0.0 GA) • PLANNED",
-          "badge": "PLANNED",
+          "overline": "Phase 16 (V1.0.0 Ga) • Planned",
+          "badge": "Planned",
           "title": "Global GA — Reproducible Signed Builds & Sovereign Ecosystem",
           "footerMeta": "Notarized Multi-OS Signing • Audited Crypto • Spoke SLA & Abandonment Automation • V1.0 Spec Freeze",
           "desc": "General Availability release delivering reproducible Authenticode EV / notarized Apple / GPG-signed desktop binaries, third-party cryptographic and VFS security audits, automated Keepers Core Spoke DMCA/abandonment tooling, and the frozen v1.0 Master Schema specification.",
@@ -246,8 +246,8 @@ Initialized the Tauri v2 + Rust + React 19 architecture, built The Cartographer 
         {
           "id": "phase_15",
           "icon": "upcoming",
-          "overline": "PHASE 15 (V0.7.0 BETA) • PLANNED",
-          "badge": "PLANNED",
+          "overline": "Phase 15 (V0.7.0 Beta) • Planned",
+          "badge": "Planned",
           "title": "Beta Stabilization — 27-Preset Soak, Fire Drill & Opt-In Controls",
           "footerMeta": "Real-Game E2E Soak • Automated Patch Fire Drill • Opt-In Telemetry Granularity • 50k-Mod Performance Budgets",
           "desc": "Pre-GA public beta stabilization delivering real-game end-to-end soak verification across all 27 engine presets, automated Patch Fire Drill & Groundhog bisect orchestration, granular opt-in cloud mirroring controls, and in-hub Spoke SQL migration runners.",
@@ -286,8 +286,8 @@ Initialized the Tauri v2 + Rust + React 19 architecture, built The Cartographer 
         {
           "id": "phase_14",
           "icon": "science",
-          "overline": "PHASE 14 (V0.6.0-DEV.15) • NOVEMBER 2026 — ACTIVE ERA",
-          "badge": "ACTIVE PHASE",
+          "overline": "Phase 14 (V0.6.0-Dev.15) • November 2026 — Active Era",
+          "badge": "Active Phase",
           "title": "Universal Multi-Engine Expansion, Patch Fire Drill & Deck Overdrive",
           "footerMeta": "Creator Airlock • Quartermaster • Zero-Copy Exodus • Rosetta Protocol • Save Doctor • 27 Presets • Differential VFS",
           "desc": "Major v0.6.0 expansion shipping Creator Airlock external tool save isolation, The Quartermaster guided package wizard, Zero-Copy Exodus MO2/Vortex migration, The Rosetta Protocol modlist translation + lockfile hydration, Save Doctor, Cloud-Sync Folder Sentinel, Deck Overdrive, Code-Switch (7,300+ strings), Crash Autopsy, Conflict Radar 2.0 (multi-engine binary TOCs + LOOT), Differential Rayon VFS, Million-Citizen Cloud Scale, and the Ironclad Gauntlet test suite—while Patch Fire Drill & Groundhog Sandbox finalize for v0.7.0.",
@@ -297,7 +297,7 @@ Initialized the Tauri v2 + Rust + React 19 architecture, built The Cartographer 
               "id": "phase_14_m1",
               "icon": "check_circle",
               "title": "Creator Airlock",
-              "desc": "Launches external authoring, asset-editing, and modding tools inside a Save-Airgapped {Lab} session with automatic post-exit save restoration—physically isolating primary saves during edits (distinct from the in-app Open {Mason} Workshop).",
+              "desc": "Launches external authoring, asset-editing, and modding tools inside a Save-Airgapped Homestead session with automatic post-exit save restoration—physically isolating primary saves during edits (distinct from the in-app Open Mason Workshop).",
               "pending": false
             },
             {
@@ -311,7 +311,7 @@ Initialized the Tauri v2 + Rust + React 19 architecture, built The Cartographer 
               "id": "phase_14_m3",
               "icon": "check_circle",
               "title": "Zero-Copy Exodus",
-              "desc": "Zero-reinstall out-of-tree migration via {Blueprints} -> Migrate External Manager or Cartographer setup: auto-detects MO2, Vortex, and staging directories, screens with ByteHound, absorbs files via OS hardlinks, and reconstructs {Blueprint} profiles.",
+              "desc": "Zero-reinstall out-of-tree migration via Blueprints -> Migrate External Manager or Cartographer setup: auto-detects MO2, Vortex, and staging directories, screens with ByteHound, absorbs files via OS hardlinks, and reconstructs Blueprint profiles.",
               "pending": false
             },
             {
@@ -325,14 +325,14 @@ Initialized the Tauri v2 + Rust + React 19 architecture, built The Cartographer 
               "id": "phase_14_m5",
               "icon": "check_circle",
               "title": "Save Doctor",
-              "desc": "Pairs save activity with the deployed {Blueprint} DNA manifest ({Vault}/.sanctuary_save_doctor/<ws>.sanctuary-save-manifest.json) and warns before launch if switching {Blueprints} removed {mods} required by existing saves.",
+              "desc": "Pairs save activity with the deployed Blueprint DNA manifest (Vault/.sanctuary_save_doctor/<ws>.sanctuary-save-manifest.json) and warns before launch if switching Blueprints removed artifacts required by existing saves.",
               "pending": false
             },
             {
               "id": "phase_14_m6",
               "icon": "science",
               "title": "Patch Fire Drill",
-              "desc": "Simulates any upstream game patch across all {Blueprints} with 1:1 deduplicated {mod} counts, transitive Atomic Logic dependency cascades, local Echo Archive Auto-Swap detection, and Clone Ready {Blueprint} generation (full headless soak finalizing in v0.7.0).",
+              "desc": "Simulates any upstream game patch across all Blueprints with 1:1 deduplicated artifact counts, transitive Atomic Logic dependency cascades, local Echo Archive Auto-Swap detection, and Clone Ready Blueprint generation (full headless soak finalizing in v0.7.0).",
               "pending": false,
               "roadmapStatus": "in_testing"
             },
@@ -340,7 +340,7 @@ Initialized the Tauri v2 + Rust + React 19 architecture, built The Cartographer 
               "id": "phase_14_m7",
               "icon": "science",
               "title": "Groundhog Sandbox",
-              "desc": "Save-verify-and-rewind {Lab} airgap featuring an externalized save mirror, read-only Golden Baseline test saves, strict opt-in OFF cloud verification certificates, anti-cheat-safe timers, and fullscreen PCM chimes (full automated bisect finalizing in v0.7.0).",
+              "desc": "Save-verify-and-rewind Homestead airgap featuring an externalized save mirror, read-only Golden Baseline test saves, strict opt-in OFF cloud verification certificates, anti-cheat-safe timers, and fullscreen PCM chimes (full automated bisect finalizing in v0.7.0).",
               "pending": false,
               "roadmapStatus": "in_testing"
             },
@@ -355,42 +355,42 @@ Initialized the Tauri v2 + Rust + React 19 architecture, built The Cartographer 
               "id": "phase_14_m9",
               "icon": "check_circle",
               "title": "Deck Overdrive",
-              "desc": "Full-OS Steam Deck controller engine and Proton prefix auto-resolver: unifies Gamescope XWayland surface binding, decodes 64-byte hidraw packets into a 60 FPS {Chameleon} Virtual Pointer + 2D Spatial Focus engine, and launches Windows tools/script extenders inside Proton prefixes.",
+              "desc": "Full-OS Steam Deck controller engine and Proton prefix auto-resolver: unifies Gamescope XWayland surface binding, decodes 64-byte hidraw packets into a 60 FPS Chameleon Virtual Pointer + 2D Spatial Focus engine, and launches Windows tools/script extenders inside Proton prefixes.",
               "pending": false
             },
             {
               "id": "phase_14_m10",
               "icon": "check_circle",
               "title": "Code-Switch (7,400+ Keys)",
-              "desc": "Lexicon Engine V2 with automated 7,400+-key Standard English extraction (7,409 keys), Sparse Delta Override packs, Source-First 4-tab Visual Studio, Guided Icon Overrides, and 1-click neural auto-translation with {Glossary} placeholder masking.",
+              "desc": "Lexicon Engine V2 with automated 7,400+-key Standard English extraction (7,409 keys), Sparse Delta Override packs, Source-First 4-tab Visual Studio, Guided Icon Overrides, and 1-click neural auto-translation with Glossary placeholder masking.",
               "pending": false
             },
             {
               "id": "phase_14_m11",
               "icon": "check_circle",
               "title": "The Highlander Rule",
-              "desc": "Enforces single-winner exclusive slots (highlander_group_id) with explicit Swap, Keep Both, or Cancel alerts on {Vault} cards and Dossiers so rival {mods} never vanish silently.",
+              "desc": "Enforces single-winner exclusive slots (highlander_group_id) with explicit Swap, Keep Both, or Cancel alerts on Vault cards and Dossiers so rival artifacts never vanish silently.",
               "pending": false
             },
             {
               "id": "phase_14_m12",
               "icon": "check_circle",
               "title": "Echo Suppressor",
-              "desc": "Zero-PII AES-256-GCM cross-device notification deduplication and per-Spoke alert muting across Windows, Steam Deck, and Mobile PWA, paired with 7-Domain {Settings} and the Per-Space {Chameleons} & {Lexicons} Matrix.",
+              "desc": "Zero-PII AES-256-GCM cross-device notification deduplication and per-Spoke alert muting across Windows, Steam Deck, and Mobile PWA, paired with 7-Domain System Preferences and the Per-Space Chameleons & Lexicons Matrix.",
               "pending": false
             },
             {
               "id": "phase_14_m13",
               "icon": "check_circle",
               "title": "Crash Autopsy",
-              "desc": "Citizen-facing {Lab} Known Error showcase (Corrupted / Unstable / Unrelated) backed by SQLite <10ms exception correlation, Architect-pinned public.known_exception_rules, and instant crash-log paste decoding.",
+              "desc": "Citizen-facing Homestead Known Error showcase (Corrupted / Unstable / Unrelated) backed by SQLite <10ms exception correlation, Architect-pinned public.known_exception_rules, and instant crash-log paste decoding.",
               "pending": false
             },
             {
               "id": "phase_14_m14",
               "icon": "check_circle",
               "title": "Pocket Radar (Opt-In Companion)",
-              "desc": "Mobile PWA and Web Vault Companion with strict opt-in OFF by default for encrypted active-{Blueprint} DNA sync, pairing with Beam to Rig transfers and responsive mobile filter pills.",
+              "desc": "Mobile PWA and Web Vault Companion with strict opt-in OFF by default for encrypted active-Blueprint DNA sync, pairing with Beam to Rig transfers and responsive mobile filter pills.",
               "pending": false
             },
             {
@@ -404,7 +404,7 @@ Initialized the Tauri v2 + Rust + React 19 architecture, built The Cartographer 
               "id": "phase_14_m16",
               "icon": "check_circle",
               "title": "Jump Gate",
-              "desc": "Global Ctrl+K / Cmd+K Liquid Glass command palette across Desktop, Web, and Mobile PWA for jumping to installed {Vault} {mods}, toggling {Blueprint} items, navigating all OS views, switching {Chameleons} & {Lexicons}, and firing quick actions.",
+              "desc": "Global Ctrl+K / Cmd+K Liquid Glass command palette across Desktop, Web, and Mobile PWA for jumping to installed Vault artifacts, toggling Blueprint items, navigating all OS views, switching Chameleons & Lexicons, and firing quick actions.",
               "pending": false
             },
             {
@@ -432,7 +432,7 @@ Initialized the Tauri v2 + Rust + React 19 architecture, built The Cartographer 
               "id": "phase_14_m20",
               "icon": "check_circle",
               "title": "Cloud-Sync Folder Sentinel",
-              "desc": "Detects active OneDrive, Dropbox, iCloud Drive, and Google Drive sync locks on {Vault}, Staging, and target game directories before symlink/hardlink projection can corrupt data.",
+              "desc": "Detects active OneDrive, Dropbox, iCloud Drive, and Google Drive sync locks on Vault, Staging, and target game directories before symlink/hardlink projection can corrupt data.",
               "pending": false
             },
             {
@@ -447,8 +447,8 @@ Initialized the Tauri v2 + Rust + React 19 architecture, built The Cartographer 
         {
           "id": "phase_13",
           "icon": "auto_awesome",
-          "overline": "PHASE 13 (V5.8) • OCTOBER 2026",
-          "badge": "COMPLETED",
+          "overline": "Phase 13 (V5.8) • October 2026",
+          "badge": "Completed",
           "title": "Schema Forge, Bytecode Hound & Sovereign Covenants",
           "footerMeta": "Schema Forge • Lexicon Codex • Bytecode Hound • Edge Direct Push • Sovereign Covenants",
           "desc": "Delivered the 4-Tab Master Schema Studio & Lexicon Terminology Studio with Guided Icon Overrides and Interactive Codex Guides, upgraded the Bytecode Hound heuristic scanner, added 6-provider Edge Direct Push, Readiness-Gated Partner Applications with mandatory Covenants, and Bilateral Codebase ↔ Cloud Sync.",
@@ -494,17 +494,17 @@ Initialized the Tauri v2 + Rust + React 19 architecture, built The Cartographer 
         {
           "id": "phase_12",
           "icon": "rocket_launch",
-          "overline": "PHASE 12 • JULY 15 – OCTOBER 2026",
-          "badge": "COMPLETED",
+          "overline": "Phase 12 • July 15 – October 2026",
+          "badge": "Completed",
           "title": "Agnostic Future — Multi-Workspace, Sanctuary V6 Liquid Glass & Web PWA",
-          "footerMeta": "{Citizens} Workbench / {Mason} IDE, Lexicon Revamp, Sanctuary Partners, V6 Liquid Glass & Website V2",
-          "desc": "Dual-Vision {Mason} IDE & Cloud Lexicons, Multi-Workspace Master Schemas & the 0%-cut Sanctuary Partners Agreement, the Sanctuary V6 3D Liquid Glass Engine & 18-Section Revamp, and Website V2 / Mobile PWA.",
+          "footerMeta": "Citizens Workbench / Mason IDE, Lexicon Revamp, Sanctuary Partners, V6 Liquid Glass & Website V2",
+          "desc": "Dual-Vision Mason IDE & Cloud Lexicons, Multi-Workspace Master Schemas & the 0%-cut Sanctuary Partners Agreement, the Sanctuary V6 3D Liquid Glass Engine & 18-Section Revamp, and Website V2 / Mobile PWA.",
           "status": "completed",
           "subCards": [
             {
               "id": "phase_12_m5",
               "icon": "check_circle",
-              "title": "{Citizens} Workbench & {Mason} IDE 2.0",
+              "title": "Citizens Workbench & Mason IDE 2.0",
               "desc": "Named Version Timeline entries, simultaneous Dual-Vision (Visual + Raw Monaco) split editing, Author Mode scaffolding, and the side-by-side Lexicon Builder."
             },
             {
@@ -523,7 +523,7 @@ Initialized the Tauri v2 + Rust + React 19 architecture, built The Cartographer 
               "id": "phase_12_m8",
               "icon": "check_circle",
               "title": "Sanctuary V6 & Liquid Glass Engine",
-              "desc": "4-layer 3D Refractive Liquid Glass Engine, revamped Default {Chameleons}, Partner Spoke {Chameleon} packs, and Chameleon Theme Forge 2.0."
+              "desc": "4-layer 3D Refractive Liquid Glass Engine, revamped Default Chameleons, Partner Spoke Chameleon packs, and Chameleon Theme Forge 2.0."
             },
             {
               "id": "phase_12_m10",
@@ -535,7 +535,7 @@ Initialized the Tauri v2 + Rust + React 19 architecture, built The Cartographer 
               "id": "phase_12_m9",
               "icon": "check_circle",
               "title": "Website V2, Mobile PWA & Remote Queuing",
-              "desc": "Unified single-codebase Web OS & PWA (sanctuaryos.net/<spoke>) with live Comm-Link, Nexus, Support Desk, Command Hubs, and Web-to-PC {Blueprint} queuing."
+              "desc": "Unified single-codebase Web OS & PWA (sanctuaryos.net/<spoke>) with live Comm-Link, Nexus, Support Desk, Command Hubs, and Web-to-PC Blueprint queuing."
             },
             {
               "id": "phase_12_m11",
@@ -546,7 +546,7 @@ Initialized the Tauri v2 + Rust + React 19 architecture, built The Cartographer 
             {
               "id": "phase_12_m12",
               "icon": "check_circle",
-              "title": "FIDO2 Passkey {Vault} & Quarantine Lockdown",
+              "title": "FIDO2 Passkey Vault & Quarantine Lockdown",
               "desc": "Hardware WebAuthn Passkey gates for Elevated Hubs, Full-OS Malware Quarantine Lockdown, Silent Updater, and Bilateral Directives Sync."
             }
           ]
@@ -554,24 +554,24 @@ Initialized the Tauri v2 + Rust + React 19 architecture, built The Cartographer 
         {
           "id": "phase_11",
           "icon": "public",
-          "overline": "PHASE 11 • MAY 17 – JULY 13, 2026",
-          "badge": "COMPLETED",
-          "title": "Technical Debt Repayment, {Citizens} Workbench & The Agnostic Sprint",
-          "footerMeta": "Native Intake & Support Desk, {Citizens} Workbench 1.0 & Game-Agnostic Kernel",
-          "desc": "Integrated {Mason} & Architect intake forms, native Bug Reports & Support Ticket Dossiers, {Citizens} Workbench 1.0 (.cfg/.ini/.json + Monaco IDE + Sanctuary Templates), full 11-section Lexicon/UI sweep, and the Agnostic Sprint.",
+          "overline": "Phase 11 • May 17 – July 13, 2026",
+          "badge": "Completed",
+          "title": "Technical Debt Repayment, Citizens Workbench & The Agnostic Sprint",
+          "footerMeta": "Native Intake & Support Desk, Citizens Workbench 1.0 & Game-Agnostic Kernel",
+          "desc": "Integrated Mason & Architect intake forms, native Bug Reports & Support Ticket Dossiers, Citizens Workbench 1.0 (.cfg/.ini/.json + Monaco IDE + Sanctuary Templates), full 11-section Lexicon/UI sweep, and the Agnostic Sprint.",
           "status": "completed",
           "subCards": [
             {
               "id": "phase_11_m5",
               "icon": "check_circle",
               "title": "Native Intake Forms & Support Desk",
-              "desc": "Integrated {Mason} UUID registration, Architect intake forms, Bug Reports, and encrypted Support Ticket dossiers directly into the Desktop App."
+              "desc": "Integrated Mason UUID registration, Architect intake forms, Bug Reports, and encrypted Support Ticket dossiers directly into the Desktop App."
             },
             {
               "id": "phase_11_m6",
               "icon": "check_circle",
-              "title": "{Citizens} Workbench 1.0 & Sanctuary Templates",
-              "desc": "Automatic .cfg, .ini, and .json detection in the {Vault} with an embedded Monaco IDE and visual slider/toggle Schema Mapping."
+              "title": "Citizens Workbench 1.0 & Sanctuary Templates",
+              "desc": "Automatic .cfg, .ini, and .json detection in the Vault with an embedded Monaco IDE and visual slider/toggle Schema Mapping."
             },
             {
               "id": "phase_11_m7",
@@ -582,8 +582,8 @@ Initialized the Tauri v2 + Rust + React 19 architecture, built The Cartographer 
             {
               "id": "phase_11_m8",
               "icon": "check_circle",
-              "title": "Integrated Side Browser & {Vault} Intercept",
-              "desc": "Embedded multi-tab Side Browser that automatically intercepts .zip, .rar, .7z, and schema-supported {mod} downloads straight into the {Vault}."
+              "title": "Integrated Side Browser & Vault Intercept",
+              "desc": "Embedded multi-tab Side Browser that automatically intercepts .zip, .rar, .7z, and schema-supported artifact downloads straight into the Vault."
             },
             {
               "id": "phase_11_m9",
@@ -594,16 +594,16 @@ Initialized the Tauri v2 + Rust + React 19 architecture, built The Cartographer 
             {
               "id": "phase_11_m10",
               "icon": "check_circle",
-              "title": "Oversight {Mason} Linker & Lexicon Sweep",
-              "desc": "Deployed the Oversight {Mason} Linker, automatic Unregistered {Vault} syncing on Nexus verification, and a full 11-section Lexicon/UI sweep."
+              "title": "Oversight Mason Linker & Lexicon Sweep",
+              "desc": "Deployed the Oversight Mason Linker, automatic Unregistered Vault syncing on Nexus verification, and a full 11-section Lexicon/UI sweep."
             }
           ]
         },
         {
           "id": "phase_10",
           "icon": "palette",
-          "overline": "PHASE 10 • MAY 10 – MAY 16, 2026",
-          "badge": "COMPLETED",
+          "overline": "Phase 10 • May 10 – May 16, 2026",
+          "badge": "Completed",
           "title": "Post-Alpha Revamp, Visual Protocol Manager & Oversight Mass Update",
           "footerMeta": "Dev Sandbox, Visual Protocol Schema, Theme Forge & Mass Triage",
           "desc": "Launched the isolated Dev Sandbox & 'Sync to Network' creator pipeline, visual database-schema Protocol Manager, Folder Structure builder, Oversight Mass Update console, The Nexus registry, and Chameleon Theme Forge.",
@@ -613,13 +613,13 @@ Initialized the Tauri v2 + Rust + React 19 architecture, built The Cartographer 
               "id": "phase_10_m5",
               "icon": "check_circle",
               "title": "Isolated Dev Sandbox & Sync to Network",
-              "desc": "Dedicated local Dev Sandbox folder bypassing radar hash churn for WIP {mods}, paired with 1-click 'Sync to Network' release promotion."
+              "desc": "Dedicated local Dev Sandbox folder bypassing radar hash churn for WIP artifacts, paired with 1-click 'Sync to Network' release promotion."
             },
             {
               "id": "phase_10_m6",
               "icon": "check_circle",
               "title": "Visual Protocol & Folder Structure Builder",
-              "desc": "Database-schema visual Protocol Manager (Core & Addons, Flavors, Dependencies, DLC) and visual Folder Structure builder enforced by Sanitize {Vault}."
+              "desc": "Database-schema visual Protocol Manager (Core & Addons, Flavors, Dependencies, DLC) and visual Folder Structure builder enforced by Sanitize Vault."
             },
             {
               "id": "phase_10_m7",
@@ -631,7 +631,7 @@ Initialized the Tauri v2 + Rust + React 19 architecture, built The Cartographer 
               "id": "phase_10_m8",
               "icon": "check_circle",
               "title": "The Nexus Discovery Registry",
-              "desc": "Global metadata catalog for {Mods}, {Blueprints}, Lexicons, Chameleons, and Templates with automatic game patch and DLC compatibility filtering."
+              "desc": "Global metadata catalog for Artifacts, Blueprints, Lexicons, Chameleons, and Templates with automatic game patch and DLC compatibility filtering."
             },
             {
               "id": "phase_10_m9",
@@ -650,8 +650,8 @@ Initialized the Tauri v2 + Rust + React 19 architecture, built The Cartographer 
         {
           "id": "phase_9",
           "icon": "admin_panel_settings",
-          "overline": "PHASE 9 • MAY 8 – MAY 9, 2026",
-          "badge": "COMPLETED",
+          "overline": "Phase 9 • May 8 – May 9, 2026",
+          "badge": "Completed",
           "title": "Infrastructure Finalization, Laboratory Diagnostics & Command Hubs",
           "footerMeta": "Proving Grounds Simulation, macOS Universal Pipeline & Command Hubs",
           "desc": "Transitioned Homestead Proving Grounds into a live simulation laboratory with real-time log monitoring, deployed the Oversight & Wayfinder Command Hubs, automated signed macOS Universal (.dmg) builds, and enforced Compliance Tiers 0–6.",
@@ -667,7 +667,7 @@ Initialized the Tauri v2 + Rust + React 19 architecture, built The Cartographer 
               "id": "phase_9_m6",
               "icon": "check_circle",
               "title": "Five Elevated Command Hubs",
-              "desc": "Dedicated ElevatedHubLayout command centers for {Mason} Workshop, Architect Console, Oversight Command, Wayfinder Operations, and Keepers Core."
+              "desc": "Dedicated ElevatedHubLayout command centers for Mason Workshop, Architect Console, Oversight Command, Wayfinder Operations, and Keepers Core."
             },
             {
               "id": "phase_9_m7",
@@ -679,18 +679,18 @@ Initialized the Tauri v2 + Rust + React 19 architecture, built The Cartographer 
               "id": "phase_9_m8",
               "icon": "check_circle",
               "title": "Compliance Tiers 0–6 Matrix",
-              "desc": "Automated public feed scrubbing and Cloud {Blueprint} hash purge triggers protecting public discovery while preserving local {Vault} freedom."
+              "desc": "Automated public feed scrubbing and Cloud Blueprint hash purge triggers protecting public discovery while preserving local Vault freedom."
             }
           ]
         },
         {
           "id": "phase_8",
           "icon": "cell_tower",
-          "overline": "PHASE 8 • MAY 7 – MAY 8, 2026",
-          "badge": "COMPLETED",
+          "overline": "Phase 8 • May 7 – May 8, 2026",
+          "badge": "Completed",
           "title": "Standardized Lexicons, Dynamic Engine Recognition & DEFCON Shield",
           "footerMeta": "Rust Rip Protocol, Auto-Sanitization Launch & DEFCON 1 Shield",
-          "desc": "Engineered the Rust 'Rip Protocol' for dynamic engine version recognition, Auto-Sanitization Launch purging stale crash logs & caches, Global Lexicon Extraction, the {Blueprint} Architect Load Order UI, and the real-time DEFCON 1 patch shield.",
+          "desc": "Engineered the Rust 'Rip Protocol' for dynamic engine version recognition, Auto-Sanitization Launch purging stale crash logs & caches, Global Lexicon Extraction, the Blueprint Architect Load Order UI, and the real-time DEFCON 1 patch shield.",
           "status": "completed",
           "subCards": [
             {
@@ -709,42 +709,42 @@ Initialized the Tauri v2 + Rust + React 19 architecture, built The Cartographer 
               "id": "phase_8_m7",
               "icon": "check_circle",
               "title": "DEFCON 1 Pre-Patch Network Shield",
-              "desc": "Real-time network listener that intercepts game launches during breaking engine patches to prompt an emergency {Backups} backup."
+              "desc": "Real-time network listener that intercepts game launches during breaking engine patches to prompt an emergency Time Capsule backup."
             },
             {
               "id": "phase_8_m8",
               "icon": "check_circle",
               "title": "Tier 6 Malware Scanner & Secure Shred",
-              "desc": "Byte-level heuristic malware scanner, {Citizen}-signed zero-fill Secure Shredding, and the offline-toggleable Nuclear Override."
+              "desc": "Byte-level heuristic malware scanner, Citizen-signed zero-fill Secure Shredding, and the offline-toggleable Nuclear Override."
             }
           ]
         },
         {
           "id": "phase_7",
           "icon": "construction",
-          "overline": "PHASE 7 • MAY 6, 2026",
-          "badge": "COMPLETED",
-          "title": "Core Architecture, {Backups} Compression & Windows MSI Pipeline",
-          "footerMeta": "Nested {Vault} Taxonomy, 78 GB → 24 GB Engine Compression & Automated MSI Builds",
-          "desc": "Deployed the nested {Vault} directory hierarchy, optimized {Backups} Engine Core compression (78 GB → 24 GB) with <50s rollbacks, automated Windows .msi GitHub Actions builds, and integrated Scout Dossiers into Conflict Radar.",
+          "overline": "Phase 7 • May 6, 2026",
+          "badge": "Completed",
+          "title": "Core Architecture, Time Capsule Compression & Windows MSI Pipeline",
+          "footerMeta": "Nested Vault Taxonomy, 78 GB → 24 GB Engine Compression & Automated MSI Builds",
+          "desc": "Deployed the nested Vault directory hierarchy, optimized Time Capsule Engine Core compression (78 GB → 24 GB) with <50s rollbacks, automated Windows .msi GitHub Actions builds, and integrated Scout Dossiers into Conflict Radar.",
           "status": "completed",
           "subCards": [
             {
               "id": "phase_7_m5",
               "icon": "check_circle",
-              "title": "Nested {Vault} Taxonomy & 24 GB Compression",
-              "desc": "Self-healing {Vault} hierarchy (Backups/World, Backups/Engine, Data/cache, Quarantine) and 78 GB → 24 GB Engine Core compression with <50s rollbacks."
+              "title": "Nested Vault Taxonomy & 24 GB Compression",
+              "desc": "Self-healing Vault hierarchy (Backups/World, Backups/Engine, Data/cache, Quarantine) and 78 GB → 24 GB Engine Core compression with <50s rollbacks."
             },
             {
               "id": "phase_7_m6",
               "icon": "check_circle",
               "title": "Schema-Driven Visual Config Workbench",
-              "desc": "Visual configuration studio rendering raw {mod} settings as interactive sliders and toggles synchronized live with a Monaco Raw Editor."
+              "desc": "Visual configuration studio rendering raw artifact settings as interactive sliders and toggles synchronized live with a Monaco Raw Editor."
             },
             {
               "id": "phase_7_m7",
               "icon": "check_circle",
-              "title": "{Mason} Workshop & Collections Orchestrator",
+              "title": "Mason Workshop & Collections Orchestrator",
               "desc": "Creator suite featuring an isolated Dev Sandbox, Collections Builder, and relational Protocol Orchestrator for Twins, Flavors, and Dependencies."
             },
             {
@@ -758,8 +758,8 @@ Initialized the Tauri v2 + Rust + React 19 architecture, built The Cartographer 
         {
           "id": "phase_6",
           "icon": "science",
-          "overline": "PHASE 6 • MAY 3 – MAY 5, 2026",
-          "badge": "COMPLETED",
+          "overline": "Phase 6 • May 3 – May 5, 2026",
+          "badge": "Completed",
           "title": "Codebase Modularization, Comm-Link Ledger & Homestead Proving Grounds",
           "footerMeta": "Creator Following Feed, Domain View Modularization & Nuke Sandbox",
           "desc": "Launched the Creator Following system and real-time Comm-Link discovery ledger, modularized the core shell into dedicated domain views, extracted Yeet Cascade casualty tracking, and built the 100% Nuke Isolation Proving Grounds.",
@@ -775,13 +775,13 @@ Initialized the Tauri v2 + Rust + React 19 architecture, built The Cartographer 
               "id": "phase_6_m6",
               "icon": "check_circle",
               "title": "100% Nuke Injection Sandbox",
-              "desc": "Temporarily strips active {Vault} symlinks during Proving Grounds runs to inject only the isolated test subject and its mandatory dependencies."
+              "desc": "Temporarily strips active Vault symlinks during Proving Grounds runs to inject only the isolated test subject and its mandatory dependencies."
             },
             {
               "id": "phase_6_m7",
               "icon": "check_circle",
               "title": "1v1 Conflict Stability Arena",
-              "desc": "Pits two suspected colliding {mods} head-to-head in an airgapped test environment while monitoring real-time engine stability."
+              "desc": "Pits two suspected colliding artifacts head-to-head in an airgapped test environment while monitoring real-time engine stability."
             },
             {
               "id": "phase_6_m8",
@@ -794,24 +794,24 @@ Initialized the Tauri v2 + Rust + React 19 architecture, built The Cartographer 
         {
           "id": "phase_5",
           "icon": "history",
-          "overline": "PHASE 5 • MAY 1 – MAY 3, 2026",
-          "badge": "COMPLETED",
-          "title": "Defensive Protocols, Symlink Airgap 2.1 & {Mason} Protocol Manager",
+          "overline": "Phase 5 • May 1 – May 3, 2026",
+          "badge": "Completed",
+          "title": "Defensive Protocols, Symlink Airgap 2.1 & Mason Protocol Manager",
           "footerMeta": "Real-Time Airgap Watcher, DNA Duplicate Intercept & Time Capsule",
-          "desc": "Implemented Symlink Airgap 2.1 real-time .cfg/.ini file watching in Rust, SHA-256 DNA duplicate interception, {Mason} Protocol Manager 1.0, intelligent Google Search fallback, and hardlink {Backups} snapshots.",
+          "desc": "Implemented Symlink Airgap 2.1 real-time .cfg/.ini file watching in Rust, SHA-256 DNA duplicate interception, Mason Protocol Manager 1.0, intelligent Google Search fallback, and hardlink Time Capsule snapshots.",
           "status": "completed",
           "subCards": [
             {
               "id": "phase_5_m5",
               "icon": "check_circle",
               "title": "Real-Time Airgap Watcher & DNA Intercept",
-              "desc": "Non-blocking Rust notify thread syncing live in-game .cfg/.ini edits back to the {Vault}, plus SHA-256 duplicate interception on drop."
+              "desc": "Non-blocking Rust notify thread syncing live in-game .cfg/.ini edits back to the Vault, plus SHA-256 duplicate interception on drop."
             },
             {
               "id": "phase_5_m6",
               "icon": "check_circle",
-              "title": "Dual-State {Backups} Architecture",
-              "desc": "Independently snapshots World State (User Saves, Profiles & Settings) and Engine Core (Game Installation Binaries) before patches or {mod} tests."
+              "title": "Dual-State Time Capsule Architecture",
+              "desc": "Independently snapshots World State (User Saves, Profiles & Settings) and Engine Core (Game Installation Binaries) before patches or artifact tests."
             },
             {
               "id": "phase_5_m7",
@@ -830,18 +830,18 @@ Initialized the Tauri v2 + Rust + React 19 architecture, built The Cartographer 
         {
           "id": "phase_4",
           "icon": "radar",
-          "overline": "PHASE 4 • APRIL 28 – MAY 1, 2026",
-          "badge": "COMPLETED",
-          "title": "The Global Network, Radiant Light Mode & Cloud {Blueprints}",
+          "overline": "Phase 4 • April 28 – May 1, 2026",
+          "badge": "Completed",
+          "title": "The Global Network, Radiant Light Mode & Cloud Blueprints",
           "footerMeta": "Radiant ThemeProvider, SNC-XXXXX Cloud Codes & Conflict Radar",
-          "desc": "Expanded beyond dark-only Bunker to Radiant Light Mode with real-time ThemeProvider switching, launched 6-digit Cloud {Blueprint} transmissions (SNC-XXXXX), added the Architect Signature gate, and established Conflict Radar Severity 1–4.",
+          "desc": "Expanded beyond dark-only Bunker to Radiant Light Mode with real-time ThemeProvider switching, launched 6-digit Cloud Blueprint transmissions (SNC-XXXXX), added the Architect Signature gate, and established Conflict Radar Severity 1–4.",
           "status": "completed",
           "subCards": [
             {
               "id": "phase_4_m5",
               "icon": "check_circle",
               "title": "Radiant Mode, ThemeProvider & Signature Gate",
-              "desc": "Introduced Radiant (Light Mode) and real-time ThemeProvider profile switching, 6-digit Cloud {Blueprint} codes, and the Architect Signature gate."
+              "desc": "Introduced Radiant (Light Mode) and real-time ThemeProvider profile switching, 6-digit Cloud Blueprint codes, and the Architect Signature gate."
             },
             {
               "id": "phase_4_m6",
@@ -866,11 +866,11 @@ Initialized the Tauri v2 + Rust + React 19 architecture, built The Cartographer 
         {
           "id": "phase_3",
           "icon": "hub",
-          "overline": "PHASE 3 • APRIL 15 – APRIL 28, 2026",
-          "badge": "COMPLETED",
+          "overline": "Phase 3 • April 15 – April 28, 2026",
+          "badge": "Completed",
           "title": "System Rip, Deep Yeet 2.0 & Logic Intelligence",
           "footerMeta": "Deep Yeet 2.0, UTF-16 Version Ripper, Twin Bonds & Copilot",
-          "desc": "Engineered Deep Yeet 2.0 recursive dependency cascade scanning, the Rust UTF-16 byte-filter System Version Ripper, Twin Bond synchronized script/package links, and the Copilot Philosophy halting for manual {Citizen} signature.",
+          "desc": "Engineered Deep Yeet 2.0 recursive dependency cascade scanning, the Rust UTF-16 byte-filter System Version Ripper, Twin Bond synchronized script/package links, and the Copilot Philosophy halting for manual Citizen signature.",
           "status": "completed",
           "subCards": [
             {
@@ -883,27 +883,27 @@ Initialized the Tauri v2 + Rust + React 19 architecture, built The Cartographer 
               "id": "phase_3_m6",
               "icon": "check_circle",
               "title": "Atomic Logic Triumvirate",
-              "desc": "Relational {mod} rules enforcing Highlander Flavor eviction, bidirectional binary/script Twin bonds, and Recursive Chain-Link Dependencies."
+              "desc": "Relational artifact rules enforcing Highlander Flavor eviction, bidirectional binary/script Twin bonds, and Recursive Chain-Link Dependencies."
             },
             {
               "id": "phase_3_m7",
               "icon": "check_circle",
               "title": "Orphaned Addon Cascade Protection",
-              "desc": "Intercepts master library removal and halts for the {Citizen}'s manual signature before cleanly unequipping or removing dependent child add-ons."
+              "desc": "Intercepts master library removal and halts for the Citizen's manual signature before cleanly unequipping or removing dependent child add-ons."
             },
             {
               "id": "phase_3_m8",
               "icon": "check_circle",
-              "title": "SNCXXX Cloud {Blueprints} & Ghosted States",
-              "desc": "6-character alphanumeric Cloud {Blueprint} share codes, portable offline JSON exports, and automatic Missing DLC Ghosting diagnostics."
+              "title": "SNCXXX Cloud Blueprints & Ghosted States",
+              "desc": "6-character alphanumeric Cloud Blueprint share codes, portable offline JSON exports, and automatic Missing DLC Ghosting diagnostics."
             }
           ]
         },
         {
           "id": "phase_2",
           "icon": "map",
-          "overline": "PHASE 2 • APRIL 10 – APRIL 15, 2026",
-          "badge": "COMPLETED",
+          "overline": "Phase 2 • April 10 – April 15, 2026",
+          "badge": "Completed",
           "title": "Visual Uplink, Glassmorphism 1.0 & The Quarantine Zone",
           "footerMeta": "Glassmorphism 1.0, Quarantine Bio-Hazard Sector & Symlink Airgap",
           "desc": "Introduced the Glassmorphism 1.0 backdrop-blur engine, constructed the dedicated bio-hazard Quarantine Zone for isolating malicious files, and unified the app into a layered desktop OS experience backed by Symlink Airgap and SQLite caching.",
@@ -919,37 +919,37 @@ Initialized the Tauri v2 + Rust + React 19 architecture, built The Cartographer 
               "id": "phase_2_m6",
               "icon": "check_circle",
               "title": "Symlink Airgap 2.5 Projection Engine",
-              "desc": "Projects active {mods} from the isolated {Vault} into the live game directory via zero-copy OS symlinks in milliseconds."
+              "desc": "Projects active artifacts from the isolated Vault into the live game directory via zero-copy OS symlinks in milliseconds."
             },
             {
               "id": "phase_2_m7",
               "icon": "check_circle",
               "title": "Sub-Second SQLite Delta Scanner",
-              "desc": "Local .sanctuary_cache.db SQLite engine using mtime-first delta checks to index 5,000+ {mod} Vaults in sub-second sweeps."
+              "desc": "Local .sanctuary_cache.db SQLite engine using mtime-first delta checks to index 5,000+ artifact Vaults in sub-second sweeps."
             },
             {
               "id": "phase_2_m8",
               "icon": "check_circle",
-              "title": "Self-Healing {Vault} Sanitizer & Profiles",
-              "desc": "Automatically maintains the isolated {Vault} directory structure and powers instant local {Blueprint} loadout switching."
+              "title": "Self-Healing Vault Sanitizer & Profiles",
+              "desc": "Automatically maintains the isolated Vault directory structure and powers instant local Blueprint loadout switching."
             }
           ]
         },
         {
           "id": "phase_1",
           "icon": "inventory_2",
-          "overline": "PHASE 1 • APRIL 1 – APRIL 10, 2026",
-          "badge": "COMPLETED",
+          "overline": "Phase 1 • April 1 – April 10, 2026",
+          "badge": "Completed",
           "title": "Bunker Initialization, Cartographer Protocol & SHA-256 DNA Pathing",
           "footerMeta": "First-Boot Cartographer Recon & Millisecond Delta Caching",
-          "desc": "Initialized the Tauri v2 + Rust + React 19 architecture, built The Cartographer automated first-boot reconnaissance scanner for Game Bin & {Mods} directories, and engineered SHA-256 DNA delta caching.",
+          "desc": "Initialized the Tauri v2 + Rust + React 19 architecture, built The Cartographer automated first-boot reconnaissance scanner for Game Bin & Artifacts directories, and engineered SHA-256 DNA delta caching.",
           "status": "completed",
           "subCards": [
             {
               "id": "phase_1_m5",
               "icon": "check_circle",
               "title": "Cartographer Recon & Millisecond Delta Cache",
-              "desc": "Automated first-boot drive reconnaissance locating Game Bin & {Mods} folders, paired with SHA-256 delta caching for instant startup."
+              "desc": "Automated first-boot drive reconnaissance locating Game Bin & Artifacts folders, paired with SHA-256 delta caching for instant startup."
             },
             {
               "id": "phase_1_m6",
@@ -961,7 +961,7 @@ Initialized the Tauri v2 + Rust + React 19 architecture, built The Cartographer 
               "id": "phase_1_m7",
               "icon": "check_circle",
               "title": "Automated Coordinate Discovery Wizard",
-              "desc": "Guided first-launch Cartographer setup linking Game Binaries, live {Mods} folders, and airgapped Bunker {Vault} coordinates."
+              "desc": "Guided first-launch Cartographer setup linking Game Binaries, live Artifacts folders, and airgapped Bunker Vault coordinates."
             },
             {
               "id": "phase_1_m8",
@@ -974,6 +974,7 @@ Initialized the Tauri v2 + Rust + React 19 architecture, built The Cartographer 
       ]
     }
   ],
+  "isActive": true,
   "_bodySig": 3959783445
 }
 -->

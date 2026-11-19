@@ -1255,6 +1255,7 @@ Every string, button, tooltip, and icon in Sanctuary OS routes through **Code-Sw
       ]
     }
   ],
-  "_bodySig": 2496110310
+  "_bodySig": 2496110310,
+  "isActive": true
 }
 -->

@@ -251,6 +251,7 @@ Security and operational governance are enforced across 6 clearance tiers, sub-s
       ]
     }
   ],
-  "_bodySig": 3884708503
+  "_bodySig": 3884708503,
+  "isActive": true
 }
 -->

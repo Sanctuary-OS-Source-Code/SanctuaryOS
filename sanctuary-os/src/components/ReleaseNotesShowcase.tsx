@@ -39,6 +39,7 @@ import {
 } from "./release-notes/releaseMarkdownParser";
 import {
   parseSeedCommunityBlog,
+  isBundledVersionNewer,
   formatReleasePostToMarkdownFile,
   parseLatestChangelogBlock,
   parseAllChangelogBlocks,
@@ -1325,7 +1326,20 @@ export function ReleaseNotesShowcase({
         activeCurVer
       );
       const existing = byVer.get(activeCurKey);
-      if (!existing && (srcPost.body || srcCl)) {
+      if (existing) {
+        if (srcPost.title) existing.title = srcPost.title;
+        if (srcPost.summary) existing.summary = srcPost.summary;
+        if (srcPost.releaseDate) existing.releaseDate = srcPost.releaseDate;
+        if (srcPost.platform) existing.platform = srcPost.platform;
+        if (srcPost.imageUrl && !existing.imageUrl) existing.imageUrl = srcPost.imageUrl;
+        if (srcPost.codeSnippet && !existing.codeSnippet) existing.codeSnippet = srcPost.codeSnippet;
+        if (!existing.postBody && srcPost.body) {
+          existing.postBody = cleanPostBodyForViewer(srcPost.body);
+        }
+        if (!existing.changelogMarkdown && srcCl) {
+          existing.changelogMarkdown = srcCl;
+        }
+      } else if (srcPost.body || srcCl) {
         byVer.set(activeCurKey, {
           key: activeCurKey,
           dbRowId: null,
@@ -1344,7 +1358,11 @@ export function ReleaseNotesShowcase({
       }
     }
 
-    return Array.from(byVer.values());
+    return Array.from(byVer.values()).sort((a, b) => {
+      if (isBundledVersionNewer(a.version, b.version)) return -1;
+      if (isBundledVersionNewer(b.version, a.version)) return 1;
+      return 0;
+    });
   }, [
     activeChannel,
     dbArchivedDevPosts,

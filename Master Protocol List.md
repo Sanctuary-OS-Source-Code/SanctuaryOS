@@ -689,6 +689,7 @@ Sanctuary OS decouples **Core OS Hub Clearances (`osRole`)** from **Game Spoke C
       ]
     }
   ],
-  "_bodySig": 727533863
+  "_bodySig": 727533863,
+  "isActive": true
 }
 -->
