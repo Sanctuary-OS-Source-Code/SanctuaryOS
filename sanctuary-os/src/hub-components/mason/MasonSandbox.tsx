@@ -492,6 +492,13 @@ export function MasonSandbox({
             .filter((c: any) => c.hash || c.name)
           : parseCsvList(activeMod.conflicts_str);
 
+      let savedSandboxMod: any = {};
+      try {
+        const savedAll = JSON.parse(localStorage.getItem("sanctuary_sandbox_configs") || "{}");
+        const modKey = activeMod.hash || activeMod.id;
+        if (modKey && savedAll[modKey]) savedSandboxMod = savedAll[modKey];
+      } catch {}
+
       const manifest = {
         schema_version: "1.0",
         manifest_url: customManifestUrl || undefined,
@@ -509,6 +516,10 @@ export function MasonSandbox({
             useStore.getState().activeGameSchema?.id ||
             useStore.getState().activeWorkspaceId ||
             "universal",
+          channel: savedSandboxMod.edge_channel || activeMod.edge_channel || "stable",
+          patch_compatibility_matrix: Array.isArray(savedSandboxMod.patch_compatibility_matrix)
+            ? savedSandboxMod.patch_compatibility_matrix
+            : [],
         },
         payload: {
           download_url: customDownloadUrl,
@@ -551,15 +562,27 @@ export function MasonSandbox({
         const modPush = activeMod.edge_push_config || {};
         const mergedPush = { ...globalPush, ...modPush };
         if (mergedPush.provider && mergedPush.provider !== "manual") {
+          const modKey = activeMod.hash || activeMod.id;
+          const scopeKey = modKey ? `mod:${modKey}` : "global";
+          let resolvedToken = String(mergedPush.token || "").trim();
+          if (!resolvedToken && isDesktop()) {
+            resolvedToken =
+              (await invoke<string>("get_edge_push_token", { scopeKey }).catch(() => "")) ||
+              (await invoke<string>("get_edge_push_token", { scopeKey: "global" }).catch(() => ""));
+          }
           pushConfig = {
             provider: mergedPush.provider || "manual",
             target_mode: mergedPush.target_mode || "manifest",
-            token: mergedPush.token || "",
+            token: resolvedToken,
             repo_or_project: mergedPush.repo_or_project || "",
             branch: mergedPush.branch || "main",
             remote_path: mergedPush.remote_path || "",
             custom_endpoint: mergedPush.custom_endpoint || "",
             local_folder_path: mergedPush.local_folder_path || "",
+            s3_bucket: mergedPush.s3_bucket || "",
+            s3_region: mergedPush.s3_region || "auto",
+            s3_access_key_id: mergedPush.s3_access_key_id || "",
+            public_base_url: mergedPush.public_base_url || "",
           };
         }
       } catch { }

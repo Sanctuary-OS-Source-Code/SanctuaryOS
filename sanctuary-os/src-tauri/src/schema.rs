@@ -37,6 +37,34 @@ where
     }
 }
 
+fn deserialize_opt_u32_map_flex<'de, D>(
+    deserializer: D,
+) -> Result<Option<HashMap<String, u32>>, D::Error>
+where
+    D: Deserializer<'de>,
+{
+    let val = Option::<serde_json::Value>::deserialize(deserializer)?;
+    let Some(serde_json::Value::Object(obj)) = val else {
+        return Ok(None);
+    };
+    let mut map = HashMap::new();
+    for (k, v) in obj {
+        let clean_key = k.trim().to_string();
+        if clean_key.is_empty() {
+            continue;
+        }
+        let parsed = match v {
+            serde_json::Value::Number(n) => n.as_u64().map(|x| x.min(u32::MAX as u64) as u32),
+            serde_json::Value::String(s) => s.trim().parse::<u32>().ok(),
+            _ => None,
+        };
+        if let Some(depth) = parsed {
+            map.insert(clean_key, depth);
+        }
+    }
+    Ok(Some(map))
+}
+
 fn deserialize_i32_flex<'de, D>(deserializer: D) -> Result<i32, D::Error>
 where
     D: Deserializer<'de>,
@@ -567,6 +595,134 @@ pub struct LoadOrderSlotBucket {
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, Default)]
+pub struct SchemaExternalRulesSource {
+    #[serde(default)]
+    pub id: String,
+    #[serde(default)]
+    pub label: Option<String>,
+    #[serde(default)]
+    pub source_type: Option<String>,
+    #[serde(default)]
+    pub url: Option<String>,
+    #[serde(default)]
+    pub relative_paths: Option<Vec<String>>,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, Default)]
+pub struct SchemaRuntimeOutputCapture {
+    #[serde(default, deserialize_with = "deserialize_opt_bool_flex")]
+    pub enabled: Option<bool>,
+    #[serde(default, deserialize_with = "deserialize_opt_string_flex")]
+    pub target_vault_folder: Option<String>,
+    #[serde(default)]
+    pub watch_roots: Vec<String>,
+    #[serde(default)]
+    pub include_subdirs: Option<Vec<String>>,
+    #[serde(default)]
+    pub include_extensions: Option<Vec<String>>,
+    #[serde(default)]
+    pub exclude_patterns: Option<Vec<String>>,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, Default)]
+pub struct SchemaIniMutation {
+    #[serde(default)]
+    pub root_source: String,
+    #[serde(default)]
+    pub relative_path: String,
+    #[serde(default)]
+    pub section: String,
+    #[serde(default)]
+    pub key: String,
+    #[serde(default)]
+    pub value: String,
+    #[serde(default, deserialize_with = "deserialize_opt_bool_flex")]
+    pub restore_on_purge: Option<bool>,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, Default)]
+pub struct SchemaPostDeployHook {
+    #[serde(default)]
+    pub id: String,
+    #[serde(default)]
+    pub label: Option<String>,
+    #[serde(default)]
+    pub executable: String,
+    #[serde(default)]
+    pub args: Option<Vec<String>>,
+    #[serde(default)]
+    pub working_dir_source: Option<String>,
+    #[serde(default, deserialize_with = "deserialize_opt_u64_flex")]
+    pub timeout_secs: Option<u64>,
+    #[serde(default, deserialize_with = "deserialize_opt_bool_flex")]
+    pub run_on_purge: Option<bool>,
+    #[serde(default, deserialize_with = "deserialize_opt_bool_flex")]
+    pub optional_if_missing: Option<bool>,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, Default)]
+pub struct SchemaProfileIsolatedDir {
+    #[serde(default)]
+    pub id: String,
+    #[serde(default)]
+    pub label: Option<String>,
+    #[serde(default)]
+    pub root_source: String,
+    #[serde(default)]
+    pub relative_path: String,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, Default)]
+pub struct SchemaArtifactGroupRule {
+    #[serde(default)]
+    pub id: String,
+    #[serde(default)]
+    pub label: Option<String>,
+    #[serde(default)]
+    pub extensions: Vec<String>,
+    #[serde(default)]
+    pub key_strategy: String,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, Default)]
+pub struct SchemaPreviewExtractor {
+    #[serde(default)]
+    pub id: String,
+    #[serde(default)]
+    pub extensions: Vec<String>,
+    #[serde(default)]
+    pub container_magic: Option<String>,
+    #[serde(default, deserialize_with = "deserialize_opt_bool_flex")]
+    pub scan_embedded_png_jpeg: Option<bool>,
+    #[serde(default, deserialize_with = "deserialize_opt_u64_flex")]
+    pub max_scan_bytes: Option<u64>,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, Default)]
+pub struct SchemaExceptionCorrelation {
+    #[serde(default, deserialize_with = "deserialize_opt_bool_flex")]
+    pub enabled: Option<bool>,
+    #[serde(default)]
+    pub id_regexes: Option<Vec<String>>,
+    #[serde(default, deserialize_with = "deserialize_opt_bool_flex")]
+    pub match_chunk_keys: Option<bool>,
+    #[serde(default, deserialize_with = "deserialize_opt_bool_flex")]
+    pub match_relative_paths: Option<bool>,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, Default)]
+pub struct SchemaDeploymentConfig {
+    #[serde(default)]
+    pub runtime_output_capture: Option<SchemaRuntimeOutputCapture>,
+    #[serde(default)]
+    pub ini_mutations: Option<Vec<SchemaIniMutation>>,
+    #[serde(default)]
+    pub post_deploy_hooks: Option<Vec<SchemaPostDeployHook>>,
+    #[serde(default)]
+    pub profile_isolated_dirs: Option<Vec<SchemaProfileIsolatedDir>>,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, Default)]
 pub struct LoadOrderConfig {
     #[serde(default)]
     pub strategy: Option<String>,
@@ -602,6 +758,8 @@ pub struct LoadOrderConfig {
     pub early_master_flag_mask: Option<u32>,
     #[serde(default)]
     pub early_master_extensions: Option<Vec<String>>,
+    #[serde(default)]
+    pub external_rules_sources: Option<Vec<SchemaExternalRulesSource>>,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, Default)]
@@ -704,6 +862,8 @@ pub struct GameSchema {
     #[serde(default)]
     pub load_order: Option<LoadOrderConfig>,
     #[serde(default)]
+    pub deployment: Option<SchemaDeploymentConfig>,
+    #[serde(default)]
     pub install_routes: Option<Vec<SchemaInstallRoute>>,
     #[serde(default)]
     pub lab_verification: Option<SchemaLabVerification>,
@@ -715,6 +875,12 @@ pub struct GameSchema {
     pub mod_unit_mode: Option<String>,
     #[serde(default)]
     pub mod_unit_markers: Option<Vec<String>>,
+    #[serde(default)]
+    pub artifact_groups: Option<Vec<SchemaArtifactGroupRule>>,
+    #[serde(default)]
+    pub preview_extractors: Option<Vec<SchemaPreviewExtractor>>,
+    #[serde(default)]
+    pub exception_correlation: Option<SchemaExceptionCorrelation>,
     #[serde(default)]
     pub gog_app_ids: Option<Vec<String>>,
     #[serde(default)]
@@ -751,6 +917,8 @@ pub struct SchemaPaths {
     pub user_data_dir_mac: Option<String>,
     #[serde(default)]
     pub user_data_dir_linux: Option<String>,
+    #[serde(default, deserialize_with = "deserialize_opt_bool_flex")]
+    pub discover_steam_workshop: Option<bool>,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, Default)]
@@ -792,6 +960,10 @@ pub struct SchemaExtensions {
 pub struct SchemaConstraints {
     #[serde(default, deserialize_with = "deserialize_opt_u32_flex")]
     pub max_folder_depth: Option<u32>,
+    #[serde(default, deserialize_with = "deserialize_opt_u32_flex")]
+    pub max_nested_archive_depth: Option<u32>,
+    #[serde(default, deserialize_with = "deserialize_opt_u32_map_flex")]
+    pub max_depth_by_extension: Option<HashMap<String, u32>>,
     #[serde(default, deserialize_with = "deserialize_opt_bool_flex")]
     pub requires_script_unzipping: Option<bool>,
     #[serde(default, deserialize_with = "deserialize_opt_bool_flex")]
@@ -887,7 +1059,29 @@ mod tests {
 
         let vec_overrides_json = r#"{
             "id": "vec_test",
-            "wine_dll_overrides": ["version=n,b", "DWrite"]
+            "wine_dll_overrides": ["version=n,b", "DWrite"],
+            "load_order": {
+                "external_rules_sources": [
+                    { "id": "loot", "source_type": "loot_yaml", "relative_paths": ["masterlist.yaml"] }
+                ]
+            },
+            "deployment": {
+                "runtime_output_capture": {
+                    "enabled": true,
+                    "target_vault_folder": "_RuntimeOutput",
+                    "watch_roots": ["mods_path"]
+                },
+                "ini_mutations": [
+                    {
+                        "root_source": "docs_path",
+                        "relative_path": "GameCustom.ini",
+                        "section": "Archive",
+                        "key": "bInvalidateOlderFiles",
+                        "value": "1",
+                        "restore_on_purge": true
+                    }
+                ]
+            }
         }"#;
         let parsed_vec: GameSchema =
             serde_json::from_str(vec_overrides_json).expect("parse vec wine_dll_overrides");
@@ -895,5 +1089,81 @@ mod tests {
             parsed_vec.wine_dll_overrides,
             Some(vec!["version=n,b".to_string(), "DWrite".to_string()])
         );
+        let ext_src = &parsed_vec.load_order.as_ref().unwrap().external_rules_sources.as_ref().unwrap()[0];
+        assert_eq!(ext_src.id, "loot");
+        let dep = parsed_vec.deployment.as_ref().unwrap();
+        assert_eq!(dep.runtime_output_capture.as_ref().unwrap().enabled, Some(true));
+        assert_eq!(dep.ini_mutations.as_ref().unwrap()[0].key, "bInvalidateOlderFiles");
+
+        let section8_json = r#"{
+            "id": "sec8_test",
+            "paths": {
+                "discover_steam_workshop": true
+            },
+            "constraints": {
+                "max_nested_archive_depth": "2",
+                "max_depth_by_extension": { ".scriptmod": 1, ".binmod": "5" }
+            },
+            "deployment": {
+                "post_deploy_hooks": [
+                    {
+                        "id": "compiler",
+                        "executable": "tools/compiler.exe",
+                        "args": ["deploy", "{mods_path}"],
+                        "working_dir_source": "live_path",
+                        "timeout_secs": 30,
+                        "optional_if_missing": true
+                    }
+                ],
+                "profile_isolated_dirs": [
+                    {
+                        "id": "cfg",
+                        "root_source": "live_path",
+                        "relative_path": "ModLoader/config"
+                    }
+                ]
+            },
+            "artifact_groups": [
+                {
+                    "id": "bundle",
+                    "extensions": [".a", ".b"],
+                    "key_strategy": "shared_hex_stem"
+                }
+            ],
+            "preview_extractors": [
+                {
+                    "id": "thumb",
+                    "extensions": [".binmod"],
+                    "container_magic": "BINM",
+                    "scan_embedded_png_jpeg": true,
+                    "max_scan_bytes": 4194304
+                }
+            ],
+            "exception_correlation": {
+                "enabled": true,
+                "id_regexes": ["0x[0-9a-fA-F]{8,16}"],
+                "match_chunk_keys": true,
+                "match_relative_paths": true
+            }
+        }"#;
+        let parsed_sec8: GameSchema =
+            serde_json::from_str(section8_json).expect("parse section 8 schema fields");
+        assert_eq!(parsed_sec8.paths.discover_steam_workshop, Some(true));
+        let sc = parsed_sec8.constraints.as_ref().unwrap();
+        assert_eq!(sc.max_nested_archive_depth, Some(2));
+        assert_eq!(
+            sc.max_depth_by_extension.as_ref().and_then(|m| m.get(".scriptmod")).copied(),
+            Some(1)
+        );
+        assert_eq!(
+            sc.max_depth_by_extension.as_ref().and_then(|m| m.get(".binmod")).copied(),
+            Some(5)
+        );
+        assert_eq!(parsed_sec8.artifact_groups.as_ref().unwrap().len(), 1);
+        assert_eq!(parsed_sec8.preview_extractors.as_ref().unwrap()[0].max_scan_bytes, Some(4194304));
+        assert_eq!(parsed_sec8.exception_correlation.as_ref().unwrap().enabled, Some(true));
+        let sdep = parsed_sec8.deployment.as_ref().unwrap();
+        assert_eq!(sdep.post_deploy_hooks.as_ref().unwrap()[0].timeout_secs, Some(30));
+        assert_eq!(sdep.profile_isolated_dirs.as_ref().unwrap()[0].relative_path, "ModLoader/config");
     }
 }

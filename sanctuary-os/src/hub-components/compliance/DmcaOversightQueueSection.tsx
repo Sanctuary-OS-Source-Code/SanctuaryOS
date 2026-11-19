@@ -36,6 +36,13 @@ function getNoticeStatusMeta(notice: any, t: (k: string, f?: string) => string) 
     };
   }
   switch (status) {
+    case "AWAITING_AUTHORITY":
+      return {
+        label: t("dmca_status_awaiting_authority", "Verify Authority (SLA Paused)"),
+        color: "warning" as const,
+        iconName: t("icon_verified_user", "verified_user"),
+        iconColorClass: "text-[var(--warning)]",
+      };
     case "SPOKE_PENDING_SLA":
       return {
         label: t("dmca_status_spoke_sla", "48h Spoke SLA"),
@@ -141,9 +148,13 @@ export default function DmcaOversightQueueSection({
       const rows = Array.isArray(data?.notices) ? data.notices : [];
       setNotices(rows);
       const pendingCount = rows.filter((r: any) =>
-        ["OPEN", "SPOKE_PENDING_SLA", "VALIDATED_HOLD", "COUNTER_NOTICE_PENDING_10_14D"].includes(
-          String(r?.relay_status || "").toUpperCase()
-        )
+        [
+          "OPEN",
+          "SPOKE_PENDING_SLA",
+          "AWAITING_AUTHORITY",
+          "VALIDATED_HOLD",
+          "COUNTER_NOTICE_PENDING_10_14D",
+        ].includes(String(r?.relay_status || "").toUpperCase())
       ).length;
       onCountChange?.(pendingCount);
     } catch (err: any) {
@@ -162,6 +173,7 @@ export default function DmcaOversightQueueSection({
   const handleTriage = async (
     triageAction:
       | "VALIDATE_TAKEDOWN"
+      | "HOLD_VERIFY_AUTHORITY"
       | "REJECT_NOTICE"
       | "ACCEPT_COUNTER_NOTICE"
       | "RESTORE_MATERIAL"
@@ -206,17 +218,22 @@ export default function DmcaOversightQueueSection({
                 "dmca_triage_validated_toast",
                 "DMCA takedown validated — target soft-delisted (Tier 6) and public {Blueprint} hashes stripped."
               )
-            : triageAction === "RESTORE_MATERIAL"
+            : triageAction === "HOLD_VERIFY_AUTHORITY"
               ? t(
-                  "dmca_triage_restored_toast",
-                  "Material restored to public visibility (Tier 0) and strike adjusted."
+                  "dmca_triage_authority_hold_toast",
+                  "Notice paused for claimant authority verification — 48h SLA paused and content kept live."
                 )
-              : triageAction === "ACCEPT_COUNTER_NOTICE"
+              : triageAction === "RESTORE_MATERIAL"
                 ? t(
-                    "dmca_triage_counter_toast",
-                    "Counter-notice accepted — 10–14 business day statutory clock started."
+                    "dmca_triage_restored_toast",
+                    "Material restored to public visibility (Tier 0) and strike adjusted."
                   )
-                : t("dmca_triage_rejected_toast", "DMCA notice rejected as incomplete/invalid."),
+                : triageAction === "ACCEPT_COUNTER_NOTICE"
+                  ? t(
+                      "dmca_triage_counter_toast",
+                      "Counter-notice accepted — 10–14 business day statutory clock started."
+                    )
+                  : t("dmca_triage_rejected_toast", "DMCA notice rejected as incomplete/invalid."),
           "success"
         );
       setSelectedNotice(null);
@@ -494,6 +511,21 @@ export default function DmcaOversightQueueSection({
                   </span>
                 </span>
               </div>
+              {selectedNotice.authority_check_recommended && (
+                <div className="mt-2 glass-surface rounded-xl p-3 border border-[color-mix(in_srgb,var(--warning)_28%,transparent)] bg-[color-mix(in_srgb,var(--warning)_6%,transparent)] flex items-start gap-2.5">
+                  <span className="material-symbols-outlined !text-[18px] text-[var(--warning)] shrink-0 mt-0.5">
+                    {t("icon_warning", "warning")}
+                  </span>
+                  <div className="flex flex-col gap-0.5 min-w-0 no-text-case">
+                    <span className="text-xs font-black text-[var(--warning)] no-text-case">
+                      {t("dmca_authority_mismatch_title", "Authority Verification Recommended")}
+                    </span>
+                    <span className="text-[11px] text-[var(--subtext)] leading-relaxed no-text-case">
+                      {`${t("dmca_authority_mismatch_body", "Claimant listed an organization or agent while filing from consumer webmail")} (@${selectedNotice.claimant_email_domain || ""}). ${t("dmca_authority_mismatch_hint", "Pause with Hold — Verify Authority before acting unless authorization is confirmed.")}`}
+                    </span>
+                  </div>
+                </div>
+              )}
             </UniversalGroup>
 
             <UniversalGroup
@@ -528,6 +560,65 @@ export default function DmcaOversightQueueSection({
               title={t("dmca_triage_actions_title", "Oversight & Wayfinder Triage Actions")}
               icon={t("icon_admin_panel_settings", "admin_panel_settings")}
             >
+              <div className="flex flex-col gap-1.5">
+                <span className="text-[10px] font-black uppercase tracking-wider text-[var(--subtext)] opacity-80 px-1">
+                  {t("dmca_triage_presets_label", "Safe Harbor Triage Presets")}
+                </span>
+                <div className="flex flex-wrap gap-2">
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setResolutionNotes(
+                        t(
+                          "dmca_preset_defective_id_note",
+                          "Rejected under 17 U.S.C. § 512(c)(3)(A): Notice uses an alias/incomplete identity, missing physical street address, or omits exact target UUID/hash/{Blueprint} identifiers."
+                        )
+                      )
+                    }
+                    className={`${VAULT_CHIP_CLASS} cursor-pointer hover:border-[var(--accent)] no-text-case`}
+                  >
+                    <span className="material-symbols-outlined !text-[12px] text-[var(--warning)]">
+                      {t("icon_badge", "badge")}
+                    </span>
+                    <span>{t("dmca_preset_defective_id", "§ 512(c)(3) Fake / Defective Identity")}</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setResolutionNotes(
+                        t(
+                          "dmca_preset_non_copyright_note",
+                          "Rejected under 17 U.S.C. § 102(b): Copyright covers original expression only — claims over {mod} concepts/ideas, gameplay mechanics, titles, or personal disputes fail statutory subject-matter requirements."
+                        )
+                      )
+                    }
+                    className={`${VAULT_CHIP_CLASS} cursor-pointer hover:border-[var(--accent)] no-text-case`}
+                  >
+                    <span className="material-symbols-outlined !text-[12px] text-[var(--warning)]">
+                      {t("icon_rule", "rule")}
+                    </span>
+                    <span>{t("dmca_preset_non_copyright", "§ 102(b) Idea / Mechanics / Drama")}</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setResolutionNotes(
+                        t(
+                          "dmca_preset_verify_authority_note",
+                          "Paused pending 17 U.S.C. § 512(c)(3)(A)(i)/(vi) authority verification: Claimant must verify corporate domain email or written authorization to act on behalf of the stated rights holder before content is removed."
+                        )
+                      )
+                    }
+                    className={`${VAULT_CHIP_CLASS} cursor-pointer hover:border-[var(--accent)] no-text-case`}
+                  >
+                    <span className="material-symbols-outlined !text-[12px] text-[var(--accent)]">
+                      {t("icon_verified_user", "verified_user")}
+                    </span>
+                    <span>{t("dmca_preset_verify_authority", "Verify Studio / Agent Authority")}</span>
+                  </button>
+                </div>
+              </div>
+
               <UniversalTextArea
                 label={t("dmca_resolution_notes_label", "Triage Resolution / Audit Notes (Required for Rejection)")}
                 value={resolutionNotes}
@@ -548,6 +639,16 @@ export default function DmcaOversightQueueSection({
                   label={t(
                     "dmca_btn_validate_hold",
                     "Validate & Soft-Hide (Tier 6)"
+                  )}
+                />
+                <ActionButton
+                  disabled={isActing}
+                  onClick={() => handleTriage("HOLD_VERIFY_AUTHORITY")}
+                  variant="glass"
+                  icon={t("icon_verified_user", "verified_user")}
+                  label={t(
+                    "dmca_btn_hold_authority",
+                    "Hold — Verify Authority (Pause SLA)"
                   )}
                 />
                 <ActionButton
@@ -575,6 +676,7 @@ export default function DmcaOversightQueueSection({
                   onClick={() => handleTriage("REJECT_NOTICE")}
                   variant="glass"
                   icon={t("icon_cancel", "cancel")}
+                  className="sm:col-span-2"
                   label={t(
                     "dmca_btn_reject_invalid",
                     "Reject Incomplete Notice"

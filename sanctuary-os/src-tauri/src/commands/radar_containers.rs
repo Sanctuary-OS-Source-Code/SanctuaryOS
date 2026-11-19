@@ -1,8 +1,11 @@
 use crate::schema::SchemaConflictAnalyzer;
+use crc32fast::Hasher as Crc32Hasher;
 use flate2::read::ZlibDecoder;
+use std::collections::HashMap;
 use std::fs::File;
 use std::io::{BufReader, Read, Seek, SeekFrom};
-use std::path::Path;
+use std::path::{Path, PathBuf};
+use std::sync::{Arc, Mutex, OnceLock};
 
 const MAX_TOC_ENTRIES: usize = 8192;
 const MAX_RECORD_KEYS: usize = 8192;
@@ -212,104 +215,242 @@ fn read_ue_fstring(bytes: &[u8], pos: &mut usize) -> Option<String> {
     }
 }
 
+fn normalize_ue_pak_path(clean_mount: &str, raw_rel: &str) -> String {
+    let rel = raw_rel
+        .trim()
+        .trim_matches('/')
+        .trim_start_matches("../../../")
+        .replace('\\', "/")
+        .to_lowercase();
+    let trimmed_rel = rel.trim_matches('/');
+    if trimmed_rel.is_empty() {
+        return String::new();
+    }
+    if clean_mount.is_empty() {
+        trimmed_rel.to_string()
+    } else {
+        format!("{}/{}", clean_mount, trimmed_rel)
+    }
+}
+
 fn extract_unreal_pak_toc(file: &mut BufReader<File>, file_len: u64) -> Vec<String> {
     const PAK_MAGIC: u32 = 0x5A6F_12E1;
-    let candidate_footer_offsets = [44u64, 45u64, 204u64, 205u64, 221u64];
-    for back in candidate_footer_offsets {
-        if file_len <= back {
-            continue;
-        }
-        let footer_pos = file_len - back;
-        if file.seek(SeekFrom::Start(footer_pos)).is_err() {
-            continue;
-        }
-        let mut fbuf = vec![0u8; back as usize];
-        if file.read_exact(&mut fbuf).is_err() {
-            continue;
-        }
-        // Scan footer for UE Pak magic followed by version + index_offset + index_size
-        let mut found_idx: Option<(u64, u64)> = None;
-        for off in 0..fbuf.len().saturating_sub(24) {
-            if read_le_u32(&fbuf[off..off + 4]) == PAK_MAGIC {
-                let version = read_le_u32(&fbuf[off + 4..off + 8]);
-                if (1..=12).contains(&version) {
-                    let idx_off = read_le_u64(&fbuf[off + 8..off + 16]);
-                    let idx_size = read_le_u64(&fbuf[off + 16..off + 24]);
-                    if idx_off < file_len && idx_size > 0 && idx_size <= 16 * 1024 * 1024 {
-                        found_idx = Some((idx_off, idx_size));
-                        break;
-                    }
-                }
-            }
-        }
-        if let Some((idx_off, idx_size)) = found_idx {
-            if file.seek(SeekFrom::Start(idx_off)).is_err() {
-                break;
-            }
-            let mut idx_buf = vec![0u8; idx_size as usize];
-            if file.read_exact(&mut idx_buf).is_err() {
-                break;
-            }
-            let mut pos = 0usize;
-            let Some(mount_point) = read_ue_fstring(&idx_buf, &mut pos) else {
-                break;
-            };
-            if pos + 4 > idx_buf.len() {
-                break;
-            }
-            let count = (read_le_u32(&idx_buf[pos..pos + 4]) as usize).min(MAX_TOC_ENTRIES);
-            pos += 4;
-            let clean_mount = mount_point
-                .trim_start_matches("../../../")
-                .trim_matches('/')
-                .to_lowercase();
-            let mut keys = Vec::new();
-            for _ in 0..count {
-                let Some(entry_name) = read_ue_fstring(&idx_buf, &mut pos) else {
+    const MAX_PAK_INDEX_BYTES: u64 = 64 * 1024 * 1024;
+    if file_len < 44 {
+        return Vec::new();
+    }
+
+    // Read tail window once to locate PAK_MAGIC across all UE4/UE5 footer sizes (44B..320B).
+    let tail_len = file_len.min(320) as usize;
+    let footer_pos = file_len - tail_len as u64;
+    if file.seek(SeekFrom::Start(footer_pos)).is_err() {
+        return Vec::new();
+    }
+    let mut fbuf = vec![0u8; tail_len];
+    if file.read_exact(&mut fbuf).is_err() {
+        return Vec::new();
+    }
+
+    let mut found_footer: Option<(u32, bool, u64, u64)> = None;
+    for off in (0..=fbuf.len().saturating_sub(44)).rev() {
+        if read_le_u32(&fbuf[off..off + 4]) == PAK_MAGIC {
+            let version = read_le_u32(&fbuf[off + 4..off + 8]);
+            if (1..=12).contains(&version) {
+                let idx_off = read_le_u64(&fbuf[off + 8..off + 16]);
+                let idx_size = read_le_u64(&fbuf[off + 16..off + 24]);
+                let encrypted_index = version >= 4 && off >= 1 && fbuf[off - 1] != 0;
+                if idx_off < file_len && idx_size > 0 && idx_size <= MAX_PAK_INDEX_BYTES {
+                    found_footer = Some((version, encrypted_index, idx_off, idx_size));
                     break;
-                };
-                let rel = entry_name.trim_matches('/').replace('\\', "/").to_lowercase();
-                if !rel.is_empty() {
-                    let full = if clean_mount.is_empty() {
-                        rel
-                    } else {
-                        format!("{}/{}", clean_mount, rel)
-                    };
-                    keys.push(format!("pak:{}", full));
-                }
-                // Skip fixed PakEntry metadata: offset(8)+size(8)+uncomp(8)+comp_method(4)+sha1(20)+flags(1)+comp_block_size(4) >= 53 bytes heuristic unavailable accurately across versions; fallback below handles packed index!
-                break;
-            }
-            // Fallback string scan across unencrypted index buffer for UE .uasset/.umap/.ini/.json paths
-            if keys.len() <= 1 {
-                keys.clear();
-                let mut i = 4;
-                while i + 4 < idx_buf.len() && keys.len() < MAX_TOC_ENTRIES {
-                    let slen = read_le_i32(&idx_buf[i..i + 4]);
-                    if slen > 4 && slen < 320 && i + 4 + (slen as usize) <= idx_buf.len() {
-                        let candidate = &idx_buf[i + 4..i + 4 + (slen as usize)];
-                        if candidate.ends_with(&[0])
-                            && candidate[..candidate.len() - 1]
-                                .iter()
-                                .all(|b| b.is_ascii_graphic() || *b == b' ')
-                        {
-                            let s = String::from_utf8_lossy(&candidate[..candidate.len() - 1])
-                                .replace('\\', "/")
-                                .to_lowercase();
-                            if s.contains('/') && !s.starts_with("../../../") {
-                                keys.push(format!("pak:{}", s));
-                            }
-                            i += 4 + (slen as usize);
-                            continue;
-                        }
-                    }
-                    i += 1;
                 }
             }
-            return keys;
         }
     }
-    Vec::new()
+
+    let Some((version, encrypted_index, idx_off, idx_size)) = found_footer else {
+        return Vec::new();
+    };
+    if encrypted_index {
+        return Vec::new();
+    }
+    if file.seek(SeekFrom::Start(idx_off)).is_err() {
+        return Vec::new();
+    }
+    let mut idx_buf = vec![0u8; idx_size as usize];
+    if file.read_exact(&mut idx_buf).is_err() {
+        return Vec::new();
+    }
+
+    let mut pos = 0usize;
+    let Some(mount_point) = read_ue_fstring(&idx_buf, &mut pos) else {
+        return Vec::new();
+    };
+    if pos + 4 > idx_buf.len() {
+        return Vec::new();
+    }
+    let entry_count = (read_le_i32(&idx_buf[pos..pos + 4]).max(0) as usize).min(MAX_TOC_ENTRIES);
+    pos += 4;
+    let clean_mount = mount_point
+        .trim_start_matches("../../../")
+        .trim_matches('/')
+        .replace('\\', "/")
+        .to_lowercase();
+
+    let mut keys: Vec<String> = Vec::new();
+
+    if version >= 8 {
+        // UE4.22+/UE5 PathHashIndex + FullDirectoryIndex header
+        if pos + 8 + 4 <= idx_buf.len() {
+            pos += 8; // PathHashSeed: u64
+            let has_path_hash_index = read_le_i32(&idx_buf[pos..pos + 4]);
+            pos += 4;
+            if has_path_hash_index != 0 {
+                if pos + 36 > idx_buf.len() {
+                    pos = idx_buf.len();
+                } else {
+                    pos += 8 + 8 + 20; // PathHashIndexOffset + Size + SHA1
+                }
+            }
+            if pos + 4 <= idx_buf.len() {
+                let has_full_dir_index = read_le_i32(&idx_buf[pos..pos + 4]);
+                pos += 4;
+                if has_full_dir_index != 0 && pos + 36 <= idx_buf.len() {
+                    let full_dir_off = read_le_u64(&idx_buf[pos..pos + 8]);
+                    let full_dir_size = read_le_u64(&idx_buf[pos + 8..pos + 16]);
+                    if full_dir_off < file_len
+                        && full_dir_size >= 4
+                        && full_dir_size <= MAX_PAK_INDEX_BYTES
+                        && file.seek(SeekFrom::Start(full_dir_off)).is_ok()
+                    {
+                        let mut dir_buf = vec![0u8; full_dir_size as usize];
+                        if file.read_exact(&mut dir_buf).is_ok() && dir_buf.len() >= 4 {
+                            let mut dp = 0usize;
+                            let dir_count =
+                                (read_le_i32(&dir_buf[dp..dp + 4]).max(0) as usize).min(MAX_TOC_ENTRIES);
+                            dp += 4;
+                            'dirs: for _ in 0..dir_count {
+                                let Some(dir_name) = read_ue_fstring(&dir_buf, &mut dp) else {
+                                    break;
+                                };
+                                if dp + 4 > dir_buf.len() {
+                                    break;
+                                }
+                                let files_in_dir = (read_le_i32(&dir_buf[dp..dp + 4]).max(0)
+                                    as usize)
+                                    .min(MAX_TOC_ENTRIES);
+                                dp += 4;
+                                let clean_dir = dir_name
+                                    .replace('\\', "/")
+                                    .trim_matches('/')
+                                    .to_string();
+                                for _ in 0..files_in_dir {
+                                    let Some(fname) = read_ue_fstring(&dir_buf, &mut dp) else {
+                                        break 'dirs;
+                                    };
+                                    if dp + 4 > dir_buf.len() {
+                                        break 'dirs;
+                                    }
+                                    dp += 4; // EncodedPakEntry offset: i32
+                                    let joined = if clean_dir.is_empty() {
+                                        fname
+                                    } else {
+                                        format!("{}/{}", clean_dir, fname.trim_start_matches('/'))
+                                    };
+                                    let full = normalize_ue_pak_path(&clean_mount, &joined);
+                                    if !full.is_empty() {
+                                        keys.push(format!("pak:{}", full));
+                                        if keys.len() >= MAX_TOC_ENTRIES {
+                                            break 'dirs;
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    } else {
+        // Legacy UE4 v1..v7 inline FPakEntry index records
+        for _ in 0..entry_count {
+            let Some(entry_name) = read_ue_fstring(&idx_buf, &mut pos) else {
+                break;
+            };
+            let full = normalize_ue_pak_path(&clean_mount, &entry_name);
+            if !full.is_empty() {
+                keys.push(format!("pak:{}", full));
+                if keys.len() >= MAX_TOC_ENTRIES {
+                    break;
+                }
+            }
+            if pos + 28 > idx_buf.len() {
+                break;
+            }
+            let comp_method = read_le_u32(&idx_buf[pos + 24..pos + 28]);
+            pos += 28; // offset(8) + size(8) + uncomp(8) + comp_method(4)
+            if version <= 1 {
+                if pos + 8 > idx_buf.len() {
+                    break;
+                }
+                pos += 8; // timestamp: u64
+            }
+            if pos + 20 > idx_buf.len() {
+                break;
+            }
+            pos += 20; // sha1: [u8; 20]
+            if version >= 3 {
+                if comp_method != 0 {
+                    if pos + 4 > idx_buf.len() {
+                        break;
+                    }
+                    let block_count = read_le_u32(&idx_buf[pos..pos + 4]) as usize;
+                    pos += 4;
+                    let block_bytes = block_count.saturating_mul(16);
+                    if pos + block_bytes > idx_buf.len() {
+                        break;
+                    }
+                    pos += block_bytes;
+                }
+                if pos + 1 > idx_buf.len() {
+                    break;
+                }
+                pos += 1; // Flags: u8
+            }
+            if version >= 4 {
+                if pos + 4 > idx_buf.len() {
+                    break;
+                }
+                pos += 4; // CompressionBlockSize: u32
+            }
+        }
+    }
+
+    // Printable ASCII FString sweep if the index layout had custom padding
+    if keys.is_empty() {
+        let mut i = 4usize;
+        while i + 4 < idx_buf.len() && keys.len() < MAX_TOC_ENTRIES {
+            let slen = read_le_i32(&idx_buf[i..i + 4]);
+            if slen > 4 && slen < 320 && i + 4 + (slen as usize) <= idx_buf.len() {
+                let candidate = &idx_buf[i + 4..i + 4 + (slen as usize)];
+                if candidate.ends_with(&[0])
+                    && candidate[..candidate.len() - 1]
+                        .iter()
+                        .all(|b| b.is_ascii_graphic() || *b == b' ')
+                {
+                    let s = String::from_utf8_lossy(&candidate[..candidate.len() - 1])
+                        .replace('\\', "/")
+                        .to_lowercase();
+                    if s.contains('/') && !s.starts_with("../../../") {
+                        keys.push(format!("pak:{}", s));
+                    }
+                    i += 4 + (slen as usize);
+                    continue;
+                }
+            }
+            i += 1;
+        }
+    }
+    keys
 }
 
 #[derive(Debug, Clone)]
@@ -827,48 +968,73 @@ pub fn extract_container_toc_keys(
     Vec::new()
 }
 
-pub fn extract_chunked_record_keys(
-    path: &Path,
-    analyzer: &SchemaConflictAnalyzer,
-) -> Vec<String> {
-    let Ok(bytes) = std::fs::read(path) else {
-        return Vec::new();
-    };
-    if bytes.len() < 20 || &bytes[0..4] != b"TES4" {
-        return Vec::new();
+type TesMasterRecordMap = HashMap<([u8; 4], u32), (u32, u32)>;
+
+fn tes_master_crc_cache(
+) -> &'static Mutex<HashMap<(PathBuf, u64, u64), Arc<TesMasterRecordMap>>> {
+    static CACHE: OnceLock<Mutex<HashMap<(PathBuf, u64, u64), Arc<TesMasterRecordMap>>>> =
+        OnceLock::new();
+    CACHE.get_or_init(|| Mutex::new(HashMap::new()))
+}
+
+fn hash_tes4_record_payload<R: Read>(
+    reader: &mut BufReader<R>,
+    size_field: u64,
+    flags: u32,
+) -> Option<u32> {
+    const MAX_RECORD_PAYLOAD_BYTES: u64 = 32 * 1024 * 1024;
+    if size_field > MAX_RECORD_PAYLOAD_BYTES {
+        return None;
     }
-    // Legacy 20-byte chunked record header (HEDR at offset 20) vs 24-byte header (HEDR at offset 24).
-    let rec_hdr_len = if bytes.len() >= 24 && &bytes[20..24] == b"HEDR" {
-        20usize
+    let mut hasher = Crc32Hasher::new();
+    let mut buf = [0u8; 8192];
+    if (flags & 0x0004_0000) != 0 && size_field >= 4 {
+        let mut ulen_bytes = [0u8; 4];
+        reader.read_exact(&mut ulen_bytes).ok()?;
+        let expected_uncomp = read_le_u32(&ulen_bytes) as u64;
+        if expected_uncomp > 64 * 1024 * 1024 {
+            return None;
+        }
+        let limited = reader.take(size_field - 4);
+        let mut decoder = ZlibDecoder::new(limited);
+        let mut total_out: u64 = 0;
+        loop {
+            let n = decoder.read(&mut buf).ok()?;
+            if n == 0 {
+                break;
+            }
+            total_out = total_out.saturating_add(n as u64);
+            if total_out > 64 * 1024 * 1024 {
+                return None;
+            }
+            hasher.update(&buf[..n]);
+        }
     } else {
-        24usize
-    };
-    if bytes.len() < rec_hdr_len {
-        return Vec::new();
+        let mut remaining = size_field;
+        while remaining > 0 {
+            let chunk = (remaining as usize).min(buf.len());
+            reader.read_exact(&mut buf[..chunk]).ok()?;
+            hasher.update(&buf[..chunk]);
+            remaining -= chunk as u64;
+        }
     }
+    Some(hasher.finalize())
+}
 
-    let filter_tags: Vec<String> = analyzer
-        .selector_path
-        .as_deref()
-        .unwrap_or("")
-        .split(',')
-        .map(str::trim)
-        .filter(|s| !s.is_empty())
-        .map(|s| s.to_ascii_uppercase())
-        .collect();
-
-    // Parse TES4 header first to map master indices -> master plugin filenames
-    let tes4_size = read_le_u32(&bytes[4..8]) as usize;
-    let tes4_end = rec_hdr_len.saturating_add(tes4_size).min(bytes.len());
-    let mut masters: Vec<String> = Vec::new();
-    let mut hp = rec_hdr_len;
-    while hp + 6 <= tes4_end {
-        let sub = &bytes[hp..hp + 4];
-        let slen = read_le_u16(&bytes[hp + 4..hp + 6]) as usize;
+fn collect_tes4_masters(tes4_sub: &[u8]) -> Vec<String> {
+    let mut masters = Vec::new();
+    let mut hp = 0usize;
+    let mut next_xxxx_size: Option<usize> = None;
+    while hp + 6 <= tes4_sub.len() {
+        let sub = &tes4_sub[hp..hp + 4];
+        let raw_len = read_le_u16(&tes4_sub[hp + 4..hp + 6]) as usize;
         let d_start = hp + 6;
-        let d_end = d_start.saturating_add(slen).min(tes4_end);
-        if sub == b"MAST" {
-            let m = String::from_utf8_lossy(&bytes[d_start..d_end])
+        let slen = next_xxxx_size.take().unwrap_or(raw_len);
+        let d_end = d_start.saturating_add(slen).min(tes4_sub.len());
+        if sub == b"XXXX" && slen == 4 && d_start + 4 <= d_end {
+            next_xxxx_size = Some(read_le_u32(&tes4_sub[d_start..d_start + 4]) as usize);
+        } else if sub == b"MAST" {
+            let m = String::from_utf8_lossy(&tes4_sub[d_start..d_end])
                 .trim_end_matches('\0')
                 .trim()
                 .to_ascii_lowercase();
@@ -878,6 +1044,66 @@ pub fn extract_chunked_record_keys(
         }
         hp = d_end;
     }
+    masters
+}
+
+fn stream_tes4_records(
+    path: &Path,
+    filter_tags: Option<&[String]>,
+    check_itm: bool,
+    build_index_map: bool,
+) -> (Vec<String>, TesMasterRecordMap, usize) {
+    let Ok(meta) = std::fs::metadata(path) else {
+        return (Vec::new(), HashMap::new(), 0);
+    };
+    let file_len = meta.len();
+    if file_len < 24 {
+        return (Vec::new(), HashMap::new(), 0);
+    }
+    let Ok(file_handle) = File::open(path) else {
+        return (Vec::new(), HashMap::new(), 0);
+    };
+    let mut reader = BufReader::with_capacity(64 * 1024, file_handle);
+
+    let mut hdr24 = [0u8; 24];
+    if reader.read_exact(&mut hdr24).is_err() || &hdr24[0..4] != b"TES4" {
+        return (Vec::new(), HashMap::new(), 0);
+    }
+    // Legacy 20-byte chunked record header (HEDR at offset 20) vs 24-byte header (HEDR at offset 24).
+    let rec_hdr_len: usize = if &hdr24[20..24] == b"HEDR" { 20 } else { 24 };
+    let tes4_size = read_le_u32(&hdr24[4..8]) as u64;
+    if tes4_size > 16 * 1024 * 1024 {
+        return (Vec::new(), HashMap::new(), 0);
+    }
+    let tes4_end = (rec_hdr_len as u64).saturating_add(tes4_size).min(file_len);
+    let actual_tes4_len = tes4_end.saturating_sub(rec_hdr_len as u64) as usize;
+    if reader.seek(SeekFrom::Start(rec_hdr_len as u64)).is_err() {
+        return (Vec::new(), HashMap::new(), 0);
+    }
+    let mut tes4_sub = vec![0u8; actual_tes4_len];
+    if actual_tes4_len > 0 && reader.read_exact(&mut tes4_sub).is_err() {
+        return (Vec::new(), HashMap::new(), 0);
+    }
+    let masters = collect_tes4_masters(&tes4_sub);
+
+    let mut master_maps: Vec<Option<Arc<TesMasterRecordMap>>> = Vec::new();
+    if check_itm && !masters.is_empty() {
+        if let Some(parent_dir) = path.parent() {
+            let self_canon = crate::utils::resolve_canonical_target(path).ok();
+            for master_name in &masters {
+                let mpath = crate::utils::resolve_case_insensitive_path(parent_dir, master_name);
+                let is_self = self_canon.as_ref().map_or(false, |sc| {
+                    crate::utils::resolve_canonical_target(&mpath)
+                        .map_or(false, |mc| &mc == sc)
+                });
+                if !is_self && mpath.is_file() {
+                    master_maps.push(get_or_build_master_crc_map(&mpath));
+                } else {
+                    master_maps.push(None);
+                }
+            }
+        }
+    }
 
     let self_name = path
         .file_name()
@@ -886,32 +1112,148 @@ pub fn extract_chunked_record_keys(
         .to_ascii_lowercase();
 
     let mut keys = Vec::new();
+    let mut index_map = HashMap::new();
+    let mut itm_count = 0usize;
     let mut pos = tes4_end;
-    while pos + rec_hdr_len <= bytes.len() && keys.len() < MAX_RECORD_KEYS {
-        let tag_bytes = &bytes[pos..pos + 4];
-        let tag = String::from_utf8_lossy(tag_bytes).to_string();
-        let data_size = read_le_u32(&bytes[pos + 4..pos + 8]) as usize;
-        if tag_bytes == b"GRUP" {
-            pos += rec_hdr_len;
+
+    while pos + (rec_hdr_len as u64) <= file_len {
+        if !build_index_map && keys.len() >= MAX_RECORD_KEYS {
+            break;
+        }
+        if reader.seek(SeekFrom::Start(pos)).is_err() {
+            break;
+        }
+        let mut rhdr = [0u8; 24];
+        if reader.read_exact(&mut rhdr[..rec_hdr_len]).is_err() {
+            break;
+        }
+        let mut tag_bytes = [0u8; 4];
+        tag_bytes.copy_from_slice(&rhdr[0..4]);
+        let size_field = read_le_u32(&rhdr[4..8]) as u64;
+        if &tag_bytes == b"GRUP" {
+            if size_field < rec_hdr_len as u64 {
+                break;
+            }
+            pos = pos.saturating_add(rec_hdr_len as u64);
             continue;
         }
-        let form_id = read_le_u32(&bytes[pos + 12..pos + 16]);
-        let next_pos = pos.saturating_add(rec_hdr_len).saturating_add(data_size);
-        if next_pos <= pos || next_pos > bytes.len() {
+
+        let flags = read_le_u32(&rhdr[8..12]);
+        let form_id = read_le_u32(&rhdr[12..16]);
+        let data_end = pos
+            .saturating_add(rec_hdr_len as u64)
+            .saturating_add(size_field);
+        if data_end <= pos || data_end > file_len {
             break;
         }
 
-        if filter_tags.is_empty() || filter_tags.iter().any(|ft| ft == &tag) {
-            let master_idx = ((form_id >> 24) & 0xFF) as usize;
+        // Skip ignored records cleanly
+        if (flags & 0x0000_1000) != 0 {
+            pos = data_end;
+            continue;
+        }
+
+        let norm_flags = flags & 0x0000_0020; // preserve Deleted flag
+        let local_id = form_id & 0x00FF_FFFF;
+        let master_idx = ((form_id >> 24) & 0xFF) as usize;
+        let needs_crc = build_index_map
+            || (check_itm
+                && master_idx < master_maps.len()
+                && master_maps[master_idx].is_some());
+
+        let payload_crc_opt = if needs_crc {
+            hash_tes4_record_payload(&mut reader, size_field, flags)
+        } else {
+            None
+        };
+
+        if build_index_map {
+            if let Some(crc) = payload_crc_opt {
+                index_map.insert((tag_bytes, local_id), (norm_flags, crc));
+            }
+            pos = data_end;
+            continue;
+        }
+
+        let is_itm = if let (Some(Some(mmap)), Some(crc)) =
+            (master_maps.get(master_idx), payload_crc_opt)
+        {
+            mmap.get(&(tag_bytes, local_id)) == Some(&(norm_flags, crc))
+        } else {
+            false
+        };
+
+        if is_itm {
+            itm_count = itm_count.saturating_add(1);
+            pos = data_end;
+            continue;
+        }
+
+        let tag = String::from_utf8_lossy(&tag_bytes).to_string();
+        let tag_matched = filter_tags
+            .map(|ft| ft.is_empty() || ft.iter().any(|x| x == &tag))
+            .unwrap_or(true);
+        if tag_matched {
             let owner_master = if master_idx < masters.len() {
                 masters[master_idx].as_str()
             } else {
                 self_name.as_str()
             };
-            keys.push(format!("rec:{}:{}:{:06x}", owner_master, tag, form_id & 0x00FF_FFFF));
+            keys.push(format!("rec:{}:{}:{:06x}", owner_master, tag, local_id));
         }
-        pos = next_pos;
+
+        pos = data_end;
     }
+
+    (keys, index_map, itm_count)
+}
+
+fn get_or_build_master_crc_map(master_path: &Path) -> Option<Arc<TesMasterRecordMap>> {
+    let meta = std::fs::metadata(master_path).ok()?;
+    let mtime_secs = meta
+        .modified()
+        .ok()
+        .and_then(|t| t.duration_since(std::time::UNIX_EPOCH).ok())
+        .map(|d| d.as_secs())
+        .unwrap_or(0);
+    let cache_key = (master_path.to_path_buf(), meta.len(), mtime_secs);
+
+    if let Ok(guard) = tes_master_crc_cache().lock() {
+        if let Some(cached) = guard.get(&cache_key) {
+            return Some(Arc::clone(cached));
+        }
+    }
+
+    let (_, map, _) = stream_tes4_records(master_path, None, false, true);
+    let arc_map = Arc::new(map);
+    if let Ok(mut guard) = tes_master_crc_cache().lock() {
+        if guard.len() >= 32 {
+            guard.clear();
+        }
+        guard.insert(cache_key, Arc::clone(&arc_map));
+    }
+    Some(arc_map)
+}
+
+pub fn count_itm_records_against_masters(path: &Path) -> usize {
+    let (_, _, itm_count) = stream_tes4_records(path, None, true, false);
+    itm_count
+}
+
+pub fn extract_chunked_record_keys(
+    path: &Path,
+    analyzer: &SchemaConflictAnalyzer,
+) -> Vec<String> {
+    let filter_tags: Vec<String> = analyzer
+        .selector_path
+        .as_deref()
+        .unwrap_or("")
+        .split(',')
+        .map(str::trim)
+        .filter(|s| !s.is_empty())
+        .map(|s| s.to_ascii_uppercase())
+        .collect();
+    let (keys, _, _) = stream_tes4_records(path, Some(&filter_tags), true, false);
     keys
 }
 
@@ -1113,6 +1455,169 @@ mod tests {
         std::fs::write(&rpf_path, &rpf).unwrap();
         let rpf_keys = extract_container_toc_keys(&rpf_path, &SchemaConflictAnalyzer::default());
         assert_eq!(rpf_keys, vec!["rpf7:common/handling.meta".to_string()]);
+
+        let _ = std::fs::remove_dir_all(&root);
+    }
+
+    #[test]
+    fn test_tes4_streaming_20b_zlib_xxxx_nested_grup_and_itm_filtering() {
+        use flate2::write::ZlibEncoder;
+        use flate2::Compression;
+        use std::io::Write;
+
+        let root = std::env::temp_dir().join(format!("sanctuary_tes4_stream_test_{}", uuid::Uuid::new_v4()));
+        std::fs::create_dir_all(&root).unwrap();
+
+        let make_subrec = |tag: &[u8; 4], data: &[u8]| -> Vec<u8> {
+            let mut v = Vec::new();
+            if data.len() > u16::MAX as usize {
+                v.extend_from_slice(b"XXXX");
+                v.extend_from_slice(&4u16.to_le_bytes());
+                v.extend_from_slice(&(data.len() as u32).to_le_bytes());
+                v.extend_from_slice(tag);
+                v.extend_from_slice(&0u16.to_le_bytes());
+            } else {
+                v.extend_from_slice(tag);
+                v.extend_from_slice(&(data.len() as u16).to_le_bytes());
+            }
+            v.extend_from_slice(data);
+            v
+        };
+        let make_rec20 = |tag: &[u8; 4], flags: u32, form_id: u32, payload: &[u8]| -> Vec<u8> {
+            let mut r = Vec::new();
+            r.extend_from_slice(tag);
+            r.extend_from_slice(&(payload.len() as u32).to_le_bytes());
+            r.extend_from_slice(&flags.to_le_bytes());
+            r.extend_from_slice(&form_id.to_le_bytes());
+            r.extend_from_slice(&[0u8; 4]); // vc
+            r.extend_from_slice(payload);
+            r
+        };
+
+        // Master plugin with 20-byte TES4 headers (HEDR at offset 20)
+        let hedr = make_subrec(b"HEDR", &[0u8; 12]);
+        let mut master = make_rec20(b"TES4", 0, 0, &hedr);
+        let weap_itm_payload = make_subrec(b"EDID", b"IronSword\0");
+        let weap_mod_payload_master = make_subrec(b"EDID", b"SilverSword\0");
+        let rec_itm = make_rec20(b"WEAP", 0, 0x0000_0100, &weap_itm_payload);
+        let rec_m2 = make_rec20(b"WEAP", 0, 0x0000_0101, &weap_mod_payload_master);
+        let mut inner_grup = Vec::new();
+        inner_grup.extend_from_slice(b"GRUP");
+        inner_grup.extend_from_slice(&((20 + rec_itm.len() + rec_m2.len()) as u32).to_le_bytes());
+        inner_grup.extend_from_slice(&[0u8; 12]);
+        inner_grup.extend_from_slice(&rec_itm);
+        inner_grup.extend_from_slice(&rec_m2);
+        master.extend_from_slice(&inner_grup);
+        std::fs::write(root.join("BaseMaster.esm"), &master).unwrap();
+
+        // Patch plugin (20B header) with MAST + ITM record (0x0100), Zlib modified override (0x0101), and XXXX >64KiB NAVM (0x01000202)
+        let mut patch_tes4 = make_subrec(b"HEDR", &[0u8; 12]);
+        patch_tes4.extend_from_slice(&make_subrec(b"MAST", b"BaseMaster.esm\0"));
+        let mut patch = make_rec20(b"TES4", 0, 0, &patch_tes4);
+
+        let rec_patch_itm = make_rec20(b"WEAP", 0, 0x0000_0100, &weap_itm_payload);
+        let modified_payload = make_subrec(b"EDID", b"SilverSwordBuffed\0");
+        let mut zenc = ZlibEncoder::new(Vec::new(), Compression::default());
+        zenc.write_all(&modified_payload).unwrap();
+        let compressed = zenc.finish().unwrap();
+        let mut zlib_wire = Vec::new();
+        zlib_wire.extend_from_slice(&(modified_payload.len() as u32).to_le_bytes());
+        zlib_wire.extend_from_slice(&compressed);
+        let rec_patch_zlib = make_rec20(b"WEAP", 0x0004_0000, 0x0000_0101, &zlib_wire);
+
+        let big_data = vec![0xABu8; 70_000];
+        let navm_payload = make_subrec(b"NVNM", &big_data);
+        let rec_xxxx = make_rec20(b"NAVM", 0, 0x0100_0202, &navm_payload);
+
+        let mut outer_grup = Vec::new();
+        outer_grup.extend_from_slice(b"GRUP");
+        outer_grup.extend_from_slice(&((20 + rec_patch_itm.len() + rec_patch_zlib.len() + rec_xxxx.len()) as u32).to_le_bytes());
+        outer_grup.extend_from_slice(&[0u8; 12]);
+        outer_grup.extend_from_slice(&rec_patch_itm);
+        outer_grup.extend_from_slice(&rec_patch_zlib);
+        outer_grup.extend_from_slice(&rec_xxxx);
+        patch.extend_from_slice(&outer_grup);
+
+        let patch_path = root.join("ChildPatch.esp");
+        std::fs::write(&patch_path, &patch).unwrap();
+
+        let analyzer = SchemaConflictAnalyzer {
+            id: "tes".into(),
+            analyzer_type: "chunked_record_stream".into(),
+            extensions: vec![".esp".into()],
+            ..Default::default()
+        };
+        let keys = extract_chunked_record_keys(&patch_path, &analyzer);
+        assert_eq!(count_itm_records_against_masters(&patch_path), 1);
+        assert!(!keys.contains(&"rec:basemaster.esm:WEAP:000100".to_string()));
+        assert!(keys.contains(&"rec:basemaster.esm:WEAP:000101".to_string()));
+        assert!(keys.contains(&"rec:childpatch.esp:NAVM:000202".to_string()));
+
+        let _ = std::fs::remove_dir_all(&root);
+    }
+
+    #[test]
+    fn test_unreal_pak_v8_full_directory_index_toc() {
+        let root = std::env::temp_dir().join(format!("sanctuary_pak_v8_test_{}", uuid::Uuid::new_v4()));
+        std::fs::create_dir_all(&root).unwrap();
+        let pak_path = root.join("LogicMod_P.pak");
+
+        let write_fstr = |buf: &mut Vec<u8>, s: &str| {
+            let bytes = s.as_bytes();
+            buf.extend_from_slice(&((bytes.len() as i32 + 1).to_le_bytes()));
+            buf.extend_from_slice(bytes);
+            buf.push(0);
+        };
+
+        let mut data = Vec::new();
+        data.extend_from_slice(b"PAYLOAD");
+
+        // FullDirectoryIndex written before primary index
+        let full_dir_offset = data.len() as u64;
+        let mut full_dir = Vec::new();
+        full_dir.extend_from_slice(&2i32.to_le_bytes()); // dir_count
+        write_fstr(&mut full_dir, "Blueprints/");
+        full_dir.extend_from_slice(&1i32.to_le_bytes()); // file_count
+        write_fstr(&mut full_dir, "BP_Player.uasset");
+        full_dir.extend_from_slice(&0i32.to_le_bytes());
+        write_fstr(&mut full_dir, "Config/");
+        full_dir.extend_from_slice(&1i32.to_le_bytes());
+        write_fstr(&mut full_dir, "DefaultGame.ini");
+        full_dir.extend_from_slice(&64i32.to_le_bytes());
+        data.extend_from_slice(&full_dir);
+
+        // Primary Index (UE v9 with FullDirectoryIndex)
+        let primary_offset = data.len() as u64;
+        let mut primary = Vec::new();
+        write_fstr(&mut primary, "../../../Pal/Content/");
+        primary.extend_from_slice(&2i32.to_le_bytes()); // NumEntries
+        primary.extend_from_slice(&0x1234_5678_9ABC_DEF0u64.to_le_bytes()); // PathHashSeed
+        primary.extend_from_slice(&0i32.to_le_bytes()); // bReaderHasPathHashIndex = 0
+        primary.extend_from_slice(&1i32.to_le_bytes()); // bReaderHasFullDirectoryIndex = 1
+        primary.extend_from_slice(&full_dir_offset.to_le_bytes());
+        primary.extend_from_slice(&(full_dir.len() as u64).to_le_bytes());
+        primary.extend_from_slice(&[0u8; 20]); // FullDirectoryIndex SHA1
+        data.extend_from_slice(&primary);
+
+        // UE Pak v9 footer (45 + 160 = 205 bytes)
+        data.push(0); // bEncryptedIndex = 0
+        data.extend_from_slice(&0x5A6F_12E1u32.to_le_bytes()); // PAK_MAGIC
+        data.extend_from_slice(&9u32.to_le_bytes()); // version 9
+        data.extend_from_slice(&primary_offset.to_le_bytes());
+        data.extend_from_slice(&(primary.len() as u64).to_le_bytes());
+        data.extend_from_slice(&[0u8; 20]); // IndexHash
+        data.extend_from_slice(&[0u8; 160]); // 5x32 compression methods
+
+        std::fs::write(&pak_path, &data).unwrap();
+        let mut reader = BufReader::new(File::open(&pak_path).unwrap());
+        let keys = extract_unreal_pak_toc(&mut reader, data.len() as u64);
+        assert_eq!(
+            keys,
+            vec![
+                "pak:pal/content/blueprints/bp_player.uasset".to_string(),
+                "pak:pal/content/config/defaultgame.ini".to_string(),
+            ]
+        );
 
         let _ = std::fs::remove_dir_all(&root);
     }

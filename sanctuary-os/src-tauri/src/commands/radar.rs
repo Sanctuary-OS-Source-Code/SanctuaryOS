@@ -601,6 +601,56 @@ pub async fn run_conflict_radar(
             scan_root_for_radar(&vault_mods_lane, &mut discovered_files, &mut seen_rel_norm);
         }
 
+        // Steam Workshop Read-Only Coexistence: discover subscribed Workshop directories without copying
+        if game_schema
+            .as_ref()
+            .map_or(false, |s| s.paths.discover_steam_workshop == Some(true))
+        {
+            for ws_mod in crate::commands::deployment::discover_steam_workshop_items(&game_schema) {
+                let ws_root = PathBuf::from(&ws_mod.path);
+                if !ws_root.is_dir() {
+                    continue;
+                }
+                let raw_label = ws_mod
+                    .metadata
+                    .mod_name
+                    .as_deref()
+                    .filter(|s| !s.trim().is_empty())
+                    .unwrap_or(&ws_mod.folder_name);
+                let safe_label: String = raw_label
+                    .trim()
+                    .chars()
+                    .map(|c| if matches!(c, '/' | '\\' | ':') { '_' } else { c })
+                    .take(48)
+                    .collect();
+                let ws_owner = format!("[Workshop:{}] {}", ws_mod.workshop_id, safe_label);
+
+                let walker = WalkDir::new(&ws_root).max_depth(6).follow_links(false);
+                for entry in walker.into_iter().flatten() {
+                    if discovered_files.len() >= MAX_RADAR_FILES {
+                        break;
+                    }
+                    if !entry.file_type().is_file() {
+                        continue;
+                    }
+                    let full_path = entry.path().to_path_buf();
+                    let Ok(rel_in_ws) = full_path.strip_prefix(&ws_root) else {
+                        continue;
+                    };
+                    let fname_low = entry.file_name().to_string_lossy().to_lowercase();
+                    if is_non_conflicting_doc_or_meta_file(&fname_low, &manifest_lower) {
+                        continue;
+                    }
+                    let virtual_rel = PathBuf::from(&ws_owner).join(rel_in_ws);
+                    let virtual_rel_norm = virtual_rel.to_string_lossy().replace('\\', "/");
+                    let virtual_rel_low = virtual_rel_norm.to_ascii_lowercase();
+                    if seen_rel_norm.insert(virtual_rel_low) {
+                        discovered_files.push((full_path, virtual_rel, virtual_rel_norm));
+                    }
+                }
+            }
+        }
+
         if discovered_files.is_empty() {
             return Ok(serde_json::json!({
                 "total_packages": 0,
@@ -1061,6 +1111,58 @@ pub async fn run_conflict_radar(
                 .then_with(|| b.shared_assets.cmp(&a.shared_assets))
                 .then_with(|| a.mod_pair.cmp(&b.mod_pair))
         });
+
+        // Persist resource keys / hex InstanceID suffixes into `.sanctuary_cache.db` for <10ms crash autopsy correlation
+        if !saved_coords.vault_path.trim().is_empty() {
+            let mut chunk_rows: Vec<(String, String)> = Vec::new();
+            let push_token_variants = |tok: &str, owners: &BTreeSet<String>, out: &mut Vec<(String, String)>| {
+                let low = tok.trim().to_ascii_lowercase();
+                if low.len() < 4 {
+                    return;
+                }
+                for owner in owners {
+                    out.push((low.clone(), owner.clone()));
+                    if low.len() == 32 && low.chars().all(|c| c.is_ascii_hexdigit()) {
+                        let inst16 = &low[16..32];
+                        out.push((inst16.to_string(), owner.clone()));
+                        out.push((format!("0x{}", inst16), owner.clone()));
+                        let trimmed16 = inst16.trim_start_matches('0');
+                        if trimmed16.len() >= 6 {
+                            out.push((format!("0x{}", trimmed16), owner.clone()));
+                        }
+                        let inst8 = &low[24..32];
+                        out.push((format!("0x{}", inst8), owner.clone()));
+                    } else if low.len() >= 8 && low.chars().all(|c| c.is_ascii_hexdigit()) {
+                        out.push((format!("0x{}", low), owner.clone()));
+                    }
+                }
+            };
+            for (_, bucket) in &binary_owners_by_analyzer {
+                for (key, owners) in bucket {
+                    push_token_variants(key, owners, &mut chunk_rows);
+                }
+            }
+            for (vpath, owners) in &vfs_owners {
+                for owner in owners {
+                    chunk_rows.push((vpath.clone(), owner.clone()));
+                }
+            }
+            for (member, owners) in &archive_owners {
+                for owner in owners {
+                    chunk_rows.push((member.clone(), owner.clone()));
+                }
+            }
+            for (_, bucket) in &json_key_owners_by_analyzer {
+                for (key, owners) in bucket {
+                    for owner in owners {
+                        chunk_rows.push((key.to_ascii_lowercase(), owner.clone()));
+                    }
+                }
+            }
+            if !chunk_rows.is_empty() {
+                crate::utils::replace_radar_chunk_index(&saved_coords.vault_path, &chunk_rows);
+            }
+        }
 
         Ok(serde_json::json!({
             "total_packages": installed_files.len(),

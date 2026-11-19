@@ -120,7 +120,7 @@ fn discover_windows_steam_roots() -> Vec<PathBuf> {
     Vec::new()
 }
 
-fn expand_steam_roots_with_vdf() -> Vec<PathBuf> {
+pub(crate) fn expand_steam_roots_with_vdf() -> Vec<PathBuf> {
     let mut libs = crate::game_logic::discover_steam_libraries();
     let mut add_lib = |p: PathBuf| {
         if p.exists() && !libs.contains(&p) {

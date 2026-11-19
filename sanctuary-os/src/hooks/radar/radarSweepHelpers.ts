@@ -359,7 +359,9 @@ export function buildRadarPhysicalMods({
 
         const resolvedImageUrl = modLocalOvr?.image_url !== undefined
           ? modLocalOvr.image_url
-          : (modLocalOvr?.imageUrl !== undefined ? modLocalOvr.imageUrl : effectiveDbMod?.image_url);
+          : (modLocalOvr?.imageUrl !== undefined
+              ? modLocalOvr.imageUrl
+              : (effectiveDbMod?.image_url || mod.preview_data_url));
 
         const candidateStaticManifestUrl =
           modLocalOvr?.manifest_url !== undefined

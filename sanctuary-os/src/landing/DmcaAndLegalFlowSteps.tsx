@@ -1,8 +1,13 @@
-import { useEffect, useState } from "react";
+import { useEffect, useId, useLayoutEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { useLexicon } from "../LexiconContext";
 import { useStore } from "../store";
 import { supabaseAuth } from "../supabase";
 import { CustomDropdown, VAULT_CHIP_CLASS } from "../shared";
+import {
+  computeDropdownViewportCoords,
+  type DropdownViewportCoords,
+} from "../shared-components/dropdown-controls/typesAndPosition";
 import {
   UniversalGroup,
   UniversalInput,
@@ -71,11 +76,62 @@ const URL_REGEX = /^https?:\/\/[^\s/$.?#].[^\s]*$/i;
 const REAL_EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
 export const BLINDED_EMAIL_REGEX = /@blind\.sanctuaryos\.(net|local)$/i;
 
+const PLACEHOLDER_LEGAL_NAMES = new Set([
+  "none",
+  "n/a",
+  "na",
+  "null",
+  "unknown",
+  "anonymous",
+  "redacted",
+  "private",
+]);
+
+const JUNK_ADDRESS_PREFIXES = [
+  "n/a",
+  "none",
+  "unknown",
+  "online only",
+  "digital only",
+  "no address",
+  "internet",
+  "123 fake",
+];
+
 export function isRealLegalEmail(raw?: string): boolean {
   const email = String(raw || "").trim();
   if (!email || email.startsWith("@")) return false;
   if (BLINDED_EMAIL_REGEX.test(email)) return false;
   return REAL_EMAIL_REGEX.test(email);
+}
+
+export function isPlausibleLegalName(raw?: string): boolean {
+  const trimmed = String(raw || "").trim();
+  if (!trimmed) return false;
+  if (trimmed.startsWith("@") || trimmed.includes("@")) return false;
+  if (/https?:\/\//i.test(trimmed)) return false;
+  if (PLACEHOLDER_LEGAL_NAMES.has(trimmed.toLowerCase())) return false;
+  const tokens = trimmed.split(/\s+/).filter(Boolean);
+  if (tokens.length < 2) return false;
+  return tokens.every(
+    (tok) => tok.replace(/[^a-zA-Z0-9\p{L}]/gu, "").length >= 2
+  );
+}
+
+export function isPlausiblePhysicalAddress(raw?: string): boolean {
+  const trimmed = String(raw || "").trim();
+  if (trimmed.length < 12) return false;
+  if (!/\d/.test(trimmed)) return false;
+  if (!/[a-zA-Z]{2,}/.test(trimmed)) return false;
+  const lower = trimmed.toLowerCase();
+  if (
+    JUNK_ADDRESS_PREFIXES.some(
+      (prefix) => lower === prefix || lower.startsWith(prefix)
+    )
+  ) {
+    return false;
+  }
+  return true;
 }
 
 export function parseLegalTargetIdentifiers(raw: string): string[] {
@@ -135,8 +191,8 @@ export function isLegalComplianceDraftValid(
       draft.fullLegalName.trim().toLowerCase();
 
   const hasContactBlock = Boolean(
-    draft.fullLegalName.trim().length >= 3 &&
-      draft.physicalAddress.trim().length >= 8 &&
+    isPlausibleLegalName(draft.fullLegalName) &&
+      isPlausiblePhysicalAddress(draft.physicalAddress) &&
       draft.phone.trim().length >= 7 &&
       sigMatches
   );
@@ -146,18 +202,19 @@ export function isLegalComplianceDraftValid(
     const validIds =
       tokens.length > 0 &&
       tokens.every((tok) => isValidTargetIdentifierToken(tok, draft.targetScope));
-    const validUrl = URL_REGEX.test(draft.workUrl.trim());
+    const trimmedUrl = draft.workUrl.trim();
+    const validOptionalUrl = trimmedUrl.length === 0 || URL_REGEX.test(trimmedUrl);
     const validDesc = draft.workDescription.trim().length >= 15;
     return Boolean(
       validIds &&
-        validUrl &&
+        validOptionalUrl &&
         validDesc &&
         draft.goodFaithAttested &&
-        draft.perjuryAuthorityAttested
+        draft.perjuryAuthorityAttested &&
+        draft.forwardingAcknowledged
     );
   }
 
-  // dmca_counter
   const hasNoticeOrIds =
     UUID_REGEX.test(draft.originalNoticeId.trim()) ||
     (tokens.length > 0 &&
@@ -228,7 +285,7 @@ export function DmcaSubTypeSelector({
   const { t } = useLexicon();
   return (
     <div className="flex flex-col gap-1.5">
-      <label className="text-[10px] font-black text-[var(--subtext)] opacity-75 uppercase tracking-widest px-1">
+      <label className="text-[10px] font-black text-[var(--subtext)] opacity-75 uppercase tracking-widest px-1 leading-tight">
         {t("dmca_request_type_label", "Request Type")}
       </label>
       <CustomDropdown
@@ -269,21 +326,29 @@ interface DmcaStep2FormProps {
   draft: LegalComplianceDraft;
   onChange: (next: LegalComplianceDraft) => void;
   games: any[];
-  replyEmail: string;
-  onReplyEmailChange: (val: string) => void;
 }
 
 export function DmcaGuidedComplianceForm({
   draft,
   onChange,
   games,
-  replyEmail,
-  onReplyEmailChange,
 }: DmcaStep2FormProps) {
   const { t } = useLexicon();
   const [spokeSearchQuery, setSpokeSearchQuery] = useState("");
   const [spokeItems, setSpokeItems] = useState<LegalTargetItem[]>([]);
   const [isSearchingSpoke, setIsSearchingSpoke] = useState(false);
+  const [isPickerOpen, setIsPickerOpen] = useState(false);
+  const instanceId = useId();
+  const inputWrapRef = useRef<HTMLDivElement>(null);
+  const popoverRef = useRef<HTMLDivElement>(null);
+  const [coords, setCoords] = useState<DropdownViewportCoords>({
+    top: 0,
+    left: 0,
+    width: 0,
+    maxHeight: 260,
+    isRight: false,
+    isDropUp: false,
+  });
 
   const activePublicSpokes = (games || []).filter(
     (g) => g?.id && g?.is_active !== false && g?.is_keepers_only !== true
@@ -300,7 +365,80 @@ export function DmcaGuidedComplianceForm({
   ];
 
   useEffect(() => {
-    if (draft.targetScope !== "spoke" || !UUID_REGEX.test(draft.targetSpokeId)) {
+    if (!isPickerOpen) return;
+    window.dispatchEvent(
+      new CustomEvent("sa-close-popovers", {
+        detail: { id: instanceId, triggerEl: inputWrapRef.current },
+      })
+    );
+    const onOtherOpen = (e: any) => {
+      const detailId =
+        typeof e.detail === "object" && e.detail !== null ? e.detail.id : e.detail;
+      if (detailId !== instanceId) setIsPickerOpen(false);
+    };
+    const onMouseDown = (e: MouseEvent) => {
+      const target = e.target as Node;
+      if (
+        inputWrapRef.current &&
+        !inputWrapRef.current.contains(target) &&
+        (!popoverRef.current || !popoverRef.current.contains(target))
+      ) {
+        setIsPickerOpen(false);
+      }
+    };
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setIsPickerOpen(false);
+    };
+    window.addEventListener("sa-close-popovers", onOtherOpen);
+    document.addEventListener("mousedown", onMouseDown);
+    document.addEventListener("keydown", onKeyDown);
+    return () => {
+      window.removeEventListener("sa-close-popovers", onOtherOpen);
+      document.removeEventListener("mousedown", onMouseDown);
+      document.removeEventListener("keydown", onKeyDown);
+    };
+  }, [isPickerOpen, instanceId]);
+
+  useLayoutEffect(() => {
+    if (!isPickerOpen) return;
+    const updatePosition = (e?: Event) => {
+      if (
+        e &&
+        e.type === "scroll" &&
+        popoverRef.current &&
+        e.target instanceof Node &&
+        popoverRef.current.contains(e.target)
+      ) {
+        return;
+      }
+      if (inputWrapRef.current) {
+        const rect = inputWrapRef.current.getBoundingClientRect();
+        const minW = Math.max(220, Math.round(rect.width));
+        const computed = computeDropdownViewportCoords(rect, {
+          preferredHeight: 260,
+          minWidth: minW,
+          gap: 6,
+        });
+        const vw = typeof window !== "undefined" ? window.innerWidth : 1280;
+        computed.width = Math.min(Math.round(rect.width), Math.max(200, vw - 24));
+        setCoords(computed);
+      }
+    };
+    updatePosition();
+    window.addEventListener("resize", updatePosition);
+    window.addEventListener("scroll", updatePosition, true);
+    return () => {
+      window.removeEventListener("resize", updatePosition);
+      window.removeEventListener("scroll", updatePosition, true);
+    };
+  }, [isPickerOpen]);
+
+  useEffect(() => {
+    if (
+      draft.subType !== "dmca_takedown" ||
+      draft.targetScope !== "spoke" ||
+      !UUID_REGEX.test(draft.targetSpokeId)
+    ) {
       setSpokeItems([]);
       return;
     }
@@ -317,7 +455,7 @@ export function DmcaGuidedComplianceForm({
               action: "search_spoke_dmca_targets",
               payload: {
                 target_spoke_id: draft.targetSpokeId,
-                notice_type: draft.subType,
+                notice_type: "dmca_takedown",
                 query: spokeSearchQuery.trim(),
               },
             },
@@ -331,14 +469,14 @@ export function DmcaGuidedComplianceForm({
       } finally {
         if (!cancelled) setIsSearchingSpoke(false);
       }
-    }, 250);
+    }, 220);
     return () => {
       cancelled = true;
       clearTimeout(timer);
     };
-  }, [draft.targetScope, draft.targetSpokeId, draft.subType, spokeSearchQuery]);
+  }, [draft.subType, draft.targetScope, draft.targetSpokeId, spokeSearchQuery]);
 
-  const toggleTargetSelection = (item: LegalTargetItem) => {
+  const selectOrToggleTarget = (item: LegalTargetItem) => {
     const exists = draft.selectedTargets.some(
       (s) =>
         s.identifier.toLowerCase() === item.identifier.toLowerCase() &&
@@ -354,6 +492,8 @@ export function DmcaGuidedComplianceForm({
         )
       : [...draft.selectedTargets, item];
     onChange({ ...draft, selectedTargets: nextSelected });
+    setSpokeSearchQuery("");
+    setIsPickerOpen(false);
   };
 
   const manualTokens = parseLegalTargetIdentifiers(draft.targetIdentifiersRaw);
@@ -406,11 +546,11 @@ export function DmcaGuidedComplianceForm({
       )}
 
       <UniversalGroup
-        title={t("dmca_form_sec_target", "1. Target Scope & Content")}
+        title={t("dmca_form_sec_target", "Target Scope & Content")}
         icon={t("icon_hub", "hub")}
       >
         <div className="flex flex-col gap-1.5">
-          <label className="text-[10px] font-black text-[var(--subtext)] opacity-75 uppercase tracking-widest px-1">
+          <label className="text-[10px] font-black text-[var(--subtext)] opacity-75 uppercase tracking-widest px-1 leading-tight">
             {`${t("dmca_target_scope_label", "Where Is the Content Hosted?")} *`}
           </label>
           <CustomDropdown
@@ -419,6 +559,7 @@ export function DmcaGuidedComplianceForm({
             onChange={(vals: string[]) => {
               const picked = vals[0] || "hub";
               setSpokeSearchQuery("");
+              setIsPickerOpen(false);
               if (picked === "hub") {
                 onChange({
                   ...draft,
@@ -451,7 +592,7 @@ export function DmcaGuidedComplianceForm({
 
         {draft.subType === "dmca_counter" && (
           <UniversalInput
-            label={t("dmca_original_notice_id_label", "Original Takedown Reference ID (Optional)")}
+            label={`${t("dmca_original_notice_id_label", "Original Takedown Notice ID (UUID)")} ${draft.targetScope === "spoke" ? "*" : ""}`}
             className="no-text-case font-mono"
             value={draft.originalNoticeId}
             onChange={(val) => onChange({ ...draft, originalNoticeId: val })}
@@ -459,7 +600,7 @@ export function DmcaGuidedComplianceForm({
           />
         )}
 
-        {draft.targetScope === "spoke" ? (
+        {draft.subType === "dmca_takedown" && draft.targetScope === "spoke" ? (
           <div className="flex flex-col gap-2.5">
             {draft.selectedTargets.length > 0 && (
               <div className="flex flex-wrap gap-1.5">
@@ -469,13 +610,13 @@ export function DmcaGuidedComplianceForm({
                     <button
                       key={`${item.kind}:${item.identifier}`}
                       type="button"
-                      onClick={() => toggleTargetSelection(item)}
+                      onClick={() => selectOrToggleTarget(item)}
                       className={`${VAULT_CHIP_CLASS} cursor-pointer hover:border-[var(--accent)] no-text-case`}
                     >
                       <span className="material-symbols-outlined !text-[12px] text-[var(--accent)]">
                         {meta.icon}
                       </span>
-                      <span className="truncate max-w-[180px] no-text-case">
+                      <span className="truncate max-w-[200px] no-text-case">
                         {item.title}
                       </span>
                       <span className="material-symbols-outlined !text-[12px] text-[var(--subtext)]">
@@ -487,92 +628,146 @@ export function DmcaGuidedComplianceForm({
               </div>
             )}
 
-            <UniversalInput
-              label={`${t("dmca_select_content_label", "Select Reported Content")} *`}
-              value={spokeSearchQuery}
-              onChange={setSpokeSearchQuery}
-              placeholder={t(
-                "dmca_spoke_search_ph",
-                "Search {mods}, creator name, or {blueprint} code..."
-              )}
-            />
-
-            <div className="glass-surface rounded-2xl border border-[color-mix(in_srgb,var(--text)_12%,transparent)] max-h-[210px] overflow-y-auto divide-y divide-[color-mix(in_srgb,var(--text)_8%,transparent)]">
-              {isSearchingSpoke ? (
-                <div className="px-3.5 py-4 text-xs text-[var(--subtext)] flex items-center gap-2 no-text-case">
-                  <span className="material-symbols-outlined !text-[16px] animate-spin">
-                    {t("icon_sync", "sync")}
-                  </span>
-                  <span>{t("dmca_spoke_searching", "Searching workspace catalog...")}</span>
-                </div>
-              ) : spokeItems.length === 0 ? (
-                <div className="px-3.5 py-4 text-xs text-[var(--subtext)] no-text-case">
-                  {t(
-                    "dmca_spoke_no_matches",
-                    "No matching items found in this workspace catalog."
+            <div ref={inputWrapRef} className="flex flex-col gap-1.5 relative">
+              <label className="text-[10px] font-black text-[var(--subtext)] opacity-75 uppercase tracking-widest px-1 leading-tight">
+                {`${t("dmca_select_content_label", "Select Reported Content")} *`}
+              </label>
+              <div className="relative w-full">
+                <input
+                  type="text"
+                  data-1p-ignore="true"
+                  value={spokeSearchQuery}
+                  onFocus={() => setIsPickerOpen(true)}
+                  onChange={(e) => {
+                    setSpokeSearchQuery(e.target.value);
+                    setIsPickerOpen(true);
+                  }}
+                  placeholder={t(
+                    "dmca_spoke_search_ph",
+                    "Search {mods}, creator name, or {blueprint} code..."
                   )}
-                </div>
-              ) : (
-                spokeItems.map((item) => {
-                  const isSelected = draft.selectedTargets.some(
-                    (s) =>
-                      s.identifier.toLowerCase() === item.identifier.toLowerCase() &&
-                      s.kind === item.kind
-                  );
-                  const meta = kindMeta(item.kind);
-                  return (
-                    <button
-                      key={`${item.kind}:${item.identifier}`}
-                      type="button"
-                      onClick={() => toggleTargetSelection(item)}
-                      className={`w-full px-3.5 py-2.5 text-left flex items-center justify-between gap-3 transition-colors cursor-pointer no-text-case ${
-                        isSelected
-                          ? "bg-[color-mix(in_srgb,var(--accent)_10%,transparent)]"
-                          : "hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)]"
-                      }`}
+                  className="w-full h-11 glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_24%,transparent)] rounded-xl pl-3.5 pr-10 text-xs font-medium text-[var(--text)] placeholder:text-[var(--subtext)] placeholder:opacity-55 focus:outline-none focus:border-[var(--accent)] transition-all no-text-case"
+                />
+                <button
+                  type="button"
+                  onClick={() => setIsPickerOpen((prev) => !prev)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-[var(--subtext)] opacity-70 hover:opacity-100 flex items-center justify-center cursor-pointer"
+                >
+                  <span className="material-symbols-outlined !text-[18px]">
+                    {isPickerOpen
+                      ? t("icon_expand_less", "expand_less")
+                      : t("icon_expand_more", "expand_more")}
+                  </span>
+                </button>
+              </div>
+              {isPickerOpen &&
+                createPortal(
+                  <>
+                    <div
+                      className="!fixed inset-0 pointer-events-auto"
+                      style={{ zIndex: 100000000 }}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setIsPickerOpen(false);
+                      }}
+                    />
+                    <div
+                      ref={popoverRef}
+                      onClick={(e) => e.stopPropagation()}
+                      className="!fixed glass-panel portal-glass-fix sa-dropdown-popover rounded-2xl pointer-events-auto overflow-hidden flex flex-col text-[var(--text)] animate-in fade-in zoom-in-95 duration-150"
+                      style={
+                        {
+                          zIndex: 100000001,
+                          top: coords.isDropUp ? "auto" : coords.top,
+                          bottom: coords.isDropUp
+                            ? window.innerHeight - coords.top
+                            : "auto",
+                          left: coords.left,
+                          width: coords.width || 280,
+                          maxWidth: "calc(100vw - 24px)",
+                          maxHeight: coords.maxHeight,
+                          "--glass-x": `${Math.round(coords.left)}px`,
+                          "--glass-y": `${Math.round(coords.top)}px`,
+                        } as React.CSSProperties
+                      }
                     >
-                      <div className="flex items-center gap-2.5 min-w-0">
-                        <span
-                          className={`material-symbols-outlined !text-[18px] shrink-0 ${
-                            isSelected ? "text-[var(--accent)]" : "text-[var(--subtext)]"
-                          }`}
-                        >
-                          {meta.icon}
-                        </span>
-                        <div className="flex flex-col min-w-0">
-                          <span className="text-xs font-bold text-[var(--text)] truncate no-text-case">
-                            {item.title}
-                          </span>
-                          <span className="text-[11px] text-[var(--subtext)] truncate no-text-case">
-                            {meta.label}
-                            {item.subtitle ? ` • ${item.subtitle}` : ""}
-                          </span>
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-2 shrink-0">
-                        {item.is_held && (
-                          <span className={VAULT_CHIP_CLASS}>
-                            <span className="text-[var(--warning)]">
-                              {t("dmca_hold_chip", "DMCA Hold")}
+                      <div className="relative z-10 flex-1 min-h-0 overflow-y-auto custom-scrollbar p-1.5 flex flex-col gap-1">
+                        {isSearchingSpoke ? (
+                          <div className="px-3.5 py-3 text-xs text-[var(--subtext)] flex items-center gap-2 no-text-case">
+                            <span className="material-symbols-outlined !text-[16px] animate-spin">
+                              {t("icon_sync", "sync")}
                             </span>
-                          </span>
+                            <span>
+                              {t("dmca_spoke_searching", "Searching workspace catalog...")}
+                            </span>
+                          </div>
+                        ) : spokeItems.length === 0 ? (
+                          <div className="px-3.5 py-3 text-xs text-[var(--subtext)] no-text-case">
+                            {t(
+                              "dmca_spoke_no_matches",
+                              "No matching Tier 0 items found in this workspace."
+                            )}
+                          </div>
+                        ) : (
+                          spokeItems.map((item) => {
+                            const isSelected = draft.selectedTargets.some(
+                              (s) =>
+                                s.identifier.toLowerCase() === item.identifier.toLowerCase() &&
+                                s.kind === item.kind
+                            );
+                            const meta = kindMeta(item.kind);
+                            return (
+                              <button
+                                key={`${item.kind}:${item.identifier}`}
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  selectOrToggleTarget(item);
+                                }}
+                                className={`sa-dropdown-item w-full text-left px-3.5 py-2.5 text-xs flex items-center justify-between gap-3 cursor-pointer shrink-0 no-text-case ${
+                                  isSelected ? "is-selected font-bold" : "font-medium"
+                                }`}
+                              >
+                                <div className="flex items-center gap-2.5 min-w-0">
+                                  <span
+                                    className={`material-symbols-outlined !text-[18px] shrink-0 ${
+                                      isSelected
+                                        ? "text-[var(--accent)]"
+                                        : "text-[var(--subtext)]"
+                                    }`}
+                                  >
+                                    {meta.icon}
+                                  </span>
+                                  <div className="flex flex-col min-w-0">
+                                    <span className="text-xs font-bold text-[var(--text)] truncate no-text-case">
+                                      {item.title}
+                                    </span>
+                                    <span className="text-[11px] text-[var(--subtext)] truncate no-text-case">
+                                      {meta.label}
+                                      {item.subtitle ? ` • ${item.subtitle}` : ""}
+                                    </span>
+                                  </div>
+                                </div>
+                                <span
+                                  className={`material-symbols-outlined !text-[18px] shrink-0 ${
+                                    isSelected
+                                      ? "text-[var(--accent)]"
+                                      : "text-[var(--subtext)] opacity-55"
+                                  }`}
+                                >
+                                  {isSelected
+                                    ? t("icon_check_circle", "check_circle")
+                                    : t("icon_add_circle_outline", "add_circle_outline")}
+                                </span>
+                              </button>
+                            );
+                          })
                         )}
-                        <span
-                          className={`material-symbols-outlined !text-[18px] ${
-                            isSelected
-                              ? "text-[var(--accent)]"
-                              : "text-[var(--subtext)] opacity-55"
-                          }`}
-                        >
-                          {isSelected
-                            ? t("icon_check_circle", "check_circle")
-                            : t("icon_add_circle_outline", "add_circle_outline")}
-                        </span>
                       </div>
-                    </button>
-                  );
-                })
-              )}
+                    </div>
+                  </>,
+                  document.getElementById("sa-portals") || document.body
+                )}
             </div>
 
             <button
@@ -601,11 +796,22 @@ export function DmcaGuidedComplianceForm({
                 onChange={(val) => onChange({ ...draft, targetIdentifiersRaw: val })}
                 placeholder={t(
                   "dmca_manual_id_ph",
-                  "Optional: paste specific UUID(s), Blueprint code(s), or 64-character SHA-256 hash(es)..."
+                  "Optional: paste specific UUID(s), {Blueprint} code(s), or 64-character SHA-256 hash(es)..."
                 )}
               />
             )}
           </div>
+        ) : draft.subType === "dmca_counter" && draft.targetScope === "spoke" ? (
+          <UniversalInput
+            label={t("dmca_counter_item_ref_label", "Or Removed Item UUID / {Blueprint} Code (Optional if Notice ID provided)")}
+            className="no-text-case font-mono"
+            value={draft.targetIdentifiersRaw}
+            onChange={(val) => onChange({ ...draft, targetIdentifiersRaw: val })}
+            placeholder={t(
+              "dmca_counter_item_ref_ph",
+              "Paste item UUID, SHA-256 hash, or {Blueprint} code if Notice ID is unknown"
+            )}
+          />
         ) : (
           <UniversalInput
             label={`${t("dmca_hub_url_or_ref_label", "Page URL or Content Reference")} *`}
@@ -629,8 +835,8 @@ export function DmcaGuidedComplianceForm({
       <UniversalGroup
         title={
           draft.subType === "dmca_takedown"
-            ? t("dmca_form_sec_work", "2. Original Copyrighted Work")
-            : t("dmca_form_sec_removed", "2. Removed Content & Explanation")
+            ? t("dmca_form_sec_work", "Original Copyrighted Work")
+            : t("dmca_form_sec_removed", "Removed Content & Explanation")
         }
         icon={t("icon_description", "description")}
       >
@@ -660,33 +866,47 @@ export function DmcaGuidedComplianceForm({
         />
 
         {draft.subType === "dmca_takedown" && (
-          <UniversalInput
-            label={`${t("dmca_work_url_label", "Authorized Reference URL")} *`}
-            className="no-text-case"
-            value={draft.workUrl}
-            onChange={(val) => onChange({ ...draft, workUrl: val })}
-            placeholder="https://example.com/original-work"
-          />
+          <div className="flex flex-col gap-1">
+            <UniversalInput
+              label={t("dmca_work_url_opt_label", "Original Work / Reference URL (Optional)")}
+              className="no-text-case"
+              value={draft.workUrl}
+              onChange={(val) => onChange({ ...draft, workUrl: val })}
+              placeholder="https://example.com/original-work"
+            />
+            {draft.workUrl.trim().length > 0 && !URL_REGEX.test(draft.workUrl.trim()) && (
+              <span className="text-[11px] font-bold text-[var(--warning)] px-1 no-text-case">
+                {t(
+                  "dmca_invalid_optional_url_err",
+                  "Leave blank if no online URL exists, or enter a valid http(s) URL."
+                )}
+              </span>
+            )}
+          </div>
         )}
       </UniversalGroup>
 
       <UniversalGroup
-        title={t("dmca_form_sec_contact", "3. Contact Information")}
+        title={t("dmca_form_sec_contact", "Contact Details")}
         icon={t("icon_badge", "badge")}
       >
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-          <UniversalInput
-            label={`${t("dmca_legal_name_label", "Full Legal Name")} *`}
-            value={draft.fullLegalName}
-            onChange={(val) => onChange({ ...draft, fullLegalName: val })}
-            placeholder={t("dmca_legal_name_ph", "Jane Doe")}
-          />
-          <UniversalInput
-            label={t("dmca_company_agent_label", "Company / Organization (Optional)")}
-            value={draft.companyOrAgent}
-            onChange={(val) => onChange({ ...draft, companyOrAgent: val })}
-            placeholder={t("dmca_company_agent_ph", "Rights holder or authorized agent")}
-          />
+          <div className="flex flex-col gap-1">
+            <UniversalInput
+              label={`${t("dmca_legal_name_label", "Full Legal Name")} *`}
+              value={draft.fullLegalName}
+              onChange={(val) => onChange({ ...draft, fullLegalName: val })}
+              placeholder={t("dmca_legal_name_ph", "Jane Doe")}
+            />
+            {draft.fullLegalName.trim().length > 0 && !isPlausibleLegalName(draft.fullLegalName) && (
+              <span className="text-[11px] font-bold text-[var(--warning)] px-1 no-text-case">
+                {t(
+                  "dmca_invalid_legal_name_err",
+                  "Enter your full first and last legal name — aliases, screennames, and handles fail 17 U.S.C. § 512(c)(3)."
+                )}
+              </span>
+            )}
+          </div>
           <UniversalInput
             label={`${t("dmca_phone_label", "Phone Number")} *`}
             className="no-text-case"
@@ -694,29 +914,38 @@ export function DmcaGuidedComplianceForm({
             onChange={(val) => onChange({ ...draft, phone: val })}
             placeholder="+1 (555) 010-9900"
           />
-          <UniversalInput
-            label={`${t("dmca_email_short_label", "Email Address")} *`}
-            type="email"
-            className="no-text-case"
-            value={replyEmail}
-            onChange={onReplyEmailChange}
-            placeholder="legal@company.com"
-          />
         </div>
-        <UniversalTextArea
-          label={`${t("dmca_physical_address_label", "Mailing Address")} *`}
-          value={draft.physicalAddress}
-          onChange={(val) => onChange({ ...draft, physicalAddress: val })}
-          className="min-h-[72px] no-text-case"
-          placeholder={t(
-            "dmca_physical_address_ph",
-            "Street address, suite, city, state/province, postal code, and country..."
-          )}
+        <UniversalInput
+          label={t("dmca_company_agent_label", "Company / Organization (Optional)")}
+          value={draft.companyOrAgent}
+          onChange={(val) => onChange({ ...draft, companyOrAgent: val })}
+          placeholder={t("dmca_company_agent_ph", "Rights holder or authorized agent")}
         />
+        <div className="flex flex-col gap-1">
+          <UniversalTextArea
+            label={`${t("dmca_physical_address_label", "Mailing Address")} *`}
+            value={draft.physicalAddress}
+            onChange={(val) => onChange({ ...draft, physicalAddress: val })}
+            className="min-h-[72px] no-text-case"
+            placeholder={t(
+              "dmca_physical_address_ph",
+              "Street address, suite, city, state/province, postal code, and country..."
+            )}
+          />
+          {draft.physicalAddress.trim().length > 0 &&
+            !isPlausiblePhysicalAddress(draft.physicalAddress) && (
+              <span className="text-[11px] font-bold text-[var(--warning)] px-1 no-text-case">
+                {t(
+                  "dmca_invalid_address_err",
+                  "Enter a complete physical street mailing address (street number, city, and postal code)."
+                )}
+              </span>
+            )}
+        </div>
       </UniversalGroup>
 
       <UniversalGroup
-        title={t("dmca_form_sec_declarations", "4. Declarations & Signature")}
+        title={t("dmca_form_sec_declarations", "Declarations & Signature")}
         icon={t("icon_verified_user", "verified_user")}
       >
         {draft.subType === "dmca_takedown" ? (
@@ -747,6 +976,23 @@ export function DmcaGuidedComplianceForm({
               label={t(
                 "dmca_clause_perjury_text",
                 "Under penalty of perjury, the information in this notification is accurate and I am the copyright owner, or am authorized to act on behalf of the owner, of an exclusive right that is allegedly infringed."
+              )}
+            />
+            <StatutoryCheckboxCard
+              checked={draft.forwardingAcknowledged}
+              onToggle={() =>
+                onChange({
+                  ...draft,
+                  forwardingAcknowledged: !draft.forwardingAcknowledged,
+                })
+              }
+              title={t(
+                "dmca_cb_takedown_forwarding_title",
+                "Creator Identity Disclosure & § 512(f) Liability"
+              )}
+              label={t(
+                "dmca_clause_takedown_forwarding_text",
+                "I understand that my full legal name, physical mailing address, and email address will be forwarded directly to the affected {Mason} if this notice is validated, that {mod} ideas, mechanics, titles, and personal disputes are not copyrightable, and that false claims carry federal damages under 17 U.S.C. § 512(f)."
               )}
             />
           </div>

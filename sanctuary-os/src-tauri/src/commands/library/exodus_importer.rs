@@ -37,6 +37,167 @@ pub struct ExodusImportReport {
     pub blueprints: Vec<ImportedExternalBlueprint>,
 }
 
+#[derive(Debug, Serialize, Clone)]
+pub struct DetectedExternalManager {
+    pub manager_kind: String,
+    pub label: String,
+    pub source_dir: String,
+    pub estimated_mod_count: usize,
+    pub profile_count: usize,
+}
+
+fn inspect_candidate_manager_dir(dir: &Path) -> Option<DetectedExternalManager> {
+    if !dir.is_dir() || !is_safe_user_file_path(dir) {
+        return None;
+    }
+    if dir.join("ModOrganizer.ini").is_file() || dir.join("mods").is_dir() && dir.join("profiles").is_dir() {
+        let mod_count = fs::read_dir(dir.join("mods"))
+            .map(|r| r.flatten().filter(|e| e.path().is_dir()).count())
+            .unwrap_or(0);
+        let prof_count = fs::read_dir(dir.join("profiles"))
+            .map(|r| r.flatten().filter(|e| e.path().is_dir()).count())
+            .unwrap_or(0);
+        if mod_count > 0 || dir.join("ModOrganizer.ini").is_file() {
+            let folder_label = dir
+                .file_name()
+                .map(|n| n.to_string_lossy().to_string())
+                .unwrap_or_else(|| "Mod Organizer 2".to_string());
+            return Some(DetectedExternalManager {
+                manager_kind: "mo2".to_string(),
+                label: format!("Mod Organizer 2 ({})", folder_label),
+                source_dir: dir.to_string_lossy().to_string(),
+                estimated_mod_count: mod_count,
+                profile_count: prof_count.max(1),
+            });
+        }
+    }
+    if dir.join("mods.yml").is_file() {
+        let mod_count = fs::read_dir(dir.join("BepInEx").join("plugins"))
+            .map(|r| r.flatten().count())
+            .unwrap_or(0);
+        let folder_label = dir
+            .file_name()
+            .map(|n| n.to_string_lossy().to_string())
+            .unwrap_or_else(|| "Profile".to_string());
+        return Some(DetectedExternalManager {
+            manager_kind: "r2modman".to_string(),
+            label: format!("r2modman / Thunderstore ({})", folder_label),
+            source_dir: dir.to_string_lossy().to_string(),
+            estimated_mod_count: mod_count,
+            profile_count: 1,
+        });
+    }
+    if find_first_file_named_ci(dir, "vortex.deployment.json", 2).is_some()
+        || find_first_file_named_ci(dir, "__vortex_staging_folder", 2).is_some()
+    {
+        let mod_count = fs::read_dir(dir)
+            .map(|r| r.flatten().filter(|e| e.path().is_dir()).count())
+            .unwrap_or(0);
+        let folder_label = dir
+            .file_name()
+            .map(|n| n.to_string_lossy().to_string())
+            .unwrap_or_else(|| "Vortex".to_string());
+        return Some(DetectedExternalManager {
+            manager_kind: "vortex".to_string(),
+            label: format!("Vortex ({})", folder_label),
+            source_dir: dir.to_string_lossy().to_string(),
+            estimated_mod_count: mod_count,
+            profile_count: 1,
+        });
+    }
+    if find_first_file_named_ci(dir, "modsettings.lsx", 2).is_some() {
+        let mod_count = fs::read_dir(dir.join("Mods"))
+            .or_else(|_| fs::read_dir(dir))
+            .map(|r| r.flatten().filter(|e| e.path().is_file()).count())
+            .unwrap_or(0);
+        let folder_label = dir
+            .file_name()
+            .map(|n| n.to_string_lossy().to_string())
+            .unwrap_or_else(|| "Profile".to_string());
+        return Some(DetectedExternalManager {
+            manager_kind: "lsx_profile".to_string(),
+            label: format!("LSX Mod Profile ({})", folder_label),
+            source_dir: dir.to_string_lossy().to_string(),
+            estimated_mod_count: mod_count,
+            profile_count: 1,
+        });
+    }
+    None
+}
+
+#[tauri::command]
+pub async fn detect_external_mod_managers(
+    live_path: Option<String>,
+    docs_path: Option<String>,
+) -> Result<Vec<DetectedExternalManager>, String> {
+    tauri::async_runtime::spawn_blocking(move || -> Vec<DetectedExternalManager> {
+        let mut candidate_dirs: Vec<PathBuf> = Vec::new();
+        if let Some(local_app) = dirs::data_local_dir() {
+            candidate_dirs.push(local_app.join("ModOrganizer"));
+        }
+        if let Some(roam_app) = dirs::config_dir() {
+            candidate_dirs.push(roam_app.join("Vortex"));
+            candidate_dirs.push(roam_app.join("r2modmanPlus-local"));
+            candidate_dirs.push(roam_app.join("Thunderstore Mod Manager").join("DataFolder"));
+        }
+        if let Some(home) = dirs::home_dir() {
+            candidate_dirs.push(home.join(".config").join("r2modmanPlus-local"));
+        }
+        for extra_opt in [live_path, docs_path] {
+            if let Some(raw) = extra_opt {
+                let p = PathBuf::from(raw.trim());
+                if p.is_dir() {
+                    candidate_dirs.push(p.clone());
+                    if let Some(par) = p.parent() {
+                        candidate_dirs.push(par.to_path_buf());
+                    }
+                }
+            }
+        }
+
+        let mut seen: HashSet<String> = HashSet::new();
+        let mut found: Vec<DetectedExternalManager> = Vec::new();
+        let mut enqueue = |dir: PathBuf, list: &mut Vec<DetectedExternalManager>| {
+            if let Some(det) = inspect_candidate_manager_dir(&dir) {
+                let key = det.source_dir.to_ascii_lowercase();
+                if seen.insert(key) {
+                    list.push(det);
+                }
+            }
+        };
+
+        for root in candidate_dirs {
+            if !root.is_dir() {
+                continue;
+            }
+            enqueue(root.clone(), &mut found);
+            if let Ok(entries) = fs::read_dir(&root) {
+                for ent in entries.flatten().take(48) {
+                    let sub = ent.path();
+                    if sub.is_dir() {
+                        enqueue(sub.clone(), &mut found);
+                        let profiles_sub = sub.join("profiles");
+                        if profiles_sub.is_dir() {
+                            if let Ok(p_ents) = fs::read_dir(&profiles_sub) {
+                                for p_ent in p_ents.flatten().take(16) {
+                                    if p_ent.path().is_dir() {
+                                        enqueue(p_ent.path(), &mut found);
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        found.sort_by(|a, b| b.estimated_mod_count.cmp(&a.estimated_mod_count));
+        found
+    })
+    .await
+    .map_err(|e| format!("Detection task join error: {}", e))
+}
+
 fn is_separator_folder(folder_name: &str) -> bool {
     let lower = folder_name.trim().to_ascii_lowercase();
     lower.is_empty()

@@ -173,12 +173,12 @@ pub(super) fn is_html_gate_preamble(bytes: &[u8]) -> bool {
     trimmed.starts_with("<!doctype html") || trimmed.starts_with("<html")
 }
 
-struct DownloadStageCleanupGuard {
-    dir: Option<PathBuf>,
+pub(super) struct DownloadStageCleanupGuard {
+    pub(super) dir: Option<PathBuf>,
 }
 
 impl DownloadStageCleanupGuard {
-    fn disarm(&mut self) {
+    pub(super) fn disarm(&mut self) {
         self.dir = None;
     }
 }
@@ -191,35 +191,30 @@ impl Drop for DownloadStageCleanupGuard {
     }
 }
 
-/// Streams an HTTPS mod/edge download into an ephemeral staging directory, validates size/HTML-gate/SHA-256,
-/// emits live `"edge-download-progress"` events, and forwards the downloaded artifact to `ingest_dropped_file`.
-#[tauri::command]
-pub async fn download_and_ingest_direct_artifact(
-    app: tauri::AppHandle,
-    state: tauri::State<'_, crate::state::SecurityState>,
-    app_state: tauri::State<'_, crate::state::AppState>,
-    url: String,
-    expected_sha256: Option<String>,
-    target_folder: Option<String>,
-    force_replace: Option<bool>,
-    suggested_file_name: Option<String>,
-) -> Result<String, String> {
+pub(super) async fn download_verified_url_to_temp(
+    app: &tauri::AppHandle,
+    vault_root: &std::path::Path,
+    raw_url: &str,
+    expected_sha256: Option<&str>,
+    suggested_file_name: Option<&str>,
+) -> Result<(DownloadStageCleanupGuard, PathBuf, String), String> {
     prune_stale_download_staging_dirs();
 
-    let parsed_url = super::types::validate_safe_https_url(&url).await?;
-    let coords = crate::commands::state_ops::get_saved_coordinates();
-    if coords.vault_path.trim().is_empty() {
-        return Err("VAULT_NOT_CONFIGURED".into());
-    }
-    let vault_root = crate::utils::get_vault_root_dir(&coords.vault_path);
+    let (resolved_url, extra_headers) =
+        super::api_key_broker::resolve_brokered_download_url(raw_url).await?;
+    let parsed_url = super::types::validate_safe_https_url(&resolved_url).await?;
 
-    let mut resp = super::types::get_http_client()
-        .get(parsed_url.as_str())
-        .send()
-        .await
-        .map_err(|e| e.to_string())?;
+    let mut req = super::types::get_large_transfer_http_client().get(parsed_url.as_str());
+    for (k, v) in extra_headers {
+        req = req.header(k, v);
+    }
+    let mut resp = req.send().await.map_err(|e| e.to_string())?;
     if !resp.status().is_success() {
-        return Err(format!("HTTP_{}", resp.status().as_u16()));
+        let code = resp.status().as_u16();
+        if code == 401 || code == 403 || code == 429 {
+            return Err("DIRECT_DOWNLOAD_HTML_GATE".into());
+        }
+        return Err(format!("HTTP_{}", code));
     }
 
     let content_type = resp
@@ -252,7 +247,7 @@ pub async fn download_and_ingest_direct_artifact(
         total_bytes.unwrap_or(64 * 1024 * 1024),
     )?;
     crate::utils::check_available_disk_space(
-        &vault_root,
+        vault_root,
         total_bytes.unwrap_or(64 * 1024 * 1024).saturating_mul(2),
     )?;
 
@@ -260,17 +255,17 @@ pub async fn download_and_ingest_direct_artifact(
         &parsed_url,
         content_disposition.as_deref(),
         content_type.as_deref(),
-        suggested_file_name.as_deref(),
+        suggested_file_name,
     );
 
     let dl_dir = temp_root.join(format!("sanctuary_dl_{}", uuid::Uuid::new_v4()));
     std::fs::create_dir_all(&dl_dir).map_err(|e| e.to_string())?;
-    let mut cleanup_guard = DownloadStageCleanupGuard {
+    let cleanup_guard = DownloadStageCleanupGuard {
         dir: Some(dl_dir.clone()),
     };
     let dest_path = dl_dir.join(&file_name);
 
-    {
+    let actual_hex: String = {
         let out_file = std::fs::File::create(&dest_path).map_err(|e| e.to_string())?;
         let mut writer = BufWriter::new(out_file);
         let mut hasher = Sha256::new();
@@ -302,7 +297,7 @@ pub async fn download_and_ingest_direct_artifact(
                 let _ = app.emit(
                     "edge-download-progress",
                     serde_json::json!({
-                        "url": url,
+                        "url": raw_url,
                         "file_name": file_name,
                         "downloaded_bytes": downloaded_bytes,
                         "total_bytes": total_bytes,
@@ -315,29 +310,59 @@ pub async fn download_and_ingest_direct_artifact(
         let _ = app.emit(
             "edge-download-progress",
             serde_json::json!({
-                "url": url,
+                "url": raw_url,
                 "file_name": file_name,
                 "downloaded_bytes": downloaded_bytes,
                 "total_bytes": total_bytes.or(Some(downloaded_bytes)),
             }),
         );
 
-        if let Some(exp) = expected_sha256
-            .as_deref()
-            .map(str::trim)
-            .filter(|s| !s.is_empty())
-        {
-            let actual_hex: String = hasher
-                .finalize()
-                .iter()
-                .map(|b| format!("{:02x}", b))
-                .collect();
-            if !actual_hex.eq_ignore_ascii_case(exp) {
+        let actual: String = hasher
+            .finalize()
+            .iter()
+            .map(|b| format!("{:02x}", b))
+            .collect();
+
+        if let Some(exp) = expected_sha256.map(str::trim).filter(|s| !s.is_empty()) {
+            if !actual.eq_ignore_ascii_case(exp) {
                 drop(writer);
                 return Err("SHA256_MISMATCH".into());
             }
         }
+        actual
+    };
+
+    Ok((cleanup_guard, dest_path, actual_hex))
+}
+
+/// Streams an HTTPS mod/edge download (or BYO-API-Key resolved `nxm://` URI) into an ephemeral
+/// staging directory, validates size/HTML-gate/SHA-256, emits live `"edge-download-progress"` events,
+/// and forwards the downloaded artifact to `ingest_dropped_file`.
+#[tauri::command]
+pub async fn download_and_ingest_direct_artifact(
+    app: tauri::AppHandle,
+    state: tauri::State<'_, crate::state::SecurityState>,
+    app_state: tauri::State<'_, crate::state::AppState>,
+    url: String,
+    expected_sha256: Option<String>,
+    target_folder: Option<String>,
+    force_replace: Option<bool>,
+    suggested_file_name: Option<String>,
+) -> Result<String, String> {
+    let coords = crate::commands::state_ops::get_saved_coordinates();
+    if coords.vault_path.trim().is_empty() {
+        return Err("VAULT_NOT_CONFIGURED".into());
     }
+    let vault_root = crate::utils::get_vault_root_dir(&coords.vault_path);
+
+    let (mut cleanup_guard, dest_path, _) = download_verified_url_to_temp(
+        &app,
+        &vault_root,
+        &url,
+        expected_sha256.as_deref(),
+        suggested_file_name.as_deref(),
+    )
+    .await?;
 
     let ingest_res = crate::commands::library::ingest_dropped_file(
         app,

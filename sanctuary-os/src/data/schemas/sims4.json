@@ -200,6 +200,11 @@
   },
   "constraints": {
     "max_folder_depth": 5,
+    "max_nested_archive_depth": 2,
+    "max_depth_by_extension": {
+      ".package": 5,
+      ".ts4script": 1
+    },
     "requires_script_unzipping": false,
     "mods_dir_is_shared_with_vanilla": false,
     "preserve_archive_folder_structure": false,
@@ -305,7 +310,24 @@
       "preserve_vanilla": false
     }
   ],
-  "schema_version": 17,
+  "schema_version": 18,
+  "artifact_groups": [
+    {
+      "id": "tray_hex_bundle",
+      "label": "Tray Blueprint Bundle",
+      "extensions": [
+        ".trayitem",
+        ".blueprint",
+        ".bpi",
+        ".hhi",
+        ".sgi",
+        ".householdbinary",
+        ".rmi",
+        ".room"
+      ],
+      "key_strategy": "shared_hex_stem"
+    }
+  ],
   "default_lexicon": "en-sims",
   "executable_names": [
     "TS4_x64.exe",
@@ -380,6 +402,18 @@
       ]
     }
   ],
+  "preview_extractors": [
+    {
+      "id": "binary_embedded_thumb",
+      "extensions": [
+        ".package",
+        ".trayitem"
+      ],
+      "max_scan_bytes": 8388608,
+      "container_magic": "DBPF",
+      "scan_embedded_png_jpeg": true
+    }
+  ],
   "version_extraction": {
     "method": "pe_header",
     "json_key": null,
@@ -393,6 +427,15 @@
     "SP",
     "FP"
   ],
+  "exception_correlation": {
+    "enabled": true,
+    "id_regexes": [
+      "0x[0-9a-fA-F]{8,16}",
+      "tunable_perf\\s*=\\s*([0-9a-fA-F]+)"
+    ],
+    "match_chunk_keys": true,
+    "match_relative_paths": true
+  },
   "min_scout_submissions": 5,
   "launch_args_dlc_mask_template": "-disablepack:{packs}",
   "name": "The Sims 4"

@@ -3963,7 +3963,9 @@ dependencies = [
 name = "sanctuary-os"
 version = "0.6.0"
 dependencies = [
+ "bzip2",
  "chrono",
+ "crc32fast",
  "dirs 5.0.1",
  "filetime",
  "flate2",

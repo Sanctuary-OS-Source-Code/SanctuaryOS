@@ -401,7 +401,7 @@ pub async fn repopulate_from_shelter(state: tauri::State<'_, AppState>) -> Resul
         })
         .collect();
 
-    deploy_playset_bulk(deploy_mods, config.mods_path, config.vault_path, state).await
+    deploy_playset_bulk(deploy_mods, config.mods_path, config.vault_path, None, state).await
 }
 
 #[tauri::command]

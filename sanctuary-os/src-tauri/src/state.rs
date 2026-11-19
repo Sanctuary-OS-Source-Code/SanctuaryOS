@@ -97,6 +97,10 @@ pub struct ModData {
     pub color: String,
     pub is_script: bool,
     pub mtime: u64,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub preview_data_url: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub grouped_files: Option<Vec<String>>,
 }
 
 #[derive(Serialize, Deserialize, Clone)]

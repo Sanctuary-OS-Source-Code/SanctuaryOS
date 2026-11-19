@@ -2,7 +2,7 @@
 use crate::utils::{
     atomic_write_bytes, ensure_path_within_roots, ensure_strict_descendant_of_roots,
     get_vault_mods_lane, get_vault_root_dir, is_mods_dir, is_safe_user_file_path, open_db_conn,
-    SANCTUARY_EDGE_MANIFEST_FILE, SANCTUARY_EDGE_OVERRIDE_FILE,
+    SANCTUARY_EDGE_MANIFEST_FILE, SANCTUARY_EDGE_MANIFEST_SIG_FILE, SANCTUARY_EDGE_OVERRIDE_FILE,
 };
 use reqwest::Client;
 use serde::{Deserialize, Deserializer, Serialize};
@@ -455,9 +455,27 @@ pub async fn export_edge_release(
 
     // If an Auto-Push provider is configured, push (and merge remote lineage / catalog.json)
     // BEFORE writing `.sanctuary.manifest.json`, `.sanctuary.override.json`, and the release `.zip`
+    let mut s3_zip_remote_path: Option<(EdgePushConfig, String)> = None;
     if let Some(ref cfg) = push_config {
         let p = cfg.provider.trim().to_lowercase();
         if !p.is_empty() && p != "manual" && p != "none" {
+            if p == "s3_r2"
+                && (final_manifest.payload.download_url.trim().is_empty()
+                    || is_placeholder_manifest_url(&final_manifest.payload.download_url))
+            {
+                let remote_manifest_key = if cfg.remote_path.trim().is_empty() {
+                    format!("{}/{}", final_manifest.artifact.id, SANCTUARY_EDGE_MANIFEST_FILE)
+                } else {
+                    cfg.remote_path.trim().trim_start_matches('/').to_string()
+                };
+                if let Ok(cdn_zip_url) =
+                    super::s3_sigv4::resolve_s3_zip_public_url(cfg, &remote_manifest_key, &zip_filename)
+                        .await
+                {
+                    final_manifest.payload.download_url = cdn_zip_url;
+                }
+            }
+
             let push_res =
                 execute_edge_manifest_push(&mut final_manifest, cfg, &effective_url).await?;
             if !push_res.resolved_manifest_url.trim().is_empty() {
@@ -469,11 +487,43 @@ pub async fn export_edge_release(
                     push_unique_hash(&mut sqlite_archive_hashes, ph);
                 }
             }
+            if p == "s3_r2" {
+                let remote_manifest_key = if cfg.remote_path.trim().is_empty() {
+                    format!("{}/{}", final_manifest.artifact.id, SANCTUARY_EDGE_MANIFEST_FILE)
+                } else {
+                    cfg.remote_path.trim().trim_start_matches('/').to_string()
+                };
+                s3_zip_remote_path = Some((cfg.clone(), remote_manifest_key));
+            }
         }
     }
 
-    tauri::async_runtime::spawn_blocking(move || -> Result<String, String> {
+    let zip_name_for_s3 = zip_filename.clone();
+    let (out_mod_dir_str, zip_path_for_s3) = tauri::async_runtime::spawn_blocking(move || -> Result<(String, PathBuf), String> {
+        // Ensure active release channel pointer + Ed25519 signature are always embedded locally too
+        let active_ch = normalize_release_channel(&final_manifest.artifact.channel).to_string();
+        final_manifest.artifact.channel = active_ch.clone();
+        let mut ch_map = final_manifest.channels.take().unwrap_or_default();
+        ch_map.insert(
+            active_ch,
+            EdgeChannelPointer {
+                version: final_manifest.artifact.version.clone(),
+                download_url: final_manifest.payload.download_url.clone(),
+                sha256: final_manifest.payload.sha256.clone(),
+                game_version: final_manifest.artifact.game_version.clone(),
+                release_date: final_manifest.artifact.release_date.clone(),
+            },
+        );
+        final_manifest.channels = Some(ch_map);
+        let detached_sig_str = super::manifest_signing::sign_edge_manifest(&mut final_manifest)?;
+        let signer_pubkey = final_manifest
+            .signature
+            .as_ref()
+            .map(|s| s.public_key_b64.clone())
+            .unwrap_or_default();
+
         let manifest_path = mod_dir.join(SANCTUARY_EDGE_MANIFEST_FILE);
+        let sig_path = mod_dir.join(SANCTUARY_EDGE_MANIFEST_SIG_FILE);
         let manifest_str = serde_json::to_string_pretty(&final_manifest)
             .map_err(|e| format!("JSON error: {}", e))?;
         atomic_write_bytes(&manifest_path, manifest_str.as_bytes()).map_err(|e| {
@@ -483,6 +533,7 @@ pub async fn export_edge_release(
                 e
             )
         })?;
+        let _ = atomic_write_bytes(&sig_path, detached_sig_str.as_bytes());
 
         let override_data = EdgeOverride {
             artifact_id: final_manifest.artifact.id.clone(),
@@ -497,6 +548,8 @@ pub async fn export_edge_release(
             last_modified: None,
             last_polled_at: None,
             last_http_status: None,
+            creator_pubkey: (!signer_pubkey.is_empty()).then_some(signer_pubkey.clone()),
+            subscribed_channel: Some(final_manifest.artifact.channel.clone()),
         };
 
         let override_str = serde_json::to_string_pretty(&override_data)
@@ -510,9 +563,9 @@ pub async fn export_edge_release(
                 let _ = conn.execute(
                     "INSERT INTO edge_manifests (
                         artifact_id, mason_id, manifest_url, target_hash, archive_hashes, game_id,
-                        last_fetched_hash, last_fetched_metadata, created_at
+                        last_fetched_hash, last_fetched_metadata, created_at, creator_pubkey, subscribed_channel
                      )
-                     VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9)
+                     VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11)
                      ON CONFLICT(artifact_id) DO UPDATE SET
                         mason_id = excluded.mason_id,
                         manifest_url = excluded.manifest_url,
@@ -520,7 +573,8 @@ pub async fn export_edge_release(
                         archive_hashes = excluded.archive_hashes,
                         game_id = excluded.game_id,
                         last_fetched_hash = excluded.last_fetched_hash,
-                        last_fetched_metadata = excluded.last_fetched_metadata",
+                        last_fetched_metadata = excluded.last_fetched_metadata,
+                        creator_pubkey = excluded.creator_pubkey",
                     rusqlite::params![
                         override_data.artifact_id,
                         override_data.mason_id,
@@ -530,14 +584,16 @@ pub async fn export_edge_release(
                         override_data.game_id,
                         actual_hash,
                         manifest_str,
-                        now
+                        now,
+                        signer_pubkey,
+                        final_manifest.artifact.channel
                     ],
                 );
             }
         }
 
         // Package ALL preserved mod files (preserving relative subpaths) + `.sanctuary.manifest.json`
-        // + `.sanctuary.override.json` into the release `.zip` archive
+        // + `.sanctuary.manifest.sig` + `.sanctuary.override.json` into the release `.zip` archive
         let zip_path = mod_dir.join(&zip_filename);
         let zip_file = fs::File::create(&zip_path)
             .map_err(|e| format!("Failed creating release zip {:?}: {}", zip_path, e))?;
@@ -566,6 +622,12 @@ pub async fn export_edge_release(
             let _ = zip_writer.write_all(manifest_str.as_bytes());
         }
         if zip_writer
+            .start_file(SANCTUARY_EDGE_MANIFEST_SIG_FILE, options)
+            .is_ok()
+        {
+            let _ = zip_writer.write_all(detached_sig_str.as_bytes());
+        }
+        if zip_writer
             .start_file(SANCTUARY_EDGE_OVERRIDE_FILE, options)
             .is_ok()
         {
@@ -575,10 +637,22 @@ pub async fn export_edge_release(
             .finish()
             .map_err(|e| format!("Failed finalizing release zip: {}", e))?;
 
-        Ok(mod_dir.to_string_lossy().to_string())
+        Ok((mod_dir.to_string_lossy().to_string(), zip_path))
     })
     .await
-    .map_err(|e| format!("Task join error: {}", e))?
+    .map_err(|e| format!("Task join error: {}", e))??;
+
+    if let Some((s3_cfg, remote_manifest_key)) = s3_zip_remote_path {
+        let _ = super::s3_sigv4::upload_release_zip_to_s3_r2(
+            &s3_cfg,
+            &zip_path_for_s3,
+            &remote_manifest_key,
+            &zip_name_for_s3,
+        )
+        .await?;
+    }
+
+    Ok(out_mod_dir_str)
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone, Default)]
@@ -592,6 +666,10 @@ pub struct EdgePushConfig {
     pub remote_path: String,
     pub custom_endpoint: String,
     pub local_folder_path: String,
+    pub s3_bucket: String,
+    pub s3_region: String,
+    pub s3_access_key_id: String,
+    pub public_base_url: String,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone, Default)]
@@ -706,6 +784,37 @@ pub(super) fn absorb_existing_remote_lineage_and_prepare_payload(
                 push_unique_hash(&mut target.previous_hashes, ph);
             }
         }
+        // Preserve multi-channel pointers (`stable` / `beta` / `alpha`) across independent publishes
+        let mut merged_channels = old_m.channels.clone().unwrap_or_default();
+        let old_ch = normalize_release_channel(&old_m.artifact.channel).to_string();
+        if !merged_channels.contains_key(&old_ch) && !old_m.artifact.version.trim().is_empty() {
+            merged_channels.insert(
+                old_ch,
+                EdgeChannelPointer {
+                    version: old_m.artifact.version.clone(),
+                    download_url: old_m.payload.download_url.clone(),
+                    sha256: old_m.payload.sha256.clone(),
+                    game_version: old_m.artifact.game_version.clone(),
+                    release_date: old_m.artifact.release_date.clone(),
+                },
+            );
+        }
+        if let Some(ref existing_new) = target.channels {
+            for (k, v) in existing_new {
+                merged_channels.insert(k.clone(), v.clone());
+            }
+        }
+        target.channels = Some(merged_channels);
+    };
+
+    let active_ch = normalize_release_channel(&manifest.artifact.channel).to_string();
+    manifest.artifact.channel = active_ch.clone();
+    let active_ptr = EdgeChannelPointer {
+        version: manifest.artifact.version.clone(),
+        download_url: manifest.payload.download_url.clone(),
+        sha256: manifest.payload.sha256.clone(),
+        game_version: manifest.artifact.game_version.clone(),
+        release_date: manifest.artifact.release_date.clone(),
     };
 
     if is_catalog {
@@ -761,6 +870,11 @@ pub(super) fn absorb_existing_remote_lineage_and_prepare_payload(
             }
         }
 
+        let mut ch_map = manifest.channels.take().unwrap_or_default();
+        ch_map.insert(active_ch.clone(), active_ptr);
+        manifest.channels = Some(ch_map);
+        let _ = super::manifest_signing::sign_edge_manifest(manifest)?;
+
         let new_entry_val =
             serde_json::to_value(&*manifest).map_err(|e| format!("JSON serialize error: {}", e))?;
         if let Some(idx) = matched_idx {
@@ -780,6 +894,10 @@ pub(super) fn absorb_existing_remote_lineage_and_prepare_payload(
                 absorb_from_old(&old_m, manifest);
             }
         }
+        let mut ch_map = manifest.channels.take().unwrap_or_default();
+        ch_map.insert(active_ch, active_ptr);
+        manifest.channels = Some(ch_map);
+        let _ = super::manifest_signing::sign_edge_manifest(manifest)?;
         serde_json::to_string_pretty(manifest).map_err(|e| format!("Manifest JSON error: {}", e))
     }
 }
@@ -1574,6 +1692,10 @@ pub async fn execute_edge_manifest_push(
 
             *manifest = updated_manifest;
             Ok(push_res)
+        }
+
+        "s3_r2" => {
+            super::s3_sigv4::push_manifest_to_s3_r2(manifest, cfg, &remote_path, is_catalog).await
         }
 
         other => Err(format!("Unsupported Auto-Push provider: {}", other)),

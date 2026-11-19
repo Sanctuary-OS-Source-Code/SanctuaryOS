@@ -7,6 +7,11 @@ import { useLexicon } from "../LexiconContext";
 import { deduplicateBlueprintArtifacts } from "../shared";
 import { packageBlueprintLoadOrder } from "./usePlaySetLogic";
 import { buildExportableModMetadata } from "../utils/blueprintOverrideUtils";
+import { isDesktop } from "../utils/envUtils";
+import {
+  buildSanctuaryBlueprintLockfile,
+  type BlueprintVaultLockState,
+} from "../utils/blueprintLockfile";
 
 export function useAppActions(runRadarSweep: (isInteractive?: boolean) => void, activeMasonProfileId: string | null, tier2Hashes: string[], fetchBackups: () => void) {
   const { t } = useLexicon();
@@ -161,7 +166,7 @@ export function useAppActions(runRadarSweep: (isInteractive?: boolean) => void, 
       };
     }).filter((m: any) => !m.isVirtual && !m.name.startsWith("FOLDER_") && !m.name.startsWith("SET_") && !m.name.startsWith("LOCAL_SET_")).map(({ isVirtual, ...rest }: any) => rest);
 
-    const exportData = {
+    const exportBase = {
       sanctuary_profile: true,
       name: targetSet.name,
       game_id: activeGameSchema?.id || "",
@@ -175,8 +180,25 @@ export function useAppActions(runRadarSweep: (isInteractive?: boolean) => void, 
     };
     try {
       const config: any = await invoke("get_saved_coordinates");
-      const defaultPath = config.vault_path ? `${config.vault_path}\\Blueprints\\${setName}.json` : `${setName}.json`;
-      const path = await save({ defaultPath, filters:[{ name: 'Sanctuary Profile', extensions: ['json'] }] });
+      let vaultLockState: BlueprintVaultLockState | null = null;
+      if (isDesktop() && config?.vault_path) {
+        vaultLockState = await invoke<BlueprintVaultLockState>("collect_blueprint_lockfile_state", {
+          vaultPath: config.vault_path,
+          modNames: rawModObjects.map((m: any) => String(m.name || "")).filter(Boolean),
+        }).catch(() => null);
+      }
+      const exportData = buildSanctuaryBlueprintLockfile({
+        exportBase,
+        vaultLockState,
+        hiddenFilesMap: targetSet.hiddenFiles,
+      });
+      const defaultPath = config.vault_path
+        ? `${config.vault_path}\\Blueprints\\${setName}.sanctuary-blueprint.lock.json`
+        : `${setName}.sanctuary-blueprint.lock.json`;
+      const path = await save({
+        defaultPath,
+        filters: [{ name: "Sanctuary Blueprint Lockfile", extensions: ["json"] }],
+      });
       if (path) {
         await invoke("save_blueprint", { path: path, content: JSON.stringify(exportData, null, 2) });
         setStatus(`${t("icon_check_circle", "check_circle")} ${t("status_profile_exported", "Profile Exported")}${setName}`);

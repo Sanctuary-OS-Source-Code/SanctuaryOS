@@ -397,6 +397,7 @@ pub async fn deploy_playset_bulk(
     mods: Vec<DeployMod>,
     mods_path: String,
     vault_path: String,
+    profile_id: Option<String>,
     state: tauri::State<'_, AppState>,
 ) -> Result<String, String> {
     let game_schema = state.active_schema.lock().unwrap_or_else(|e| e.into_inner()).clone();
@@ -434,6 +435,22 @@ pub async fn deploy_playset_bulk(
         if !mods_dir.exists() {
             return Err("Mods folder missing.".into());
         }
+
+        let pre_coords = get_saved_coordinates();
+        let pre_live_root =
+            crate::game_logic::resolve_game_engine_root(&pre_coords.live_path, &game_schema);
+        let pre_docs_root = PathBuf::from(crate::utils::resolve_effective_docs_path(
+            &pre_coords,
+            &game_schema,
+        ));
+        let _ = super::runtime_capture_and_ini::capture_runtime_outputs_to_vault(
+            &vault_path,
+            &mods_dir,
+            &pre_live_root,
+            &pre_docs_root,
+            &game_schema,
+            false,
+        );
 
         cleanup_routed_links(&vault_path);
         crate::utils::safe_wipe_mods_dir_with_vault(&mods_dir, Some(&vault_path), &game_schema);
@@ -475,6 +492,14 @@ pub async fn deploy_playset_bulk(
         ));
         let routed_records: std::sync::Mutex<Vec<RoutedFileRecord>> =
             std::sync::Mutex::new(Vec::new());
+        let _ = super::workshop_and_hooks::activate_profile_isolated_dirs(
+            &game_schema,
+            &vault_path,
+            profile_id.as_deref(),
+            &live_root,
+            &docs_root,
+            &mods_dir,
+        );
         let deployed_links: std::sync::Mutex<Vec<String>> = std::sync::Mutex::new(Vec::new());
         let shared_with_vanilla = crate::utils::dir_looks_like_shared_game_folder(
             &mods_dir,
@@ -944,6 +969,24 @@ pub async fn deploy_playset_bulk(
                             rel_target_path.with_file_name(format!("{}{}", formatted_prefix, fname));
                     }
                 }
+                if !source.is_dir() {
+                    let ext_lower = source
+                        .extension()
+                        .and_then(|e| e.to_str())
+                        .unwrap_or("")
+                        .to_ascii_lowercase();
+                    if let Some(ext_limit) =
+                        crate::commands::library::resolve_max_depth_for_extension(
+                            &game_schema,
+                            &ext_lower,
+                        )
+                    {
+                        rel_target_path = crate::commands::library::clamp_relative_path_depth(
+                            &rel_target_path,
+                            Some(ext_limit),
+                        );
+                    }
+                }
 
                 let target = if rel_target_path.as_os_str().is_empty() {
                     mods_dir.clone()
@@ -1026,9 +1069,25 @@ pub async fn deploy_playset_bulk(
                             continue;
                         }
 
+                        let mut dest_rel_in_mods = target
+                            .join(rel_in_mod)
+                            .strip_prefix(&mods_dir)
+                            .unwrap_or(rel_in_mod)
+                            .to_path_buf();
+                        if let Some(ext_limit) =
+                            crate::commands::library::resolve_max_depth_for_extension(
+                                &game_schema,
+                                &ext_lower,
+                            )
+                        {
+                            dest_rel_in_mods = crate::commands::library::clamp_relative_path_depth(
+                                &dest_rel_in_mods,
+                                Some(ext_limit),
+                            );
+                        }
                         let dest = crate::utils::resolve_case_insensitive_path(
-                            &target,
-                            &rel_in_mod.to_string_lossy(),
+                            &mods_dir,
+                            &dest_rel_in_mods.to_string_lossy(),
                         );
                         if crate::utils::ensure_strict_descendant_of_roots(
                             &dest,
@@ -1167,6 +1226,62 @@ pub async fn deploy_playset_bulk(
                             let twin_target = target.with_extension(&other_ext);
                             if link_with_overwrite(&twin_source, &twin_target, mod_allow_write) {
                                 record_deployed_path(&twin_target);
+                            }
+                        }
+                    }
+                }
+
+                // Schema-configured multi-file artifact group siblings (e.g. shared hex-stem bundles)
+                for sib_source in
+                    crate::commands::library::expand_artifact_group_siblings(&source, &game_schema)
+                {
+                    if let Some(sib_name) = sib_source.file_name() {
+                        let sib_ext_lower = sib_source
+                            .extension()
+                            .and_then(|e| e.to_str())
+                            .map(|e| e.to_ascii_lowercase())
+                            .unwrap_or_default();
+                        let sib_mutable = config_exts.contains(&sib_ext_lower)
+                            || editable_exts.contains(&sib_ext_lower);
+                        let mod_parent_prefix = Path::new(&m.path)
+                            .parent()
+                            .map(|p| p.to_string_lossy().replace('\\', "/"))
+                            .unwrap_or_default();
+                        let sib_rel_hint = if mod_parent_prefix.trim_matches('/').is_empty() {
+                            sib_name.to_string_lossy().to_string()
+                        } else {
+                            format!(
+                                "{}/{}",
+                                mod_parent_prefix.trim_matches('/'),
+                                sib_name.to_string_lossy()
+                            )
+                        };
+                        if let Some(rec) = route_file_with_prefix_and_mode_inner(
+                            &sib_source,
+                            &sib_rel_hint,
+                            &install_routes,
+                            &live_root,
+                            &docs_root,
+                            &mods_dir,
+                            computed_prefix.as_deref(),
+                            mod_allow_write,
+                            sib_mutable,
+                            false,
+                        ) {
+                            record_routed_entry(rec);
+                            continue;
+                        }
+                        if let Some(target_parent) = target.parent() {
+                            let sib_target = target_parent.join(sib_name);
+                            if !sib_target.exists()
+                                && crate::utils::ensure_strict_descendant_of_roots(
+                                    &sib_target,
+                                    &mods_allowed_roots,
+                                )
+                                .is_ok()
+                                && link_with_overwrite(&sib_source, &sib_target, mod_allow_write)
+                            {
+                                record_deployed_path(&sib_target);
                             }
                         }
                     }
@@ -1371,6 +1486,27 @@ pub async fn deploy_playset_bulk(
                 }
             }
         }
+        let _ = super::runtime_capture_and_ini::apply_schema_ini_mutations(
+            &game_schema,
+            &vault_path,
+            &mods_dir,
+            &docs_root,
+            &live_root,
+        );
+        let _ = super::runtime_capture_and_ini::record_runtime_capture_baseline(
+            &vault_path,
+            &mods_dir,
+            &live_root,
+            &docs_root,
+            &game_schema,
+        );
+        super::workshop_and_hooks::run_post_deploy_hooks(
+            &game_schema,
+            &live_root,
+            &docs_root,
+            &mods_dir,
+            false,
+        )?;
         let _ = std::fs::remove_file(&mods_deploy_journal);
         if let Some(ref vj) = vault_deploy_journal {
             let _ = std::fs::remove_file(vj);
@@ -1387,20 +1523,53 @@ pub async fn deploy_playset_bulk(
 
 pub fn wipe_symlinks_sync(game_schema: &Option<crate::schema::GameSchema>) -> Result<String, String> {
     let config = get_saved_coordinates();
-    cleanup_routed_links(&config.vault_path);
     let target_mods_path = if !config.mods_path.trim().is_empty() {
         &config.mods_path
     } else {
         &config.live_path
     };
     let mods_dir = std::path::PathBuf::from(target_mods_path);
+    let live_root =
+        crate::game_logic::resolve_game_engine_root(&config.live_path, game_schema);
+    let docs_root = PathBuf::from(crate::utils::resolve_effective_docs_path(
+        &config,
+        game_schema,
+    ));
+    if mods_dir.exists() {
+        let _ = super::runtime_capture_and_ini::capture_runtime_outputs_to_vault(
+            &config.vault_path,
+            &mods_dir,
+            &live_root,
+            &docs_root,
+            game_schema,
+            false,
+        );
+    }
+    cleanup_routed_links(&config.vault_path);
+    let _ = super::workshop_and_hooks::deactivate_profile_isolated_dirs(&config.vault_path);
     if !mods_dir.exists() {
+        let _ = super::runtime_capture_and_ini::revert_schema_ini_mutations(&config.vault_path);
+        let _ = super::workshop_and_hooks::run_post_deploy_hooks(
+            game_schema,
+            &live_root,
+            &docs_root,
+            &mods_dir,
+            true,
+        );
         return Ok("No Mods folder".into());
     }
     let before_entries = std::fs::read_dir(&mods_dir)
         .map(|it| it.filter_map(Result::ok).count())
         .unwrap_or(0);
     crate::utils::safe_wipe_mods_dir_with_vault(&mods_dir, Some(&config.vault_path), game_schema);
+    let _ = super::runtime_capture_and_ini::revert_schema_ini_mutations(&config.vault_path);
+    let _ = super::workshop_and_hooks::run_post_deploy_hooks(
+        game_schema,
+        &live_root,
+        &docs_root,
+        &mods_dir,
+        true,
+    );
     let after_entries = std::fs::read_dir(&mods_dir)
         .map(|it| it.filter_map(Result::ok).count())
         .unwrap_or(0);

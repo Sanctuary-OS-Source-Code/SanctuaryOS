@@ -9,16 +9,16 @@
 
 Full multi-engine expansion featuring **Creator Airlock** external tool save isolation, **The Quartermaster** guided package wizard, **Zero-Copy Exodus** out-of-tree setup migration, **The Rosetta Protocol** modlist translation, **Save Doctor** lockouts, **Patch Fire Drill** simulations, **Groundhog Sandbox** verification, **Universal Master Schema** adapters, **Deck Overdrive** Steam Deck controls, **Code-Switch** auto-translation, **The Highlander Rule** swap alerts, **Echo Suppressor** alert sync, **Crash Autopsy**, **Pocket Radar**, **Browser Autoloader**, **Jump Gate** command palette, **Conflict Radar 2.0**, **Live-Wire Diff**, and the **Ironclad Gauntlet** test suite.
 
-- **Creator Airlock (Complete):** Launches external authoring, asset-editing, and modding tools inside a Save-Airgapped Homestead session with automatic post-exit save restoration, physically isolating primary saves during edits.
-- **The Quartermaster (Complete):** Intercepts multi-variant `.fomod` (`ModuleConfig.xml` UTF-8 / UTF-16LE) and BAIN archives on drop or download via a Guided Package Installer drawer with conditional flag evaluation and priority resolution.
-- **Zero-Copy Exodus (Complete):** Zero-reinstall out-of-tree migration (`Blueprints -> Migrate External Manager`) auto-detecting MO2 (`mods/` + `profiles/*/modlist.txt` + `meta.ini`), Vortex (`vortex.deployment.json`), and generic staging trees with ByteHound screening, `fs::hard_link` zero-copy Vault absorption, profile reconstruction, and safe Master Vault relocation.
-- **The Rosetta Protocol (Complete):** Cross-platform curated modlist and collection translator compiling Modrinth `.mrpack`, CurseForge `manifest.json`, Nexus `collection.json` (with `modRules`), and `.wabbajack` archives across Drag & Drop and Blueprint import into native Sanctuary Blueprints, binding owned SHA-256 Vault matches and queuing missing files into **Browser Autoloader**.
-- **Save Doctor (Complete):** Pairs save activity with the deployed Blueprint DNA manifest (`{Vault}/.sanctuary_save_doctor/<ws>.sanctuary-save-manifest.json`) and warns before launch if switching Blueprints removed mods required by the active save.
+- **Creator Airlock (In Progress):** Launch external authoring, asset-editing, and world-building tools inside a Save-Airgapped Homestead session—physically isolating primary saves while developing assets or testing mods and restoring saves automatically on exit.
+- **The Quartermaster (In Progress):** Intercepts multi-variant archives on drop/download with a Guided Package Installer drawer that parses `fomod/ModuleConfig.xml` and Mason Dossier Flavors with auto-checked compatibility patches.
+- **Zero-Copy Exodus (In Progress):** Zero-reinstall out-of-tree migration via Cartographer & Vault: ingests external staging directories, safely unlinks legacy deployment links, translates XML/JSON/text profile manifests and load orders into ready Blueprints, preserves source URLs and notes as Local Dossiers, and supports hardlink, move, or copy Vault absorption.
+- **The Rosetta Protocol (In Progress):** Cross-platform curated modlist and collection translator: compiles third-party collection manifests, profile archives, and XML/JSON load lists into native Sanctuary Blueprints, binds local Vault matches via SHA-256 / MD5 DNA, and routes missing items into **Browser Autoloader** (with two-way standard load list export).
+- **Save Doctor (In Progress):** Pairs save states with the deployed Blueprint DNA manifest (`.sanctuary-save-manifest.json`) and warns before launch if switching Blueprints removed mods required by the latest save.
 - **Patch Fire Drill (In Testing [In Dev Build]):** Simulates any upstream game patch across all Blueprints with 1:1 deduplicated artifact counts, transitive Atomic Logic dependency cascades, local Echo Archive Auto-Swap detection, 1-click Get Dependency acquisition, and 1-click Clone Ready Blueprint generation.
 - **Groundhog Sandbox (In Testing [In Dev Build]):** Immortal save-verify-and-rewind Lab airgap featuring externalized `SanctuarySaveVault` storage, read-only Golden Baseline Lab Test Saves with disposable working copies and Stage 4 magic-byte save corruption auditing, 100% passive anti-cheat-safe 4-stage verification, pause-menu suspension, and native fullscreen PCM audio chimes.
-- **Universal Master Schema (In Testing [In Dev Build]):** 100% engine-agnostic Master Schema v2 powering ordered XML/JSON/text manifest compilers, topological Master/Dependency DAG & Slot-Bucket load ordering, multi-folder asset tree preservation, Copy-on-Write staging, per-file `.sanctuary_hidden.json` VFS masking, and declarative `virtual_fs_path`, `archive_member`, `binary_chunk_index` (`TES4`, `BSA`/`BA2`, `LSPK`, `.utoc`, `RDAR`, `RPF7`), and `json_xml_key` conflict analyzers.
-- **Deck Overdrive (In Testing [In Dev Build]):** Full-OS Steam Deck controller engine (`hidraw` + 64-byte `SteamDeckStatePacket_t`, 60 FPS Chameleon Virtual Pointer, 2D Spatial Focus, Steam OSK auto-summon, Gamescope XWayland surface binding) paired with automatic Valve Proton `compatdata/<AppID>/pfx/` resolution (plus `user_settings.py` DLL overrides) across internal storage and SD cards.
-- **Code-Switch (In Testing [In Dev Build]):** Automated `6,800+`-key Standard English source scanner, lightweight Sparse Delta Override packs, Source-First 4-tab Lexicon Visual Studio, Guided Icon Overrides, and 1-click neural auto-translation across 28+ languages with `{Glossary}` placeholder masking.
+- **Universal Master Schema (In Testing [In Dev Build]):** 100% engine-agnostic Master Schema v2 powering ordered XML/JSON/text manifest compilers, multi-folder asset tree preservation, Copy-on-Write staging, and declarative `virtual_fs_path`, `archive_member`, `binary_chunk_index`, and `json_xml_key` conflict analyzers.
+- **Deck Overdrive (In Testing [In Dev Build]):** Full-OS Steam Deck controller engine (`hidraw` + 64-byte `SteamDeckStatePacket_t`, 60 FPS Chameleon Virtual Pointer, 2D Spatial Focus, Steam OSK auto-summon, Gamescope XWayland surface binding) paired with automatic Valve Proton `compatdata/<AppID>/pfx/` resolution across internal storage and SD cards.
+- **Code-Switch (In Testing [In Dev Build]):** Automated `6,166`-key Standard English source scanner, lightweight Sparse Delta Override packs, Source-First 4-tab Lexicon Visual Studio, Guided Icon Overrides, and 1-click neural auto-translation across 28+ languages with `{Glossary}` placeholder masking.
 - **The Highlander Rule (In Testing [In Dev Build]):** Enforces mutually exclusive slots (`highlander_group_id`) with explicit **Swap**, **Keep Both**, or **Cancel** alerts on Vault cards and Dossiers—while pairing 7-Domain Settings, Per-Space Aesthetics, and `SRK1` Spoke Relink commitments.
 - **Echo Suppressor (In Testing [In Dev Build]):** Zero-PII AES-256-GCM cross-device notification deduplication and per-Spoke alert muting across Windows, Steam Deck, and Mobile PWA so read banners and dismissed notifications never repeat across devices.
 - **Crash Autopsy (In Testing [In Dev Build]):** Citizen-facing 3-section Corrupted / Unstable / Unrelated Known Error showcase with Architect-pinned diagnostic rules, schema-driven log matchers, and instant crash-log paste decoding across Desktop and Web.
@@ -27,14 +27,14 @@ Full multi-engine expansion featuring **Creator Airlock** external tool save iso
 - **Jump Gate (In Testing [In Dev Build]):** Global `Ctrl+K` / `Cmd+K` Liquid Glass command palette across Desktop, Web, and Mobile PWA for jumping to installed Vault mods, toggling Blueprint items, navigating all 18 OS views, switching Chameleons & Lexicons, and firing quick actions.
 - **Conflict Radar 2.0 (In Testing [In Dev Build]):** 5-Tier Severity Matrix (`S1–S5`), strategy-aware Priority Compiler & Tier inspector with searchable Blueprint Scan Scope, 1-click `'Set Winner'` resolution, and directional Must Load After/Before rules.
 - **Live-Wire Diff (In Testing [In Dev Build]):** Automatically captures live in-game `.cfg`/`.ini`/`.json`/`.toml`/`.yaml`/`.xml` modifications intercepted by the Rust Config Watcher as timestamped `[In-Game Engine Edit]` snapshots inside the Workbench Diff Timeline.
-- **Ironclad Gauntlet (Complete):** Automated Vitest + Cargo Test regression suite covering the Topological Load Order Engine, **Bytecode Hound** (including Zlib/Zstd binary streams), Dynamic `{Glossary}` Token interpolation, Rosetta translation, LOOT rules, Runtime Uplinks, Save Doctor headers, and Master Schema presets.
+- **Ironclad Gauntlet (In Progress):** Automated Vitest + Cargo Test regression suite covering the Topological Load Order Engine, **Bytecode Hound** (including Zlib/Zstd binary streams), Dynamic `{Glossary}` Token interpolation, and System Directive parsing.
 
 ## Phase 13 (V5.8) • October 2026: Schema Forge, Bytecode Hound & Sovereign Covenants
 **Status:** `Completed` | **Focus:** `Schema Forge, Lexicon Codex, Bytecode Hound, Edge Direct Push & Sovereign Covenants`
 
 Delivered **Schema Forge** & **Lexicon Codex** with Guided Icon Overrides and Interactive Codex Guides, upgraded **Bytecode Hound** (Core + Spoke rules with Zlib/Zstd binary stream & Base64/Hex deobfuscation), added 6-provider **Edge Direct Push**, Readiness-Gated Partner Applications with mandatory **Sovereign Covenants**, and **Mirror Uplink** bilateral sync.
 
-- **Schema Forge (Complete):** 7 multi-game architecture presets, Windows (`.exe`) & macOS (`.app`) coordinate mapping, secondary `install_routes`, database-driven `public.taxonomy` Categories (`Oversight -> Game Management -> Categories`), and live `config_extensions` syncing.
+- **Schema Forge (Complete):** 7 multi-game architecture presets, Windows (`.exe`) & macOS (`.app`) coordinate mapping, secondary `install_routes`, game-agnostic `mod_categories`, and live `config_extensions` syncing.
 - **Lexicon Codex (Complete):** Searchable Material Symbol override builder with `Default → New` glyph previews, themed checkboxes, parity validation bar, and interactive Schema & Lexicon Codex drawers.
 - **Bytecode Hound (Complete):** In-memory Zlib/Zstd binary stream decompression, Base64/Hex deobfuscation, Move-mode source disposition tracking, and Zero-PII Threat Manifest reporting across Core and Spoke rules.
 - **Edge Direct Push (Complete):** 1-click OS Auto-Push for `.sanctuary.manifest.json` and multi-mod `catalog.json` files to GitHub, Gist, GitLab/Codeberg, Neocities, WebDAV, and Local Folders with automatic `previous_hashes` lineage rollover.
@@ -121,7 +121,7 @@ Implemented Symlink Airgap 2.1 real-time .cfg/.ini file watching in Rust, SHA-25
 
 - **Real-Time Airgap Watcher & DNA Intercept (Complete):** Non-blocking Rust notify thread syncing live in-game .cfg/.ini edits back to the Vault, plus SHA-256 duplicate interception on drop.
 - **Dual-State Time Capsule Architecture (Complete):** Independently snapshots World State (Saves & Settings) and Engine Core (Game Installation Binaries) before patches or artifact tests.
-- **Zero-Bloat OS Hardlink Snapshot Engine (Complete):** Uses parallel native NTFS/POSIX Copy-on-Write (CoW) hardlink deduplication so unchanged files consume zero extra disk space.
+- **Zero-Bloat OS Hardlink Snapshot Engine (Complete):** Pairs native NTFS/POSIX hardlink deduplication with .tar.zst Zstandard compression so unchanged files consume zero extra disk space.
 - **Differential Rollback Comparator (Complete):** High-speed diff_backup engine that restores only modified bytes and purges rogue files without re-copying the entire installation.
 
 ## Phase 4 • April 28 – May 1, 2026: The Global Network, Radiant Light Mode & Cloud Blueprints
@@ -157,10 +157,10 @@ Introduced the Glassmorphism 1.0 backdrop-blur engine, constructed the dedicated
 ## Phase 1 • April 1 – April 10, 2026: Bunker Initialization, Cartographer Protocol & SHA-256 DNA Pathing
 **Status:** `Completed` | **Focus:** `First-Boot Cartographer Recon & Millisecond Delta Caching`
 
-Initialized the Tauri v2 + Rust + React 19 architecture, built The Cartographer automated first-boot reconnaissance scanner for Game Bin & Artifacts directories, and engineered SHA-256 DNA delta caching.
+Initialized the Tauri v2 + Rust + React 18 architecture, built The Cartographer automated first-boot reconnaissance scanner for Game Bin & Artifacts directories, and engineered SHA-256 DNA delta caching.
 
 - **Cartographer Recon & Millisecond Delta Cache (Complete):** Automated first-boot drive reconnaissance locating Game Bin & Artifacts folders, paired with SHA-256 delta caching for instant startup.
-- **Tauri v2 + Rust + React 19 Kernel (Complete):** Foundational desktop OS architecture combining a native multi-threaded Rust backend with React 19, TypeScript, and Zustand.
+- **Tauri v2 + Rust + React 18 Kernel (Complete):** Foundational desktop OS architecture combining a native multi-threaded Rust backend with React 18, TypeScript, and Zustand.
 - **Automated Coordinate Discovery Wizard (Complete):** Guided first-launch Cartographer setup linking Game Binaries, live Artifacts folders, and airgapped Bunker Vault coordinates.
 - **Streaming SHA-256 DNA & Archive Inspector (Complete):** Multi-threaded Rust cryptographic hashing and in-memory binary/ZIP header inspection without extracting archives to disk.
 
@@ -189,38 +189,38 @@ Initialized the Tauri v2 + Rust + React 19 architecture, built The Cartographer 
           "subCards": [
             {
               "id": "phase_14_m1",
-              "icon": "check_circle",
+              "icon": "handyman",
               "title": "Creator Airlock",
-              "desc": "Launches external authoring, asset-editing, and modding tools inside a Save-Airgapped {Lab} session with automatic post-exit save restoration—physically isolating primary saves during edits.",
-              "pending": false
+              "desc": "Launch external authoring, asset-editing, and world-building tools inside a Save-Airgapped {Lab} session—physically isolating primary saves while developing assets or testing {mods} and restoring saves automatically on exit.",
+              "pending": true
             },
             {
               "id": "phase_14_m2",
-              "icon": "check_circle",
+              "icon": "inventory_2",
               "title": "The Quartermaster",
-              "desc": "Intercepts multi-variant .fomod (ModuleConfig.xml UTF-8/UTF-16LE) and BAIN archives on drop or download via a Guided Package Installer drawer with conditional flag evaluation.",
-              "pending": false
+              "desc": "Intercepts multi-variant archives on drop or download with a Guided Package Installer drawer that parses multi-option installer manifests and {Mason} Dossier Flavors with auto-checked compatibility patches.",
+              "pending": true
             },
             {
               "id": "phase_14_m3",
-              "icon": "check_circle",
+              "icon": "drive_file_move",
               "title": "Zero-Copy Exodus",
-              "desc": "Zero-reinstall out-of-tree migration via {Blueprints} -> Migrate External Manager: auto-detects MO2, Vortex, and staging directories, screens with ByteHound, absorbs files via OS hardlinks, reconstructs {Blueprint} profiles, and relocates Master {Vault} roots.",
-              "pending": false
+              "desc": "Zero-reinstall out-of-tree migration via Cartographer & {Vault}: ingests external staging directories, safely unlinks legacy deployment links, translates XML/JSON/text profile manifests and load orders into ready {Blueprints}, preserves source URLs and notes as Local Dossiers, and supports hardlink, move, or copy Vault absorption.",
+              "pending": true
             },
             {
               "id": "phase_14_m4",
-              "icon": "check_circle",
+              "icon": "swap_horiz",
               "title": "The Rosetta Protocol",
-              "desc": "Cross-platform curated modlist and collection translator compiling .mrpack, CurseForge manifest.json, Nexus collection.json (with modRules), and .wabbajack archives across Drag & Drop and {Blueprint} import, binding local SHA-256 matches and queuing missing items cleanly.",
-              "pending": false
+              "desc": "Cross-platform curated modlist and collection translator: compiles third-party collection manifests, profile archives, and XML/JSON load lists into native Sanctuary {Blueprints}, binds local {Vault} matches via SHA-256 / MD5 DNA, and routes missing items into Browser Autoloader (with two-way standard load list export).",
+              "pending": true
             },
             {
               "id": "phase_14_m5",
-              "icon": "check_circle",
+              "icon": "health_and_safety",
               "title": "Save Doctor",
-              "desc": "Pairs save activity with the deployed {Blueprint} DNA manifest ({Vault}/.sanctuary_save_doctor/<ws>.sanctuary-save-manifest.json) and warns before launch if switching {Blueprints} removed {mods} required by existing saves.",
-              "pending": false
+              "desc": "Pairs save states with the deployed {Blueprint} DNA manifest (.sanctuary-save-manifest.json) and warns before launch if switching {Blueprints} removed {mods} required by the latest save.",
+              "pending": true
             },
             {
               "id": "phase_14_m6",
@@ -331,7 +331,7 @@ Initialized the Tauri v2 + Rust + React 19 architecture, built The Cartographer 
               "icon": "verified",
               "title": "Ironclad Gauntlet",
               "desc": "Automated Vitest + Cargo Test regression suite covering the Topological Load Order Engine, Bytecode Hound heuristic scanner (including Zlib/Zstd streams), Dynamic {Glossary} Token interpolation, and System Directive parsing.",
-              "pending": false
+              "pending": true
             }
           ]
         },
@@ -349,7 +349,7 @@ Initialized the Tauri v2 + Rust + React 19 architecture, built The Cartographer 
               "id": "phase_13_m1",
               "icon": "check_circle",
               "title": "Schema Forge",
-              "desc": "7 multi-game architecture presets, Windows (.exe) & macOS (.app) coordinate mapping, secondary install_routes, database-driven public.taxonomy Categories, and live config_extensions syncing.",
+              "desc": "7 multi-game architecture presets, Windows (.exe) & macOS (.app) coordinate mapping, secondary install_routes, game-agnostic mod_categories, and live config_extensions syncing.",
               "pending": false
             },
             {
@@ -606,7 +606,7 @@ Initialized the Tauri v2 + Rust + React 19 architecture, built The Cartographer 
               "id": "phase_8_m8",
               "icon": "check_circle",
               "title": "Tier 5 Malware Scanner & Secure Shred",
-              "desc": "Byte-level heuristic malware scanner, {Citizen}-signed zero-fill Secure Shredding, and the privacy-first hardware_bans Nuclear Override."
+              "desc": "Byte-level heuristic malware scanner, {Citizen}-signed 3-pass Secure Shredding, and the privacy-first hardware_bans Nuclear Override."
             }
           ]
         },
@@ -708,7 +708,7 @@ Initialized the Tauri v2 + Rust + React 19 architecture, built The Cartographer 
               "id": "phase_5_m7",
               "icon": "check_circle",
               "title": "Zero-Bloat OS Hardlink Snapshot Engine",
-              "desc": "Uses parallel native NTFS/POSIX Copy-on-Write (CoW) hardlink deduplication so unchanged files consume zero extra disk space."
+              "desc": "Pairs native NTFS/POSIX hardlink deduplication with .tar.zst Zstandard compression so unchanged files consume zero extra disk space."
             },
             {
               "id": "phase_5_m8",
@@ -833,7 +833,7 @@ Initialized the Tauri v2 + Rust + React 19 architecture, built The Cartographer 
           "badge": "COMPLETED",
           "title": "Bunker Initialization, Cartographer Protocol & SHA-256 DNA Pathing",
           "footerMeta": "First-Boot Cartographer Recon & Millisecond Delta Caching",
-          "desc": "Initialized the Tauri v2 + Rust + React 19 architecture, built The Cartographer automated first-boot reconnaissance scanner for Game Bin & {Mods} directories, and engineered SHA-256 DNA delta caching.",
+          "desc": "Initialized the Tauri v2 + Rust + React 18 architecture, built The Cartographer automated first-boot reconnaissance scanner for Game Bin & {Mods} directories, and engineered SHA-256 DNA delta caching.",
           "status": "completed",
           "subCards": [
             {
@@ -845,8 +845,8 @@ Initialized the Tauri v2 + Rust + React 19 architecture, built The Cartographer 
             {
               "id": "phase_1_m6",
               "icon": "check_circle",
-              "title": "Tauri v2 + Rust + React 19 Kernel",
-              "desc": "Foundational desktop OS architecture combining a native multi-threaded Rust backend with React 19, TypeScript, and Zustand."
+              "title": "Tauri v2 + Rust + React 18 Kernel",
+              "desc": "Foundational desktop OS architecture combining a native multi-threaded Rust backend with React 18, TypeScript, and Zustand."
             },
             {
               "id": "phase_1_m7",

@@ -450,6 +450,16 @@ export function SchemaIdentityAndRoutingTabs({
                   />
                 </div>
               </div>
+
+              <SchemaToggleRow
+                label={t("schema_studio_discover_workshop", "Discover Subscribed Steam Workshop {Mods} Read-Only")}
+                description={t(
+                  "schema_studio_discover_workshop_desc",
+                  "Merges Steam Workshop content into Load Order manifests and Conflict Radar without copying files into the {Vault}."
+                )}
+                checked={Boolean(pathsObj.discover_steam_workshop)}
+                onChange={(val) => updateNestedField("paths", "discover_steam_workshop", val)}
+              />
             </div>
           </UniversalGroup>
 
@@ -733,6 +743,70 @@ export function SchemaIdentityAndRoutingTabs({
                 </div>
               </div>
 
+              <div className="glass-surface rounded-2xl p-3.5 border border-[color-mix(in_srgb,var(--text)_10%,transparent)] flex flex-col sm:flex-row sm:items-center justify-between gap-3 md:col-span-2">
+                <div className="flex flex-col gap-0.5 min-w-0">
+                  <label className="text-[10px] font-black uppercase tracking-widest text-[var(--subtext)]">
+                    {t("schema_studio_max_nested_arch", "Nested Archive Unpack Depth")}
+                  </label>
+                  <span className="text-[10px] font-medium text-[var(--subtext)] opacity-75">
+                    {t(
+                      "schema_studio_max_nested_arch_hint",
+                      "Recursively unpacks nested container archives up to this depth during intake while keeping native script archives intact."
+                    )}
+                  </span>
+                </div>
+                <GlassNumberInput
+                  value={constraintsObj.max_nested_archive_depth ?? 0}
+                  min={0}
+                  max={5}
+                  onChange={(val) =>
+                    updateNestedField("constraints", "max_nested_archive_depth", val <= 0 ? 0 : val)
+                  }
+                  className="w-[160px] shrink-0"
+                />
+              </div>
+
+              <div className="glass-surface rounded-2xl p-4 border border-[color-mix(in_srgb,var(--text)_10%,transparent)] flex flex-col gap-3 min-w-0 md:col-span-2">
+                <div className="flex flex-col gap-0.5">
+                  <label className="text-[10px] font-black uppercase tracking-widest text-[var(--subtext)]">
+                    {t("schema_studio_max_depth_by_ext", "Max Subfolder Depth by File Extension")}
+                  </label>
+                  <span className="text-[10px] font-medium text-[var(--subtext)] opacity-75">
+                    {t(
+                      "schema_studio_max_depth_by_ext_desc",
+                      "Enforces per-extension subfolder depth caps across intake staging and live deployment."
+                    )}
+                  </span>
+                </div>
+                <KeyValueMapBuilder
+                  record={(() => {
+                    const rawMap =
+                      constraintsObj.max_depth_by_extension &&
+                      typeof constraintsObj.max_depth_by_extension === "object"
+                        ? constraintsObj.max_depth_by_extension
+                        : {};
+                    const strMap: Record<string, string> = {};
+                    for (const [k, v] of Object.entries(rawMap)) {
+                      strMap[k] = String(v ?? 0);
+                    }
+                    return strMap;
+                  })()}
+                  onChange={(nextMap) => {
+                    const numericMap: Record<string, number> = {};
+                    for (const [k, v] of Object.entries(nextMap)) {
+                      const cleanKey = k.trim();
+                      const n = Number(v);
+                      if (cleanKey && Number.isFinite(n) && n >= 0) {
+                        numericMap[cleanKey] = Math.round(n);
+                      }
+                    }
+                    updateNestedField("constraints", "max_depth_by_extension", numericMap);
+                  }}
+                  keyPlaceholder={t("schema_studio_ph_depth_ext", "e.g. .script")}
+                  valPlaceholder={t("schema_studio_ph_depth_val", "1")}
+                />
+              </div>
+
               <div className="glass-surface rounded-2xl p-3.5 border border-[color-mix(in_srgb,var(--text)_10%,transparent)] flex flex-col gap-2 min-w-0">
                 <label className="text-[10px] font-black uppercase tracking-widest text-[var(--subtext)]">
                   {t("schema_studio_mod_unit_mode", "{Mod} Packaging Unit Mode")}
@@ -870,6 +944,227 @@ export function SchemaIdentityAndRoutingTabs({
               })()}
             </div>
           </UniversalGroup>
+
+          {(() => {
+            const artifactGroups: any[] = Array.isArray(parsedSchema.artifact_groups)
+              ? parsedSchema.artifact_groups
+              : [];
+            const previewExtractors: any[] = Array.isArray(parsedSchema.preview_extractors)
+              ? parsedSchema.preview_extractors
+              : [];
+            return (
+              <UniversalGroup
+                title={t("schema_studio_sec_groups_previews", "Artifact Bundles & Embedded Thumbnails")}
+                icon={t("icon_collections", "collections")}
+              >
+                <div className="flex flex-col gap-4 w-full">
+                  <div className="flex flex-col gap-3">
+                    <div className="flex items-center justify-between gap-2 flex-wrap">
+                      <div className="flex flex-col gap-0.5">
+                        <span className="text-xs font-black uppercase tracking-wider text-[var(--text)]">
+                          {t("schema_studio_artifact_groups", "Multi-File Artifact Grouping Rules")}
+                        </span>
+                        <span className="text-[11px] font-medium text-[var(--subtext)] opacity-80">
+                          {t(
+                            "schema_studio_artifact_groups_desc",
+                            "Groups multi-file sidecar bundles sharing a hex resource ID or filename stem into a single cohesive {Vault} unit."
+                          )}
+                        </span>
+                      </div>
+                      <ActionButton
+                        variant="glass"
+                        icon={t("icon_add", "add")}
+                        onClick={() =>
+                          updateField("artifact_groups", [
+                            ...artifactGroups,
+                            {
+                              id: `bundle_${artifactGroups.length + 1}`,
+                              label: t("schema_studio_default_group_label", "Bundle Group"),
+                              extensions: [],
+                              key_strategy: "shared_hex_stem",
+                            },
+                          ])
+                        }
+                        className="!px-3.5 !py-1.5 !text-[10px] !rounded-xl"
+                      >
+                        {t("schema_studio_add_group_rule", "Add Group Rule")}
+                      </ActionButton>
+                    </div>
+                    {artifactGroups.length > 0 && (
+                      <div className="grid grid-cols-1 xl:grid-cols-2 gap-3.5">
+                        {artifactGroups.map((grp: any, gIdx: number) => {
+                          const updateGrp = (patch: Record<string, any>) => {
+                            const next = [...artifactGroups];
+                            next[gIdx] = { ...grp, ...patch };
+                            updateField("artifact_groups", next);
+                          };
+                          return (
+                            <div
+                              key={`grp_${gIdx}`}
+                              className="glass-surface rounded-2xl p-3.5 border border-[color-mix(in_srgb,var(--text)_10%,transparent)] flex flex-col gap-2.5 min-w-0"
+                            >
+                              <div className="flex items-center justify-between gap-2">
+                                <span className="text-xs font-black font-mono text-[var(--accent)] truncate">
+                                  {`#${gIdx + 1} • ${grp.id || "bundle"}`}
+                                </span>
+                                <button
+                                  type="button"
+                                  onClick={() =>
+                                    updateField(
+                                      "artifact_groups",
+                                      artifactGroups.filter((_: any, i: number) => i !== gIdx)
+                                    )
+                                  }
+                                  className="w-8 h-8 shrink-0 rounded-xl glass-surface border border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:border-[var(--danger)] flex items-center justify-center text-[var(--subtext)] hover:text-[var(--danger)] cursor-pointer transition-all"
+                                >
+                                  <span className="material-symbols-outlined !text-[15px]">
+                                    {t("icon_delete", "delete")}
+                                  </span>
+                                  <HoverTooltip title={t("delete", "Delete")} />
+                                </button>
+                              </div>
+                              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                                <input
+                                  type="text"
+                                  value={grp.id ?? ""}
+                                  onChange={(e) => updateGrp({ id: e.target.value })}
+                                  placeholder="bundle_rule"
+                                  className="h-9 min-w-0 glass-panel rounded-xl px-3 text-xs font-mono font-bold text-[var(--text)] border border-[color-mix(in_srgb,var(--text)_12%,transparent)]"
+                                />
+                                <CustomDropdown
+                                  disableTint={true}
+                                  value={grp.key_strategy ?? "shared_hex_stem"}
+                                  onChange={(v: string[]) =>
+                                    updateGrp({ key_strategy: v[0] || "shared_hex_stem" })
+                                  }
+                                  options={[
+                                    {
+                                      id: "shared_hex_stem",
+                                      label: t("schema_studio_grp_hex_stem", "Shared Hex ID Stem"),
+                                    },
+                                    {
+                                      id: "shared_stem",
+                                      label: t("schema_studio_grp_stem", "Shared Filename Stem"),
+                                    },
+                                  ]}
+                                />
+                              </div>
+                              <StringListBuilder
+                                items={Array.isArray(grp.extensions) ? grp.extensions : []}
+                                onChange={(nextExts) => updateGrp({ extensions: nextExts })}
+                                placeholder={t("schema_studio_ph_group_exts", "e.g. .item / .bpi")}
+                                addButtonLabel={t("add", "Add")}
+                              />
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="flex flex-col gap-3 pt-2 border-t border-[color-mix(in_srgb,var(--text)_8%,transparent)]">
+                    <div className="flex items-center justify-between gap-2 flex-wrap">
+                      <div className="flex flex-col gap-0.5">
+                        <span className="text-xs font-black uppercase tracking-wider text-[var(--text)]">
+                          {t("schema_studio_preview_extractors", "Embedded Binary Preview Extractors")}
+                        </span>
+                        <span className="text-[11px] font-medium text-[var(--subtext)] opacity-80">
+                          {t(
+                            "schema_studio_preview_extractors_desc",
+                            "Extracts embedded PNG or JPEG thumbnails from binary containers and caches them for local {Vault} tiles."
+                          )}
+                        </span>
+                      </div>
+                      <ActionButton
+                        variant="glass"
+                        icon={t("icon_add", "add")}
+                        onClick={() =>
+                          updateField("preview_extractors", [
+                            ...previewExtractors,
+                            {
+                              id: `preview_${previewExtractors.length + 1}`,
+                              extensions: [],
+                              container_magic: "",
+                              scan_embedded_png_jpeg: true,
+                              max_scan_bytes: 8388608,
+                            },
+                          ])
+                        }
+                        className="!px-3.5 !py-1.5 !text-[10px] !rounded-xl"
+                      >
+                        {t("schema_studio_add_preview_extractor", "Add Preview Extractor")}
+                      </ActionButton>
+                    </div>
+                    {previewExtractors.length > 0 && (
+                      <div className="grid grid-cols-1 xl:grid-cols-2 gap-3.5">
+                        {previewExtractors.map((extRule: any, pIdx: number) => {
+                          const updatePrev = (patch: Record<string, any>) => {
+                            const next = [...previewExtractors];
+                            next[pIdx] = { ...extRule, ...patch };
+                            updateField("preview_extractors", next);
+                          };
+                          return (
+                            <div
+                              key={`prev_${pIdx}`}
+                              className="glass-surface rounded-2xl p-3.5 border border-[color-mix(in_srgb,var(--text)_10%,transparent)] flex flex-col gap-2.5 min-w-0"
+                            >
+                              <div className="flex items-center justify-between gap-2">
+                                <span className="text-xs font-black font-mono text-[var(--accent)] truncate">
+                                  {`#${pIdx + 1} • ${extRule.id || "preview"}`}
+                                </span>
+                                <button
+                                  type="button"
+                                  onClick={() =>
+                                    updateField(
+                                      "preview_extractors",
+                                      previewExtractors.filter((_: any, i: number) => i !== pIdx)
+                                    )
+                                  }
+                                  className="w-8 h-8 shrink-0 rounded-xl glass-surface border border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:border-[var(--danger)] flex items-center justify-center text-[var(--subtext)] hover:text-[var(--danger)] cursor-pointer transition-all"
+                                >
+                                  <span className="material-symbols-outlined !text-[15px]">
+                                    {t("icon_delete", "delete")}
+                                  </span>
+                                  <HoverTooltip title={t("delete", "Delete")} />
+                                </button>
+                              </div>
+                              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                                <input
+                                  type="text"
+                                  value={extRule.id ?? ""}
+                                  onChange={(e) => updatePrev({ id: e.target.value })}
+                                  placeholder="thumb_extractor"
+                                  className="h-9 min-w-0 glass-panel rounded-xl px-3 text-xs font-mono font-bold text-[var(--text)] border border-[color-mix(in_srgb,var(--text)_12%,transparent)]"
+                                />
+                                <input
+                                  type="text"
+                                  value={extRule.container_magic ?? ""}
+                                  onChange={(e) => updatePrev({ container_magic: e.target.value })}
+                                  placeholder={t("schema_studio_ph_magic_ascii", "Magic header (e.g. BINM or hex:...)")}
+                                  className="h-9 min-w-0 glass-panel rounded-xl px-3 text-xs font-mono font-bold text-[var(--text)] border border-[color-mix(in_srgb,var(--text)_12%,transparent)]"
+                                />
+                              </div>
+                              <StringListBuilder
+                                items={Array.isArray(extRule.extensions) ? extRule.extensions : []}
+                                onChange={(nextExts) => updatePrev({ extensions: nextExts })}
+                                placeholder={t("schema_studio_ph_preview_exts", "e.g. .binmod")}
+                                addButtonLabel={t("add", "Add")}
+                              />
+                              <SchemaToggleRow
+                                label={t("schema_studio_scan_png_jpeg", "Scan Raw & Zlib Streams for Embedded PNG/JPEG")}
+                                checked={extRule.scan_embedded_png_jpeg !== false}
+                                onChange={(val) => updatePrev({ scan_embedded_png_jpeg: val })}
+                              />
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </UniversalGroup>
+            );
+          })()}
 
           <UniversalGroup
             title={t("schema_studio_sec_version_dlc", "Version & DLC Detection")}

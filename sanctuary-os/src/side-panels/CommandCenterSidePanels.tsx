@@ -1,5 +1,6 @@
 import React, { useMemo, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
+import { listen } from "@tauri-apps/api/event";
 import { useLexicon } from "../LexiconContext";
 import { useStore } from "../store";
 import { useModalStore } from "../store/modalStore";
@@ -630,6 +631,12 @@ export function UpdatesSidePanel({
   const { t } = useLexicon();
   const activeGameSchema = useStore((state: any) => state.activeGameSchema);
   const [searchQuery, setSearchQuery] = useState("");
+  const [isUpdatingAll, setIsUpdatingAll] = useState(false);
+  const [updateProgress, setUpdateProgress] = useState<{
+    completed: number;
+    total: number;
+    currentName: string;
+  } | null>(null);
 
   const groupedUpdates = useMemo(() => groupUpdateMods(activeUpdates || []), [activeUpdates]);
 
@@ -720,6 +727,132 @@ export function UpdatesSidePanel({
     onClose?.();
   };
 
+  const handleUpdateAllDirect = async () => {
+    if (!isDesktop() || isUpdatingAll || filteredUpdates.length === 0) return;
+
+    const batchItems = filteredUpdates.map((u: any, idx: number) => {
+      const groupedMods: any[] =
+        Array.isArray(u._groupedMods) && u._groupedMods.length > 0 ? u._groupedMods : [u];
+      const rawTitle = u._groupedTitle || formatDisplayName(u.displayName || u.name || "");
+      const title = formatCleanModTitle(rawTitle) || rawTitle || "Unknown";
+      const fallbackUrl =
+        getModFallbackUrl(title || u.name || "", u.hash, activeGameSchema, {
+          url: u.download_url || u.url,
+        }) ||
+        `https://www.google.com/search?q=${encodeURIComponent(
+          activeGameSchema?.display_name || "Mod"
+        )}+${encodeURIComponent(cleanSearchName(title || u.name || "", activeGameSchema))}`;
+      const rawExplicitUrl = String(u.download_url || u.url || "").trim();
+      const firstSeg = String(u.name || groupedMods[0]?.name || "")
+        .replace(/\\/g, "/")
+        .split("/")[0]
+        ?.trim();
+      const targetFolder = firstSeg && !firstSeg.includes(".") ? firstSeg : null;
+
+      return {
+        id: String(u.hash || u.dbId || `${title}_${idx}`),
+        name: title,
+        download_url: rawExplicitUrl || fallbackUrl,
+        fallback_url: fallbackUrl,
+        expected_sha256: u.expected_sha256 || u.newSha256 || null,
+        target_folder: targetFolder,
+        force_replace: true,
+        fomod_selections: null,
+        hidden_files: null,
+        _meta: { u, groupedMods, title },
+      };
+    });
+
+    setIsUpdatingAll(true);
+    setUpdateProgress({
+      completed: 0,
+      total: batchItems.length,
+      currentName: batchItems[0]?.name || "",
+    });
+    let unlisten: (() => void) | undefined;
+    try {
+      unlisten = await listen<{
+        completed?: number;
+        total?: number;
+        current_name?: string;
+      }>("blueprint-hydration-progress", (ev) => {
+        setUpdateProgress({
+          completed: Number(ev.payload?.completed || 0),
+          total: Number(ev.payload?.total || batchItems.length),
+          currentName: String(ev.payload?.current_name || ""),
+        });
+      });
+
+      const report = await invoke<{
+        hydrated_ids: string[];
+        wizard_plans: any[];
+        gated_browser_items: { id: string; name: string; url: string; reason: string }[];
+        failed_items: { id: string; name: string; reason: string }[];
+      }>("hydrate_blueprint_lockfile_batch", {
+        items: batchItems.map(({ _meta, ...payload }) => payload),
+        configDeltas: null,
+        concurrency: 4,
+      });
+
+      const mStore = useModalStore.getState();
+      if (Array.isArray(report?.wizard_plans)) {
+        for (const wp of report.wizard_plans) {
+          mStore.enqueueInstallerWizard(wp);
+        }
+      }
+
+      if (report?.hydrated_ids?.length > 0) {
+        const doneMsg = t(
+          "edge_batch_update_complete_msg",
+          "Updated {count} {mods} into your {Vault}."
+        ).replace("{count}", String(report.hydrated_ids.length));
+        notifyOS(t("update_complete_title", "{Mod} Updated"), doneMsg, "SYSTEM");
+        useStore.getState().pushStatus(doneMsg, "success");
+        window.dispatchEvent(new CustomEvent("sanctuary-trigger-radar-sweep"));
+      }
+      if (report?.failed_items?.length > 0) {
+        useStore
+          .getState()
+          .pushStatus(
+            `${t("edge_dl_sha256_mismatch_title", "Integrity Verification Failed")}: ${report.failed_items.length}`,
+            "error"
+          );
+      }
+
+      if (Array.isArray(report?.gated_browser_items) && report.gated_browser_items.length > 0) {
+        const metaById = new Map(batchItems.map((it) => [it.id, it._meta]));
+        const guided = report.gated_browser_items.map((g) => {
+          const meta = metaById.get(g.id);
+          const u = meta?.u;
+          const validCreator = u ? extractValidCreator(u, ...(meta?.groupedMods || [u])) : "";
+          return {
+            id: g.id,
+            name: g.name,
+            author: validCreator ? formatCleanModTitle(validCreator) : undefined,
+            url: g.url,
+            hash: u?.hash || undefined,
+            version: u?.newVersion ? String(u.newVersion).replace(/^v\.?/i, "") : undefined,
+            icon: u ? getModIcon(u, activeGameSchema, t) : undefined,
+            moduleCount:
+              meta?.groupedMods && meta.groupedMods.length > 1
+                ? meta.groupedMods.length
+                : undefined,
+            status: "pending" as const,
+          };
+        });
+        mStore.startGuidedBrowserQueue(guided);
+        mStore.setIsSideBrowserOpen(true);
+        onClose?.();
+      }
+    } catch (err: any) {
+      useStore.getState().pushStatus(String(err?.message || err), "error");
+    } finally {
+      unlisten?.();
+      setIsUpdatingAll(false);
+      setUpdateProgress(null);
+    }
+  };
+
   return (
     <SidePanel
       isOpen={isOpen}
@@ -732,6 +865,17 @@ export function UpdatesSidePanel({
       headerActions={
         filteredUpdates.length > 0 ? (
           <PanelHeaderGroup>
+            {isDesktop() && (
+              <PanelHeaderButton
+                icon={isUpdatingAll ? t("icon_progress_activity", "progress_activity") : t("icon_download_for_offline", "download_for_offline")}
+                tooltip={t("btn_update_all", "Update All ({0})").replace(
+                  "{0}",
+                  String(filteredUpdates.length)
+                )}
+                variant="success"
+                onClick={() => void handleUpdateAllDirect()}
+              />
+            )}
             <PanelHeaderButton
               icon={t("icon_playlist_play", "playlist_play")}
               tooltip={t(
@@ -774,8 +918,40 @@ export function UpdatesSidePanel({
                 iconColorClass="text-[var(--accent)]"
               />
             </div>
+            {updateProgress && (
+              <div className="flex flex-col gap-1.5 pt-2 border-t border-[color-mix(in_srgb,var(--text)_10%,transparent)]">
+                <div className="flex items-center justify-between text-[10px] font-black uppercase tracking-widest text-[var(--accent)]">
+                  <span className="truncate">{updateProgress.currentName || t("loading", "Loading...")}</span>
+                  <span>
+                    {updateProgress.completed} / {updateProgress.total}
+                  </span>
+                </div>
+                <div className="w-full h-1.5 rounded-full bg-[color-mix(in_srgb,var(--text)_12%,transparent)] overflow-hidden">
+                  <div
+                    className="h-full bg-[var(--accent)] transition-all duration-200"
+                    style={{
+                      width: `${Math.round(
+                        (updateProgress.completed / Math.max(1, updateProgress.total)) * 100
+                      )}%`,
+                    }}
+                  />
+                </div>
+              </div>
+            )}
             {filteredUpdates.length > 0 && (
               <div className="flex flex-wrap items-center justify-end gap-2 ml-auto w-full pt-1">
+                {isDesktop() && (
+                  <ActionButton
+                    variant="success"
+                    disabled={isUpdatingAll}
+                    icon={isUpdatingAll ? t("icon_progress_activity", "progress_activity") : t("icon_download_for_offline", "download_for_offline")}
+                    label={t("btn_update_all", "Update All ({0})").replace(
+                      "{0}",
+                      String(filteredUpdates.length)
+                    )}
+                    onClick={() => void handleUpdateAllDirect()}
+                  />
+                )}
                 <ActionButton
                   variant="accent"
                   icon={t("icon_playlist_play", "playlist_play")}

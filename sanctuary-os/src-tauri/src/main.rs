@@ -3,6 +3,7 @@
 mod commands;
 mod game_logic;
 mod load_order_engine;
+mod loot_rules;
 mod schema;
 mod state;
 mod storefront_discovery;
@@ -15,6 +16,7 @@ use crate::commands::cache::*;
 use crate::commands::config::*;
 use crate::commands::deployment::*;
 use crate::load_order_engine::*;
+use crate::loot_rules::*;
 use crate::commands::edge_network::*;
 use crate::commands::game_info::*;
 use crate::commands::library::*;
@@ -356,7 +358,11 @@ fn main() {
             auto_detect_paths,
             launch_game,
             discover_schema_external_tools,
+            discover_workshop_mods,
             launch_external_tool,
+            capture_runtime_outputs,
+            sync_external_loot_rules,
+            apply_modpack_binary_patch,
             airgap_saves,
             recover_interrupted_lab_airgap,
             get_airgap_status,
@@ -413,9 +419,12 @@ fn main() {
             ingest_dropped_file,
             commit_installer_wizard_session,
             cancel_installer_wizard_session,
+            can_reconfigure_mod_installer,
+            reopen_mod_installer_wizard,
             inspect_dropped_json_bundles,
             save_dropped_os_asset,
             import_external_mod_manager,
+            detect_external_mod_managers,
             extract_blueprint_mod_metadata,
             evaluate_blueprint_load_order_diagnostics,
             resolve_dna_match,
@@ -471,6 +480,13 @@ fn main() {
             push_static_edge_manifest,
             get_edge_push_token,
             set_edge_push_token,
+            set_edge_subscribed_channel,
+            get_mason_signing_public_key,
+            get_byo_api_key_status,
+            set_byo_api_key,
+            clear_byo_api_key,
+            collect_blueprint_lockfile_state,
+            hydrate_blueprint_lockfile_batch,
             download_and_ingest_direct_artifact,
             get_local_supporter_state,
             toggle_local_mason_follow,

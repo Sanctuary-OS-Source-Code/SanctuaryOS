@@ -648,7 +648,23 @@ pub async fn scan_bunker(
                     }
                 }
 
-                // Phase 3: Assemble ModData & quarantine any detected threats
+                // Phase 3: Assemble ModData, resolve preview thumbnails, group artifact bundles, & quarantine threats
+                let preview_items: Vec<(PathBuf, u64)> = items
+                    .iter()
+                    .map(|it| (it.path.clone(), it.mtime))
+                    .collect();
+                let preview_map = if let Some(ref rules) =
+                    game_schema.as_ref().and_then(|s| s.preview_extractors.clone())
+                {
+                    super::artifact_groups_and_previews::attach_preview_extractors_cache(
+                        &vault_path,
+                        &preview_items,
+                        rules,
+                    )
+                } else {
+                    std::collections::HashMap::new()
+                };
+
                 struct UnitMemberRecord {
                     rel_lower: String,
                     dna_hash: String,
@@ -656,10 +672,24 @@ pub async fn scan_bunker(
                     mtime: u64,
                     corrupted: bool,
                 }
+                struct ArtifactGroupMember {
+                    rel_slash: String,
+                    dna_hash: String,
+                    status_string: String,
+                    color_str: String,
+                    is_script: bool,
+                    mtime: u64,
+                    preview_data_url: Option<String>,
+                }
+                let mut artifact_groups_map: std::collections::BTreeMap<
+                    (String, String),
+                    Vec<ArtifactGroupMember>,
+                > = std::collections::BTreeMap::new();
                 let mut unit_records: Vec<Vec<UnitMemberRecord>> =
                     (0..folder_units.len()).map(|_| Vec::new()).collect();
                 let mut results = Vec::with_capacity(total);
                 for item in items {
+                    let item_preview = preview_map.get(&item.path).cloned();
                     let is_hash_malware = malware_hashes_set.contains(&item.dna_hash);
                     let is_malware = !malware_override
                         && (is_hash_malware
@@ -780,6 +810,8 @@ pub async fn scan_bunker(
                             color: "var(--danger)".to_string(),
                             is_script: item.is_script,
                             mtime: item.mtime,
+                            preview_data_url: None,
+                            grouped_files: None,
                         });
                         continue;
                     }
@@ -817,13 +849,105 @@ pub async fn scan_bunker(
                         ("LOCAL_ONLY".to_string(), "var(--text-sub)".to_string())
                     };
 
+                    let rel_slash = item.rel.replace("\\", "/");
+                    if let Some(group_key) =
+                        super::artifact_groups_and_previews::compute_artifact_group_key(
+                            &rel_slash,
+                            &game_schema,
+                        )
+                    {
+                        artifact_groups_map
+                            .entry(group_key)
+                            .or_default()
+                            .push(ArtifactGroupMember {
+                                rel_slash,
+                                dna_hash: item.dna_hash,
+                                status_string,
+                                color_str,
+                                is_script: item.is_script,
+                                mtime: item.mtime,
+                                preview_data_url: item_preview,
+                            });
+                        continue;
+                    }
+
                     results.push(ModData {
-                        name: item.rel.replace("\\", "/"),
+                        name: rel_slash,
                         hash: item.dna_hash,
                         status: status_string,
                         color: color_str,
                         is_script: item.is_script,
                         mtime: item.mtime,
+                        preview_data_url: item_preview,
+                        grouped_files: None,
+                    });
+                }
+
+                for (_, mut members) in artifact_groups_map {
+                    if members.is_empty() {
+                        continue;
+                    }
+                    if members.len() == 1 {
+                        let m = members.remove(0);
+                        results.push(ModData {
+                            name: m.rel_slash,
+                            hash: m.dna_hash,
+                            status: m.status_string,
+                            color: m.color_str,
+                            is_script: m.is_script,
+                            mtime: m.mtime,
+                            preview_data_url: m.preview_data_url,
+                            grouped_files: None,
+                        });
+                        continue;
+                    }
+                    members.sort_by(|a, b| a.rel_slash.cmp(&b.rel_slash));
+                    use sha2::{Digest, Sha256};
+                    let mut hasher = Sha256::new();
+                    let mut max_mtime = 0u64;
+                    let mut any_script = false;
+                    let mut any_corrupt = false;
+                    let mut any_explicit_local = false;
+                    let mut first_preview: Option<String> = None;
+                    let mut member_names = Vec::with_capacity(members.len());
+                    for m in &members {
+                        hasher.update(m.rel_slash.to_ascii_lowercase().as_bytes());
+                        hasher.update(b":");
+                        hasher.update(m.dna_hash.as_bytes());
+                        hasher.update(b"\n");
+                        max_mtime = max_mtime.max(m.mtime);
+                        any_script |= m.is_script;
+                        any_corrupt |= m.status_string == "CORRUPTED";
+                        any_explicit_local |= m.status_string == "EXPLICIT LOCAL";
+                        if first_preview.is_none() {
+                            first_preview = m.preview_data_url.clone();
+                        }
+                        member_names.push(m.rel_slash.clone());
+                    }
+                    let primary_name =
+                        super::artifact_groups_and_previews::choose_canonical_group_member_name(
+                            &member_names,
+                        );
+                    let composite_hash = hex::encode(hasher.finalize());
+                    results.push(ModData {
+                        name: primary_name,
+                        hash: composite_hash,
+                        status: if any_corrupt {
+                            "CORRUPTED".to_string()
+                        } else if any_explicit_local {
+                            "EXPLICIT LOCAL".to_string()
+                        } else {
+                            "LOCAL_ONLY".to_string()
+                        },
+                        color: if any_corrupt {
+                            "var(--warning)".to_string()
+                        } else {
+                            "var(--text-sub)".to_string()
+                        },
+                        is_script: any_script,
+                        mtime: max_mtime,
+                        preview_data_url: first_preview,
+                        grouped_files: Some(member_names),
                     });
                 }
 
@@ -868,6 +992,8 @@ pub async fn scan_bunker(
                         },
                         is_script: any_script,
                         mtime: max_mtime,
+                        preview_data_url: None,
+                        grouped_files: None,
                     });
                 }
 
@@ -1039,6 +1165,8 @@ pub async fn scan_sandbox(
                 color: "var(--accent)".to_string(),
                 is_script,
                 mtime,
+                preview_data_url: None,
+                grouped_files: None,
             });
         }
 

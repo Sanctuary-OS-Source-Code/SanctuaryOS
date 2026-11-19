@@ -1,7 +1,12 @@
 import { useEffect, useState } from "react";
+import { invoke } from "@tauri-apps/api/core";
+import { listen } from "@tauri-apps/api/event";
 import { supabase } from "../supabase";
 import { useStore } from "../store";
+import { useModalStore } from "../store/modalStore";
 import { useLexicon } from "../LexiconContext";
+import { isDesktop } from "../utils/envUtils";
+import { extractLockfileHydrationPlan } from "../utils/blueprintLockfile";
 import { createPortal } from "react-dom";
 import {
   SidePanel,
@@ -29,6 +34,12 @@ export function MissingImportsAlert({
 }: any) {
   const { t } = useLexicon();
   const [hasFetchedHashes, setHasFetchedHashes] = useState(false);
+  const [isHydrating, setIsHydrating] = useState(false);
+  const [hydrationProgress, setHydrationProgress] = useState<{
+    completed: number;
+    total: number;
+    currentName: string;
+  } | null>(null);
 
   useEffect(() => {
     if (hasFetchedHashes || !missingImportMods || missingImportMods.length === 0) return;
@@ -176,6 +187,114 @@ export function MissingImportsAlert({
   const standardMods = (missingImportMods || []).filter(
     (m: any) => !m.is_paid && !m.is_early_access
   );
+
+  const handleHydrateAllMissing = async () => {
+    if (!isDesktop() || isHydrating || !missingImportMods?.length) return;
+    const schema = useStore.getState().activeGameSchema;
+    const targetList = standardMods.length > 0 ? standardMods : missingImportMods;
+    const enrichedTargets = targetList.map((m: any) => {
+      const targetUrl =
+        String(m.download_url || "").trim() ||
+        getModFallbackUrl(m.name, m.hash, schema, { url: m.url, author: m.author });
+      return { ...m, url: m.url || targetUrl };
+    });
+    const plan = extractLockfileHydrationPlan(pendingImportSet, enrichedTargets);
+    if (plan.items.length === 0 && plan.configDeltas.length === 0) return;
+
+    setIsHydrating(true);
+    setHydrationProgress({
+      completed: 0,
+      total: plan.items.length || 1,
+      currentName: plan.items[0]?.name || "",
+    });
+    let unlisten: (() => void) | undefined;
+    try {
+      unlisten = await listen<{
+        completed?: number;
+        total?: number;
+        current_name?: string;
+      }>("blueprint-hydration-progress", (ev) => {
+        setHydrationProgress({
+          completed: Number(ev.payload?.completed || 0),
+          total: Number(ev.payload?.total || plan.items.length || 1),
+          currentName: String(ev.payload?.current_name || ""),
+        });
+      });
+
+      const report = await invoke<{
+        hydrated_ids: string[];
+        wizard_plans: any[];
+        gated_browser_items: { id: string; name: string; url: string; reason: string }[];
+        failed_items: { id: string; name: string; reason: string }[];
+        applied_config_deltas: number;
+      }>("hydrate_blueprint_lockfile_batch", {
+        items: plan.items,
+        configDeltas: plan.configDeltas,
+        concurrency: 4,
+      });
+
+      const mStore = useModalStore.getState();
+      if (Array.isArray(report?.wizard_plans)) {
+        for (const wp of report.wizard_plans) {
+          mStore.enqueueInstallerWizard(wp);
+        }
+      }
+
+      const hydratedSet = new Set(
+        (report?.hydrated_ids || []).map((id) => String(id).toLowerCase())
+      );
+      const idByItemKey = new Map<string, string>();
+      plan.items.forEach((it) => {
+        idByItemKey.set(it.name.toLowerCase(), it.id.toLowerCase());
+        if (it.expected_sha256) {
+          idByItemKey.set(it.expected_sha256.toLowerCase(), it.id.toLowerCase());
+        }
+      });
+
+      const remaining = (missingImportMods || []).filter((m: any) => {
+        const keyByHash = m?.hash ? idByItemKey.get(String(m.hash).toLowerCase()) : undefined;
+        const keyByName = m?.name ? idByItemKey.get(String(m.name).toLowerCase()) : undefined;
+        const resolvedId = keyByHash || keyByName || "";
+        return !(resolvedId && hydratedSet.has(resolvedId));
+      });
+
+      if (report?.hydrated_ids?.length > 0) {
+        window.dispatchEvent(new CustomEvent("sanctuary-trigger-radar-sweep"));
+      }
+      if (report?.failed_items?.length > 0) {
+        useStore
+          .getState()
+          .pushStatus(
+            `${t("alert_import_failed", "Import Failed")}: ${report.failed_items.length}`,
+            "error"
+          );
+      }
+
+      if (Array.isArray(report?.gated_browser_items) && report.gated_browser_items.length > 0) {
+        const guided = report.gated_browser_items.map((g) => ({
+          id: g.id,
+          name: cleanSearchName(g.name, schema),
+          url: g.url,
+          status: "pending" as const,
+        }));
+        mStore.startGuidedBrowserQueue(guided);
+        mStore.setIsSideBrowserOpen(true);
+      }
+
+      if (remaining.length === 0) {
+        finalizeImport(pendingImportSet);
+        setMissingImportMods(null);
+      } else {
+        setMissingImportMods(remaining);
+      }
+    } catch (err: any) {
+      useStore.getState().pushStatus(String(err?.message || err), "error");
+    } finally {
+      unlisten?.();
+      setIsHydrating(false);
+      setHydrationProgress(null);
+    }
+  };
 
   const renderModList = (mods: any[]) =>
     mods.slice(0, 100).map((mod: any, idx: number) => {
@@ -361,7 +480,37 @@ export function MissingImportsAlert({
             />
           </div>
 
+          {hydrationProgress && (
+            <div className="flex flex-col gap-1.5 pt-2 border-t border-[color-mix(in_srgb,var(--text)_10%,transparent)]">
+              <div className="flex items-center justify-between text-[10px] font-black uppercase tracking-widest text-[var(--accent)]">
+                <span className="truncate">{hydrationProgress.currentName || t("loading", "Loading...")}</span>
+                <span>
+                  {hydrationProgress.completed} / {hydrationProgress.total}
+                </span>
+              </div>
+              <div className="w-full h-1.5 rounded-full bg-[color-mix(in_srgb,var(--text)_12%,transparent)] overflow-hidden">
+                <div
+                  className="h-full bg-[var(--accent)] transition-all duration-200"
+                  style={{
+                    width: `${Math.round(
+                      (hydrationProgress.completed / Math.max(1, hydrationProgress.total)) * 100
+                    )}%`,
+                  }}
+                />
+              </div>
+            </div>
+          )}
+
           <div className="flex flex-wrap items-center justify-end gap-2 ml-auto w-full pt-1">
+            {isDesktop() && (
+              <ActionButton
+                variant="accent"
+                disabled={isHydrating}
+                icon={isHydrating ? t("icon_progress_activity", "progress_activity") : t("icon_download_for_offline", "download_for_offline")}
+                label={t("btn_hydrate_missing_mods", "Hydrate All Missing {Mods}")}
+                onClick={() => void handleHydrateAllMissing()}
+              />
+            )}
             <ActionButton
               variant="glass"
               icon={t("icon_check", "check")}

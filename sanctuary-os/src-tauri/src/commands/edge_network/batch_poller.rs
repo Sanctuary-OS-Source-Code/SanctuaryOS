@@ -30,6 +30,8 @@ pub(super) struct CachedEdgeRow {
     last_modified: Option<String>,
     last_polled_at: Option<i64>,
     last_http_status: Option<i64>,
+    creator_pubkey: Option<String>,
+    subscribed_channel: Option<String>,
 }
 
 pub(super) enum UrlFetchOutcome {
@@ -111,7 +113,7 @@ pub async fn poll_edge_manifests_batch(
                     "SELECT artifact_id, mason_id, manifest_url, COALESCE(game_id, ''),
                             COALESCE(target_hash, ''), COALESCE(archive_hashes, '[]'),
                             COALESCE(last_fetched_metadata, ''), etag, last_modified,
-                            last_polled_at, last_http_status
+                            last_polled_at, last_http_status, creator_pubkey, subscribed_channel
                      FROM edge_manifests",
                 )
                 .map_err(|e| format!("DB query prepare error: {}", e))?;
@@ -129,6 +131,8 @@ pub async fn poll_edge_manifests_batch(
                         last_modified: row.get(8).ok().flatten(),
                         last_polled_at: row.get(9).ok().flatten(),
                         last_http_status: row.get(10).ok().flatten(),
+                        creator_pubkey: row.get(11).ok().flatten(),
+                        subscribed_channel: row.get(12).ok().flatten(),
                     })
                 })
                 .map_err(|e| format!("DB query error: {}", e))?;
@@ -369,6 +373,8 @@ pub async fn poll_edge_manifests_batch(
             last_modified: Option<String>,
             polled_at: i64,
             http_status: i64,
+            creator_pubkey: String,
+            subscribed_channel: String,
         },
     }
 
@@ -390,7 +396,18 @@ pub async fn poll_edge_manifests_batch(
 
         if !item.needs_network {
             if let Some(cached_m) = item.cached_manifest {
-                let st = if manifest_indicates_update(&cached_m, &item.target) {
+                let ch_pref = item
+                    .target
+                    .preferred_channel
+                    .as_deref()
+                    .filter(|s| !s.trim().is_empty())
+                    .or_else(|| {
+                        item.cached_row
+                            .as_ref()
+                            .and_then(|r| r.subscribed_channel.as_deref())
+                    });
+                let eff_m = resolve_effective_manifest_for_channel(&cached_m, ch_pref);
+                let st = if manifest_indicates_update(&eff_m, &item.target) {
                     "update_available"
                 } else {
                     "cached"
@@ -404,7 +421,7 @@ pub async fn poll_edge_manifests_batch(
                         .as_ref()
                         .and_then(|r| r.last_http_status)
                         .and_then(|c| u16::try_from(c).ok()),
-                    manifest: Some(cached_m),
+                    manifest: Some(eff_m),
                     error: None,
                 });
                 continue;
@@ -420,7 +437,18 @@ pub async fn poll_edge_manifests_batch(
                     });
                 }
                 if let Some(cached_m) = item.cached_manifest {
-                    let st = if manifest_indicates_update(&cached_m, &item.target) {
+                    let ch_pref = item
+                        .target
+                        .preferred_channel
+                        .as_deref()
+                        .filter(|s| !s.trim().is_empty())
+                        .or_else(|| {
+                            item.cached_row
+                                .as_ref()
+                                .and_then(|r| r.subscribed_channel.as_deref())
+                        });
+                    let eff_m = resolve_effective_manifest_for_channel(&cached_m, ch_pref);
+                    let st = if manifest_indicates_update(&eff_m, &item.target) {
                         "update_available"
                     } else {
                         "not_modified"
@@ -430,7 +458,7 @@ pub async fn poll_edge_manifests_batch(
                         manifest_url: item.effective_url,
                         status: st.to_string(),
                         http_status: Some(304),
-                        manifest: Some(cached_m),
+                        manifest: Some(eff_m),
                         error: None,
                     });
                 } else {
@@ -503,6 +531,40 @@ pub async fn poll_edge_manifests_batch(
 
                 match resolve_manifest_from_value(value, &item.target.artifact_id, fallback_hash) {
                     Ok(raw_manifest) => {
+                        let pinned_pk = item
+                            .cached_row
+                            .as_ref()
+                            .and_then(|r| r.creator_pubkey.as_deref());
+                        let verified_pubkey = match super::manifest_signing::verify_edge_manifest_signature(&raw_manifest, pinned_pk) {
+                            Ok(pk) => pk,
+                            Err(sig_err) => {
+                                results.push(EdgePollItemResult {
+                                    artifact_id: item.target.artifact_id,
+                                    manifest_url: item.effective_url,
+                                    status: "error".to_string(),
+                                    http_status: Some(*http_status),
+                                    manifest: None,
+                                    error: Some(sig_err),
+                                });
+                                continue;
+                            }
+                        };
+
+                        let preferred_ch = item
+                            .target
+                            .preferred_channel
+                            .as_deref()
+                            .filter(|s| !s.trim().is_empty())
+                            .or_else(|| {
+                                item.cached_row
+                                    .as_ref()
+                                    .and_then(|r| r.subscribed_channel.as_deref())
+                            })
+                            .unwrap_or("stable");
+                        let channel_norm = normalize_release_channel(preferred_ch).to_string();
+                        let channel_manifest =
+                            resolve_effective_manifest_for_channel(&raw_manifest, Some(&channel_norm));
+
                         let existing_target = item
                             .cached_row
                             .as_ref()
@@ -517,7 +579,7 @@ pub async fn poll_edge_manifests_batch(
 
                         let (manifest, metadata_str, new_target_hash, updated_archive_str) =
                             finalize_synced_manifest(
-                                raw_manifest,
+                                channel_manifest,
                                 &item.effective_url,
                                 existing_target,
                                 existing_arch,
@@ -555,6 +617,10 @@ pub async fn poll_edge_manifests_batch(
                             last_modified: last_modified.clone(),
                             polled_at: now,
                             http_status: *http_status as i64,
+                            creator_pubkey: verified_pubkey
+                                .or_else(|| pinned_pk.map(|s| s.to_string()))
+                                .unwrap_or_default(),
+                            subscribed_channel: channel_norm,
                         });
 
                         let st = if manifest_indicates_update(&manifest, &item.target) {
@@ -646,14 +712,17 @@ pub async fn poll_edge_manifests_batch(
                         last_modified,
                         polled_at,
                         http_status,
+                        creator_pubkey,
+                        subscribed_channel,
                     } => {
                         let _ = tx.execute(
                             "INSERT INTO edge_manifests (
                                 artifact_id, mason_id, manifest_url, target_hash, archive_hashes, game_id,
                                 last_fetched_hash, last_fetched_metadata, created_at,
-                                etag, last_modified, last_polled_at, last_http_status
+                                etag, last_modified, last_polled_at, last_http_status,
+                                creator_pubkey, subscribed_channel
                              )
-                             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13)
+                             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15)
                              ON CONFLICT(artifact_id) DO UPDATE SET
                                 mason_id = excluded.mason_id,
                                 manifest_url = excluded.manifest_url,
@@ -665,7 +734,8 @@ pub async fn poll_edge_manifests_batch(
                                 etag = excluded.etag,
                                 last_modified = excluded.last_modified,
                                 last_polled_at = excluded.last_polled_at,
-                                last_http_status = excluded.last_http_status",
+                                last_http_status = excluded.last_http_status,
+                                creator_pubkey = CASE WHEN excluded.creator_pubkey != '' THEN excluded.creator_pubkey ELSE edge_manifests.creator_pubkey END",
                             rusqlite::params![
                                 artifact_id,
                                 mason_id,
@@ -679,7 +749,9 @@ pub async fn poll_edge_manifests_batch(
                                 etag,
                                 last_modified,
                                 polled_at,
-                                http_status
+                                http_status,
+                                creator_pubkey,
+                                subscribed_channel
                             ],
                         );
                     }
@@ -712,7 +784,8 @@ pub async fn get_all_edge_manifests(
                 "SELECT artifact_id, mason_id, manifest_url, COALESCE(game_id, ''),
                         COALESCE(target_hash, ''), COALESCE(archive_hashes, '[]'),
                         last_fetched_hash, last_fetched_metadata,
-                        etag, last_modified, last_polled_at, last_http_status
+                        etag, last_modified, last_polled_at, last_http_status,
+                        creator_pubkey, subscribed_channel
                  FROM edge_manifests
                  WHERE (?1 IS NULL OR ?1 = '' OR game_id = ?1)",
             )
@@ -735,6 +808,8 @@ pub async fn get_all_edge_manifests(
                     last_modified: row.get(9).ok().flatten(),
                     last_polled_at: row.get(10).ok().flatten(),
                     last_http_status: row.get(11).ok().flatten(),
+                    creator_pubkey: row.get(12).ok().flatten().filter(|s: &String| !s.trim().is_empty()),
+                    subscribed_channel: row.get(13).ok().flatten().filter(|s: &String| !s.trim().is_empty()),
                 })
             })
             .map_err(|e| format!("{}", e))?;

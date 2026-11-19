@@ -5,6 +5,7 @@ import {
   EmptyState,
   PanelHeaderButton,
   PanelHeaderGroup,
+  SidePanel,
   SidePanelHeroCard,
   VAULT_CHIP_CLASS,
 } from "../../shared";
@@ -20,19 +21,17 @@ interface EmailResponseTemplatesSectionProps {
   templates: KeeperEmailResponseTemplate[];
   isSaving: boolean;
   onSaveTemplates: (next: KeeperEmailResponseTemplate[]) => Promise<void>;
-  onUseTemplate: (tpl: KeeperEmailResponseTemplate) => void;
 }
 
-/** Direct Human Contact email response templates studio (create, edit, delete, apply). */
+/** Direct Human Contact email response templates studio using a stacked edit drawer. */
 export default function EmailResponseTemplatesSection({
   templates,
   isSaving,
   onSaveTemplates,
-  onUseTemplate,
 }: EmailResponseTemplatesSectionProps) {
   const { t } = useLexicon();
   const [editingId, setEditingId] = useState<string | null>(null);
-  const [isFormOpen, setIsFormOpen] = useState(false);
+  const [isEditorOpen, setIsEditorOpen] = useState(false);
   const [draftName, setDraftName] = useState("");
   const [draftCategory, setDraftCategory] = useState("");
   const [draftSubject, setDraftSubject] = useState("");
@@ -44,7 +43,7 @@ export default function EmailResponseTemplatesSection({
     setDraftCategory("");
     setDraftSubject("");
     setDraftBody("");
-    setIsFormOpen(false);
+    setIsEditorOpen(false);
   };
 
   const openCreateForm = () => {
@@ -53,7 +52,7 @@ export default function EmailResponseTemplatesSection({
     setDraftCategory(t("keepers_email_tpl_default_cat", "Support"));
     setDraftSubject("");
     setDraftBody("");
-    setIsFormOpen(true);
+    setIsEditorOpen(true);
   };
 
   const openEditForm = (tpl: KeeperEmailResponseTemplate) => {
@@ -62,7 +61,7 @@ export default function EmailResponseTemplatesSection({
     setDraftCategory(tpl.category || t("keepers_email_tpl_default_cat", "Support"));
     setDraftSubject(tpl.subject);
     setDraftBody(tpl.body);
-    setIsFormOpen(true);
+    setIsEditorOpen(true);
   };
 
   const handleSaveDraft = async () => {
@@ -138,73 +137,6 @@ export default function EmailResponseTemplatesSection({
         </div>
       </SidePanelHeroCard>
 
-      {isFormOpen && (
-        <UniversalGroup
-          title={
-            editingId
-              ? t("keepers_email_tpl_edit_title", "Edit Response Template")
-              : t("keepers_email_tpl_create_title", "Create Response Template")
-          }
-          icon={t("icon_edit_note", "edit_note")}
-        >
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <UniversalInput
-              label={t("keepers_email_tpl_name_label", "Template Name")}
-              value={draftName}
-              onChange={setDraftName}
-              placeholder={t("keepers_email_tpl_name_ph", "Direct Keeper Follow-Up")}
-            />
-            <UniversalInput
-              label={t("category", "Category")}
-              value={draftCategory}
-              onChange={setDraftCategory}
-              placeholder={t("keepers_email_tpl_cat_ph", "Support / Partner Spokes")}
-            />
-          </div>
-          <UniversalInput
-            label={t("keepers_email_subject_label", "Subject Line")}
-            value={draftSubject}
-            onChange={setDraftSubject}
-            placeholder={t(
-              "keepers_email_subject_placeholder",
-              "Official Sanctuary OS Correspondence"
-            )}
-          />
-          <UniversalTextArea
-            label={t("keepers_email_body_label", "Message Body")}
-            value={draftBody}
-            onChange={setDraftBody}
-            placeholder={t(
-              "keepers_email_tpl_body_ph",
-              "Write the reusable human response body..."
-            )}
-            className="min-h-[120px]"
-          />
-          <div className="flex flex-wrap gap-2 justify-end">
-            <ActionButton
-              onClick={resetForm}
-              variant="glass"
-              className="w-auto shrink-0"
-              icon={t("icon_close", "close")}
-              label={t("cancel", "Cancel")}
-            />
-            <ActionButton
-              onClick={handleSaveDraft}
-              disabled={
-                isSaving ||
-                !draftName.trim() ||
-                !draftSubject.trim() ||
-                !draftBody.trim()
-              }
-              variant="accent"
-              className="flex-1 sm:flex-initial"
-              icon={isSaving ? t("icon_sync", "sync") : t("icon_save", "save")}
-              label={t("save", "Save Changes")}
-            />
-          </div>
-        </UniversalGroup>
-      )}
-
       {templates.length > 0 ? (
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           {templates.map((tpl) => {
@@ -221,11 +153,11 @@ export default function EmailResponseTemplatesSection({
                 title={tpl.name}
                 subtitle={tpl.subject}
                 description={
-                  <span className="line-clamp-3 text-xs text-[var(--subtext)]">
+                  <span className="line-clamp-3 text-xs text-[var(--subtext)] no-text-case">
                     {tpl.body}
                   </span>
                 }
-                onClick={() => onUseTemplate(tpl)}
+                onClick={() => openEditForm(tpl)}
                 imageOverlay={
                   <div className="absolute top-2.5 left-3 flex flex-nowrap items-center gap-1.5 max-w-[calc(100%-6.5rem)] z-30 pointer-events-none">
                     <span className={VAULT_CHIP_CLASS}>
@@ -238,30 +170,27 @@ export default function EmailResponseTemplatesSection({
                 }
                 footer={
                   <div className="flex items-center justify-between gap-2 w-full">
-                    <PanelHeaderGroup>
-                      <PanelHeaderButton
-                        icon={t("icon_edit", "edit")}
-                        tooltip={t("edit", "Edit")}
-                        onClick={(e: MouseEvent) => {
-                          e.stopPropagation();
-                          openEditForm(tpl);
-                        }}
-                      />
-                      <PanelHeaderButton
-                        icon={t("icon_delete", "delete")}
-                        tooltip={t("delete", "Delete")}
-                        isDestructive={true}
-                        className="text-[var(--danger)]"
-                        onClick={(e: MouseEvent) => {
-                          e.stopPropagation();
-                          handleDeleteTemplate(tpl.id);
-                        }}
-                      />
-                    </PanelHeaderGroup>
-                    <span className="text-[10px] font-black uppercase tracking-widest text-[var(--text)] group-hover/card:text-[var(--accent)] group-hover:text-[var(--accent)] transition-all flex items-center gap-1 opacity-80 group-hover/card:opacity-100 group-hover:opacity-100 group-hover/card:translate-x-0.5 shrink-0">
-                      <span>{t("keepers_email_tpl_use_compose", "Use in Compose")}</span>
-                      <span className="text-sm leading-none">&rarr;</span>
+                    <span className="text-[10px] font-bold text-[var(--subtext)] opacity-75 truncate">
+                      {catLabel}
                     </span>
+                    <div className="flex items-center gap-2 shrink-0">
+                      <PanelHeaderGroup>
+                        <PanelHeaderButton
+                          icon={t("icon_delete", "delete")}
+                          tooltip={t("delete", "Delete")}
+                          isDestructive={true}
+                          className="text-[var(--danger)]"
+                          onClick={(e: MouseEvent) => {
+                            e.stopPropagation();
+                            handleDeleteTemplate(tpl.id);
+                          }}
+                        />
+                      </PanelHeaderGroup>
+                      <span className="text-[10px] font-black uppercase tracking-widest text-[var(--text)] group-hover/card:text-[var(--accent)] group-hover:text-[var(--accent)] transition-all flex items-center gap-1 opacity-80 group-hover/card:opacity-100 shrink-0">
+                        <span>{t("keepers_email_tpl_edit_cta", "Edit Template")}</span>
+                        <span className="text-sm leading-none">&rarr;</span>
+                      </span>
+                    </div>
                   </div>
                 }
               />
@@ -275,6 +204,117 @@ export default function EmailResponseTemplatesSection({
           className="py-12"
         />
       )}
+
+      <SidePanel
+        isOpen={isEditorOpen}
+        onClose={resetForm}
+        title={
+          editingId
+            ? t("keepers_email_tpl_edit_title", "Edit Response Template")
+            : t("keepers_email_tpl_create_title", "Create Response Template")
+        }
+        subtitle={t("keepers_foundry_label", "Sanctuary Foundry")}
+        icon={t("icon_quickreply", "quickreply")}
+        widthClass="w-[90vw] md:w-[620px]"
+        headerActions={
+          <PanelHeaderGroup>
+            {editingId && (
+              <PanelHeaderButton
+                icon={t("icon_delete", "delete")}
+                tooltip={t("delete", "Delete")}
+                isDestructive={true}
+                onClick={() => handleDeleteTemplate(editingId)}
+              />
+            )}
+            <PanelHeaderButton
+              icon={isSaving ? t("icon_sync", "sync") : t("icon_save", "save")}
+              tooltip={t("save", "Save Changes")}
+              onClick={handleSaveDraft}
+            />
+          </PanelHeaderGroup>
+        }
+      >
+        <div className="flex flex-col gap-4 pb-6">
+          <UniversalGroup
+            title={
+              editingId
+                ? t("keepers_email_tpl_edit_title", "Edit Response Template")
+                : t("keepers_email_tpl_create_title", "Create Response Template")
+            }
+            icon={t("icon_edit_note", "edit_note")}
+          >
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <UniversalInput
+                label={t("keepers_email_tpl_name_label", "Template Name")}
+                value={draftName}
+                onChange={setDraftName}
+                placeholder={t("keepers_email_tpl_name_ph", "Direct Keeper Follow-Up")}
+              />
+              <UniversalInput
+                label={t("category", "Category")}
+                value={draftCategory}
+                onChange={setDraftCategory}
+                placeholder={t("keepers_email_tpl_cat_ph", "Support / Partner Spokes")}
+              />
+            </div>
+            <UniversalInput
+              label={t("keepers_email_subject_label", "Subject Line")}
+              value={draftSubject}
+              onChange={setDraftSubject}
+              placeholder={t(
+                "keepers_email_subject_placeholder",
+                "Official Sanctuary OS Correspondence"
+              )}
+            />
+            <UniversalTextArea
+              label={t("keepers_email_body_label", "Message Body")}
+              value={draftBody}
+              onChange={setDraftBody}
+              placeholder={t(
+                "keepers_email_tpl_body_ph",
+                "Write the reusable human response body..."
+              )}
+              className="min-h-[200px] no-text-case"
+            />
+            <div className="flex flex-wrap gap-2 justify-between items-center pt-1">
+              {editingId ? (
+                <ActionButton
+                  onClick={() => handleDeleteTemplate(editingId)}
+                  disabled={isSaving}
+                  variant="glass"
+                  className="text-[var(--danger)] w-auto shrink-0"
+                  icon={t("icon_delete", "delete")}
+                  label={t("delete", "Delete")}
+                />
+              ) : (
+                <span />
+              )}
+              <div className="flex flex-wrap gap-2 justify-end">
+                <ActionButton
+                  onClick={resetForm}
+                  variant="glass"
+                  className="w-auto shrink-0"
+                  icon={t("icon_close", "close")}
+                  label={t("cancel", "Cancel")}
+                />
+                <ActionButton
+                  onClick={handleSaveDraft}
+                  disabled={
+                    isSaving ||
+                    !draftName.trim() ||
+                    !draftSubject.trim() ||
+                    !draftBody.trim()
+                  }
+                  variant="accent"
+                  className="flex-1 sm:flex-initial"
+                  icon={isSaving ? t("icon_sync", "sync") : t("icon_save", "save")}
+                  label={t("save", "Save Changes")}
+                />
+              </div>
+            </div>
+          </UniversalGroup>
+        </div>
+      </SidePanel>
     </div>
   );
 }

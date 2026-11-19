@@ -160,6 +160,10 @@ pub fn auto_ingest_edge_json(
             m.payload.sha256.clone()
         };
 
+        let verified_pubkey = match super::manifest_signing::verify_edge_manifest_signature(&m, None) {
+            Ok(pk) => pk,
+            Err(_) => return None,
+        };
         let meta_str = serde_json::to_string(&m).ok();
         let built = EdgeOverride {
             artifact_id: resolved_id,
@@ -178,6 +182,8 @@ pub fn auto_ingest_edge_json(
             last_modified: None,
             last_polled_at: None,
             last_http_status: None,
+            creator_pubkey: verified_pubkey,
+            subscribed_channel: Some(normalize_release_channel(&m.artifact.channel).to_string()),
         };
         manifest_opt = Some(m);
         built
@@ -476,12 +482,16 @@ pub async fn fetch_and_sync_edge_manifest(
         cached_meta_str,
         cached_etag,
         cached_last_mod,
+        pinned_creator_pubkey,
+        subscribed_channel,
     ): (
         String,
         String,
         String,
         String,
         String,
+        Option<String>,
+        Option<String>,
         Option<String>,
         Option<String>,
     ) = tauri::async_runtime::spawn_blocking(move || -> Result<_, String> {
@@ -492,7 +502,7 @@ pub async fn fetch_and_sync_edge_manifest(
         let like_pattern = format!("%\"{}\"%", aid_lookup);
         conn.query_row(
             "SELECT artifact_id, manifest_url, COALESCE(target_hash, ''), COALESCE(archive_hashes, '[]'),
-                    COALESCE(last_fetched_metadata, ''), etag, last_modified
+                    COALESCE(last_fetched_metadata, ''), etag, last_modified, creator_pubkey, subscribed_channel
              FROM edge_manifests
              WHERE artifact_id = ?1 OR target_hash = ?1 OR archive_hashes LIKE ?2",
             rusqlite::params![aid_lookup, like_pattern],
@@ -505,6 +515,8 @@ pub async fn fetch_and_sync_edge_manifest(
                     row.get(4)?,
                     row.get(5).ok().flatten(),
                     row.get(6).ok().flatten(),
+                    row.get(7).ok().flatten(),
+                    row.get(8).ok().flatten(),
                 ))
             },
         )
@@ -616,14 +628,26 @@ pub async fn fetch_and_sync_edge_manifest(
         },
     )?;
 
+    let verified_pubkey = super::manifest_signing::verify_edge_manifest_signature(
+        &raw_manifest,
+        pinned_creator_pubkey.as_deref(),
+    )?;
+    let channel_manifest = resolve_effective_manifest_for_channel(
+        &raw_manifest,
+        subscribed_channel.as_deref(),
+    );
+
     let (manifest, metadata_str, new_target_hash, updated_archive_str) = finalize_synced_manifest(
-        raw_manifest,
+        channel_manifest,
         &manifest_url,
         &existing_target_hash,
         &existing_archive_str,
     );
 
     let payload_sha = manifest.payload.sha256.clone();
+    let updated_pubkey = verified_pubkey
+        .or(pinned_creator_pubkey)
+        .unwrap_or_default();
     tauri::async_runtime::spawn_blocking(move || -> Result<(), String> {
         let conn_arc = open_db_conn(&vault_path)?;
         let conn = conn_arc
@@ -638,8 +662,9 @@ pub async fn fetch_and_sync_edge_manifest(
                  etag = ?5,
                  last_modified = ?6,
                  last_polled_at = ?7,
-                 last_http_status = ?8
-             WHERE artifact_id = ?9",
+                 last_http_status = ?8,
+                 creator_pubkey = CASE WHEN ?9 != '' THEN ?9 ELSE creator_pubkey END
+             WHERE artifact_id = ?10",
             rusqlite::params![
                 payload_sha,
                 metadata_str,
@@ -649,6 +674,7 @@ pub async fn fetch_and_sync_edge_manifest(
                 new_last_modified,
                 now,
                 status_code,
+                updated_pubkey,
                 resolved_artifact_id
             ],
         )
@@ -659,4 +685,31 @@ pub async fn fetch_and_sync_edge_manifest(
     .map_err(|e| format!("Task join error: {}", e))??;
 
     Ok(manifest)
+}
+
+#[tauri::command]
+pub async fn set_edge_subscribed_channel(
+    vault_path: String,
+    artifact_id: String,
+    channel: String,
+) -> Result<String, String> {
+    let norm = normalize_release_channel(&channel).to_string();
+    let norm_ret = norm.clone();
+    tauri::async_runtime::spawn_blocking(move || -> Result<(), String> {
+        let conn_arc = open_db_conn(&vault_path)?;
+        let conn = conn_arc
+            .lock()
+            .map_err(|_| "Failed to lock Vault database connection.".to_string())?;
+        let like_pattern = format!("%\"{}\"%", artifact_id);
+        conn.execute(
+            "UPDATE edge_manifests SET subscribed_channel = ?1
+             WHERE artifact_id = ?2 OR target_hash = ?2 OR archive_hashes LIKE ?3",
+            rusqlite::params![norm, artifact_id, like_pattern],
+        )
+        .map_err(|e| format!("DB error updating release channel: {}", e))?;
+        Ok(())
+    })
+    .await
+    .map_err(|e| format!("Task join error: {}", e))??;
+    Ok(norm_ret)
 }

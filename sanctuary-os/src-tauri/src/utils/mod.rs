@@ -1,5 +1,6 @@
 mod archive_ops;
 mod backup_retention;
+mod binary_patch;
 mod db_cache;
 mod fs_ops;
 mod heuristics;
@@ -8,6 +9,7 @@ mod path_security;
 
 pub use archive_ops::*;
 pub use backup_retention::*;
+pub use binary_patch::*;
 pub use db_cache::*;
 pub use fs_ops::*;
 pub(crate) use fs_ops::normalize_path_key;

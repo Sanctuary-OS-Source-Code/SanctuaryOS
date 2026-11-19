@@ -593,11 +593,13 @@ export function ScoutOverridesAndLoadOrderTabs({
                                 <CommandScreenBody>
                                     <CommandScreenMain>
                                         <div className="flex flex-col gap-10 w-full">
-                                            {/* Schema-Driven Slot Budget Counters & Missing Master Warnings */}
+                                            {/* Schema-Driven Slot Budget Counters, Missing Masters & Dirty Plugins */}
                                             {(Array.isArray(loadOrderDiagnostics?.slot_usage) &&
                                                 loadOrderDiagnostics.slot_usage.length > 0) ||
                                             (Array.isArray(loadOrderDiagnostics?.missing_masters) &&
-                                                loadOrderDiagnostics.missing_masters.length > 0) ? (
+                                                loadOrderDiagnostics.missing_masters.length > 0) ||
+                                            (Array.isArray(loadOrderDiagnostics?.dirty_plugins) &&
+                                                loadOrderDiagnostics.dirty_plugins.length > 0) ? (
                                                 <div className="flex flex-col gap-4">
                                                     {Array.isArray(loadOrderDiagnostics?.slot_usage) &&
                                                         loadOrderDiagnostics.slot_usage.length > 0 && (
@@ -671,6 +673,47 @@ export function ScoutOverridesAndLoadOrderTabs({
                                                                                 </span>
                                                                                 <span className="text-[var(--warning)]">
                                                                                     -&gt; {mm.missing_master}
+                                                                                </span>
+                                                                            </span>
+                                                                        )
+                                                                    )}
+                                                                </div>
+                                                            </div>
+                                                        )}
+
+                                                    {Array.isArray(loadOrderDiagnostics?.dirty_plugins) &&
+                                                        loadOrderDiagnostics.dirty_plugins.length > 0 && (
+                                                            <div className="p-5 rounded-3xl glass-panel border border-[color-mix(in_srgb,var(--warning)_45%,transparent)] bg-[color-mix(in_srgb,var(--warning)_8%,transparent)] flex flex-col gap-3 animate-in fade-in duration-300">
+                                                                <div className="flex items-center gap-3">
+                                                                    <div className="w-10 h-10 rounded-xl glass-surface border border-[var(--glass-card-icon-border,rgba(255,255,255,0.22))] bg-[var(--glass-card-icon-bg,rgba(255,255,255,0.08))] shadow-[var(--glass-card-icon-shadow)] flex items-center justify-center text-[var(--warning)]">
+                                                                        <span className="material-symbols-outlined !text-[20px]">
+                                                                            {t("icon_cleaning_services", "cleaning_services")}
+                                                                        </span>
+                                                                    </div>
+                                                                    <div className="flex flex-col">
+                                                                        <h3 className="text-sm font-black uppercase tracking-widest text-[var(--warning)] m-0">
+                                                                            {t("lo_dirty_plugins_title", "Dirty Modules Detected")}
+                                                                        </h3>
+                                                                        <p className="text-xs text-[var(--subtext)] font-bold m-0">
+                                                                            {t(
+                                                                                "lo_dirty_plugins_desc",
+                                                                                "External load rules flagged identical-to-master (ITM) or deleted records matching known CRC32 signatures."
+                                                                            )}
+                                                                        </p>
+                                                                    </div>
+                                                                </div>
+                                                                <div className="flex flex-wrap gap-2">
+                                                                    {loadOrderDiagnostics.dirty_plugins.map(
+                                                                        (dp: any, dIdx: number) => (
+                                                                            <span
+                                                                                key={`${dp.mod_name}_${dp.crc_hex}_${dIdx}`}
+                                                                                className={`${VAULT_CHIP_CLASS} font-mono`}
+                                                                            >
+                                                                                <span className="text-[var(--text)]">
+                                                                                    {dp.mod_name}
+                                                                                </span>
+                                                                                <span className="text-[var(--warning)]">
+                                                                                    {`${dp.crc_hex} (${dp.itm_count} ITM / ${dp.udr_count} UDR • ${dp.cleaning_utility})`}
                                                                                 </span>
                                                                             </span>
                                                                         )

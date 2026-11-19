@@ -84,48 +84,76 @@ export function LandingSupportSection({
         />
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 w-full">
-          {/* Card 1: Core Platform Scope Notice */}
-          <UniversalCard
-            layout="vertical"
-            statusColor="warning"
-            icon={t('icon_info', 'info')}
-            bannerTopLabel={t('landing_banner_scope_clean_top', 'Sanctuary OS Platform')}
-            bannerBottomLabel={t('landing_banner_scope_clean_bottom', 'Desktop • Web Portal • Mobile')}
-            title={t('landing_feedback_scope_title', 'Platform Support Scope')}
-            subtitle={
-              <span className="text-[10px] font-mono tracking-widest">
+          {/* Card 1: Core Platform Scope Notice (Leading Section Alert Card) */}
+          <div className="glass-panel rounded-[var(--radius)] p-5 flex flex-col gap-3.5 relative overflow-hidden bg-[color-mix(in_srgb,var(--warning)_4%,transparent)] border-[color-mix(in_srgb,var(--warning)_22%,transparent)] h-full">
+            <div
+              className="pointer-events-none absolute inset-0 rounded-[inherit]"
+              style={{
+                background:
+                  'radial-gradient(circle at 88% 12%, color-mix(in srgb, var(--warning) 14%, transparent) 0%, transparent 62%)',
+              }}
+            />
+            <span className="material-symbols-outlined absolute -right-3 -bottom-4 !text-[84px] text-[var(--warning)] opacity-[0.04] pointer-events-none select-none rotate-[-10deg]">
+              {t('icon_warning', 'warning')}
+            </span>
+
+            {/* Row 1: Warning Icon Box on Left + Status Chip on Right */}
+            <div className="flex items-center justify-between gap-3 relative z-10">
+              <div className="w-11 h-11 rounded-xl glass-surface border border-[var(--glass-card-icon-border,rgba(255,255,255,0.22))] bg-[var(--glass-card-icon-bg,rgba(255,255,255,0.08))] shadow-[var(--glass-card-icon-shadow)] text-[var(--warning)] flex items-center justify-center shrink-0">
+                <span className="material-symbols-outlined !text-[22px]">
+                  {t('icon_warning', 'warning')}
+                </span>
+              </div>
+              <span className={VAULT_CHIP_CLASS}>
+                <span className="material-symbols-outlined !text-[12px] text-[var(--warning)]">
+                  {t('icon_warning', 'warning')}
+                </span>
+                <span>{t('landing_feedback_scope_chip', 'Platform Scope')}</span>
+              </span>
+            </div>
+
+            {/* Row 2: Overline + Title */}
+            <div className="flex flex-col gap-1 relative z-10">
+              <span className="text-[10px] font-mono font-black uppercase tracking-[0.14em] text-[var(--warning)] leading-snug">
                 {t('landing_feedback_scope_sub', 'Sanctuary OS • Core Platform')}
               </span>
-            }
-            imageOverlay={
-              <div className="absolute top-2.5 left-3 flex flex-nowrap items-center gap-1.5 max-w-[calc(100%-6.5rem)] z-30 pointer-events-none">
-                <span className={VAULT_CHIP_CLASS}>
-                  <span className="material-symbols-outlined !text-[12px] text-[var(--warning)]">
-                    {t('icon_info', 'info')}
-                  </span>
-                  <span>{t('landing_feedback_scope_chip', 'Platform Scope')}</span>
-                </span>
-              </div>
-            }
-            className="h-full"
-            footer={
-              <div className="w-full flex items-center justify-between gap-2">
-                <span className="text-[10px] font-black capitalize tracking-widest opacity-60 text-[var(--subtext)]">
-                  {t('sanctuary_os_name', 'Sanctuary OS')}
-                </span>
-                <span className="text-[10px] font-black capitalize tracking-widest text-[var(--warning)] shrink-0">
-                  {t('landing_feedback_scope_chip', 'Platform Scope')}
-                </span>
-              </div>
-            }
-          >
-            <p className="text-[11px] text-[var(--subtext)] leading-relaxed mt-2 opacity-85 no-text-case">
+              <h3 className="text-base font-black text-[var(--text)] tracking-tight leading-snug m-0">
+                {t('landing_feedback_scope_title', 'Platform Support Scope')}
+              </h3>
+            </div>
+
+            {/* Row 3: Recessed Warning Callout Strip */}
+            <div className="px-3 py-2 rounded-xl glass-surface border border-[color-mix(in_srgb,var(--warning)_24%,transparent)] bg-[color-mix(in_srgb,var(--warning)_6%,transparent)] flex items-center gap-2 relative z-10">
+              <span className="material-symbols-outlined !text-[15px] text-[var(--warning)] shrink-0">
+                {t('icon_info', 'info')}
+              </span>
+              <span className="text-[10px] font-mono font-bold uppercase tracking-wider text-[var(--warning)] leading-snug">
+                {t(
+                  'landing_support_scope_callout',
+                  'Core OS Only • Use Workspace Support for Game {Mods}'
+                )}
+              </span>
+            </div>
+
+            {/* Row 4: Body Prose */}
+            <p className="text-[11px] text-[var(--subtext)] opacity-90 leading-relaxed m-0 relative z-10 no-text-case">
               {t(
-                'landing_feedback_scope_desc',
+                'landing_support_platform_scope_body',
                 "Submit feedback, feature requests, and bug reports about the Sanctuary OS platform (Desktop App, Website, and Mobile PWA). For game-specific {mod} or community support, use that game workspace's Support tab."
               )}
             </p>
-          </UniversalCard>
+
+            {/* Row 5: Footer Row */}
+            <div className="pt-3 mt-auto border-t border-[color-mix(in_srgb,var(--text)_8%,transparent)] flex items-center justify-between gap-2 text-[9px] font-mono font-bold text-[var(--subtext)] opacity-75 uppercase tracking-widest relative z-10">
+              <span>{t('sanctuary_os_name', 'Sanctuary OS')}</span>
+              <span className="flex items-center gap-1 text-[var(--warning)] shrink-0">
+                <span className="material-symbols-outlined !text-[13px]">
+                  {t('icon_warning', 'warning')}
+                </span>
+                <span>{t('landing_feedback_scope_chip', 'Platform Scope')}</span>
+              </span>
+            </div>
+          </div>
 
           {/* Card 2: [Feedback] Desktop App • Website • Mobile PWA */}
           <UniversalCard
@@ -145,7 +173,7 @@ export function LandingSupportSection({
               'landing_banner_fb_bottom',
               'Feature Requests • Public & Beta Builds'
             )}
-            title={t('landing_feedback_card_title', 'Submit Platform Feedback')}
+            title={t('landing_support_feedback_title', 'Submit Platform Feedback')}
             subtitle={
               <span className="text-[10px] font-mono tracking-widest">
                 {t(
@@ -174,7 +202,7 @@ export function LandingSupportSection({
           >
             <p className="text-[11px] text-[var(--subtext)] leading-relaxed mt-2 opacity-80 no-text-case">
               {t(
-                'landing_feedback_card_desc',
+                'landing_support_feedback_body',
                 'Share feedback, feature requests, or public and beta build impressions across the Desktop App, Website, and Mobile PWA.'
               )}
             </p>
@@ -221,7 +249,7 @@ export function LandingSupportSection({
           >
             <p className="text-[11px] text-[var(--subtext)] leading-relaxed mt-2 opacity-80 no-text-case">
               {t(
-                'landing_fb_bug_desc',
+                'landing_support_bug_body',
                 'Found a reproducible bug, UI issue, or crash in Sanctuary OS? Submit a direct diagnostic report to the engineering team.'
               )}
             </p>
@@ -247,48 +275,76 @@ export function LandingSupportSection({
         />
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 w-full">
-          {/* Card 1: Human Review & Spoke Qualification */}
-          <UniversalCard
-            layout="vertical"
-            statusColor="accent"
-            icon={t('icon_verified_user', 'verified_user')}
-            bannerTopLabel={t('sanctuary_foundry', 'Sanctuary Foundry')}
-            bannerBottomLabel={t('landing_contact_scope_bottom', 'Direct Human Review')}
-            title={t('landing_contact_scope_title', 'Human Support Policy')}
-            subtitle={
-              <span className="text-[10px] font-mono tracking-widest">
+          {/* Card 1: Human Review & Spoke Qualification (Leading Section Alert Card) */}
+          <div className="glass-panel rounded-[var(--radius)] p-5 flex flex-col gap-3.5 relative overflow-hidden bg-[color-mix(in_srgb,var(--warning)_4%,transparent)] border-[color-mix(in_srgb,var(--warning)_22%,transparent)] h-full">
+            <div
+              className="pointer-events-none absolute inset-0 rounded-[inherit]"
+              style={{
+                background:
+                  'radial-gradient(circle at 88% 12%, color-mix(in srgb, var(--warning) 14%, transparent) 0%, transparent 62%)',
+              }}
+            />
+            <span className="material-symbols-outlined absolute -right-3 -bottom-4 !text-[84px] text-[var(--warning)] opacity-[0.04] pointer-events-none select-none rotate-[-10deg]">
+              {t('icon_gpp_maybe', 'gpp_maybe')}
+            </span>
+
+            {/* Row 1: Warning Icon Box on Left + Status Chip on Right */}
+            <div className="flex items-center justify-between gap-3 relative z-10">
+              <div className="w-11 h-11 rounded-xl glass-surface border border-[var(--glass-card-icon-border,rgba(255,255,255,0.22))] bg-[var(--glass-card-icon-bg,rgba(255,255,255,0.08))] shadow-[var(--glass-card-icon-shadow)] text-[var(--warning)] flex items-center justify-center shrink-0">
+                <span className="material-symbols-outlined !text-[22px]">
+                  {t('icon_verified_user', 'verified_user')}
+                </span>
+              </div>
+              <span className={VAULT_CHIP_CLASS}>
+                <span className="material-symbols-outlined !text-[12px] text-[var(--warning)]">
+                  {t('icon_verified_user', 'verified_user')}
+                </span>
+                <span>{t('landing_contact_scope_chip', 'Human Support')}</span>
+              </span>
+            </div>
+
+            {/* Row 2: Overline + Title */}
+            <div className="flex flex-col gap-1 relative z-10">
+              <span className="text-[10px] font-mono font-black uppercase tracking-[0.14em] text-[var(--warning)] leading-snug">
                 {t('landing_contact_scope_sub', 'Sanctuary Foundry • Human Staff')}
               </span>
-            }
-            imageOverlay={
-              <div className="absolute top-2.5 left-3 flex flex-nowrap items-center gap-1.5 max-w-[calc(100%-6.5rem)] z-30 pointer-events-none">
-                <span className={VAULT_CHIP_CLASS}>
-                  <span className="material-symbols-outlined !text-[12px] text-[var(--accent)]">
-                    {t('icon_verified_user', 'verified_user')}
-                  </span>
-                  <span>{t('landing_contact_scope_chip', 'Human Support')}</span>
-                </span>
-              </div>
-            }
-            className="h-full"
-            footer={
-              <div className="w-full flex items-center justify-between gap-2">
-                <span className="text-[10px] font-black capitalize tracking-widest opacity-60 text-[var(--subtext)]">
-                  {t('sanctuary_foundry', 'Sanctuary Foundry')}
-                </span>
-                <span className="text-[10px] font-black capitalize tracking-widest text-[var(--accent)] shrink-0">
-                  {t('landing_contact_scope_chip', 'Human Support')}
-                </span>
-              </div>
-            }
-          >
-            <p className="text-[11px] text-[var(--subtext)] leading-relaxed mt-2 opacity-85 no-text-case">
+              <h3 className="text-base font-black text-[var(--text)] tracking-tight leading-snug m-0">
+                {t('landing_contact_scope_title', 'Human Support Policy')}
+              </h3>
+            </div>
+
+            {/* Row 3: Recessed Warning Callout Strip */}
+            <div className="px-3 py-2 rounded-xl glass-surface border border-[color-mix(in_srgb,var(--warning)_24%,transparent)] bg-[color-mix(in_srgb,var(--warning)_6%,transparent)] flex items-center gap-2 relative z-10">
+              <span className="material-symbols-outlined !text-[15px] text-[var(--warning)] shrink-0">
+                {t('icon_verified_user', 'verified_user')}
+              </span>
+              <span className="text-[10px] font-mono font-bold uppercase tracking-wider text-[var(--warning)] leading-snug">
+                {t(
+                  'landing_support_human_callout',
+                  '100% Human-Reviewed • Community Workspaces Only'
+                )}
+              </span>
+            </div>
+
+            {/* Row 4: Body Prose */}
+            <p className="text-[11px] text-[var(--subtext)] opacity-90 leading-relaxed m-0 relative z-10 no-text-case">
               {t(
-                'landing_contact_alert_desc',
+                'landing_support_human_policy_body',
                 'Every Direct Contact message is reviewed and answered by a human member of Sanctuary Foundry. Partner Spoke applications are reserved for community-managed game workspaces.'
               )}
             </p>
-          </UniversalCard>
+
+            {/* Row 5: Footer Row */}
+            <div className="pt-3 mt-auto border-t border-[color-mix(in_srgb,var(--text)_8%,transparent)] flex items-center justify-between gap-2 text-[9px] font-mono font-bold text-[var(--subtext)] opacity-75 uppercase tracking-widest relative z-10">
+              <span>{t('sanctuary_foundry', 'Sanctuary Foundry')}</span>
+              <span className="flex items-center gap-1 text-[var(--warning)] shrink-0">
+                <span className="material-symbols-outlined !text-[13px]">
+                  {t('icon_verified_user', 'verified_user')}
+                </span>
+                <span>{t('landing_contact_scope_chip', 'Human Support')}</span>
+              </span>
+            </div>
+          </div>
 
           {/* Card 2: [Contact] Direct Contact */}
           <UniversalCard
@@ -328,7 +384,7 @@ export function LandingSupportSection({
           >
             <p className="text-[11px] text-[var(--subtext)] leading-relaxed mt-2 opacity-80 no-text-case">
               {t(
-                'landing_contact_card_desc',
+                'landing_support_direct_contact_body',
                 'Reach Sanctuary Foundry for general inquiries, DMCA or privacy notices, or responsible security disclosures.'
               )}
             </p>

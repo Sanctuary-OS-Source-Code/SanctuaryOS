@@ -138,6 +138,15 @@ export const getSafeSchema = (raw: any, fallbackId: string) => {
   if (safe.mod_metadata_extractor === undefined && preset.mod_metadata_extractor !== undefined) {
     safe.mod_metadata_extractor = preset.mod_metadata_extractor;
   }
+  if (safe.artifact_groups === undefined && preset.artifact_groups !== undefined) {
+    safe.artifact_groups = [...preset.artifact_groups];
+  }
+  if (safe.preview_extractors === undefined && preset.preview_extractors !== undefined) {
+    safe.preview_extractors = [...preset.preview_extractors];
+  }
+  if (safe.exception_correlation === undefined && preset.exception_correlation !== undefined) {
+    safe.exception_correlation = { ...preset.exception_correlation };
+  }
   if (safe.log_subdirs === undefined && preset.log_subdirs !== undefined) {
     safe.log_subdirs = [...preset.log_subdirs];
   }
@@ -226,6 +235,9 @@ export const getSafeSchema = (raw: any, fallbackId: string) => {
       manifest_targets: preset.load_order?.manifest_targets
         ? [...preset.load_order.manifest_targets]
         : undefined,
+      external_rules_sources: preset.load_order?.external_rules_sources
+        ? [...preset.load_order.external_rules_sources]
+        : undefined,
     };
   } else {
     safe.load_order = {
@@ -245,6 +257,56 @@ export const getSafeSchema = (raw: any, fallbackId: string) => {
         : preset.load_order?.manifest_targets
           ? [...preset.load_order.manifest_targets]
           : undefined,
+      external_rules_sources: Array.isArray(safe.load_order.external_rules_sources)
+        ? safe.load_order.external_rules_sources
+        : preset.load_order?.external_rules_sources
+          ? [...preset.load_order.external_rules_sources]
+          : undefined,
+    };
+  }
+  if (!safe.deployment && preset.deployment) {
+    safe.deployment = {
+      ...preset.deployment,
+      runtime_output_capture: preset.deployment.runtime_output_capture
+        ? { ...preset.deployment.runtime_output_capture }
+        : undefined,
+      ini_mutations: Array.isArray(preset.deployment.ini_mutations)
+        ? [...preset.deployment.ini_mutations]
+        : undefined,
+      post_deploy_hooks: Array.isArray(preset.deployment.post_deploy_hooks)
+        ? [...preset.deployment.post_deploy_hooks]
+        : undefined,
+      profile_isolated_dirs: Array.isArray(preset.deployment.profile_isolated_dirs)
+        ? [...preset.deployment.profile_isolated_dirs]
+        : undefined,
+    };
+  } else if (safe.deployment && preset.deployment) {
+    safe.deployment = {
+      ...preset.deployment,
+      ...safe.deployment,
+      runtime_output_capture: safe.deployment.runtime_output_capture
+        ? {
+            ...(preset.deployment.runtime_output_capture || {}),
+            ...safe.deployment.runtime_output_capture,
+          }
+        : preset.deployment.runtime_output_capture
+          ? { ...preset.deployment.runtime_output_capture }
+          : undefined,
+      ini_mutations: Array.isArray(safe.deployment.ini_mutations)
+        ? safe.deployment.ini_mutations
+        : Array.isArray(preset.deployment.ini_mutations)
+          ? [...preset.deployment.ini_mutations]
+          : undefined,
+      post_deploy_hooks: Array.isArray(safe.deployment.post_deploy_hooks)
+        ? safe.deployment.post_deploy_hooks
+        : Array.isArray(preset.deployment.post_deploy_hooks)
+          ? [...preset.deployment.post_deploy_hooks]
+          : undefined,
+      profile_isolated_dirs: Array.isArray(safe.deployment.profile_isolated_dirs)
+        ? safe.deployment.profile_isolated_dirs
+        : Array.isArray(preset.deployment.profile_isolated_dirs)
+          ? [...preset.deployment.profile_isolated_dirs]
+          : undefined,
     };
   }
   delete safe.mod_categories;
@@ -261,12 +323,29 @@ export const getSafeSchema = (raw: any, fallbackId: string) => {
     safe.min_scout_submissions = toOptU32(safe.min_scout_submissions, 5);
   }
   if (safe.constraints) {
+    const rawExtDepths =
+      safe.constraints.max_depth_by_extension &&
+      typeof safe.constraints.max_depth_by_extension === "object"
+        ? safe.constraints.max_depth_by_extension
+        : undefined;
+    const normalizedExtDepths = rawExtDepths
+      ? Object.fromEntries(
+          Object.entries(rawExtDepths)
+            .map(([k, v]) => [String(k).trim(), toOptU32(v)])
+            .filter(([k, v]) => Boolean(k) && v !== undefined)
+        )
+      : undefined;
     safe.constraints = {
       ...safe.constraints,
       max_folder_depth: toOptU32(
         safe.constraints.max_folder_depth,
         preset.constraints?.max_folder_depth ?? 5
       ),
+      max_nested_archive_depth: toOptU32(
+        safe.constraints.max_nested_archive_depth,
+        preset.constraints?.max_nested_archive_depth
+      ),
+      max_depth_by_extension: normalizedExtDepths,
     };
   }
   if (safe.lab_verification) {
@@ -1848,14 +1927,42 @@ export const syncMasterSchemas = async (initialSchemaId: string = 'default') => 
         if (import.meta.env.DEV) {
           const isKeeper = useStore.getState().osRole === 'keeper';
           let missingInCloud = false;
+          const bundledPaths = (BUNDLED_DEFAULT_SCHEMA as any)?.paths || {};
+          const resolvedPaths = (resolvedDefault as any)?.paths || {};
+          const bundledConstraints = (BUNDLED_DEFAULT_SCHEMA as any)?.constraints || {};
+          const resolvedConstraints = (resolvedDefault as any)?.constraints || {};
           const bundledLoadOrder = (BUNDLED_DEFAULT_SCHEMA as any)?.load_order || {};
           const resolvedLoadOrder = (resolvedDefault as any)?.load_order || {};
+          const bundledDeployment = (BUNDLED_DEFAULT_SCHEMA as any)?.deployment || {};
+          const resolvedDeployment = (resolvedDefault as any)?.deployment || {};
+          const bundledExcCorr = (BUNDLED_DEFAULT_SCHEMA as any)?.exception_correlation || {};
+          const resolvedExcCorr = (resolvedDefault as any)?.exception_correlation || {};
           const mergedDefault: Record<string, any> = {
             ...BUNDLED_DEFAULT_SCHEMA,
             ...resolvedDefault,
+            paths: {
+              ...bundledPaths,
+              ...resolvedPaths,
+            },
+            constraints: {
+              ...bundledConstraints,
+              ...resolvedConstraints,
+            },
             load_order: {
               ...bundledLoadOrder,
               ...resolvedLoadOrder,
+            },
+            deployment: {
+              ...bundledDeployment,
+              ...resolvedDeployment,
+              runtime_output_capture: {
+                ...(bundledDeployment?.runtime_output_capture || {}),
+                ...(resolvedDeployment?.runtime_output_capture || {}),
+              },
+            },
+            exception_correlation: {
+              ...bundledExcCorr,
+              ...resolvedExcCorr,
             },
           };
           delete mergedDefault.dlc_catalog;
@@ -1867,11 +1974,20 @@ export const syncMasterSchemas = async (initialSchemaId: string = 'default') => 
             }
           }
           if (!missingInCloud) {
-            for (const lk of Object.keys(bundledLoadOrder)) {
-              if (!(lk in resolvedLoadOrder)) {
-                missingInCloud = true;
-                break;
+            for (const [bObj, rObj] of [
+              [bundledPaths, resolvedPaths],
+              [bundledConstraints, resolvedConstraints],
+              [bundledLoadOrder, resolvedLoadOrder],
+              [bundledDeployment, resolvedDeployment],
+              [bundledExcCorr, resolvedExcCorr],
+            ]) {
+              for (const key of Object.keys(bObj)) {
+                if (!(key in rObj)) {
+                  missingInCloud = true;
+                  break;
+                }
               }
+              if (missingInCloud) break;
             }
           }
           if (missingInCloud && isKeeper) {

@@ -17,7 +17,14 @@ import {
 type ConditionNode =
   | { kind: "composite"; operator: string; children: ConditionNode[] }
   | { kind: "flag_dependency"; flag: string; value: string }
-  | { kind: "file_dependency"; file: string; state: string; resolved_state: string };
+  | { kind: "file_dependency"; file: string; state: string; resolved_state: string }
+  | {
+      kind: "version_dependency";
+      target: string;
+      required_version: string;
+      detected_version: string;
+      satisfied: boolean;
+    };
 
 interface PluginOption {
   id: string;
@@ -52,11 +59,13 @@ export interface InstallerWizardPlan {
   description: string;
   module_image_data_url?: string | null;
   suggested_target_folder: string;
+  content_root_rel?: string;
+  module_dependencies_satisfied?: boolean;
   saved_selections?: string[];
   steps: InstallStep[];
 }
 
-function evalCondition(node: ConditionNode, flags: Record<string, string>): boolean {
+export function evalCondition(node: ConditionNode, flags: Record<string, string>): boolean {
   if (node.kind === "flag_dependency") {
     return (flags[node.flag] ?? "") === node.value;
   }
@@ -65,6 +74,9 @@ function evalCondition(node: ConditionNode, flags: Record<string, string>): bool
       String(node.state || "").toLowerCase() ===
       String(node.resolved_state || "").toLowerCase()
     );
+  }
+  if (node.kind === "version_dependency") {
+    return Boolean(node.satisfied);
   }
   const kids = Array.isArray(node.children) ? node.children : [];
   if (String(node.operator || "").toLowerCase() === "or") {
@@ -378,6 +390,25 @@ export const FomodInstallerSidePanel: React.FC<{
                 className="h-14 w-24 object-cover rounded-xl border border-[color-mix(in_srgb,var(--text)_12%,transparent)] shrink-0"
               />
             )}
+          </div>
+        )}
+
+        {plan.module_dependencies_satisfied === false && (
+          <div className="flex items-start gap-3 px-4 py-3 rounded-2xl glass-surface border border-[color-mix(in_srgb,var(--warning)_35%,transparent)]">
+            <span className="material-symbols-outlined !text-[18px] text-[var(--warning)] shrink-0 mt-0.5">
+              {t("icon_warning_amber", "warning_amber")}
+            </span>
+            <div className="flex flex-col gap-0.5 min-w-0">
+              <span className="text-xs font-black uppercase tracking-wider text-[var(--warning)]">
+                {t("fomod_version_warning_title", "Module Dependency Version Warning")}
+              </span>
+              <span className="text-[11px] font-semibold text-[var(--subtext)]">
+                {t(
+                  "fomod_version_warning_desc",
+                  "One or more package requirements (game version or required active files) were not matched on this system."
+                )}
+              </span>
+            </div>
           </div>
         )}
 

@@ -927,8 +927,484 @@ export function SchemaLoadLabAndRulesTabs({
                   </div>
                 );
               })()}
+
+              {(() => {
+                const extRuleSources: any[] = Array.isArray(loadOrderObj.external_rules_sources)
+                  ? loadOrderObj.external_rules_sources
+                  : [];
+                return (
+                  <div className="flex flex-col gap-3 pt-2 border-t border-[color-mix(in_srgb,var(--text)_8%,transparent)]">
+                    <div className="flex items-center justify-between gap-2 flex-wrap">
+                      <div className="flex flex-col gap-0.5">
+                        <span className="text-xs font-black uppercase tracking-wider text-[var(--text)]">
+                          {t("schema_studio_ext_rules", "External Rule Sources (LOOT / Masterlists)")}
+                        </span>
+                        <span className="text-[11px] font-medium text-[var(--subtext)] opacity-80">
+                          {t(
+                            "schema_studio_ext_rules_desc",
+                            "Load external YAML/JSON rule feeds and CRC32 dirty-module signatures from HTTPS masterlists or local paths."
+                          )}
+                        </span>
+                      </div>
+                      <ActionButton
+                        variant="glass"
+                        icon={t("icon_add", "add")}
+                        onClick={() =>
+                          updateNestedField("load_order", "external_rules_sources", [
+                            ...extRuleSources,
+                            {
+                              id: `rules_${extRuleSources.length + 1}`,
+                              label: t("schema_studio_ext_rule_default", "Community Masterlist"),
+                              source_type: "loot_yaml",
+                              url: "",
+                              relative_paths: [],
+                            },
+                          ])
+                        }
+                        className="!px-3.5 !py-1.5 !text-[10px] !rounded-xl"
+                      >
+                        {t("schema_studio_add_ext_rule", "Add Rule Source")}
+                      </ActionButton>
+                    </div>
+
+                    {extRuleSources.length > 0 && (
+                      <div className="grid grid-cols-1 xl:grid-cols-2 gap-3.5">
+                        {extRuleSources.map((src: any, sIdx: number) => {
+                          const updateSrc = (patch: Record<string, any>) => {
+                            const next = [...extRuleSources];
+                            next[sIdx] = { ...src, ...patch };
+                            updateNestedField("load_order", "external_rules_sources", next);
+                          };
+                          return (
+                            <div
+                              key={`${src.id || sIdx}-${sIdx}`}
+                              className="glass-surface rounded-2xl p-3.5 border border-[color-mix(in_srgb,var(--text)_10%,transparent)] flex flex-col gap-2.5 min-w-0"
+                            >
+                              <div className="flex items-center justify-between gap-2">
+                                <span className="text-xs font-black font-mono text-[var(--accent)] truncate">
+                                  {`#${sIdx + 1} • ${src.label || src.id || "source"}`}
+                                </span>
+                                <button
+                                  type="button"
+                                  onClick={() =>
+                                    updateNestedField(
+                                      "load_order",
+                                      "external_rules_sources",
+                                      extRuleSources.filter((_: any, i: number) => i !== sIdx)
+                                    )
+                                  }
+                                  className="w-8 h-8 shrink-0 rounded-xl glass-surface border border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:border-[var(--danger)] flex items-center justify-center text-[var(--subtext)] hover:text-[var(--danger)] cursor-pointer transition-all"
+                                >
+                                  <span className="material-symbols-outlined !text-[15px]">
+                                    {t("icon_delete", "delete")}
+                                  </span>
+                                  <HoverTooltip title={t("delete", "Delete")} />
+                                </button>
+                              </div>
+                              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                                <input
+                                  type="text"
+                                  value={src.id ?? ""}
+                                  onChange={(e) => updateSrc({ id: e.target.value })}
+                                  placeholder={t("schema_studio_ph_ext_rule_id", "loot_masterlist")}
+                                  className="h-9 min-w-0 glass-panel rounded-xl px-3 text-xs font-mono font-bold text-[var(--text)] border border-[color-mix(in_srgb,var(--text)_12%,transparent)]"
+                                />
+                                <input
+                                  type="text"
+                                  value={src.url ?? ""}
+                                  onChange={(e) => updateSrc({ url: e.target.value || undefined })}
+                                  placeholder={t("schema_studio_ph_ext_rule_url", "https://.../masterlist.yaml")}
+                                  className="h-9 min-w-0 glass-panel rounded-xl px-3 text-xs font-mono font-bold text-[var(--text)] border border-[color-mix(in_srgb,var(--text)_12%,transparent)]"
+                                />
+                              </div>
+                              <StringListBuilder
+                                layout="paths"
+                                items={Array.isArray(src.relative_paths) ? src.relative_paths : []}
+                                onChange={(nextPaths) => updateSrc({ relative_paths: nextPaths })}
+                                placeholder={t("schema_studio_ph_ext_rule_rel", "Game/masterlist.yaml / userlist.yaml")}
+                                addButtonLabel={t("add", "Add")}
+                              />
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
+                );
+              })()}
             </div>
           </UniversalGroup>
+
+          {(() => {
+            const depObj =
+              parsedSchema.deployment && typeof parsedSchema.deployment === "object"
+                ? parsedSchema.deployment
+                : {};
+            const capObj =
+              depObj.runtime_output_capture && typeof depObj.runtime_output_capture === "object"
+                ? depObj.runtime_output_capture
+                : {};
+            const iniMutations: any[] = Array.isArray(depObj.ini_mutations)
+              ? depObj.ini_mutations
+              : [];
+            const postHooks: any[] = Array.isArray(depObj.post_deploy_hooks)
+              ? depObj.post_deploy_hooks
+              : [];
+            const isolatedDirs: any[] = Array.isArray(depObj.profile_isolated_dirs)
+              ? depObj.profile_isolated_dirs
+              : [];
+            return (
+              <UniversalGroup
+                title={t("schema_studio_sec_deployment", "Runtime Output Capture & INI Mutations")}
+                icon={t("icon_tune", "tune")}
+                headerAction={
+                  <ActionButton
+                    variant="accent"
+                    icon={t("icon_add", "add")}
+                    onClick={() =>
+                      updateNestedField("deployment", "ini_mutations", [
+                        ...iniMutations,
+                        {
+                          root_source: "docs_path",
+                          relative_path: "",
+                          section: "Archive",
+                          key: "",
+                          value: "1",
+                          restore_on_purge: true,
+                        },
+                      ])
+                    }
+                    className="!px-3.5 !py-1.5 !text-[10px] !rounded-xl"
+                  >
+                    {t("schema_studio_add_ini_mutation", "Add INI Mutation")}
+                  </ActionButton>
+                }
+              >
+                <div className="flex flex-col gap-4 w-full">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5">
+                    <SchemaToggleRow
+                      label={t("schema_studio_cap_enabled", "Capture Newly Generated Tool Outputs into {Vault}")}
+                      checked={Boolean(capObj.enabled)}
+                      onChange={(val) =>
+                        updateNestedField("deployment", "runtime_output_capture", {
+                          ...capObj,
+                          enabled: val,
+                          target_vault_folder: capObj.target_vault_folder || "_RuntimeOutput",
+                          watch_roots:
+                            Array.isArray(capObj.watch_roots) && capObj.watch_roots.length > 0
+                              ? capObj.watch_roots
+                              : ["mods_path"],
+                        })
+                      }
+                    />
+                    <div className="glass-surface rounded-2xl p-3.5 border border-[color-mix(in_srgb,var(--text)_10%,transparent)] flex flex-col gap-1.5 min-w-0">
+                      <label className="text-[10px] font-black uppercase tracking-widest text-[var(--subtext)]">
+                        {t("schema_studio_cap_folder", "Runtime Output {Vault} Subfolder")}
+                      </label>
+                      <input
+                        type="text"
+                        value={capObj.target_vault_folder ?? "_RuntimeOutput"}
+                        onChange={(e) =>
+                          updateNestedField("deployment", "runtime_output_capture", {
+                            ...capObj,
+                            target_vault_folder: e.target.value || "_RuntimeOutput",
+                          })
+                        }
+                        placeholder={t("schema_studio_ph_cap_folder", "_RuntimeOutput")}
+                        className="h-10 min-w-0 glass-panel rounded-xl px-3 text-xs font-mono font-bold text-[var(--text)] border border-[color-mix(in_srgb,var(--text)_12%,transparent)]"
+                      />
+                    </div>
+                  </div>
+
+                  {iniMutations.length > 0 && (
+                    <div className="grid grid-cols-1 xl:grid-cols-2 gap-3.5">
+                      {iniMutations.map((mut: any, mIdx: number) => {
+                        const updateMut = (patch: Record<string, any>) => {
+                          const next = [...iniMutations];
+                          next[mIdx] = { ...mut, ...patch };
+                          updateNestedField("deployment", "ini_mutations", next);
+                        };
+                        return (
+                          <div
+                            key={`ini_mut_${mIdx}`}
+                            className="glass-surface rounded-2xl p-3.5 border border-[color-mix(in_srgb,var(--text)_10%,transparent)] flex flex-col gap-2.5 min-w-0"
+                          >
+                            <div className="flex items-center justify-between gap-2">
+                              <span className="text-xs font-black font-mono text-[var(--accent)] truncate">
+                                {`#${mIdx + 1} • ${mut.relative_path || "INI"}`}
+                              </span>
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  updateNestedField(
+                                    "deployment",
+                                    "ini_mutations",
+                                    iniMutations.filter((_: any, i: number) => i !== mIdx)
+                                  )
+                                }
+                                className="w-8 h-8 shrink-0 rounded-xl glass-surface border border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:border-[var(--danger)] flex items-center justify-center text-[var(--subtext)] hover:text-[var(--danger)] cursor-pointer transition-all"
+                              >
+                                <span className="material-symbols-outlined !text-[15px]">
+                                  {t("icon_delete", "delete")}
+                                </span>
+                                <HoverTooltip title={t("delete", "Delete")} />
+                              </button>
+                            </div>
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                              <CustomDropdown
+                                disableTint={true}
+                                value={mut.root_source ?? "docs_path"}
+                                onChange={(v: string[]) =>
+                                  updateMut({ root_source: v[0] || "docs_path" })
+                                }
+                                options={[
+                                  { id: "docs_path", label: t("schema_studio_route_root_docs", "User Saves & Data Root") },
+                                  { id: "live_path", label: t("schema_studio_route_root_live", "Game Install Root") },
+                                  { id: "mods_path", label: t("schema_studio_route_root_mods", "Active {Mods} Folder") },
+                                  { id: "local_appdata", label: t("schema_studio_route_root_local_appdata", "Local AppData / Proton Prefix Root") },
+                                ]}
+                              />
+                              <input
+                                type="text"
+                                value={mut.relative_path ?? ""}
+                                onChange={(e) => updateMut({ relative_path: e.target.value })}
+                                placeholder={t("schema_studio_ph_ini_rel", "EngineCustom.ini")}
+                                className="h-10 min-w-0 glass-panel rounded-xl px-3 text-xs font-mono font-bold text-[var(--text)] border border-[color-mix(in_srgb,var(--text)_12%,transparent)]"
+                              />
+                              <input
+                                type="text"
+                                value={mut.section ?? ""}
+                                onChange={(e) => updateMut({ section: e.target.value })}
+                                placeholder={t("schema_studio_ph_ini_sec", "Archive")}
+                                className="h-9 min-w-0 glass-panel rounded-xl px-3 text-xs font-mono font-bold text-[var(--text)] border border-[color-mix(in_srgb,var(--text)_12%,transparent)]"
+                              />
+                              <input
+                                type="text"
+                                value={mut.key ?? ""}
+                                onChange={(e) => updateMut({ key: e.target.value })}
+                                placeholder={t("schema_studio_ph_ini_key", "bInvalidateOlderFiles")}
+                                className="h-9 min-w-0 glass-panel rounded-xl px-3 text-xs font-mono font-bold text-[var(--text)] border border-[color-mix(in_srgb,var(--text)_12%,transparent)]"
+                              />
+                            </div>
+                            <input
+                              type="text"
+                              value={mut.value ?? ""}
+                              onChange={(e) => updateMut({ value: e.target.value })}
+                              placeholder={t("schema_studio_ph_ini_val", "1")}
+                              className="h-9 min-w-0 glass-panel rounded-xl px-3 text-xs font-mono font-bold text-[var(--text)] border border-[color-mix(in_srgb,var(--text)_12%,transparent)]"
+                            />
+                            <SchemaToggleRow
+                              label={t("schema_studio_ini_restore", "Restore Previous Value When {Mods} Are Unlinked")}
+                              checked={mut.restore_on_purge !== false}
+                              onChange={(val) => updateMut({ restore_on_purge: val })}
+                            />
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+
+                  <div className="flex flex-col gap-3 pt-2 border-t border-[color-mix(in_srgb,var(--text)_8%,transparent)]">
+                    <div className="flex items-center justify-between gap-2 flex-wrap">
+                      <div className="flex flex-col gap-0.5">
+                        <span className="text-xs font-black uppercase tracking-wider text-[var(--text)]">
+                          {t("schema_studio_post_deploy_hooks", "Post-Deploy Compiler Hooks")}
+                        </span>
+                        <span className="text-[11px] font-medium text-[var(--subtext)] opacity-80">
+                          {t(
+                            "schema_studio_post_deploy_hooks_desc",
+                            "Executes bounded game-native build or deployment compilers inside validated workspace roots after symlinks and manifests finish."
+                          )}
+                        </span>
+                      </div>
+                      <ActionButton
+                        variant="glass"
+                        icon={t("icon_add", "add")}
+                        onClick={() =>
+                          updateNestedField("deployment", "post_deploy_hooks", [
+                            ...postHooks,
+                            {
+                              id: `hook_${postHooks.length + 1}`,
+                              label: t("schema_studio_default_hook_label", "Compiler Hook"),
+                              executable: "",
+                              args: [],
+                              working_dir_source: "live_path",
+                              timeout_secs: 60,
+                              optional_if_missing: true,
+                              run_on_purge: false,
+                            },
+                          ])
+                        }
+                        className="!px-3.5 !py-1.5 !text-[10px] !rounded-xl"
+                      >
+                        {t("schema_studio_add_hook", "Add Post-Deploy Hook")}
+                      </ActionButton>
+                    </div>
+                    {postHooks.length > 0 && (
+                      <div className="grid grid-cols-1 xl:grid-cols-2 gap-3.5">
+                        {postHooks.map((hk: any, hIdx: number) => {
+                          const updateHook = (patch: Record<string, any>) => {
+                            const next = [...postHooks];
+                            next[hIdx] = { ...hk, ...patch };
+                            updateNestedField("deployment", "post_deploy_hooks", next);
+                          };
+                          return (
+                            <div
+                              key={`hook_${hIdx}`}
+                              className="glass-surface rounded-2xl p-3.5 border border-[color-mix(in_srgb,var(--text)_10%,transparent)] flex flex-col gap-2.5 min-w-0"
+                            >
+                              <div className="flex items-center justify-between gap-2">
+                                <span className="text-xs font-black font-mono text-[var(--accent)] truncate">
+                                  {`#${hIdx + 1} • ${hk.label || hk.id || "hook"}`}
+                                </span>
+                                <button
+                                  type="button"
+                                  onClick={() =>
+                                    updateNestedField(
+                                      "deployment",
+                                      "post_deploy_hooks",
+                                      postHooks.filter((_: any, i: number) => i !== hIdx)
+                                    )
+                                  }
+                                  className="w-8 h-8 shrink-0 rounded-xl glass-surface border border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:border-[var(--danger)] flex items-center justify-center text-[var(--subtext)] hover:text-[var(--danger)] cursor-pointer transition-all"
+                                >
+                                  <span className="material-symbols-outlined !text-[15px]">
+                                    {t("icon_delete", "delete")}
+                                  </span>
+                                  <HoverTooltip title={t("delete", "Delete")} />
+                                </button>
+                              </div>
+                              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                                <input
+                                  type="text"
+                                  value={hk.executable ?? ""}
+                                  onChange={(e) => updateHook({ executable: e.target.value })}
+                                  placeholder={t("schema_studio_ph_hook_exe", "tools/compiler/tool.exe")}
+                                  className="h-9 min-w-0 glass-panel rounded-xl px-3 text-xs font-mono font-bold text-[var(--text)] border border-[color-mix(in_srgb,var(--text)_12%,transparent)]"
+                                />
+                                <GlassNumberInput
+                                  value={Number(hk.timeout_secs ?? 60)}
+                                  min={1}
+                                  max={300}
+                                  onChange={(val) => updateHook({ timeout_secs: val })}
+                                />
+                              </div>
+                              <StringListBuilder
+                                items={Array.isArray(hk.args) ? hk.args : []}
+                                onChange={(nextArgs) => updateHook({ args: nextArgs })}
+                                placeholder={t("schema_studio_ph_hook_args", "e.g. deploy / {mods_path}")}
+                                addButtonLabel={t("add", "Add")}
+                              />
+                              <SchemaToggleRow
+                                label={t("schema_studio_hook_optional", "Skip Safely When Tool Binary Is Missing")}
+                                checked={hk.optional_if_missing !== false}
+                                onChange={(val) => updateHook({ optional_if_missing: val })}
+                              />
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="flex flex-col gap-3 pt-2 border-t border-[color-mix(in_srgb,var(--text)_8%,transparent)]">
+                    <div className="flex items-center justify-between gap-2 flex-wrap">
+                      <div className="flex flex-col gap-0.5">
+                        <span className="text-xs font-black uppercase tracking-wider text-[var(--text)]">
+                          {t("schema_studio_profile_iso_dirs", "Per-{Blueprint} Isolated Config Directories")}
+                        </span>
+                        <span className="text-[11px] font-medium text-[var(--subtext)] opacity-80">
+                          {t(
+                            "schema_studio_profile_iso_dirs_desc",
+                            "Isolates active modloader configuration trees per {Blueprint} inside the {Vault} while preserving and restoring vanilla baselines on unlink."
+                          )}
+                        </span>
+                      </div>
+                      <ActionButton
+                        variant="glass"
+                        icon={t("icon_add", "add")}
+                        onClick={() =>
+                          updateNestedField("deployment", "profile_isolated_dirs", [
+                            ...isolatedDirs,
+                            {
+                              id: `iso_${isolatedDirs.length + 1}`,
+                              label: t("schema_studio_default_iso_label", "Profile Config Tree"),
+                              root_source: "live_path",
+                              relative_path: "",
+                            },
+                          ])
+                        }
+                        className="!px-3.5 !py-1.5 !text-[10px] !rounded-xl"
+                      >
+                        {t("schema_studio_add_iso_dir", "Add Isolated Directory")}
+                      </ActionButton>
+                    </div>
+                    {isolatedDirs.length > 0 && (
+                      <div className="grid grid-cols-1 xl:grid-cols-2 gap-3.5">
+                        {isolatedDirs.map((iso: any, iIdx: number) => {
+                          const updateIso = (patch: Record<string, any>) => {
+                            const next = [...isolatedDirs];
+                            next[iIdx] = { ...iso, ...patch };
+                            updateNestedField("deployment", "profile_isolated_dirs", next);
+                          };
+                          return (
+                            <div
+                              key={`iso_${iIdx}`}
+                              className="glass-surface rounded-2xl p-3.5 border border-[color-mix(in_srgb,var(--text)_10%,transparent)] flex flex-col gap-2.5 min-w-0"
+                            >
+                              <div className="flex items-center justify-between gap-2">
+                                <span className="text-xs font-black font-mono text-[var(--accent)] truncate">
+                                  {`#${iIdx + 1} • ${iso.relative_path || iso.id || "dir"}`}
+                                </span>
+                                <button
+                                  type="button"
+                                  onClick={() =>
+                                    updateNestedField(
+                                      "deployment",
+                                      "profile_isolated_dirs",
+                                      isolatedDirs.filter((_: any, i: number) => i !== iIdx)
+                                    )
+                                  }
+                                  className="w-8 h-8 shrink-0 rounded-xl glass-surface border border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:border-[var(--danger)] flex items-center justify-center text-[var(--subtext)] hover:text-[var(--danger)] cursor-pointer transition-all"
+                                >
+                                  <span className="material-symbols-outlined !text-[15px]">
+                                    {t("icon_delete", "delete")}
+                                  </span>
+                                  <HoverTooltip title={t("delete", "Delete")} />
+                                </button>
+                              </div>
+                              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                                <CustomDropdown
+                                  disableTint={true}
+                                  value={iso.root_source ?? "live_path"}
+                                  onChange={(v: string[]) =>
+                                    updateIso({ root_source: v[0] || "live_path" })
+                                  }
+                                  options={[
+                                    { id: "live_path", label: t("schema_studio_route_root_live", "Game Install Root") },
+                                    { id: "docs_path", label: t("schema_studio_route_root_docs", "User Saves & Data Root") },
+                                    { id: "mods_path", label: t("schema_studio_route_root_mods", "Active {Mods} Folder") },
+                                    { id: "local_appdata", label: t("schema_studio_route_root_local_appdata", "Local AppData / Proton Prefix Root") },
+                                  ]}
+                                />
+                                <input
+                                  type="text"
+                                  value={iso.relative_path ?? ""}
+                                  onChange={(e) => updateIso({ relative_path: e.target.value })}
+                                  placeholder={t("schema_studio_ph_iso_rel", "Loader/config")}
+                                  className="h-10 min-w-0 glass-panel rounded-xl px-3 text-xs font-mono font-bold text-[var(--text)] border border-[color-mix(in_srgb,var(--text)_12%,transparent)]"
+                                />
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </UniversalGroup>
+            );
+          })()}
 
           <UniversalGroup
             title={`${t("schema_studio_sec_conflict_analyzers", "Conflict Radar Analyzers")} (${
@@ -1745,6 +2221,59 @@ export function SchemaLoadLabAndRulesTabs({
               })}
             </div>
           </UniversalGroup>
+
+          {(() => {
+            const corrObj =
+              parsedSchema.exception_correlation &&
+              typeof parsedSchema.exception_correlation === "object"
+                ? parsedSchema.exception_correlation
+                : {};
+            return (
+              <UniversalGroup
+                title={t("schema_studio_sec_exc_corr", "Crash Autopsy Chunk Correlation")}
+                icon={t("icon_troubleshoot", "troubleshoot")}
+              >
+                <div className="flex flex-col gap-3.5 w-full">
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                    <SchemaToggleRow
+                      label={t("schema_studio_exc_corr_enabled", "Enable Fast Chunk-ID Log Correlation")}
+                      checked={Boolean(corrObj.enabled)}
+                      onChange={(val) =>
+                        updateNestedField("exception_correlation", "enabled", val)
+                      }
+                    />
+                    <SchemaToggleRow
+                      label={t("schema_studio_exc_corr_chunks", "Match Binary Hex Resource IDs")}
+                      checked={corrObj.match_chunk_keys !== false}
+                      onChange={(val) =>
+                        updateNestedField("exception_correlation", "match_chunk_keys", val)
+                      }
+                    />
+                    <SchemaToggleRow
+                      label={t("schema_studio_exc_corr_paths", "Match Virtual Relative Asset Paths")}
+                      checked={corrObj.match_relative_paths !== false}
+                      onChange={(val) =>
+                        updateNestedField("exception_correlation", "match_relative_paths", val)
+                      }
+                    />
+                  </div>
+                  <div className="glass-surface rounded-2xl p-4 border border-[color-mix(in_srgb,var(--text)_10%,transparent)] flex flex-col gap-2 min-w-0">
+                    <label className="text-[10px] font-black uppercase tracking-widest text-[var(--subtext)]">
+                      {t("schema_studio_exc_corr_regexes", "Resource Identifier Extraction Regexes")}
+                    </label>
+                    <StringListBuilder
+                      items={Array.isArray(corrObj.id_regexes) ? corrObj.id_regexes : []}
+                      onChange={(next) =>
+                        updateNestedField("exception_correlation", "id_regexes", next)
+                      }
+                      placeholder={t("schema_studio_ph_exc_regex", "0x[0-9a-fA-F]{8,16}")}
+                      addButtonLabel={t("add", "Add")}
+                    />
+                  </div>
+                </div>
+              </UniversalGroup>
+            );
+          })()}
 
           <UniversalGroup
             title={t("schema_studio_sec_capsule", "{Backups} & Tools")}

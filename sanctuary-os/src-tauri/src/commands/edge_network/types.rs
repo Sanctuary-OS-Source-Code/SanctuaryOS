@@ -23,6 +23,46 @@ pub(super) const EDGE_POLL_TTL_SECS: i64 = 900; // 15 minutes
 pub(super) const EDGE_POLL_CONCURRENCY: usize = 8;
 
 pub(super) static EDGE_HTTP_CLIENT: std::sync::OnceLock<Client> = std::sync::OnceLock::new();
+pub(super) static LARGE_TRANSFER_HTTP_CLIENT: std::sync::OnceLock<Client> =
+    std::sync::OnceLock::new();
+
+fn build_ssrf_redirect_policy() -> reqwest::redirect::Policy {
+    reqwest::redirect::Policy::custom(|attempt| {
+        if attempt.previous().len() >= 5 {
+            return attempt.error("Exceeded maximum redirect depth (5)");
+        }
+        let target_url = attempt.url().clone();
+        match validate_safe_https_url_syntax(target_url.as_str()) {
+            Ok(parsed) => {
+                if let Some(host_str) = parsed.host_str() {
+                    let clean_host = host_str.trim_matches(&['[', ']'][..]);
+                    let port = parsed.port_or_known_default().unwrap_or(443);
+                    if let Ok(addrs) = (clean_host, port).to_socket_addrs() {
+                        for sock in addrs {
+                            if is_forbidden_ip(sock.ip()) {
+                                return attempt.error("Blocked redirect to private/loopback IP");
+                            }
+                        }
+                    }
+                }
+                attempt.follow()
+            }
+            Err(msg) => attempt.error(msg),
+        }
+    })
+}
+
+pub(super) fn get_large_transfer_http_client() -> &'static Client {
+    LARGE_TRANSFER_HTTP_CLIENT.get_or_init(|| {
+        Client::builder()
+            .user_agent(EDGE_USER_AGENT)
+            .redirect(build_ssrf_redirect_policy())
+            .connect_timeout(Duration::from_secs(10))
+            .read_timeout(Duration::from_secs(60))
+            .build()
+            .unwrap_or_else(|_| Client::new())
+    })
+}
 
 pub fn is_forbidden_ip(ip: IpAddr) -> bool {
     match ip {
@@ -107,7 +147,7 @@ pub fn validate_safe_https_url_syntax(raw_url: &str) -> Result<url::Url, String>
     Ok(parsed)
 }
 
-pub(super) async fn validate_safe_https_url(raw_url: &str) -> Result<url::Url, String> {
+pub(crate) async fn validate_safe_https_url(raw_url: &str) -> Result<url::Url, String> {
     let parsed = validate_safe_https_url_syntax(raw_url)?;
     let host_str = parsed
         .host_str()
@@ -150,34 +190,9 @@ pub(super) async fn validate_safe_https_url(raw_url: &str) -> Result<url::Url, S
 
 pub(super) fn get_http_client() -> &'static Client {
     EDGE_HTTP_CLIENT.get_or_init(|| {
-        let redirect_policy = reqwest::redirect::Policy::custom(|attempt| {
-            if attempt.previous().len() >= 5 {
-                return attempt.error("Exceeded maximum redirect depth (5)");
-            }
-            let target_url = attempt.url().clone();
-            match validate_safe_https_url_syntax(target_url.as_str()) {
-                Ok(parsed) => {
-                    if let Some(host_str) = parsed.host_str() {
-                        let clean_host = host_str.trim_matches(&['[', ']'][..]);
-                        let port = parsed.port_or_known_default().unwrap_or(443);
-                        if let Ok(addrs) = (clean_host, port).to_socket_addrs() {
-                            for sock in addrs {
-                                if is_forbidden_ip(sock.ip()) {
-                                    return attempt
-                                        .error("Blocked redirect to private/loopback IP");
-                                }
-                            }
-                        }
-                    }
-                    attempt.follow()
-                }
-                Err(msg) => attempt.error(msg),
-            }
-        });
-
         Client::builder()
             .user_agent(EDGE_USER_AGENT)
-            .redirect(redirect_policy)
+            .redirect(build_ssrf_redirect_policy())
             .connect_timeout(Duration::from_secs(5))
             .timeout(Duration::from_secs(12))
             .build()
@@ -242,6 +257,55 @@ pub struct EdgeOverride {
     pub last_polled_at: Option<i64>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub last_http_status: Option<i64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub creator_pubkey: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub subscribed_channel: Option<String>,
+}
+
+pub fn default_release_channel() -> String {
+    "stable".to_string()
+}
+
+pub fn normalize_release_channel(raw: &str) -> &'static str {
+    match raw.trim().to_ascii_lowercase().as_str() {
+        "alpha" => "alpha",
+        "beta" => "beta",
+        _ => "stable",
+    }
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone, Default)]
+#[serde(default)]
+pub struct PatchCompatibilityEntry {
+    pub game_version_range: String,
+    #[serde(default = "default_release_channel")]
+    pub channel: String,
+    #[serde(default)]
+    pub min_mod_version: String,
+    #[serde(default)]
+    pub status: String,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone, Default)]
+#[serde(default)]
+pub struct EdgeChannelPointer {
+    pub version: String,
+    pub download_url: String,
+    pub sha256: String,
+    #[serde(default)]
+    pub game_version: String,
+    #[serde(default)]
+    pub release_date: String,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone, Default)]
+#[serde(default)]
+pub struct EdgeManifestSignature {
+    pub algorithm: String,
+    pub public_key_b64: String,
+    pub signature_b64: String,
+    pub signed_payload_sha256: String,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone, Default)]
@@ -256,6 +320,10 @@ pub struct EdgeArtifactMeta {
     pub compatible_versions: Vec<String>,
     pub release_date: String,
     pub game_id: String,
+    #[serde(default = "default_release_channel")]
+    pub channel: String,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub patch_compatibility_matrix: Vec<PatchCompatibilityEntry>,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone, Default)]
@@ -530,6 +598,10 @@ pub struct EdgeManifest {
     pub changelog: Vec<String>,
     #[serde(default)]
     pub previous_hashes: Vec<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub channels: Option<HashMap<String, EdgeChannelPointer>>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub signature: Option<EdgeManifestSignature>,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone, Default)]
@@ -539,6 +611,54 @@ pub struct EdgePollTarget {
     pub manifest_url: String,
     pub local_hash: Option<String>,
     pub local_version: Option<String>,
+    #[serde(default)]
+    pub preferred_channel: Option<String>,
+}
+
+/// Resolves an incoming manifest view for the user's subscribed channel (`stable`, `beta`, `alpha`),
+/// promoting the channel pointer's `version`, `download_url`, and `sha256` when present while
+/// falling back gracefully to `stable` or the root manifest fields.
+pub(crate) fn resolve_effective_manifest_for_channel(
+    manifest: &EdgeManifest,
+    preferred_channel: Option<&str>,
+) -> EdgeManifest {
+    let mut effective = manifest.clone();
+    let requested = normalize_release_channel(preferred_channel.unwrap_or("stable"));
+    let Some(ref channel_map) = manifest.channels else {
+        return effective;
+    };
+
+    let candidate = match requested {
+        "alpha" => channel_map
+            .get("alpha")
+            .or_else(|| channel_map.get("beta"))
+            .or_else(|| channel_map.get("stable")),
+        "beta" => channel_map
+            .get("beta")
+            .or_else(|| channel_map.get("stable")),
+        _ => channel_map.get("stable"),
+    };
+
+    if let Some(ptr) = candidate {
+        if !ptr.version.trim().is_empty() {
+            effective.artifact.version = ptr.version.clone();
+        }
+        if !ptr.game_version.trim().is_empty() {
+            effective.artifact.game_version = ptr.game_version.clone();
+        }
+        if !ptr.release_date.trim().is_empty() {
+            effective.artifact.release_date = ptr.release_date.clone();
+        }
+        if !ptr.download_url.trim().is_empty() {
+            effective.payload.download_url = ptr.download_url.clone();
+        }
+        if !ptr.sha256.trim().is_empty() {
+            effective.payload.sha256 = ptr.sha256.clone();
+            push_unique_hash(&mut effective.current_hashes, &ptr.sha256);
+        }
+        effective.artifact.channel = requested.to_string();
+    }
+    effective
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone, Default)]

@@ -24,6 +24,8 @@ import {
 } from "../components/LabVerificationGate";
 import { groupModVersionPoolItems, ModVersionBinaryGroup } from "./VaultSidePanels";
 import { fetchModLabReports } from "../components/KnownExceptionRules";
+import { getModFallbackUrl, handleOpenUrl } from "../shared";
+import type { MasonReleaseChannel } from "../utils/blueprintLockfile";
 import {
   extractCleanUuid,
   isPlaceholderVersionStr,
@@ -382,6 +384,12 @@ export default function ModDossier({
   }, [rawKidToRender, kidHydratedMeta, combinedDbMap, vaultIndex, t]);
   const [isSaving, setIsSaving] = useState(false);
   const [showFlagModal, setShowFlagModal] = useState(false);
+  const [canReconfigureInstaller, setCanReconfigureInstaller] = useState(false);
+  const [isReconfiguringInstaller, setIsReconfiguringInstaller] = useState(false);
+  const [isResolvingDeps, setIsResolvingDeps] = useState(false);
+  const [subscribedChannel, setSubscribedChannel] = useState<MasonReleaseChannel>(
+    () => (mod?.subscribed_channel as MasonReleaseChannel) || "stable"
+  );
   const isNexusView = mod?.isNexusView;
   const targetDbId =
     mod?.dbId ||
@@ -678,6 +686,185 @@ export default function ModDossier({
           ? t("status_staging_item_removed", "Removed from Remote Staging Queue.")
           : t("status_staging_item_added", "Added to Remote Staging Queue.")
       );
+  };
+
+  useEffect(() => {
+    if (!isDesktop() || isNexusView || !mod || mod.isVirtual) {
+      setCanReconfigureInstaller(false);
+      return;
+    }
+    const vaultPath = useStore.getState().vaultPath;
+    const modRelPath = String(mod.physical_path || mod.name || "").trim();
+    if (!vaultPath || !modRelPath) {
+      setCanReconfigureInstaller(false);
+      return;
+    }
+    let cancelled = false;
+    invoke<boolean>("can_reconfigure_mod_installer", {
+      vaultPath,
+      modRelPath,
+    })
+      .then((res) => {
+        if (!cancelled) setCanReconfigureInstaller(Boolean(res));
+      })
+      .catch(() => {
+        if (!cancelled) setCanReconfigureInstaller(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [mod?.name, mod?.physical_path, mod?.isVirtual, isNexusView]);
+
+  const edgeManifestUrlResolved = useMemo(() => {
+    if (metaInputs?.manifest_url?.trim()) return metaInputs.manifest_url.trim();
+    if (mod?.manifest_url) return String(mod.manifest_url).trim();
+    if (mod?.static_manifest_url) return String(mod.static_manifest_url).trim();
+    try {
+      const edgeLogic = JSON.parse(localStorage.getItem("sanctuary_edge_logic") || "{}");
+      if (mod?.hash && edgeLogic[mod.hash]?.manifest_url) {
+        return String(edgeLogic[mod.hash].manifest_url).trim();
+      }
+    } catch {}
+    return "";
+  }, [metaInputs?.manifest_url, mod?.manifest_url, mod?.static_manifest_url, mod?.hash]);
+
+  const hasEdgeChannelSupport = Boolean(
+    isDesktop() && !isNexusView && (edgeManifestUrlResolved || mod?.channels)
+  );
+
+  const handleChangeSubscribedChannel = async (nextCh: MasonReleaseChannel) => {
+    setSubscribedChannel(nextCh);
+    const vaultPath = useStore.getState().vaultPath;
+    const artifactId = String(mod?.id || mod?.hash || mod?.name || "").trim();
+    if (!vaultPath || !artifactId) return;
+    try {
+      await invoke("set_edge_subscribed_channel", {
+        vaultPath,
+        artifactId,
+        channel: nextCh,
+      });
+      await invoke("fetch_and_sync_edge_manifest", {
+        vaultPath,
+        artifactId,
+      }).catch(() => null);
+      useStore
+        .getState()
+        .pushStatus(
+          `${t("release_notes_meta_channel", "Channel")}: ${nextCh}`,
+          "success"
+        );
+    } catch (err: any) {
+      useStore.getState().pushStatus(String(err?.message || err), "error");
+    }
+  };
+
+  const handleReconfigureInstaller = async () => {
+    const vaultPath = useStore.getState().vaultPath;
+    const modRelPath = String(mod?.physical_path || mod?.name || "").trim();
+    if (!isDesktop() || !vaultPath || !modRelPath || isReconfiguringInstaller) return;
+    setIsReconfiguringInstaller(true);
+    try {
+      const plan = await invoke<any>("reopen_mod_installer_wizard", {
+        vaultPath,
+        modRelPath,
+      });
+      if (plan) {
+        useModalStore.getState().enqueueInstallerWizard(plan);
+        handleClose();
+      }
+    } catch (err: any) {
+      useStore.getState().pushStatus(String(err?.message || err), "error");
+    } finally {
+      setIsReconfiguringInstaller(false);
+    }
+  };
+
+  const unresolvedRequirements = useMemo(() => {
+    return (groupedRelations || []).filter((rel: any) => {
+      if (rel?.relationType !== "requirement") return false;
+      if (!rel?.isInstalled) return true;
+      const kidsArr = Array.isArray(rel?._groupedMods) ? rel._groupedMods : [rel];
+      return kidsArr.some((gm: any) => gm?.name && !isModNameEquipped(gm.name));
+    });
+  }, [groupedRelations, isModNameEquipped]);
+
+  const handleResolveDependencies = async () => {
+    if (isResolvingDeps || unresolvedRequirements.length === 0) return;
+    setIsResolvingDeps(true);
+    try {
+      const toDownload: any[] = [];
+      for (const rel of unresolvedRequirements) {
+        if (rel.isInstalled) {
+          await safeToggleGroup(rel);
+        } else {
+          const targetUrl =
+            String(rel.download_url || "").trim() ||
+            getModFallbackUrl(rel.name || rel.displayName || "", rel.hash, activeGameSchema, {
+              url: rel.url,
+              author: rel.author,
+            });
+          toDownload.push({
+            id: String(rel.dbId || rel.hash || rel.name || rel._groupedTitle),
+            name: String(rel.displayName || rel.name || rel._groupedTitle || "Dependency"),
+            download_url: targetUrl,
+            fallback_url: targetUrl,
+            expected_sha256: rel.hash || null,
+            target_folder: null,
+            force_replace: false,
+            fomod_selections: null,
+            hidden_files: null,
+          });
+        }
+      }
+
+      if (toDownload.length > 0) {
+        if (!isDesktop()) {
+          handleOpenUrl(toDownload[0].download_url);
+        } else {
+          const report = await invoke<{
+            hydrated_ids: string[];
+            wizard_plans: any[];
+            gated_browser_items: { id: string; name: string; url: string; reason: string }[];
+            failed_items: { id: string; name: string; reason: string }[];
+          }>("hydrate_blueprint_lockfile_batch", {
+            items: toDownload,
+            configDeltas: null,
+            concurrency: 4,
+          });
+
+          const mStore = useModalStore.getState();
+          if (Array.isArray(report?.wizard_plans)) {
+            for (const wp of report.wizard_plans) {
+              mStore.enqueueInstallerWizard(wp);
+            }
+          }
+          if (report?.hydrated_ids?.length > 0) {
+            window.dispatchEvent(new CustomEvent("sanctuary-trigger-radar-sweep"));
+            useStore
+              .getState()
+              .pushStatus(
+                `${t("resolved", "Resolved")}: ${report.hydrated_ids.length}`,
+                "success"
+              );
+          }
+          if (Array.isArray(report?.gated_browser_items) && report.gated_browser_items.length > 0) {
+            mStore.startGuidedBrowserQueue(
+              report.gated_browser_items.map((g) => ({
+                id: g.id,
+                name: g.name,
+                url: g.url,
+                status: "pending" as const,
+              }))
+            );
+            mStore.setIsSideBrowserOpen(true);
+          }
+        }
+      }
+    } catch (err: any) {
+      useStore.getState().pushStatus(String(err?.message || err), "error");
+    } finally {
+      setIsResolvingDeps(false);
+    }
   };
 
   if (!mod) return null;
@@ -1338,6 +1525,9 @@ export default function ModDossier({
           handleSave,
           handleExportLocalRelease,
           handleSubmitToVault,
+          canReconfigureInstaller,
+          isReconfiguringInstaller,
+          handleReconfigureInstaller,
         })}
       >
         <div className="flex flex-col gap-4 mt-2 relative z-10 w-full pb-8">
@@ -1409,6 +1599,15 @@ export default function ModDossier({
             resolvedUpdatedAt={resolvedUpdatedAt}
             coverImageUrl={coverImageUrl}
             hasValidCover={hasValidCover}
+            canReconfigureInstaller={canReconfigureInstaller}
+            isReconfiguringInstaller={isReconfiguringInstaller}
+            handleReconfigureInstaller={handleReconfigureInstaller}
+            unresolvedRequirementsCount={unresolvedRequirements.length}
+            isResolvingDeps={isResolvingDeps}
+            handleResolveDependencies={handleResolveDependencies}
+            hasEdgeChannelSupport={hasEdgeChannelSupport}
+            subscribedChannel={subscribedChannel}
+            handleChangeSubscribedChannel={handleChangeSubscribedChannel}
           />
         </div>
       </SidePanel>

@@ -1,6 +1,7 @@
 import { useStore } from "../../store";
 import { invoke } from "@tauri-apps/api/core";
 import { open } from "@tauri-apps/plugin-dialog";
+import { isDesktop } from "../../utils/envUtils";
 import {
   getExtensionRegex,
   deduplicateBlueprintArtifacts,
@@ -130,6 +131,14 @@ export function usePlaySetLifecycleAndEquip({
       const rawAvailableMods: string[] = [];
       const nextModHashes: Record<string, string> = {};
       const nextModMeta: Record<string, any> = {};
+      const lockArtifacts: any[] = Array.isArray(parsed.artifacts) ? parsed.artifacts : [];
+      const lockArtByHash = new Map<string, any>();
+      const lockArtByName = new Map<string, any>();
+      for (const art of lockArtifacts) {
+        if (art?.sha256) lockArtByHash.set(String(art.sha256).toLowerCase(), art);
+        if (art?.name) lockArtByName.set(String(art.name).toLowerCase(), art);
+      }
+      const nextHiddenFiles: Record<string, string[]> = {};
       const nameRemap = new Map<string, string>();
       const extRegex = getExtensionRegex(activeGameSchema);
       let localOverrides: Record<string, any> = {};
@@ -146,6 +155,10 @@ export function usePlaySetLifecycleAndEquip({
         let found = null;
         const rawNameToCheck = typeof importedMod === 'string' ? importedMod : (importedMod.name || importedMod.path || '');
         const cleanImportedFile = rawNameToCheck.split(/[\\/]/).pop() || rawNameToCheck;
+        const rawHash = typeof importedMod !== "string" ? importedMod?.hash || importedMod?.sha256 : "";
+        const lockArt =
+          (rawHash ? lockArtByHash.get(String(rawHash).toLowerCase()) : undefined) ||
+          (rawNameToCheck ? lockArtByName.get(String(rawNameToCheck).toLowerCase()) : undefined);
 
         if (importedMod && typeof importedMod !== 'string' && importedMod.hash) {
           found = hashToMod.get(importedMod.hash);
@@ -159,7 +172,7 @@ export function usePlaySetLifecycleAndEquip({
         }
 
         if (importedMod && typeof importedMod !== 'string') {
-          const targetHash = importedMod.hash || found?.hash;
+          const targetHash = importedMod.hash || lockArt?.sha256 || found?.hash;
           const metaKey = found ? found.name : rawNameToCheck;
           const merged = mergeImportedModWithClientPriority({
             importedMod,
@@ -185,9 +198,25 @@ export function usePlaySetLifecycleAndEquip({
           rawAvailableMods.push(found.name);
           if (found.hash) nextModHashes[found.name] = found.hash;
           else if (typeof importedMod !== 'string' && importedMod.hash) nextModHashes[found.name] = importedMod.hash;
+          if (Array.isArray(lockArt?.hidden_files) && lockArt.hidden_files.length > 0) {
+            const folderKey = String(found.name).replace(/\\/g, "/").split("/")[0] || found.name;
+            nextHiddenFiles[folderKey] = lockArt.hidden_files;
+          }
         }
         else {
-          missing.push(importedMod);
+          const baseMissing =
+            typeof importedMod === "string" ? { name: importedMod } : { ...importedMod };
+          if (lockArt) {
+            baseMissing.hash = baseMissing.hash || lockArt.sha256;
+            baseMissing.download_url = baseMissing.download_url || lockArt.download_url;
+            baseMissing.manifest_url = baseMissing.manifest_url || lockArt.manifest_url;
+            baseMissing.url = baseMissing.url || lockArt.url;
+            baseMissing.author = baseMissing.author || lockArt.author;
+            baseMissing.fomod_selections =
+              baseMissing.fomod_selections || lockArt.fomod_selections;
+            baseMissing.hidden_files = baseMissing.hidden_files || lockArt.hidden_files;
+          }
+          missing.push(baseMissing);
           if (typeof importedMod !== 'string') {
             if (importedMod.hash) nextModHashes[rawNameToCheck] = importedMod.hash;
           }
@@ -219,6 +248,7 @@ export function usePlaySetLifecycleAndEquip({
         newName = `${baseName} (${counter})`;
         counter++;
       }
+      const configDeltas = Array.isArray(parsed.config_deltas) ? parsed.config_deltas : [];
       const readySet = {
         name: newName,
         mods: availableMods,
@@ -229,12 +259,22 @@ export function usePlaySetLifecycleAndEquip({
         loadOrder,
         ignoredConflicts,
         ignoredGhosts: [],
+        ...(Object.keys(nextHiddenFiles).length > 0 ? { hiddenFiles: nextHiddenFiles } : {}),
+        ...(lockArtifacts.length > 0 ? { artifacts: lockArtifacts } : {}),
+        ...(configDeltas.length > 0 ? { configDeltas } : {}),
       };
       if (missing.length > 0) {
         setPendingImportSet(readySet);
         setMissingImportMods(missing);
         return "missing";
       } else {
+        if (isDesktop() && configDeltas.length > 0) {
+          void invoke("hydrate_blueprint_lockfile_batch", {
+            items: [],
+            configDeltas,
+            concurrency: 1,
+          }).catch(() => {});
+        }
         finalizeImport(readySet);
         return "success";
       }
@@ -602,6 +642,7 @@ export function usePlaySetLifecycleAndEquip({
         mods: deployPayload,
         modsPath: config.mods_path,
         vaultPath: config.vault_path,
+        profileId: resolvedSetName,
       });
       setActiveSetName(resolvedSetName);
       localStorage.setItem(`sanctuary_${useStore.getState().activeWorkspaceId || "default"}_active_set`, resolvedSetName);

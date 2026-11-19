@@ -768,8 +768,11 @@ pub(super) fn spawn_post_game_symlink_cleanup_watcher(
     app_handle: tauri::AppHandle,
     vault_path: String,
     mods_path: String,
+    docs_path: String,
+    live_path: String,
     game_schema: Option<crate::schema::GameSchema>,
     spawned_pid: Option<u32>,
+    should_wipe_symlinks: bool,
 ) {
     let my_gen = CLOUD_SESSION_CLEANUP_GEN
         .fetch_add(1, std::sync::atomic::Ordering::SeqCst)
@@ -846,23 +849,39 @@ pub(super) fn spawn_post_game_symlink_cleanup_watcher(
             return;
         }
 
-        cleanup_routed_links(&vault_path);
         let mods_dir = PathBuf::from(&mods_path);
-        if mods_dir.exists() {
-            if !vault_path.trim().is_empty() {
-                crate::utils::safe_wipe_mods_dir_with_vault(
-                    &mods_dir,
-                    Some(&vault_path),
-                    &game_schema,
-                );
-            } else {
-                crate::utils::safe_wipe_mods_dir(&mods_dir, &game_schema);
-            }
+        let live_root = crate::game_logic::resolve_game_engine_root(&live_path, &game_schema);
+        let docs_root = PathBuf::from(&docs_path);
+        if mods_dir.exists() && !vault_path.trim().is_empty() {
+            let _ = super::runtime_capture_and_ini::capture_runtime_outputs_to_vault(
+                &vault_path,
+                &mods_dir,
+                &live_root,
+                &docs_root,
+                &game_schema,
+                !should_wipe_symlinks,
+            );
         }
-        let _ = app_handle.emit(
-            "sanctuary-cloud-session-mods-cleaned",
-            serde_json::json!({ "mods_path": mods_path }),
-        );
+
+        if should_wipe_symlinks {
+            cleanup_routed_links(&vault_path);
+            if mods_dir.exists() {
+                if !vault_path.trim().is_empty() {
+                    crate::utils::safe_wipe_mods_dir_with_vault(
+                        &mods_dir,
+                        Some(&vault_path),
+                        &game_schema,
+                    );
+                } else {
+                    crate::utils::safe_wipe_mods_dir(&mods_dir, &game_schema);
+                }
+            }
+            let _ = super::runtime_capture_and_ini::revert_schema_ini_mutations(&vault_path);
+            let _ = app_handle.emit(
+                "sanctuary-cloud-session-mods-cleaned",
+                serde_json::json!({ "mods_path": mods_path }),
+            );
+        }
     });
 }
 
@@ -918,6 +937,22 @@ pub fn launch_game(
         &saved_coords.vault_path,
         game_schema,
     ));
+
+    let capture_enabled = game_schema
+        .as_ref()
+        .and_then(|s| s.deployment.as_ref())
+        .and_then(|d| d.runtime_output_capture.as_ref())
+        .and_then(|r| r.enabled)
+        == Some(true);
+    if capture_enabled && !saved_coords.vault_path.trim().is_empty() {
+        let _ = super::runtime_capture_and_ini::record_runtime_capture_baseline(
+            &saved_coords.vault_path,
+            Path::new(&mods_path),
+            &live_root,
+            &doc_dir,
+            game_schema,
+        );
+    }
 
     let spawned_pid: Option<u32> = if cfg!(target_os = "macos")
         && exe_path
@@ -1038,13 +1073,17 @@ pub fn launch_game(
     };
 
     record_launched_game_info(spawned_pid, &exe_path, &live_root);
-    if cleanup_symlinks_on_exit.unwrap_or(false) {
+    let should_wipe = cleanup_symlinks_on_exit.unwrap_or(false);
+    if should_wipe || capture_enabled {
         spawn_post_game_symlink_cleanup_watcher(
             app_handle,
             saved_coords.vault_path.clone(),
             mods_path,
+            doc_dir.to_string_lossy().to_string(),
+            live_path,
             game_schema.clone(),
             spawned_pid,
+            should_wipe,
         );
     } else {
         CLOUD_SESSION_CLEANUP_GEN.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
@@ -1260,19 +1299,58 @@ pub fn launch_external_tool(
     let sanitized_args = sanitize_launch_args_list(eff_raw_args)?;
     let resolved_docs = docs_path.unwrap_or_default();
     let should_airgap = enforce_airgap.unwrap_or(true);
+    let capture_enabled = game_schema
+        .as_ref()
+        .and_then(|s| s.deployment.as_ref())
+        .and_then(|d| d.runtime_output_capture.as_ref())
+        .and_then(|r| r.enabled)
+        == Some(true);
+    let tool_live_root =
+        crate::game_logic::resolve_game_engine_root(&coords.live_path, &game_schema);
+    let tool_mods_dir = PathBuf::from(coords.mods_path.trim());
+    let tool_docs_root = if !resolved_docs.trim().is_empty() {
+        PathBuf::from(resolved_docs.trim())
+    } else {
+        PathBuf::from(crate::utils::resolve_effective_docs_path(&coords, &game_schema))
+    };
+    if capture_enabled && !coords.vault_path.trim().is_empty() {
+        let _ = super::runtime_capture_and_ini::record_runtime_capture_baseline(
+            &coords.vault_path,
+            &tool_mods_dir,
+            &tool_live_root,
+            &tool_docs_root,
+            &game_schema,
+        );
+    }
     if should_airgap {
         let _ = apply_save_airgap(&resolved_docs, true, &game_schema);
     }
 
     let spawn_restore_watcher = |mut child: std::process::Child| {
-        if !should_airgap {
+        if !should_airgap && !capture_enabled {
             return;
         }
         let docs_restore = resolved_docs.clone();
         let schema_restore = game_schema.clone();
+        let vault_restore = coords.vault_path.clone();
+        let mods_restore = tool_mods_dir.clone();
+        let live_restore = tool_live_root.clone();
+        let docs_root_restore = tool_docs_root.clone();
         std::thread::spawn(move || {
             let _ = child.wait();
-            let _ = apply_save_airgap(&docs_restore, false, &schema_restore);
+            if should_airgap {
+                let _ = apply_save_airgap(&docs_restore, false, &schema_restore);
+            }
+            if capture_enabled && !vault_restore.trim().is_empty() {
+                let _ = super::runtime_capture_and_ini::capture_runtime_outputs_to_vault(
+                    &vault_restore,
+                    &mods_restore,
+                    &live_restore,
+                    &docs_root_restore,
+                    &schema_restore,
+                    true,
+                );
+            }
         });
     };
 

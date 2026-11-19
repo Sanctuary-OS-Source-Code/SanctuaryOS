@@ -702,79 +702,14 @@ pub async fn ingest_dropped_file(
                 MAX_ARCHIVE_TOTAL_BYTES,
             )?;
 
-            // Honor `constraints.requires_script_unzipping`: automatically unpack one nested `.zip`
-            // wrapper layer when enabled, never unpacking native script containers (e.g. `.ts4script`, `.jar`).
-            let requires_script_unzipping = game_schema
-                .as_ref()
-                .and_then(|s| s.constraints.as_ref())
-                .and_then(|c| c.requires_script_unzipping)
-                .unwrap_or(false);
-            if requires_script_unzipping {
-                let script_exts: Vec<String> = game_schema
-                    .as_ref()
-                    .and_then(|s| s.extensions.script_extensions.clone())
-                    .unwrap_or_default()
-                    .into_iter()
-                    .map(|e| e.trim_start_matches('.').to_ascii_lowercase())
-                    .collect();
-                if !script_exts.iter().any(|e| e == "zip") {
-                    let mut expanded_files: Vec<ExtractedZipEntry> =
-                        Vec::with_capacity(extraction.files.len());
-                    for entry in extraction.files {
-                        let is_nested_zip = entry
-                            .rel_path
-                            .extension()
-                            .and_then(|e| e.to_str())
-                            .map_or(false, |e| e.eq_ignore_ascii_case("zip"));
-                        if !is_nested_zip {
-                            expanded_files.push(entry);
-                            continue;
-                        }
-                        let inner_stem = entry
-                            .rel_path
-                            .file_stem()
-                            .and_then(|s| s.to_str())
-                            .unwrap_or("scripts");
-                        let inner_parent_rel = entry
-                            .rel_path
-                            .parent()
-                            .map(|p| p.to_path_buf())
-                            .unwrap_or_default();
-                        let inner_stage = entry
-                            .staged_path
-                            .parent()
-                            .unwrap_or(&stage_dir)
-                            .join(inner_stem);
-                        match crate::utils::extract_zip_bounded_to_dir(
-                            &entry.staged_path,
-                            &inner_stage,
-                            Some(inner_stem),
-                            &game_schema,
-                            MAX_ARCHIVE_ENTRY_BYTES,
-                            MAX_ARCHIVE_TOTAL_BYTES.saturating_sub(extraction.total_bytes),
-                        ) {
-                            Ok(inner_ext) if !inner_ext.files.is_empty() => {
-                                extraction.total_bytes =
-                                    extraction.total_bytes.saturating_add(inner_ext.total_bytes);
-                                let _ = std::fs::remove_file(&entry.staged_path);
-                                for mut inner_item in inner_ext.files {
-                                    inner_item.rel_path = if inner_parent_rel.as_os_str().is_empty()
-                                    {
-                                        PathBuf::from(inner_stem).join(&inner_item.rel_path)
-                                    } else {
-                                        inner_parent_rel
-                                            .join(inner_stem)
-                                            .join(&inner_item.rel_path)
-                                    };
-                                    expanded_files.push(inner_item);
-                                }
-                            }
-                            _ => expanded_files.push(entry),
-                        }
-                    }
-                    extraction.files = expanded_files;
-                }
-            }
+            // Honor `constraints.max_nested_archive_depth` (and legacy `requires_script_unzipping`):
+            // unpack nested archive containers breadth-first while keeping native script archives intact.
+            extraction.files = super::artifact_groups_and_previews::unpack_nested_archives_bounded(
+                &stage_dir,
+                &game_schema,
+                extraction.files,
+                &mut extraction.total_bytes,
+            )?;
 
             // Step A: Scan EVERY staged file for malware/heuristics BEFORE FOMOD or touching Vault/Mods
             let mut staged_hashes: Vec<(ExtractedZipEntry, String)> =
@@ -842,12 +777,23 @@ pub async fn ingest_dropped_file(
                 .then(|| PathBuf::from(&config.mods_path));
             let live_root_opt = (!config.live_path.trim().is_empty())
                 .then(|| crate::game_logic::resolve_game_engine_root(&config.live_path, &game_schema));
+            let detected_game_version = (!config.live_path.trim().is_empty())
+                .then(|| {
+                    crate::commands::game_info::rip_game_version_with_schema_and_docs(
+                        &config.live_path,
+                        config.docs_path.as_deref(),
+                        &game_schema,
+                    )
+                    .ok()
+                })
+                .flatten();
             if let Ok(Some(mut wizard_plan)) = super::fomod_installer::parse_fomod_or_bain_plan(
                 &stage_dir,
                 &zip_stem,
                 mods_dir_opt.as_deref(),
                 live_root_opt.as_deref(),
                 &vault_mods_lane,
+                detected_game_version.as_deref(),
             ) {
                 if let Some(ref sub) = sanitized_target_subfolder {
                     wizard_plan.suggested_target_folder = sub.to_string_lossy().replace('\\', "/");
@@ -898,12 +844,12 @@ pub async fn ingest_dropped_file(
                 .to_string());
             }
 
-            // Strip any inert `fomod/` metadata folder for non-FOMOD archives before normal Vault placement
+            // Strip any inert `fomod/` metadata folder (at root or nested wrapper depth) for non-FOMOD archives before normal Vault placement
             let staged_hashes: Vec<(ExtractedZipEntry, String)> = staged_hashes
                 .into_iter()
                 .filter(|(entry, _)| {
                     let rel_low = entry.rel_path.to_string_lossy().replace('\\', "/").to_lowercase();
-                    !rel_low.starts_with("fomod/")
+                    !rel_low.split('/').any(|seg| seg == "fomod")
                 })
                 .collect();
 
@@ -1026,7 +972,7 @@ pub async fn ingest_dropped_file(
                         })
                 });
 
-                let default_dest = if !preserve_archive_structure
+                let raw_dest = if !preserve_archive_structure
                     && is_primary_mod_binary
                     && !matched_folder_route
                 {
@@ -1039,6 +985,27 @@ pub async fn ingest_dropped_file(
                     }
                 } else {
                     target_base.join(&entry.rel_path)
+                };
+                let default_dest = if !matched_folder_route {
+                    if let Some(ext_limit) =
+                        super::artifact_groups_and_previews::resolve_max_depth_for_extension(
+                            &game_schema,
+                            &zf_ext,
+                        )
+                    {
+                        let rel_from_lane = raw_dest
+                            .strip_prefix(&vault_mods_lane)
+                            .unwrap_or(&entry.rel_path);
+                        let clamped = super::artifact_groups_and_previews::clamp_relative_path_depth(
+                            rel_from_lane,
+                            Some(ext_limit),
+                        );
+                        vault_mods_lane.join(clamped)
+                    } else {
+                        raw_dest
+                    }
+                } else {
+                    raw_dest
                 };
                 crate::utils::ensure_strict_descendant_of_roots(
                     &default_dest,
@@ -1665,4 +1632,29 @@ pub fn import_to_sandbox(
     }
 
     Ok(imported)
+}
+
+#[tauri::command]
+pub async fn apply_modpack_binary_patch(
+    source_path: String,
+    patch_path: String,
+    output_path: String,
+    expected_sha256: Option<String>,
+) -> Result<String, String> {
+    tauri::async_runtime::spawn_blocking(move || {
+        let coords = get_saved_coordinates();
+        let allowed_roots = crate::utils::get_allowed_workspace_roots(&coords);
+        if allowed_roots.is_empty() {
+            return Err("Blocked: No workspace roots configured for binary patch execution.".into());
+        }
+        crate::utils::apply_binary_patch_file(
+            Path::new(source_path.trim()),
+            Path::new(patch_path.trim()),
+            Path::new(output_path.trim()),
+            expected_sha256.as_deref(),
+            &allowed_roots,
+        )
+    })
+    .await
+    .map_err(|e| e.to_string())?
 }

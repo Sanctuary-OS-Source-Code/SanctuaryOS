@@ -50,6 +50,8 @@ ring = "0.17"
 lz4_flex = "0.11"
 sevenz-rust2 = { version = "0.25", features = ["compress", "bzip2", "ppmd", "deflate", "lz4", "zstd", "aes256", "util"] }
 roxmltree = "0.21"
+bzip2 = "0.6"
+crc32fast = "1.5"
 
 [target.'cfg(windows)'.dependencies]
 windows = { version = "0.62.2", features = [

@@ -52,6 +52,9 @@ export function buildModDossierHeaderActions({
   handleSave,
   handleExportLocalRelease,
   handleSubmitToVault,
+  canReconfigureInstaller,
+  isReconfiguringInstaller,
+  handleReconfigureInstaller,
 }: any) {
           if (editMode) {
             return (
@@ -195,6 +198,15 @@ export function buildModDossierHeaderActions({
                   }}
                 />
               )}
+              {canReconfigureInstaller && (
+                <PanelHeaderButton
+                  icon={isReconfiguringInstaller ? t("icon_progress_activity", "progress_activity") : t("icon_tune", "tune")}
+                  tooltip={t("btn_reconfigure_installer", "Reconfigure Installer Options")}
+                  variant="accent"
+                  onClick={handleReconfigureInstaller}
+                  disabled={isReconfiguringInstaller}
+                />
+              )}
               {canExportRelease && (
                 <PanelHeaderButton
                   icon={t("icon_rocket_launch", "rocket_launch")}
@@ -322,6 +334,15 @@ export function ModDossierMainContent({
   resolvedUpdatedAt,
   coverImageUrl,
   hasValidCover,
+  canReconfigureInstaller,
+  isReconfiguringInstaller,
+  handleReconfigureInstaller,
+  unresolvedRequirementsCount,
+  isResolvingDeps,
+  handleResolveDependencies,
+  hasEdgeChannelSupport,
+  subscribedChannel,
+  handleChangeSubscribedChannel,
 }: any) {
   return (
     <>
@@ -461,6 +482,15 @@ export function ModDossierMainContent({
                           mainVersionGroups.map((g: any) => g.key)
                         );
                       }}
+                    />
+                  )}
+                  {!editMode && !isNexusView && canReconfigureInstaller && (
+                    <ActionButton
+                      variant="glass"
+                      disabled={isReconfiguringInstaller}
+                      icon={isReconfiguringInstaller ? t("icon_progress_activity", "progress_activity") : t("icon_tune", "tune")}
+                      label={t("btn_reconfigure_installer", "Reconfigure Options")}
+                      onClick={handleReconfigureInstaller}
                     />
                   )}
                   {!editMode && (
@@ -935,6 +965,27 @@ export function ModDossierMainContent({
                 </div>
               </div>
             )}
+            {!editMode && hasEdgeChannelSupport && (
+              <div className="pt-3 mt-3 border-t border-[color-mix(in_srgb,var(--text)_10%,transparent)] flex items-center justify-between gap-3 flex-wrap">
+                <span className="text-[10px] font-black uppercase tracking-wider text-[var(--subtext)]">
+                  {t("release_notes_meta_channel", "Channel")}
+                </span>
+                <div className="w-40">
+                  <CustomDropdown
+                    disableTint={true}
+                    value={subscribedChannel || "stable"}
+                    onChange={(val: string[]) => {
+                      if (val[0]) handleChangeSubscribedChannel?.(val[0]);
+                    }}
+                    options={[
+                      { id: "stable", label: t("status_stable", "Stable") },
+                      { id: "beta", label: t("rel_beta", "Beta") },
+                      { id: "alpha", label: t("channel_alpha", "Alpha") },
+                    ]}
+                  />
+                </div>
+              </div>
+            )}
           </UniversalGroup>
 
           <UniversalGroup
@@ -1068,6 +1119,20 @@ export function ModDossierMainContent({
             <UniversalGroup
               title={t("network_protocols", "Required {Mods}")}
               icon={t("auto_extension", "extension")}
+              headerAction={
+                !isNexusView && unresolvedRequirementsCount > 0 ? (
+                  <ActionButton
+                    variant="accent"
+                    disabled={isResolvingDeps}
+                    icon={isResolvingDeps ? t("icon_progress_activity", "progress_activity") : t("icon_auto_fix_high", "auto_fix_high")}
+                    label={t("btn_resolve_dependencies", "Resolve All ({0})").replace(
+                      "{0}",
+                      String(unresolvedRequirementsCount)
+                    )}
+                    onClick={handleResolveDependencies}
+                  />
+                ) : undefined
+              }
             >
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 {groupedRelations.map((relItem: any, i: number) => (

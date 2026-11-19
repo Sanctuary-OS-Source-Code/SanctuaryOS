@@ -6,6 +6,8 @@ mod lab_staging;
 mod lab_types_and_audio;
 mod launcher;
 mod playset_deploy;
+mod runtime_capture_and_ini;
+mod workshop_and_hooks;
 #[cfg(test)]
 mod tests;
 
@@ -17,3 +19,5 @@ pub use lab_session::*;
 pub use lab_staging::*;
 pub use launcher::*;
 pub use playset_deploy::*;
+pub use runtime_capture_and_ini::*;
+pub use workshop_and_hooks::*;

@@ -29,14 +29,14 @@ When you select a game workspace from the Landing Page or the Top Control Capsul
   - **Game Executable Folder (`live_path`):** Point this to the folder containing your game binary (e.g., `.exe` on Windows/Proton or `.app` on macOS). **Binary Version Ripper** (in-process Rust `pelite`, `Info.plist`, Steam `.acf`, and `json_key`) extracts the genuine engine version directly from binary headers.
   - **Active Mods Folder (`mods_path`):** Your game's live mod folder (**Deck Overdrive** auto-resolves Proton `compatdata/<AppID>/pfx/` prefixes and SD card libraries on Linux & Steam Deck, paired with 1-click cross-drive UAC symlink unlocking on Windows and automatic rescue of untracked mods).
   - **Saves, Logs & Cache Folder (`docs_path`):** Auto-resolved from the **Universal Master Schema** so **Time Capsule**, **Crash Autopsy** log scanning, and **Purge Stale Game Caches on Launch** locate your user-data directory immediately.
-- **OS-Wide Master Vault Path (`Settings -> Vault & Blueprints`):** Choose a dedicated storage root that governs the entire Sanctuary OS (**Zero-Copy Exodus** safely migrates your Master Vault root as well as external MO2/Vortex/staging managers)—storing shared Chameleons (`Data/Themes/`) and Lexicons at the root while maintaining isolated per-game `Mods/`, `Blueprints/`, `Backups/Mods/`, `Backups/World/`, `Backups/Engine/`, `Quarantine/`, and `.sanctuary_cache.db` subfolders.
+- **OS-Wide Master Vault Path (`Settings -> Vault & Blueprints`):** Choose a dedicated storage root that governs the entire Sanctuary OS (**Zero-Copy Exodus** migrates archives safely in the background)—storing shared Chameleons (`Data/Themes/`) and Lexicons at the root while maintaining isolated per-game `Mods/`, `Blueprints/`, `Backups/Mods/`, `Backups/World/`, `Backups/Engine/`, `Quarantine/`, and `.sanctuary_cache.db` subfolders.
 - **Per-Space Chameleons & Lexicons (`Settings -> Appearance`):** Assign independent **Liquid Glass Optics** Chameleon Themes and **Code-Switch** Lexicon Packs for **Keepers Core** and each mounted **Game Workspace** from a single matrix—and mute secondary workspaces per alert category in **Settings -> Notifications**.
 
 ## Stage 3: Symlink Airgap, The Highlander Rule & Echo Archive
 
 Inside **Your Vault**, every mod lives safely inside your isolated Vault archive:
 
-- **Global Drag-and-Drop Ingest, Quartermaster & Rosetta Protocol:** Drag supported mod files, `.zip`/`.rar`/`.7z`/`.mrpack`/`.wabbajack` archives, Blueprints/Lexicons/Chameleons/Templates/Schemas JSONs, or `.sanctuary.override.json` sidecars anywhere onto Sanctuary OS. Sanctuary hashes every file with SHA-256 (`DNA`), runs **Bytecode Hound**, walks **The Quartermaster** (`ModuleConfig.xml` FOMOD / BAIN) on multi-variant drops, translates third-party packs via **The Rosetta Protocol**, preserves multi-folder asset trees where required, and lets you choose **Skip** or **Update & Archive** on duplicates.
+- **Global Drag-and-Drop Ingest & Full-Tree Preservation:** Drag supported mod files, `.zip`/`.rar`/`.7z`/`.tar.zst` archives, or `.sanctuary.override.json` sidecars anywhere onto Sanctuary OS. Sanctuary hashes every file with SHA-256 (`DNA`), runs **Bytecode Hound**, preserves multi-folder asset trees where required by the game schema, and lets you choose **Skip** or **Update & Archive** on duplicates.
 - **Category Stat Tiles & Unified Search/Filter Bar:**
   - The top row of category stat tiles switches primary sub-views (`All`, `Enabled`, `Disabled`, `Version History`, `Unregistered`), paired with the unified search bar and `Filters` popover below.
 - **The Highlander Rule & Explicit Swap Alerts:**
@@ -70,7 +70,7 @@ Catch collisions before launching and verify suspect mods inside an anti-cheat-s
   - Compiles topological load orders across `folder_priority`, `manifest_list`, `numeric_prefix`, and `timestamp`, complete with directional `Must Load After / Before` rules, Loop Breaker resolution, and a searchable **Scan Scope** Blueprint selector.
 - **Groundhog Sandbox, Save Doctor & Crash Autopsy:**
   - **2-Column Environment Builder & Crash Autopsy:** Stage a **Primary Mod**, **Dependencies**, and **Conflict Check** on the sticky **Active Test Bench** (staging only the target mod + its twin without collection sibling bleed), or paste crash logs into **Crash Autopsy** (`Corrupted`, `Unstable`, `Unrelated` pinned known errors).
-  - **Save Doctor & Groundhog Sandbox Airgap (4-Stage Passive Timer):** **Save Doctor** pairs `{Vault}/.sanctuary_save_doctor/<ws>.sanctuary-save-manifest.json` with your save state to warn before launch if a Blueprint switch removes mods required by existing saves, while **Homestead Save Airgap** seals live saves in an external Vault mirror (`SanctuarySaveVault`) and mounts a **disposable copy** of your read-only **Golden Baseline Lab Test Save** on every run—waiting for loading screens to settle, suspending on `ESC` pause menus with **zero overlays or anti-cheat hooks**, playing **native fullscreen PCM audio chimes** when the timer finishes, auditing Stage 4 in-game saves for magic-byte corruption, and discarding the mutated test copy on 1-click teardown.
+  - **Save Doctor & Homestead Save Airgap (4-Stage Passive Timer):** Seals live saves in an external Vault mirror (`SanctuarySaveVault`) and mounts a **disposable copy** of your read-only **Golden Baseline Lab Test Save** on every run—waiting for loading screens to settle, suspending on `ESC` pause menus with **zero overlays or anti-cheat hooks**, playing **native fullscreen PCM audio chimes** when the timer finishes, auditing Stage 4 in-game saves for magic-byte corruption, and discarding the mutated test copy on 1-click teardown.
 
 ## Stage 6: Live-Wire Workbench & Time Capsule
 
@@ -85,7 +85,7 @@ Configure mod settings visually, sync live in-game config changes, and seal mult
 
 Every Citizen inherits local creator tooling, backed by zero-knowledge auth, hardware passkeys, and multi-format bytecode inspection:
 
-- **Open Mason Workshop & Creator Airlock (Inherited by All Citizens):** Access **Dev Sandbox**, **Mason IDE**, **Unified 3-Tile Artifact Studio**, **Theme Forge** (6 optical sliders + Content-Addressed `<= 250 KB` WebP / External HTTPS wallpapers), **Lexicon Visual Studio**, **Notepad**, DPAPI/AES-256-GCM sealed **Edge Direct Push**, and **Creator Airlock** (save-airgapped external tool sessions with automatic post-exit save restoration)—with Verified Mason clearance unlocking direct cloud publishing to **The Nexus**.
+- **Creator Airlock (Inherited by All Citizens):** Access **Dev Sandbox**, **Mason IDE**, **Unified 3-Tile Artifact Studio**, **Theme Forge** (6 optical sliders + Content-Addressed `<= 250 KB` WebP / External HTTPS wallpapers), **Lexicon Visual Studio**, **Notepad**, and **Edge Direct Push**—with Verified Mason clearance unlocking direct cloud publishing to **The Nexus**.
 - **Zero-Knowledge Seal & Gatekeeper Clearance:** Protects accounts with **600,000-iteration PBKDF2 + Bcrypt** stretching and **600k Blinded Email Aliases**, unlocking Elevated Hubs via Windows Hello, **Gatekeeper Clearance** (macOS Touch ID + `com.apple.quarantine` stripping), a **12-hour Device-Bound Passkey Seal**, or a **Live Phone/PC Companion Passkey Handshake** via W3C Web Push, backed by **Ghost Scrubber** Zero-PII log sanitization.
 - **Bytecode Hound & Zero-Choice Lockdown:** Inspects archives, Zlib/Zstd binary streams, scripts, `.pyc` bytecode, and native plugins against Core + Spoke heuristics, locking the OS shell under **Zero-Choice Lockdown** on Tier 5 Malware until Citizen-signed **Secure Shred**.
 
@@ -100,7 +100,7 @@ Independent Masons and Compliance Tier 1–4 creators can distribute live update
 Configure any game engine and translate or theme the entire operating system in minutes:
 
 - **Universal Master Schema & Schema Forge (7 Engine Presets):** 4-tab visual studio (`Identity & Paths`, `Extensions & Routes`, `Load Order & Tiers`, `Logs & Backups`) supporting multi-folder asset trees, secondary `install_routes`, structured XML/manifest compilers, declarative `conflict_analyzers`, and an interactive **Schema Codex**.
-- **Code-Switch (Sparse Delta Packs & 1-Click Auto-Translate):** Backed by an auto-extracted **`6,800+`-key `en-default.json` baseline**, custom packs store only lightweight **Sparse Delta Overrides**, update OS-wide nouns dynamically via **21 `{Glossary}` Tokens**, and include a **2-Step Creation Wizard**, Source-First UI String Browser, Guided Icon Overrides, and **1-Click Neural Auto-Translate across 28+ languages**.
+- **Code-Switch (Sparse Delta Packs & 1-Click Auto-Translate):** Backed by an auto-extracted **`6,166`-key `en-default.json` baseline**, custom packs store only lightweight **Sparse Delta Overrides**, update OS-wide nouns dynamically via **21 `{Glossary}` Tokens**, and include a **2-Step Creation Wizard**, Source-First UI String Browser, Guided Icon Overrides, and **1-Click Neural Auto-Translate across 28+ languages**.
 
 ## Stage 10: Command Center Support Desk, Sovereign Covenants & Cut the Cord
 
@@ -124,7 +124,7 @@ Track open support tickets, audit transparent monthly server ledgers, or launch 
 8. **Time Capsule & Live-Wire Workbench:** Multi-threaded `rayon` Copy-on-Write snapshots (`World State` & `Engine Core`), additive save slot extraction & restoration, storage-cap pruning, **DEFCON 1 Shield**, and 60 FPS 2-column visual config editing with **Live-Wire Diff** timelines.
 9. **Liquid Glass Optics, Zero-Knowledge Seal & Zero-Choice Lockdown:** 1:1 physical-pixel WebGL2 refraction, `<= 250 KB` content-addressed WebP wallpapers + external HTTPS URLs, OWASP 600k Zero-Knowledge Auth, **Gatekeeper Clearance** Touch ID & Companion Handshakes, **Ghost Scrubber**, and **Bytecode Hound** **Zero-Choice Lockdown**.
 10. **Edge Pulse & Edge Direct Push:** Bounded concurrent Rust polling (`ETag` / `304` cached `.sanctuary.manifest.json` & `catalog.json`), 6-provider 1-click **Edge Direct Push**, and automatic `previous_hashes` lineage rollover.
-11. **Universal Master Schema & Code-Switch:** **Schema Forge** with 7 engine presets, multi-folder asset trees, secondary `install_routes`, `6,800+`-key auto-extracted baseline, 21 `{Glossary}` tokens, Source-First Studio, and **1-Click Neural Auto-Translate (28+ languages)**.
+11. **Universal Master Schema & Code-Switch:** **Schema Forge** with 7 engine presets, multi-folder asset trees, secondary `install_routes`, `6,166`-key auto-extracted baseline, 21 `{Glossary}` tokens, Source-First Studio, and **1-Click Neural Auto-Translate (28+ languages)**.
 12. **Sovereign Covenants, Cut the Cord & Mirror Uplink:** Sub-second Elevated Hubs, 100% Wayfinder-isolated community donations, itemized monthly Cost vs. Spending ledgers, **Cut the Cord** severance, cryptographic **`SRK1` Spoke Relink Tokens**, and **Mirror Uplink** bilateral sync.
 
 ---
@@ -250,7 +250,7 @@ A **Master Schema JSON** (`v12`) is the engine blueprint that makes Sanctuary OS
 2. **Cross-Platform Executables, Paths & Vanilla Isolation (`Tab 1 — Identity & Paths`):**
    - Supports Windows `.exe` (including DX11/x64 variants), macOS `.app` bundles, **Deck Overdrive** Proton `compatdata/<AppID>/pfx/` auto-mapping, `shared_vanilla_dir` link tracking, `preserve_archive_structure`, and `preserve_auxiliary_assets`.
 3. **Extensions, Config Formats, Install Routes & Conflict Analyzers (`Tab 2 — Extensions & Routes`):**
-   - Configure `supported` deployable extensions, `archive_containers`, `editable_config_formats` / `config_extensions` (monitored by **Live-Wire Workbench**), secondary `install_routes`, topological `slot_buckets` / container TOC analyzers (while managing Categories dynamically via relational `public.taxonomy` in **Oversight -> Game Management -> Categories**).
+   - Configure `supported` deployable extensions, `archive_containers`, `editable_config_formats` / `config_extensions` (monitored by **Live-Wire Workbench**), secondary `install_routes`, `mod_categories`, and declarative **`conflict_analyzers`** (`virtual_fs_path`, `archive_member`, `binary_chunk_index`, and `json_xml_key`).
 4. **Priority Compiler & Structured Manifests (`Tab 3 — Load Order & Tiers`):**
    - Choose `folder_priority`, `numeric_prefix`, `manifest_list` (with structured header/entry/footer XML or text templates such as `modsettings.lsx`), or `timestamp`.
 5. **Crash Autopsy Matchers, Time Capsule & Save Airgap (`Tab 4 — Logs & Backups`):**
@@ -261,7 +261,7 @@ A **Master Schema JSON** (`v12`) is the engine blueprint that makes Sanctuary OS
 Every string, button, tooltip, and icon in Sanctuary OS routes through **Code-Switch**:
 
 1. **Guided 2-Step Creation & Sparse Delta Override Packs:**
-   - Choose **Vocabulary / Theme** or **Language Translation** (28+ languages) in the 2-step creation drawer. Every custom pack stores only **Sparse Delta Overrides** that inherit automatically from the auto-extracted **`6,800+`-key `en-default.json` baseline**—meaning zero bloat and zero missing-string placeholders.
+   - Choose **Vocabulary / Theme** or **Language Translation** (28+ languages) in the 2-step creation drawer. Every custom pack stores only **Sparse Delta Overrides** that inherit automatically from the auto-extracted **`6,166`-key `en-default.json` baseline**—meaning zero bloat and zero missing-string placeholders.
 2. **4-Tab Source-First Visual Studio:**
    - **Tab 1 (`Core Vocabulary`):** Edit all **21 Dynamic `{Glossary}` Tokens** (`{Mod}`, `{Vault}`, `{Blueprint}`, `{Mason}`, `{Citizen}`, `{Lab}`, `{Backups}`, `{Settings}`, etc.) with live real-sentence casing and `"a"`/`"an"` grammar previews.
    - **Tab 2 (`UI Strings`):** Browse strings by section with Default English source text always visible directly above every input, plus `All / Customized / Untranslated` status pills.
@@ -473,13 +473,13 @@ Every string, button, tooltip, and icon in Sanctuary OS routes through **Code-Sw
           "badge": "7. Hubs & Security",
           "title": "Zero-Knowledge Seal & Bytecode Hound",
           "footerMeta": "Bytecode Hound, FIDO2 Passkeys & Zero-Choice Lockdown",
-          "desc": "Every {Citizen} inherits the local Open {Mason} Workshop & Creator Airlock, while hardware FIDO2 Passkeys and the Bytecode Hound Heuristic Scanner protect the OS.",
+          "desc": "Every {Citizen} inherits the local Creator Airlock, while hardware FIDO2 Passkeys and the Bytecode Hound Heuristic Scanner protect the OS.",
           "subCards": [
             {
               "id": "walk_7_c1",
               "icon": "handyman",
-              "title": "Open {Mason} Workshop & Creator Airlock",
-              "desc": "All {Citizens} can use Dev Sandbox, {Mason} IDE, 3-Tile {Mod} Studio, Theme Forge, sealed Static Edge Push, and Save-Airgapped Creator Airlock external tool sessions with automatic post-exit save restoration."
+              "title": "Creator Airlock ({Citizen} Tier)",
+              "desc": "All {Citizens} can use Dev Sandbox, {Mason} IDE, 3-Tile {Mod} Studio, Theme Forge (6 Liquid Glass sliders), and Static Edge Release Packaging."
             },
             {
               "id": "walk_7_c2",
@@ -537,7 +537,7 @@ Every string, button, tooltip, and icon in Sanctuary OS routes through **Code-Sw
               "id": "walk_9_c1",
               "icon": "schema",
               "title": "7 Engine Presets & Schema Forge",
-              "desc": "Load built-in engine architecture presets—complete with declarative install_routes, DAG load-order & container TOC analyzers, and database-driven public.taxonomy Categories—or author a custom Universal schema."
+              "desc": "Load built-in engine architecture presets—complete with declarative install_routes, load-order strategies, and mod_categories—or author a custom Universal schema."
             },
             {
               "id": "walk_9_c2",
@@ -676,7 +676,7 @@ Every string, button, tooltip, and icon in Sanctuary OS routes through **Code-Sw
               "id": "mod_3_c1",
               "icon": "fingerprint",
               "title": "Global Drop-Zone & DNA Match",
-              "desc": "Drag and drop supported {mod} binaries, .zip, .rar, .7z, .mrpack, .wabbajack, JSON bundles, or .sanctuary.override.json files anywhere into Sanctuary OS. Duplicate SHA-256 hashes are automatically intercepted."
+              "desc": "Drag and drop supported {mod} binaries, .zip, .rar, .7z, .tar.zst, or .sanctuary.override.json files anywhere into Sanctuary OS. Duplicate SHA-256 hashes are automatically intercepted."
             },
             {
               "id": "mod_3_c2",

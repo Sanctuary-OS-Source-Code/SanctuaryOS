@@ -447,6 +447,171 @@ pub(crate) fn score_crash_logs_against_candidates(
     suspects
 }
 
+pub(crate) fn correlate_exception_logs_with_radar_cache(
+    vault_path: &str,
+    logs: &[(String, String)],
+    schema: &Option<crate::schema::GameSchema>,
+) -> std::collections::HashMap<String, (std::collections::BTreeSet<String>, String, String)> {
+    let mut hits: std::collections::HashMap<
+        String,
+        (std::collections::BTreeSet<String>, String, String),
+    > = std::collections::HashMap::new();
+    if vault_path.trim().is_empty() || logs.is_empty() {
+        return hits;
+    }
+
+    let corr_cfg = schema.as_ref().and_then(|s| s.exception_correlation.as_ref());
+    if corr_cfg.and_then(|c| c.enabled) == Some(false) {
+        return hits;
+    }
+    let match_chunks = corr_cfg.and_then(|c| c.match_chunk_keys).unwrap_or(true);
+    let match_rel_paths = corr_cfg.and_then(|c| c.match_relative_paths).unwrap_or(true);
+
+    let mut custom_regexes = Vec::new();
+    if let Some(pats) = corr_cfg.and_then(|c| c.id_regexes.as_ref()) {
+        for pat in pats {
+            let trimmed = pat.trim();
+            if trimmed.is_empty() {
+                continue;
+            }
+            if let Ok(re) = regex::RegexBuilder::new(trimmed)
+                .case_insensitive(true)
+                .size_limit(1 << 20)
+                .build()
+            {
+                custom_regexes.push(re);
+            }
+        }
+    }
+
+    let hex_re = regex::Regex::new(r"(?i)\b0x[0-9a-f]{8,32}\b").ok();
+    let rel_path_re =
+        regex::Regex::new(r"(?i)([a-z0-9_.-]+(?:/[a-z0-9_.-]+)+\.[a-z0-9]{2,12})").ok();
+
+    let mut candidate_tokens: Vec<String> = Vec::new();
+    let mut seen_tokens: std::collections::HashSet<String> = std::collections::HashSet::new();
+    let mut token_context: std::collections::HashMap<String, (String, String)> =
+        std::collections::HashMap::new();
+
+    let mut push_token = |raw: &str, log_name: &str, excerpt: &str| {
+        let low = raw.trim().to_ascii_lowercase();
+        if low.len() < 4 || candidate_tokens.len() >= 512 {
+            return;
+        }
+        if seen_tokens.insert(low.clone()) {
+            candidate_tokens.push(low.clone());
+            token_context
+                .entry(low.clone())
+                .or_insert_with(|| (log_name.to_string(), excerpt.to_string()));
+        }
+        if let Some(bare) = low.strip_prefix("0x") {
+            if bare.len() >= 8 && candidate_tokens.len() < 512 && seen_tokens.insert(bare.to_string())
+            {
+                candidate_tokens.push(bare.to_string());
+                token_context
+                    .entry(bare.to_string())
+                    .or_insert_with(|| (log_name.to_string(), excerpt.to_string()));
+            }
+        }
+    };
+
+    for (log_name, content) in logs {
+        for raw_line in content.lines().take(2500) {
+            let trimmed = raw_line.trim();
+            if trimmed.len() < 4 || trimmed.len() > 2048 {
+                continue;
+            }
+            let excerpt: String = trimmed.chars().take(180).collect();
+
+            for re in &custom_regexes {
+                for cap in re.captures_iter(trimmed) {
+                    let matched = cap.get(1).or_else(|| cap.get(0)).map(|m| m.as_str());
+                    if let Some(tok) = matched {
+                        push_token(tok, log_name, &excerpt);
+                    }
+                }
+            }
+            if match_chunks {
+                if let Some(ref re) = hex_re {
+                    for m in re.find_iter(trimmed) {
+                        push_token(m.as_str(), log_name, &excerpt);
+                    }
+                }
+            }
+            if match_rel_paths {
+                let slash_norm = trimmed.replace('\\', "/");
+                if let Some(ref re) = rel_path_re {
+                    for cap in re.captures_iter(&slash_norm) {
+                        if let Some(m) = cap.get(1) {
+                            push_token(m.as_str(), log_name, &excerpt);
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    let owners_by_tok = crate::utils::query_radar_chunk_owners(vault_path, &candidate_tokens);
+    for (tok, owners) in owners_by_tok {
+        let (log_file, line_excerpt) = token_context
+            .get(&tok)
+            .cloned()
+            .unwrap_or_default();
+        for owner in owners {
+            let entry = hits.entry(owner).or_insert_with(|| {
+                (
+                    std::collections::BTreeSet::new(),
+                    log_file.clone(),
+                    line_excerpt.clone(),
+                )
+            });
+            entry.0.insert(tok.clone());
+        }
+    }
+    hits
+}
+
+pub(crate) fn merge_chunk_correlation_suspects(
+    suspects: &mut Vec<CrashSuspectMod>,
+    chunk_hits: std::collections::HashMap<String, (std::collections::BTreeSet<String>, String, String)>,
+) {
+    for (mod_name, (tokens, log_file, line_excerpt)) in chunk_hits {
+        if tokens.is_empty() {
+            continue;
+        }
+        if let Some(existing) = suspects.iter_mut().find(|s| s.mod_name == mod_name) {
+            for t in tokens {
+                if !existing.matched_tokens.contains(&t) {
+                    existing.matched_tokens.push(t);
+                }
+            }
+            existing.matched_tokens.truncate(6);
+            if existing.confidence_score < 96 {
+                existing.confidence_score = 96;
+                existing.reason = "chunk_instance_match".to_string();
+                if existing.line_excerpt.is_empty() {
+                    existing.line_excerpt = line_excerpt;
+                }
+            }
+        } else {
+            suspects.push(CrashSuspectMod {
+                mod_name,
+                confidence_score: 96,
+                reason: "chunk_instance_match".to_string(),
+                matched_tokens: tokens.into_iter().take(6).collect(),
+                log_file,
+                line_excerpt,
+            });
+        }
+    }
+    suspects.sort_by(|a, b| {
+        b.confidence_score
+            .cmp(&a.confidence_score)
+            .then_with(|| a.mod_name.cmp(&b.mod_name))
+    });
+    suspects.truncate(8);
+}
+
 #[tauri::command]
 pub async fn analyze_crash_autopsy(
     docs_path: Option<String>,
@@ -549,8 +714,14 @@ pub async fn analyze_crash_autopsy(
             .into_iter()
             .map(|(k, v)| (k, v.into_iter().collect()))
             .collect();
-        let suspects =
+        let mut suspects =
             score_crash_logs_against_candidates(&scrubbed_logs, &candidates, &ignore_tokens_low);
+        let chunk_hits = correlate_exception_logs_with_radar_cache(
+            &config.vault_path,
+            &scrubbed_logs,
+            &game_schema,
+        );
+        merge_chunk_correlation_suspects(&mut suspects, chunk_hits);
         let analyzed_logs: Vec<String> = scrubbed_logs.iter().map(|(n, _)| n.clone()).collect();
         let summary_snippet = scrubbed_logs
             .first()
@@ -867,5 +1038,57 @@ Loaded modules:
         );
 
         let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn test_exception_correlation_matches_indexed_chunk_ids_under_10ms() {
+        let tmp = std::env::temp_dir().join(format!(
+            "sanctuary_exc_corr_{}",
+            uuid::Uuid::new_v4()
+        ));
+        std::fs::create_dir_all(&tmp).unwrap();
+        let vp = tmp.to_string_lossy().to_string();
+
+        crate::utils::replace_radar_chunk_index(
+            &vp,
+            &[
+                ("0x000000001234abcd".to_string(), "BrokenTuningPack".to_string()),
+                ("0xffffffff99999999".to_string(), "CleanPack".to_string()),
+            ],
+        );
+
+        let schema: Option<crate::schema::GameSchema> = Some(
+            serde_json::from_value(serde_json::json!({
+                "id": "corr_test",
+                "exception_correlation": {
+                    "enabled": true,
+                    "id_regexes": ["tunable_perf\\s*=\\s*([0-9a-fA-Fx]+)"],
+                    "match_chunk_keys": true,
+                    "match_relative_paths": true
+                }
+            }))
+            .unwrap(),
+        );
+
+        let logs = vec![(
+            "exception_report.txt".to_string(),
+            "KeyError: tunable_perf = 0x000000001234ABCD while resolving interaction".to_string(),
+        )];
+        let started = std::time::Instant::now();
+        let hits = correlate_exception_logs_with_radar_cache(&vp, &logs, &schema);
+        let elapsed = started.elapsed();
+
+        assert!(hits.contains_key("BrokenTuningPack"));
+        assert!(!hits.contains_key("CleanPack"));
+        assert!(elapsed.as_millis() < 50, "correlation elapsed {:?}", elapsed);
+
+        let mut suspects = Vec::new();
+        merge_chunk_correlation_suspects(&mut suspects, hits);
+        assert_eq!(suspects.len(), 1);
+        assert_eq!(suspects[0].mod_name, "BrokenTuningPack");
+        assert_eq!(suspects[0].reason, "chunk_instance_match");
+        assert!(suspects[0].confidence_score >= 95);
+
+        let _ = std::fs::remove_dir_all(&tmp);
     }
 }

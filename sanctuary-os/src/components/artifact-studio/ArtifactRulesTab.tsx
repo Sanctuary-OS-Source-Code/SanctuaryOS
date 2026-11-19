@@ -18,6 +18,8 @@ import {
   VAULT_CHIP_CLASS,
 } from "../../shared";
 import { StaticPollingGuideSidePanel } from "../../side-panels/StaticPollingGuideSidePanel";
+import { ArtifactReleaseChannelsAndSigningCard } from "./ArtifactReleaseChannelsAndSigningCard";
+import type { MasonReleaseChannel, PatchCompatibilityEntry } from "../../utils/blueprintLockfile";
 
 function getStudioModStatusMeta(status: any, t: (k: string, f: string) => string) {
   const s = String(status || "")
@@ -456,6 +458,10 @@ export function ArtifactRulesTab({
     remote_path: string;
     custom_endpoint: string;
     local_folder_path: string;
+    s3_bucket: string;
+    s3_region: string;
+    s3_access_key_id: string;
+    public_base_url: string;
   }>(() => {
     try {
       const globalPush = JSON.parse(
@@ -471,6 +477,10 @@ export function ArtifactRulesTab({
         remote_path: modPush.remote_path || "",
         custom_endpoint: modPush.custom_endpoint || globalPush.custom_endpoint || "",
         local_folder_path: modPush.local_folder_path || globalPush.local_folder_path || "",
+        s3_bucket: modPush.s3_bucket || globalPush.s3_bucket || "",
+        s3_region: modPush.s3_region || globalPush.s3_region || "auto",
+        s3_access_key_id: modPush.s3_access_key_id || globalPush.s3_access_key_id || "",
+        public_base_url: modPush.public_base_url || globalPush.public_base_url || "",
       };
     } catch {
       return {
@@ -482,9 +492,37 @@ export function ArtifactRulesTab({
         remote_path: "",
         custom_endpoint: "",
         local_folder_path: "",
+        s3_bucket: "",
+        s3_region: "auto",
+        s3_access_key_id: "",
+        public_base_url: "",
       };
     }
   });
+
+  const [releaseChannel, setReleaseChannel] = useState<MasonReleaseChannel>(
+    () => (mod?.edge_channel as MasonReleaseChannel) || "stable"
+  );
+  const [patchMatrix, setPatchMatrix] = useState<PatchCompatibilityEntry[]>(() =>
+    Array.isArray(mod?.patch_compatibility_matrix) ? mod.patch_compatibility_matrix : []
+  );
+
+  const persistReleaseChannelMeta = (
+    nextChannel: MasonReleaseChannel,
+    nextMatrix: PatchCompatibilityEntry[]
+  ) => {
+    try {
+      const modKey = mod?.hash || mod?.id;
+      if (!modKey) return;
+      const savedAll = JSON.parse(localStorage.getItem("sanctuary_sandbox_configs") || "{}");
+      savedAll[modKey] = {
+        ...(savedAll[modKey] || {}),
+        edge_channel: nextChannel,
+        patch_compatibility_matrix: nextMatrix,
+      };
+      localStorage.setItem("sanctuary_sandbox_configs", JSON.stringify(savedAll));
+    } catch {}
+  };
 
   useEffect(() => {
     let cancelled = false;
@@ -620,6 +658,10 @@ export function ArtifactRulesTab({
           branch: next.branch,
           custom_endpoint: next.custom_endpoint,
           local_folder_path: next.local_folder_path,
+          s3_bucket: next.s3_bucket,
+          s3_region: next.s3_region,
+          s3_access_key_id: next.s3_access_key_id,
+          public_base_url: next.public_base_url,
         })
       );
       const modKey = mod?.hash || mod?.id;
@@ -714,6 +756,8 @@ export function ArtifactRulesTab({
             useStore.getState().activeGameSchema?.id ||
             useStore.getState().activeWorkspaceId ||
             "universal",
+          channel: releaseChannel,
+          patch_compatibility_matrix: patchMatrix,
         },
         payload: {
           download_url: customDownloadUrl,
@@ -1441,6 +1485,19 @@ export function ArtifactRulesTab({
         </div>
       </div>
 
+      <ArtifactReleaseChannelsAndSigningCard
+        releaseChannel={releaseChannel}
+        onChangeReleaseChannel={(nextCh) => {
+          setReleaseChannel(nextCh);
+          persistReleaseChannelMeta(nextCh, patchMatrix);
+        }}
+        patchMatrix={patchMatrix}
+        onChangePatchMatrix={(nextM) => {
+          setPatchMatrix(nextM);
+          persistReleaseChannelMeta(releaseChannel, nextM);
+        }}
+      />
+
       {/* Bottom Action Bar: Static Manifest / Export / Sync & Cloud Registry Save */}
       <div className="glass-surface rounded-2xl p-5 border border-[color-mix(in_srgb,var(--text)_10%,transparent)] flex flex-col gap-4">
         <div className="flex flex-wrap items-start justify-between gap-3">
@@ -1552,6 +1609,13 @@ export function ArtifactRulesTab({
                   label: t(
                     "edge_autopush_prov_custom_http",
                     "Personal Domain (HTTP PUT / WebDAV)"
+                  ),
+                },
+                {
+                  id: "s3_r2",
+                  label: t(
+                    "edge_autopush_prov_s3_r2",
+                    "S3 / Cloudflare R2 (SigV4 Auto-Push)"
                   ),
                 },
                 {
@@ -1721,6 +1785,29 @@ export function ArtifactRulesTab({
                     className="h-11 glass-surface rounded-xl px-3.5 text-xs font-mono text-[var(--text)] border border-[color-mix(in_srgb,var(--text)_12%,transparent)] outline-none focus:border-[var(--accent)]"
                   />
                 </div>
+              )}
+
+              {pushConfig.provider === "s3_r2" && (
+                <>
+                  {[
+                    { k: "s3_bucket" as const, l: t("edge_autopush_s3_bucket", "Bucket Name"), ph: "my-mod-bucket" },
+                    { k: "s3_region" as const, l: t("edge_autopush_s3_region", "Region (R2: auto)"), ph: "auto" },
+                    { k: "s3_access_key_id" as const, l: t("edge_autopush_s3_key_id", "Access Key ID"), ph: "AKIA..." },
+                    { k: "custom_endpoint" as const, l: t("edge_autopush_endpoint_label", "Custom Endpoint / Host URL"), ph: "https://<account>.r2.cloudflarestorage.com" },
+                    { k: "public_base_url" as const, l: t("edge_autopush_public_base_url", "Public CDN Base URL"), ph: "https://cdn.example.com" },
+                    { k: "remote_path" as const, l: t("edge_autopush_path_label", "Remote File Path"), ph: "my_mod/.sanctuary.manifest.json" },
+                  ].map((f) => (
+                    <div key={f.k} className="flex flex-col gap-1.5">
+                      <label className="text-[9px] font-black uppercase tracking-widest text-[var(--subtext)] ml-1">{f.l}</label>
+                      <input
+                        value={pushConfig[f.k]}
+                        onChange={(e) => updatePushConfig({ [f.k]: e.target.value })}
+                        placeholder={f.ph}
+                        className="h-11 glass-surface rounded-xl px-3.5 text-xs font-mono text-[var(--text)] border border-[color-mix(in_srgb,var(--text)_12%,transparent)] outline-none focus:border-[var(--accent)]"
+                      />
+                    </div>
+                  ))}
+                </>
               )}
 
               {pushConfig.provider === "local_folder" && (

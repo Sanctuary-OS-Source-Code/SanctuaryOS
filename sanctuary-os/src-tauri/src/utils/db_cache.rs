@@ -119,6 +119,14 @@ pub(super) fn initialize_vault_sqlite_schema(conn: &Connection, db_path: &Path, 
         "ALTER TABLE edge_manifests ADD COLUMN last_http_status INTEGER",
         [],
     );
+    let _ = conn.execute(
+        "ALTER TABLE edge_manifests ADD COLUMN creator_pubkey TEXT DEFAULT ''",
+        [],
+    );
+    let _ = conn.execute(
+        "ALTER TABLE edge_manifests ADD COLUMN subscribed_channel TEXT DEFAULT 'stable'",
+        [],
+    );
 
     let _ = conn.execute(
         "CREATE TABLE IF NOT EXISTS local_mason_follows (
@@ -173,6 +181,27 @@ pub(super) fn initialize_vault_sqlite_schema(conn: &Connection, db_path: &Path, 
             payload_json TEXT NOT NULL,
             updated_at INTEGER NOT NULL DEFAULT 0
         )",
+        [],
+    );
+    let _ = conn.execute(
+        "CREATE TABLE IF NOT EXISTS preview_thumbnails (
+            file_path TEXT PRIMARY KEY,
+            mtime INTEGER NOT NULL,
+            data_url TEXT NOT NULL
+        )",
+        [],
+    );
+    let _ = conn.execute(
+        "CREATE TABLE IF NOT EXISTS radar_chunk_index (
+            resource_token TEXT NOT NULL,
+            mod_name TEXT NOT NULL,
+            updated_at INTEGER NOT NULL,
+            PRIMARY KEY (resource_token, mod_name)
+        )",
+        [],
+    );
+    let _ = conn.execute(
+        "CREATE INDEX IF NOT EXISTS idx_radar_chunk_token ON radar_chunk_index(resource_token)",
         [],
     );
     let _ = conn.execute(
@@ -558,4 +587,175 @@ pub fn prune_stale_cache_entries(
     }
     let _ = tx.commit();
 }
+
+pub fn load_preview_thumbnails_map(vault_path: &str) -> HashMap<String, (u64, String)> {
+    let mut out = HashMap::new();
+    if vault_path.trim().is_empty() {
+        return out;
+    }
+    let Ok(db) = open_db_conn(vault_path) else {
+        return out;
+    };
+    let Ok(conn) = db.lock() else {
+        return out;
+    };
+    let Ok(mut stmt) = conn.prepare_cached("SELECT file_path, mtime, data_url FROM preview_thumbnails") else {
+        return out;
+    };
+    if let Ok(rows) = stmt.query_map([], |row| {
+        let p: String = row.get(0)?;
+        let mtime: u64 = row.get::<_, i64>(1).unwrap_or(0).max(0) as u64;
+        let url: String = row.get(2).unwrap_or_default();
+        Ok((p, (mtime, url)))
+    }) {
+        for r in rows.flatten() {
+            out.insert(r.0, r.1);
+        }
+    }
+    out
+}
+
+pub fn save_preview_thumbnails_batch(vault_path: &str, rows: &[(String, u64, String)]) {
+    if rows.is_empty() || vault_path.trim().is_empty() {
+        return;
+    }
+    let Ok(db) = open_db_conn(vault_path) else {
+        return;
+    };
+    let Ok(mut conn) = db.lock() else {
+        return;
+    };
+    let Ok(tx) = conn.transaction() else {
+        return;
+    };
+    if let Ok(mut stmt) = tx.prepare_cached(
+        "INSERT INTO preview_thumbnails (file_path, mtime, data_url) VALUES (?1, ?2, ?3)
+         ON CONFLICT(file_path) DO UPDATE SET mtime = excluded.mtime, data_url = excluded.data_url",
+    ) {
+        for (path, mtime, data_url) in rows {
+            let _ = stmt.execute(params![path, *mtime as i64, data_url]);
+        }
+    }
+    let _ = tx.commit();
+}
+
+pub fn replace_radar_chunk_index(vault_path: &str, rows: &[(String, String)]) {
+    if vault_path.trim().is_empty() {
+        return;
+    }
+    let Ok(db) = open_db_conn(vault_path) else {
+        return;
+    };
+    let Ok(mut conn) = db.lock() else {
+        return;
+    };
+    let now_secs = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map(|d| d.as_secs() as i64)
+        .unwrap_or(0);
+    let Ok(tx) = conn.transaction() else {
+        return;
+    };
+    let _ = tx.execute("DELETE FROM radar_chunk_index", []);
+    if let Ok(mut stmt) = tx.prepare_cached(
+        "INSERT OR IGNORE INTO radar_chunk_index (resource_token, mod_name, updated_at) VALUES (?1, ?2, ?3)",
+    ) {
+        for (token, mod_name) in rows {
+            let tok_low = token.trim().to_ascii_lowercase();
+            let mod_clean = mod_name.trim();
+            if tok_low.len() < 4 || mod_clean.is_empty() {
+                continue;
+            }
+            let _ = stmt.execute(params![tok_low, mod_clean, now_secs]);
+        }
+    }
+    let _ = tx.commit();
+}
+
+pub fn query_radar_chunk_owners(
+    vault_path: &str,
+    tokens: &[String],
+) -> HashMap<String, Vec<String>> {
+    let mut out: HashMap<String, Vec<String>> = HashMap::new();
+    if vault_path.trim().is_empty() || tokens.is_empty() {
+        return out;
+    }
+    let Ok(db) = open_db_conn(vault_path) else {
+        return out;
+    };
+    let Ok(conn) = db.lock() else {
+        return out;
+    };
+    let Ok(mut stmt) = conn.prepare_cached(
+        "SELECT mod_name FROM radar_chunk_index WHERE resource_token = ?1",
+    ) else {
+        return out;
+    };
+
+    let mut seen = std::collections::HashSet::<String>::new();
+    for raw_tok in tokens.iter().take(512) {
+        let tok_low = raw_tok.trim().to_ascii_lowercase();
+        if tok_low.len() < 4 || !seen.insert(tok_low.clone()) {
+            continue;
+        }
+        if let Ok(rows) = stmt.query_map(params![&tok_low], |row| row.get::<_, String>(0)) {
+            let mut owners: Vec<String> = rows.flatten().collect();
+            if !owners.is_empty() {
+                owners.sort();
+                owners.dedup();
+                out.insert(tok_low, owners);
+            }
+        }
+    }
+    out
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn radar_chunk_index_lookup_under_10ms_on_thousands_of_chunks() {
+        let tmp = std::env::temp_dir().join(format!(
+            "sanctuary_chunk_index_bench_{}",
+            uuid::Uuid::new_v4()
+        ));
+        let _ = std::fs::create_dir_all(&tmp);
+        let vp = tmp.to_string_lossy().to_string();
+
+        let mut rows = Vec::with_capacity(5000);
+        for i in 0..5000u32 {
+            let owner = if i == 4321 {
+                "SuspectOverhaul"
+            } else {
+                "NeutralPack"
+            };
+            rows.push((format!("0x{:016x}", 0x1000_0000_0000_0000u64 + i as u64), owner.to_string()));
+        }
+        replace_radar_chunk_index(&vp, &rows);
+
+        let target_tok = format!("0x{:016x}", 0x1000_0000_0000_0000u64 + 4321u64);
+        let query_tokens = vec![
+            target_tok.clone(),
+            "0xdeadbeefcafebabe".to_string(),
+            "0x0000000011111111".to_string(),
+        ];
+        let started = std::time::Instant::now();
+        let hits = query_radar_chunk_owners(&vp, &query_tokens);
+        let elapsed = started.elapsed();
+
+        assert_eq!(
+            hits.get(&target_tok).map(Vec::as_slice),
+            Some(&["SuspectOverhaul".to_string()][..])
+        );
+        assert!(
+            elapsed.as_millis() < 50,
+            "Indexed chunk correlation lookup took too long: {:?}",
+            elapsed
+        );
+
+        let _ = std::fs::remove_dir_all(&tmp);
+    }
+}
+
 

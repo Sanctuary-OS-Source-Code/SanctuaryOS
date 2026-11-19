@@ -1194,7 +1194,7 @@ fn build_lsx_compat_descriptor(desc: &ManifestTargetDescriptor) -> ManifestTarge
     compat
 }
 
-fn resolve_local_appdata_root(schema: &Option<GameSchema>, live_root: &Path) -> Option<PathBuf> {
+pub(crate) fn resolve_local_appdata_root(schema: &Option<GameSchema>, live_root: &Path) -> Option<PathBuf> {
     #[cfg(target_os = "linux")]
     {
         if let Some(app_id) = schema
@@ -1264,6 +1264,8 @@ pub struct CompiledLoadOrderDiagnostics {
     pub slot_usage: Vec<SlotBucketUsage>,
     pub missing_masters: Vec<MissingMasterDiagnostic>,
     pub cycle_chains: Vec<Vec<String>>,
+    #[serde(default)]
+    pub dirty_plugins: Vec<crate::loot_rules::DirtyPluginDiagnostic>,
 }
 
 fn entry_matches_extension_list(file_name: &str, exts: &[String]) -> bool {
@@ -1565,6 +1567,7 @@ pub fn solve_entries_dag_and_slots(
         slot_usage,
         missing_masters,
         cycle_chains,
+        dirty_plugins: Vec::new(),
     }
 }
 
@@ -1661,12 +1664,71 @@ pub async fn evaluate_blueprint_load_order_diagnostics(
             });
         }
 
+        let docs_root = PathBuf::from(crate::utils::resolve_effective_docs_path(&coords, &schema));
+        append_steam_workshop_entries_if_missing(&schema, &mut entries);
+        let dirty_plugins = crate::loot_rules::apply_external_rules_and_dirty_checks(
+            &mut entries,
+            &schema,
+            &coords.vault_path,
+            &eff_mods_dir,
+            &docs_root,
+            &live_root,
+        );
         let lo_cfg = schema.as_ref().and_then(|s| s.load_order.as_ref());
         let baseline = collect_baseline_filenames_for_load_order(&eff_mods_dir, &live_root, &schema);
-        Ok(solve_entries_dag_and_slots(&mut entries, lo_cfg, &baseline))
+        let mut diagnostics = solve_entries_dag_and_slots(&mut entries, lo_cfg, &baseline);
+        diagnostics.dirty_plugins = dirty_plugins;
+        Ok(diagnostics)
     })
     .await
     .map_err(|e| e.to_string())?
+}
+
+fn append_steam_workshop_entries_if_missing(
+    schema: &Option<GameSchema>,
+    entries: &mut Vec<OrderedDeployEntry>,
+) {
+    if !schema
+        .as_ref()
+        .map_or(false, |s| s.paths.discover_steam_workshop == Some(true))
+    {
+        return;
+    }
+    let mut existing_ids = std::collections::HashSet::<String>::new();
+    for e in entries.iter() {
+        if let Some(ref mid) = e.metadata.mod_id {
+            let c = mid.trim().to_ascii_lowercase();
+            if !c.is_empty() {
+                existing_ids.insert(c);
+            }
+        }
+        existing_ids.insert(e.stem.trim().to_ascii_lowercase());
+        existing_ids.insert(e.file_name.trim().to_ascii_lowercase());
+    }
+    for ws in crate::commands::deployment::discover_steam_workshop_items(schema) {
+        let cand_id = ws
+            .metadata
+            .mod_id
+            .as_deref()
+            .filter(|s| !s.trim().is_empty())
+            .unwrap_or(&ws.folder_name)
+            .to_ascii_lowercase();
+        if existing_ids.contains(&cand_id)
+            || existing_ids.contains(&ws.workshop_id.to_ascii_lowercase())
+        {
+            continue;
+        }
+        existing_ids.insert(cand_id);
+        entries.push(OrderedDeployEntry {
+            rel_path: format!("workshop/{}", ws.workshop_id),
+            file_name: ws.folder_name.clone(),
+            stem: ws.folder_name,
+            metadata: ws.metadata,
+            tier_folder: None,
+            tier_priority: 0,
+            deployed_path: Some(PathBuf::from(ws.path)),
+        });
+    }
 }
 
 pub fn apply_load_order_outputs(
@@ -1681,7 +1743,17 @@ pub fn apply_load_order_outputs(
     let index_base = lo_cfg.and_then(|l| l.index_base).unwrap_or(1) as usize;
     let strategy = crate::game_logic::get_load_order_strategy(schema);
 
+    let coords = crate::commands::state_ops::get_saved_coordinates();
     let mut effective_entries = entries.to_vec();
+    append_steam_workshop_entries_if_missing(schema, &mut effective_entries);
+    let _ = crate::loot_rules::apply_external_rules_and_dirty_checks(
+        &mut effective_entries,
+        schema,
+        &coords.vault_path,
+        mods_dir,
+        docs_root,
+        live_root,
+    );
     apply_direction_to_entries(&mut effective_entries, lo_cfg);
     let baseline = collect_baseline_filenames_for_load_order(mods_dir, live_root, schema);
     let _ = solve_entries_dag_and_slots(&mut effective_entries, lo_cfg, &baseline);

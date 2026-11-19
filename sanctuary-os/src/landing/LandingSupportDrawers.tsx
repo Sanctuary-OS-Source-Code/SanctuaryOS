@@ -27,7 +27,6 @@ import { isDesktop } from '../utils/envUtils';
 import { isRootDomain } from '../utils/routingUtils';
 import {
   BLINDED_EMAIL_REGEX,
-  collectAllLegalTargetIdentifiers,
   DmcaGuidedComplianceForm,
   DmcaSubTypeSelector,
   isLegalComplianceDraftValid,
@@ -160,10 +159,10 @@ export function LandingSupportDrawers({
   setContactSubject,
   contactBody,
   setContactBody,
-  activeContactStep,
-  setActiveContactStep,
-  maxContactStep,
-  setMaxContactStep,
+  activeContactStep: _activeContactStep,
+  setActiveContactStep: _setActiveContactStep,
+  maxContactStep: _maxContactStep,
+  setMaxContactStep: _setMaxContactStep,
   sessionEmail,
   games,
   legalDraft,
@@ -317,8 +316,8 @@ export function LandingSupportDrawers({
               'Official Core Sanctuary Platform Channel Only — Not for Spoke {Mod} Issues or Drama'
             )}
             description={t(
-              'landing_feedback_scope_desc',
-              "This channel is strictly for positive or constructive feedback and bug reports regarding the Core Sanctuary OS Platform (Desktop App, Website, and Mobile PWA). Do not submit individual game spoke {mod} disputes, {mason} drama, or spoke moderation appeals here—use the Support desk inside that game's workspace."
+              'landing_support_platform_scope_body',
+              "Submit feedback, feature requests, and bug reports about the Sanctuary OS platform (Desktop App, Website, and Mobile PWA). For game-specific {mod} or community support, use that game workspace's Support tab."
             )}
             variant="warning"
           >
@@ -376,7 +375,7 @@ export function LandingSupportDrawers({
               </span>
             </div>
           ) : (
-            <div className="glass-panel border-2 border-[var(--accent)] rounded-3xl p-6 md:p-8 flex flex-col gap-6 relative overflow-hidden animate-in zoom-in-95 duration-300 shadow-[0_20px_50px_rgba(0,0,0,0.5)]">
+            <div className="glass-panel border border-[color-mix(in_srgb,var(--text)_16%,transparent)] rounded-3xl p-6 md:p-7 flex flex-col gap-5 relative animate-in zoom-in-95 duration-300 shadow-[0_20px_50px_rgba(0,0,0,0.35)]">
               <div className="flex flex-col gap-2">
                 <div className="flex items-center justify-between">
                   <span className="text-[10px] font-black text-[var(--accent)] uppercase tracking-widest px-3 py-1 rounded-full border border-[color-mix(in_srgb,var(--accent)_25%,transparent)] w-max">
@@ -585,7 +584,7 @@ export function LandingSupportDrawers({
                 </span>
               </div>
             ) : activeFbStep === 1 ? (
-              <div className="glass-panel border-2 border-[var(--accent)] rounded-3xl p-6 md:p-8 flex flex-col gap-6 relative overflow-hidden animate-in zoom-in-95 duration-300 shadow-[0_20px_50px_rgba(0,0,0,0.5)]">
+              <div className="glass-panel border border-[color-mix(in_srgb,var(--text)_16%,transparent)] rounded-3xl p-6 md:p-7 flex flex-col gap-5 relative animate-in zoom-in-95 duration-300 shadow-[0_20px_50px_rgba(0,0,0,0.35)]">
                 <div className="flex flex-col gap-2">
                   <div className="flex items-center justify-between">
                     <span className="text-[10px] font-black text-[var(--accent)] uppercase tracking-widest px-3 py-1 rounded-full border border-[color-mix(in_srgb,var(--accent)_25%,transparent)] w-max">
@@ -821,7 +820,7 @@ export function LandingSupportDrawers({
                 </span>
               </div>
             ) : activeFbStep === 2 ? (
-              <div className="glass-panel border-2 border-[var(--accent)] rounded-3xl p-6 md:p-8 flex flex-col gap-5 relative overflow-hidden animate-in zoom-in-95 duration-300 shadow-[0_20px_50px_rgba(0,0,0,0.5)]">
+              <div className="glass-panel border border-[color-mix(in_srgb,var(--text)_16%,transparent)] rounded-3xl p-6 md:p-7 flex flex-col gap-5 relative animate-in zoom-in-95 duration-300 shadow-[0_20px_50px_rgba(0,0,0,0.35)]">
                 <div className="flex flex-col gap-2">
                   <span className="text-[10px] font-black text-[var(--accent)] uppercase tracking-widest px-3 py-1 rounded-full border border-[color-mix(in_srgb,var(--accent)_25%,transparent)] w-max">
                     {`${t('step', 'STEP')} 3 / 4`}
@@ -1045,9 +1044,9 @@ export function LandingSupportDrawers({
               </div>
             ) : null)}
 
-          {/* STEP 4: REVIEW & DISPATCH TO KEEPERS CORE */}
+          {/* STEP 4: REVIEW & SUBMIT */}
           {maxFbStep >= 3 && activeFbStep === 3 && (
-            <div className="glass-panel border-2 border-[var(--accent)] rounded-3xl p-6 md:p-8 flex flex-col gap-5 relative overflow-hidden animate-in zoom-in-95 duration-300 shadow-[0_20px_50px_rgba(0,0,0,0.5)]">
+            <div className="glass-panel border border-[color-mix(in_srgb,var(--text)_16%,transparent)] rounded-3xl p-6 md:p-7 flex flex-col gap-5 relative animate-in zoom-in-95 duration-300 shadow-[0_20px_50px_rgba(0,0,0,0.35)]">
               <div className="flex flex-col gap-2">
                 <span className="text-[10px] font-black text-[var(--success)] uppercase tracking-widest px-3 py-1 rounded-full border border-[color-mix(in_srgb,var(--success)_30%,transparent)] w-max">
                   {`${t('step', 'STEP')} 4 / 4`}
@@ -1101,7 +1100,7 @@ export function LandingSupportDrawers({
         title={t('landing_contact_short_title', 'Direct Contact')}
         subtitle={t('sanctuary_foundry', 'Sanctuary Foundry')}
         icon={t('icon_support_agent', 'support_agent')}
-        widthClass="w-[90vw] md:w-[660px]"
+        widthClass="w-[92vw] md:w-[740px]"
         headerActions={
           <PanelHeaderGroup>
             <PanelHeaderButton
@@ -1116,7 +1115,16 @@ export function LandingSupportDrawers({
                   : t('icon_send', 'send')
               }
               tooltip={t('landing_contact_send_short_btn', 'Send Inquiry')}
-              onClick={handleSubmitDirectContact}
+              onClick={() => {
+                if (
+                  isSubmittingContact ||
+                  !isContactStep1Valid ||
+                  !isContactStep2Valid
+                ) {
+                  return;
+                }
+                handleSubmitDirectContact();
+              }}
             />
           </PanelHeaderGroup>
         }
@@ -1125,54 +1133,26 @@ export function LandingSupportDrawers({
           <SidePanelHeroCard
             icon={t('icon_verified_user', 'verified_user')}
             overline={t('sanctuary_foundry', 'Sanctuary Foundry')}
-            title={contactChannel.replace('Direct Contact - ', '')}
+            title={t('landing_contact_short_title', 'Direct Contact')}
             description={t(
               'landing_contact_drawer_clean_sub',
               'Every inquiry is reviewed directly by a member of the Sanctuary Foundry team.'
             )}
-            badge={`${t('step', 'STEP')} ${Math.min(activeContactStep + 1, 3)} / 3`}
-            badgeIcon={t('icon_checklist', 'checklist')}
             variant="accent"
           />
 
-          {/* STEP 1: INQUIRY CATEGORY & EMAIL */}
-          {activeContactStep > 0 ? (
+          <UniversalGroup
+            title={t('landing_contact_group_routing', 'Inquiry & Reply Contact')}
+            icon={t('icon_tune', 'tune')}
+          >
             <div
-              onClick={() => setActiveContactStep(0)}
-              className="glass-panel p-4 rounded-2xl border border-[color-mix(in_srgb,var(--accent)_25%,transparent)] flex items-center justify-between cursor-pointer group hover:border-[var(--accent)] transition-all"
+              className={`grid grid-cols-1 ${
+                isLegalChannel ? 'sm:grid-cols-2' : ''
+              } gap-3`}
             >
-              <div className="flex flex-col gap-0.5 min-w-0 pr-4">
-                <span className="text-[10px] font-black text-[var(--accent)] uppercase tracking-widest flex items-center gap-1.5">
-                  <span className="material-symbols-outlined !text-xs">
-                    {t('icon_check_circle', 'check_circle')}
-                  </span>
-                  {t('step_completed', 'Step Completed')}
-                </span>
-                <h4 className="text-sm font-black text-[var(--text)] truncate">
-                  {t('landing_contact_form_channel', 'Inquiry Category')}
-                </h4>
-                <p className="text-xs text-[var(--subtext)] opacity-80 truncate font-mono no-text-case">
-                  {`${contactChannel.replace('Direct Contact - ', '')} • ${effectiveContactReply}`}
-                </p>
-              </div>
-              <span className="material-symbols-outlined text-[var(--subtext)] opacity-40 group-hover:opacity-100 group-hover:text-[var(--accent)] transition-all">
-                {t('icon_edit', 'edit')}
-              </span>
-            </div>
-          ) : (
-            <div className="glass-panel border-2 border-[var(--accent)] rounded-3xl p-6 md:p-8 flex flex-col gap-5 relative overflow-hidden animate-in zoom-in-95 duration-300 shadow-[0_20px_50px_rgba(0,0,0,0.5)]">
-              <div className="flex flex-col gap-2">
-                <span className="text-[10px] font-black text-[var(--accent)] uppercase tracking-widest px-3 py-1 rounded-full border border-[color-mix(in_srgb,var(--accent)_25%,transparent)] w-max">
-                  {`${t('step', 'STEP')} 1 / 3`}
-                </span>
-                <h3 className="text-xl font-black text-[var(--text)] tracking-tight mt-1">
-                  {t('landing_contact_form_channel', 'Inquiry Category')}
-                </h3>
-              </div>
-
               <div className="flex flex-col gap-1.5">
-                <label className="text-[10px] font-black text-[var(--subtext)] opacity-75 uppercase tracking-widest px-1">
-                  {t('category', 'Category')}
+                <label className="text-[10px] font-black text-[var(--subtext)] opacity-75 uppercase tracking-widest px-1 leading-tight">
+                  {t('landing_contact_form_channel', 'Inquiry Category')}
                 </label>
                 <CustomDropdown
                   disableTint={true}
@@ -1231,212 +1211,132 @@ export function LandingSupportDrawers({
                   }}
                 />
               )}
-
-              <div className="flex flex-col gap-1.5">
-                <UniversalInput
-                  label={
-                    isStrictDmcaFlow
-                      ? `${t('dmca_email_short_label', 'Email Address')} *`
-                      : `${t('landing_contact_form_reply_to', 'Reply Email or Handle')} *`
-                  }
-                  type={isStrictDmcaFlow ? 'email' : 'text'}
-                  className={isStrictDmcaFlow ? 'no-text-case' : undefined}
-                  value={effectiveContactReply}
-                  onChange={setContactReplyTo}
-                  placeholder={
-                    isStrictDmcaFlow
-                      ? 'legal@company.com'
-                      : t(
-                          'landing_contact_form_reply_to_ph',
-                          'you@example.com or @handle...'
-                        )
-                  }
-                />
-                {isStrictDmcaFlow &&
-                  Boolean(sessionEmail) &&
-                  BLINDED_EMAIL_REGEX.test(String(sessionEmail)) &&
-                  !contactReplyTo.trim() && (
-                    <span className="text-[11px] font-medium text-[var(--subtext)] px-1 no-text-case">
-                      {t(
-                        'dmca_blinded_autofill_suppressed',
-                        'Blinded email autofill was withheld because DMCA notices require a standard email address.'
-                      )}
-                    </span>
-                  )}
-                {isStrictDmcaFlow &&
-                  effectiveContactReply.trim().length > 0 &&
-                  !isRealLegalEmail(effectiveContactReply) && (
-                    <span className="text-[11px] font-bold text-[var(--warning)] px-1 no-text-case">
-                      {t(
-                        'dmca_strict_email_validation_err',
-                        'A valid, non-blinded email address is required for DMCA takedown and counter-notice filings.'
-                      )}
-                    </span>
-                  )}
-              </div>
-
-              <div className="flex justify-end pt-2 border-t border-[color-mix(in_srgb,var(--text)_8%,transparent)]">
-                <ActionButton
-                  variant="primary"
-                  icon={t('icon_done', 'done')}
-                  label={t('confirm', 'Confirm')}
-                  disabled={!isContactStep1Valid}
-                  onClick={() => {
-                    setActiveContactStep(1);
-                    setMaxContactStep((prev) => Math.max(prev, 1));
-                  }}
-                />
-              </div>
             </div>
-          )}
 
-          {/* STEP 2: DETAILS */}
-          {maxContactStep >= 1 &&
-            (activeContactStep > 1 ? (
-              <div
-                onClick={() => setActiveContactStep(1)}
-                className="glass-panel p-4 rounded-2xl border border-[color-mix(in_srgb,var(--accent)_25%,transparent)] flex items-center justify-between cursor-pointer group hover:border-[var(--accent)] transition-all"
-              >
-                <div className="flex flex-col gap-0.5 min-w-0 pr-4">
-                  <span className="text-[10px] font-black text-[var(--accent)] uppercase tracking-widest flex items-center gap-1.5">
-                    <span className="material-symbols-outlined !text-xs">
-                      {t('icon_check_circle', 'check_circle')}
-                    </span>
-                    {t('step_completed', 'Step Completed')}
+            <div className="flex flex-col gap-1.5">
+              <UniversalInput
+                label={
+                  isStrictDmcaFlow
+                    ? `${t('dmca_email_short_label', 'Email Address')} *`
+                    : `${t('landing_contact_form_reply_to', 'Reply Email or Handle')} *`
+                }
+                type={isStrictDmcaFlow ? 'email' : 'text'}
+                className={isStrictDmcaFlow ? 'no-text-case' : undefined}
+                value={effectiveContactReply}
+                onChange={setContactReplyTo}
+                placeholder={
+                  isStrictDmcaFlow
+                    ? 'legal@company.com'
+                    : t(
+                        'landing_contact_form_reply_to_ph',
+                        'you@example.com or @handle...'
+                      )
+                }
+              />
+              {isStrictDmcaFlow &&
+                Boolean(sessionEmail) &&
+                BLINDED_EMAIL_REGEX.test(String(sessionEmail)) &&
+                !contactReplyTo.trim() && (
+                  <span className="text-[11px] font-medium text-[var(--subtext)] px-1 no-text-case">
+                    {t(
+                      'dmca_blinded_autofill_suppressed',
+                      'Blinded email autofill was withheld because DMCA notices require a standard email address.'
+                    )}
                   </span>
-                  <h4 className="text-sm font-black text-[var(--text)] truncate">
-                    {isStrictDmcaFlow
-                      ? legalDraft.subType === 'dmca_takedown'
-                        ? t('dmca_opt_takedown', 'DMCA Takedown Notice')
-                        : t('dmca_opt_counter', 'DMCA Counter-Notice')
-                      : contactSubject}
-                  </h4>
-                  <p className="text-xs text-[var(--subtext)] opacity-80 truncate no-text-case">
-                    {isStrictDmcaFlow
-                      ? legalDraft.selectedTargets.map((s) => s.title).join(', ') ||
-                        legalDraft.targetIdentifiersRaw ||
-                        legalDraft.originalNoticeId
-                      : contactBody}
-                  </p>
-                </div>
-                <span className="material-symbols-outlined text-[var(--subtext)] opacity-40 group-hover:opacity-100 group-hover:text-[var(--accent)] transition-all">
-                  {t('icon_edit', 'edit')}
-                </span>
-              </div>
-            ) : activeContactStep === 1 ? (
-              <div className="glass-panel border-2 border-[var(--accent)] rounded-3xl p-6 md:p-8 flex flex-col gap-5 relative overflow-hidden animate-in zoom-in-95 duration-300 shadow-[0_20px_50px_rgba(0,0,0,0.5)]">
-                <div className="flex flex-col gap-2">
-                  <span className="text-[10px] font-black text-[var(--accent)] uppercase tracking-widest px-3 py-1 rounded-full border border-[color-mix(in_srgb,var(--accent)_25%,transparent)] w-max">
-                    {`${t('step', 'STEP')} 2 / 3`}
-                  </span>
-                  <h3 className="text-xl font-black text-[var(--text)] tracking-tight mt-1">
-                    {isStrictDmcaFlow
-                      ? legalDraft.subType === 'dmca_takedown'
-                        ? t('dmca_opt_takedown', 'DMCA Takedown Notice')
-                        : t('dmca_opt_counter', 'DMCA Counter-Notice')
-                      : t('landing_contact_form_body', 'Message')}
-                  </h3>
-                </div>
-
-                {isStrictDmcaFlow ? (
-                  <DmcaGuidedComplianceForm
-                    draft={legalDraft}
-                    onChange={setLegalDraft}
-                    games={games}
-                    replyEmail={effectiveContactReply}
-                    onReplyEmailChange={setContactReplyTo}
-                  />
-                ) : (
-                  <>
-                    <UniversalInput
-                      label={`${t('landing_contact_form_subject', 'Subject')} *`}
-                      value={contactSubject}
-                      onChange={setContactSubject}
-                      placeholder={t(
-                        'landing_contact_form_subject_ph',
-                        'Subject of your inquiry...'
-                      )}
-                    />
-
-                    <UniversalTextArea
-                      label={`${t('landing_contact_form_body', 'Message')} *`}
-                      value={contactBody}
-                      onChange={setContactBody}
-                      placeholder={t(
-                        'landing_contact_form_body_ph',
-                        'Provide full context for our team...'
-                      )}
-                      className="min-h-[180px] sm:min-h-[200px]"
-                    />
-                  </>
                 )}
+              {isStrictDmcaFlow &&
+                effectiveContactReply.trim().length > 0 &&
+                !isRealLegalEmail(effectiveContactReply) && (
+                  <span className="text-[11px] font-bold text-[var(--warning)] px-1 no-text-case">
+                    {t(
+                      'dmca_strict_email_validation_err',
+                      'A valid, non-blinded email address is required for DMCA takedown and counter-notice filings.'
+                    )}
+                  </span>
+                )}
+            </div>
+          </UniversalGroup>
 
-                <div className="flex justify-end pt-2 border-t border-[color-mix(in_srgb,var(--text)_8%,transparent)]">
-                  <ActionButton
-                    variant="primary"
-                    icon={t('icon_done', 'done')}
-                    label={t('confirm', 'Confirm')}
-                    disabled={!isContactStep2Valid}
-                    onClick={() => {
-                      setActiveContactStep(2);
-                      setMaxContactStep((prev) => Math.max(prev, 2));
-                    }}
-                  />
-                </div>
-              </div>
-            ) : null)}
+          {isStrictDmcaFlow ? (
+            <DmcaGuidedComplianceForm
+              draft={legalDraft}
+              onChange={setLegalDraft}
+              games={games}
+            />
+          ) : (
+            <UniversalGroup
+              title={t('landing_contact_group_message', 'Message Details')}
+              icon={t('icon_mail', 'mail')}
+            >
+              <UniversalInput
+                label={`${t('landing_contact_form_subject', 'Subject')} *`}
+                value={contactSubject}
+                onChange={setContactSubject}
+                placeholder={t(
+                  'landing_contact_form_subject_ph',
+                  'Subject of your inquiry...'
+                )}
+              />
 
-          {/* STEP 3: REVIEW & SEND */}
-          {maxContactStep >= 2 && activeContactStep === 2 && (
-            <div className="glass-panel border-2 border-[var(--accent)] rounded-3xl p-6 md:p-8 flex flex-col gap-5 relative overflow-hidden animate-in zoom-in-95 duration-300 shadow-[0_20px_50px_rgba(0,0,0,0.5)]">
-              <div className="flex flex-col gap-2">
-                <span className="text-[10px] font-black text-[var(--success)] uppercase tracking-widest px-3 py-1 rounded-full border border-[color-mix(in_srgb,var(--success)_30%,transparent)] w-max">
-                  {`${t('step', 'STEP')} 3 / 3`}
+              <UniversalTextArea
+                label={`${t('landing_contact_form_body', 'Message')} *`}
+                value={contactBody}
+                onChange={setContactBody}
+                placeholder={t(
+                  'landing_contact_form_body_ph',
+                  'Provide full context for our team...'
+                )}
+                className="min-h-[160px] sm:min-h-[190px] no-text-case"
+              />
+            </UniversalGroup>
+          )}
+
+          {isStrictDmcaFlow && legalDraft.subType === 'dmca_takedown' && (
+            <div className="glass-surface rounded-2xl p-4 border border-[color-mix(in_srgb,var(--warning)_28%,transparent)] bg-[color-mix(in_srgb,var(--warning)_6%,transparent)] flex items-start gap-3">
+              <span className="material-symbols-outlined !text-[20px] text-[var(--warning)] shrink-0 mt-0.5">
+                {t('icon_warning', 'warning')}
+              </span>
+              <div className="flex flex-col gap-1.5 min-w-0 flex-1 no-text-case">
+                <span className="text-xs font-black text-[var(--warning)] leading-snug no-text-case">
+                  {t(
+                    'dmca_deterrent_banner_title',
+                    'Human Review • Full Legal Identity Forwarded to Accused {Mason}'
+                  )}
                 </span>
-                <h3 className="text-xl font-black text-[var(--text)] tracking-tight mt-1">
-                  {t('review', 'Review & Submit')}
-                </h3>
-              </div>
-
-              {isStrictDmcaFlow && (
-                <div className="glass-surface rounded-2xl p-4 border border-[color-mix(in_srgb,var(--text)_12%,transparent)] flex flex-col gap-1.5 text-xs">
-                  <span className="font-black text-[var(--accent)]">
-                    {legalDraft.subType === 'dmca_takedown'
-                      ? t('dmca_opt_takedown', 'DMCA Takedown Notice')
-                      : t('dmca_opt_counter', 'DMCA Counter-Notice')}
-                  </span>
-                  <span className="text-[var(--subtext)] no-text-case font-mono">
-                    {effectiveContactReply} &bull; {legalDraft.fullLegalName}
-                  </span>
-                  <span className="text-[var(--subtext)] no-text-case truncate">
-                    {legalDraft.selectedTargets.map((s) => s.title).join(', ') ||
-                      collectAllLegalTargetIdentifiers(legalDraft).join(', ') ||
-                      legalDraft.originalNoticeId}
-                  </span>
-                </div>
-              )}
-
-              <div className="flex justify-end pt-2 border-t border-[color-mix(in_srgb,var(--text)_8%,transparent)]">
-                <ActionButton
-                  variant="primary"
-                  icon={t('icon_send', 'send')}
-                  label={
-                    isSubmittingContact
-                      ? t('btn_submitting', 'Submitting...')
-                      : isStrictDmcaFlow
-                        ? t('dmca_submit_short_btn', 'Submit Notice')
-                        : t('landing_contact_send_short_btn', 'Send Inquiry')
-                  }
-                  onClick={handleSubmitDirectContact}
-                  disabled={
-                    isSubmittingContact ||
-                    !isContactStep1Valid ||
-                    !isContactStep2Valid
-                  }
-                />
+                <p className="text-xs text-[var(--text)] opacity-90 leading-relaxed m-0 no-text-case">
+                  {t(
+                    'dmca_deterrent_forwarding_body',
+                    'Every notice is reviewed by human staff—never automated takedown bots. If validated, your Full Legal Name, Physical Mailing Address, and Email Address are forwarded directly to the accused {Mason} so they may contest the claim or file a § 512(g) counter-notice.'
+                  )}
+                </p>
+                <p className="text-[11px] text-[var(--subtext)] leading-relaxed m-0 no-text-case">
+                  {t(
+                    'dmca_deterrent_scope_liability_body',
+                    'Claims over {mod} ideas, gameplay mechanics, names, or personal drama are not copyrightable (17 U.S.C. § 102(b)) and are rejected outright, as are aliases or fake addresses. Knowingly misrepresenting infringement carries federal liability for damages and attorneys’ fees under 17 U.S.C. § 512(f).'
+                  )}
+                </p>
               </div>
             </div>
           )}
+
+          <ActionButton
+            variant="primary"
+            className="w-full"
+            icon={isSubmittingContact ? t('icon_sync', 'sync') : t('icon_send', 'send')}
+            label={
+              isSubmittingContact
+                ? t('btn_submitting', 'Submitting...')
+                : isStrictDmcaFlow
+                  ? t('dmca_submit_short_btn', 'Submit Notice')
+                  : t('landing_contact_send_short_btn', 'Send Inquiry')
+            }
+            onClick={handleSubmitDirectContact}
+            disabled={
+              isSubmittingContact ||
+              !isContactStep1Valid ||
+              !isContactStep2Valid
+            }
+          />
         </div>
       </SidePanel>
 

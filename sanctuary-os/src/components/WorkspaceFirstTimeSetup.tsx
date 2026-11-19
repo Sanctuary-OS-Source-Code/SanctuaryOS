@@ -32,6 +32,7 @@ import {
   healAndMatchLocalWorkspaces,
 } from '../utils/workspaceConfigMatch';
 import { recordWorkspaceLoaded } from '../utils/workspacePrefs';
+import { CartographerMigrationWizardSection } from './CartographerMigrationWizardSection';
 
 const BUILTIN_LEXICON_IDS = new Set(['en-default', 'en-sanctuary', 'en-sims', 'Simlish']);
 
@@ -1355,6 +1356,14 @@ export default function WorkspaceFirstTimeSetup({
                 </div>
               )}
             </div>
+
+            {isDesktop() && (
+              <CartographerMigrationWizardSection
+                vaultPath={vaultSubdirPreview}
+                livePath={livePathInput}
+                docsPath={docsPathInput}
+              />
+            )}
 
             {isDesktop() && unconsentedSetupFindings.length > 0 && (
               <UniversalGroup

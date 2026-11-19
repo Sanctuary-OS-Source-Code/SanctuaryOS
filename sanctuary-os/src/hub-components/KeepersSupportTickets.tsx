@@ -1313,17 +1313,6 @@ export default function KeepersSupportTickets({
               templates={responseTemplates}
               isSaving={isSavingTemplates}
               onSaveTemplates={handleSaveResponseTemplates}
-              onUseTemplate={(tpl) => {
-                setEmailComposeSubject(tpl.subject);
-                setEmailComposeBody(tpl.body);
-                setEmailDrawerTab("compose");
-                useStore
-                  .getState()
-                  .pushStatus(
-                    t("keepers_email_tpl_applied", "Applied Human Response template!"),
-                    "success"
-                  );
-              }}
             />
           )}
 

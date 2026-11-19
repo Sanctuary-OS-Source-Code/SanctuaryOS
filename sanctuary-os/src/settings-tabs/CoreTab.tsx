@@ -42,6 +42,7 @@ import {
 } from "../utils/passkeyUtils";
 
 import { CoreSecuritySidePanels } from "./core/CoreSecuritySidePanels";
+import { ByoApiKeyBrokerCard } from "./core/ByoApiKeyBrokerCard";
 export default function CoreTab() {
   const { t } = useLexicon();
   const { session, userRole, osRole, activeWorkspaceId, localOnly, setLocalOnly } = useStore(
@@ -1195,6 +1196,7 @@ export default function CoreTab() {
                     actions={<SettingsToggle checked={protocolPrefs[item.key]} />}
                   />
                 ))}
+                <ByoApiKeyBrokerCard />
               </>
             )}
 

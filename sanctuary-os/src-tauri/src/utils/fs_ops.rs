@@ -28,11 +28,12 @@ use super::mod_versions::*;
 use super::path_security::*;
 
 pub const SANCTUARY_EDGE_MANIFEST_FILE: &str = ".sanctuary.manifest.json";
+pub const SANCTUARY_EDGE_MANIFEST_SIG_FILE: &str = ".sanctuary.manifest.sig";
 pub const SANCTUARY_EDGE_OVERRIDE_FILE: &str = ".sanctuary.override.json";
 
-pub const MAX_ARCHIVE_ENTRY_BYTES: u64 = 1024 * 1024 * 1024; // 1 GiB per file
-pub const MAX_ARCHIVE_TOTAL_BYTES: u64 = 4 * 1024 * 1024 * 1024; // 4 GiB total archive
-pub const MAX_ARCHIVE_ENTRIES: usize = 25_000;
+pub const MAX_ARCHIVE_ENTRY_BYTES: u64 = 32 * 1024 * 1024 * 1024; // 32 GiB per file
+pub const MAX_ARCHIVE_TOTAL_BYTES: u64 = 64 * 1024 * 1024 * 1024; // 64 GiB total archive
+pub const MAX_ARCHIVE_ENTRIES: usize = 250_000;
 
 /// Atomically writes `bytes` to `path` via a sibling temporary file + `fsync` + `rename`.
 pub fn atomic_write_bytes(path: &Path, bytes: &[u8]) -> Result<(), String> {

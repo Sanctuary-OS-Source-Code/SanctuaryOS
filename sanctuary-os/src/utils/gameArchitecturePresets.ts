@@ -21,7 +21,7 @@ export const GAME_ARCHITECTURE_PRESETS: Record<string, Record<string, any>> = {
     install_folder_names: ["The Sims 4"],
     display_name: "The Sims 4",
     default_lexicon: "en-sims",
-    schema_version: 12,
+    schema_version: 18,
     min_scout_submissions: 5,
     executable_names: [
       "TS4_x64.exe",
@@ -165,10 +165,35 @@ export const GAME_ARCHITECTURE_PRESETS: Record<string, Record<string, any>> = {
     },
     constraints: {
       max_folder_depth: 5,
+      max_nested_archive_depth: 2,
+      max_depth_by_extension: { ".ts4script": 1, ".package": 5 },
       requires_script_unzipping: false,
       mods_dir_is_shared_with_vanilla: false,
       preserve_archive_folder_structure: false,
       wrap_loose_files_in_folders: true,
+    },
+    artifact_groups: [
+      {
+        id: "tray_hex_bundle",
+        label: "Tray Blueprint Bundle",
+        extensions: [".trayitem", ".blueprint", ".bpi", ".hhi", ".sgi", ".householdbinary", ".rmi", ".room"],
+        key_strategy: "shared_hex_stem",
+      },
+    ],
+    preview_extractors: [
+      {
+        id: "binary_embedded_thumb",
+        extensions: [".package", ".trayitem"],
+        container_magic: "DBPF",
+        scan_embedded_png_jpeg: true,
+        max_scan_bytes: 8388608,
+      },
+    ],
+    exception_correlation: {
+      enabled: true,
+      id_regexes: ["0x[0-9a-fA-F]{8,16}", "tunable_perf\\s*=\\s*([0-9a-fA-F]+)"],
+      match_chunk_keys: true,
+      match_relative_paths: true,
     },
     version_extraction: {
       method: "pe_header",
@@ -761,9 +786,43 @@ export const GAME_ARCHITECTURE_PRESETS: Record<string, Record<string, any>> = {
           include_extensions: [".esm", ".esp", ".esl"],
         },
       ],
+      external_rules_sources: [
+        {
+          id: "loot_masterlist",
+          label: "LOOT Skyrim SE Masterlist & Userlist",
+          source_type: "loot_yaml",
+          url: "https://raw.githubusercontent.com/loot/skyrimse/v0.21/masterlist.yaml",
+          relative_paths: ["LOOT/games/Skyrim Special Edition/userlist.yaml", "Skyrim Special Edition/userlist.yaml"],
+        },
+      ],
       priority_tiers: [
         { id: "default", label: "Standard (Data/)", priority: 500, folder: "" },
         { id: "tier_1", label: "Late Loaders / Patches", priority: 1000, folder: "Sanctuary" },
+      ],
+    },
+    deployment: {
+      runtime_output_capture: {
+        enabled: true,
+        target_vault_folder: "_RuntimeOutput",
+        watch_roots: ["mods_path"],
+      },
+      ini_mutations: [
+        {
+          root_source: "docs_path",
+          relative_path: "SkyrimCustom.ini",
+          section: "Archive",
+          key: "bInvalidateOlderFiles",
+          value: "1",
+          restore_on_purge: true,
+        },
+        {
+          root_source: "docs_path",
+          relative_path: "SkyrimCustom.ini",
+          section: "Archive",
+          key: "sResourceDataDirsFinal",
+          value: "",
+          restore_on_purge: true,
+        },
       ],
     },
     mod_metadata_extractor: {
@@ -996,6 +1055,19 @@ export const GAME_ARCHITECTURE_PRESETS: Record<string, Record<string, any>> = {
         preserve_vanilla: true,
       },
     ],
+    deployment: {
+      post_deploy_hooks: [
+        {
+          id: "redmod_deploy",
+          label: "REDmod Compiler",
+          executable: "tools/redmod/bin/redMod.exe",
+          args: ["deploy"],
+          working_dir_source: "live_path",
+          timeout_secs: 120,
+          optional_if_missing: true,
+        },
+      ],
+    },
     lab_verification: {
       require_for_mason_publish: true,
       require_for_scout_approval: true,
@@ -1449,9 +1521,43 @@ export const GAME_ARCHITECTURE_PRESETS: Record<string, Record<string, any>> = {
       manifest_targets: [
         { id: "plugins_txt", root_source: "local_appdata", relative_path: "Fallout4/plugins.txt", format: "plugins_asterisk", include_extensions: [".esm", ".esp", ".esl"] },
       ],
+      external_rules_sources: [
+        {
+          id: "loot_masterlist",
+          label: "LOOT Fallout 4 Masterlist & Userlist",
+          source_type: "loot_yaml",
+          url: "https://raw.githubusercontent.com/loot/fallout4/v0.21/masterlist.yaml",
+          relative_paths: ["LOOT/games/Fallout4/userlist.yaml", "Fallout4/userlist.yaml"],
+        },
+      ],
       priority_tiers: [
         { id: "default", label: "Standard (Data/)", priority: 500, folder: "" },
         { id: "tier_1", label: "Late Loaders / Patches", priority: 1000, folder: "Sanctuary" },
+      ],
+    },
+    deployment: {
+      runtime_output_capture: {
+        enabled: true,
+        target_vault_folder: "_RuntimeOutput",
+        watch_roots: ["mods_path"],
+      },
+      ini_mutations: [
+        {
+          root_source: "docs_path",
+          relative_path: "Fallout4Custom.ini",
+          section: "Archive",
+          key: "bInvalidateOlderFiles",
+          value: "1",
+          restore_on_purge: true,
+        },
+        {
+          root_source: "docs_path",
+          relative_path: "Fallout4Custom.ini",
+          section: "Archive",
+          key: "sResourceDataDirsFinal",
+          value: "",
+          restore_on_purge: true,
+        },
       ],
     },
     mod_metadata_extractor: { manifest_files: [], binary_master_header: "tes4" },
@@ -1541,9 +1647,43 @@ export const GAME_ARCHITECTURE_PRESETS: Record<string, Record<string, any>> = {
       manifest_targets: [
         { id: "plugins_txt", root_source: "local_appdata", relative_path: "Starfield/Plugins.txt", format: "plugins_asterisk", include_extensions: [".esm", ".esp", ".esl"] },
       ],
+      external_rules_sources: [
+        {
+          id: "loot_masterlist",
+          label: "LOOT Starfield Masterlist & Userlist",
+          source_type: "loot_yaml",
+          url: "https://raw.githubusercontent.com/loot/starfield/v0.21/masterlist.yaml",
+          relative_paths: ["LOOT/games/Starfield/userlist.yaml", "Starfield/userlist.yaml"],
+        },
+      ],
       priority_tiers: [
         { id: "default", label: "Standard (Data/)", priority: 500, folder: "" },
         { id: "tier_1", label: "Late Loaders / Patches", priority: 1000, folder: "Sanctuary" },
+      ],
+    },
+    deployment: {
+      runtime_output_capture: {
+        enabled: true,
+        target_vault_folder: "_RuntimeOutput",
+        watch_roots: ["mods_path"],
+      },
+      ini_mutations: [
+        {
+          root_source: "docs_path",
+          relative_path: "StarfieldCustom.ini",
+          section: "Archive",
+          key: "bInvalidateOlderFiles",
+          value: "1",
+          restore_on_purge: true,
+        },
+        {
+          root_source: "docs_path",
+          relative_path: "StarfieldCustom.ini",
+          section: "Archive",
+          key: "sResourceDataDirsFinal",
+          value: "",
+          restore_on_purge: true,
+        },
       ],
     },
     mod_metadata_extractor: { manifest_files: [], binary_master_header: "tes4" },
@@ -1622,7 +1762,33 @@ export const GAME_ARCHITECTURE_PRESETS: Record<string, Record<string, any>> = {
       early_master_extensions: [".esm"],
       slot_buckets: [{ id: "full_plugins", label: "Active Plugins", max_slots: 255, include_extensions: [".esm", ".esp"] }],
       manifest_targets: [{ id: "plugins_txt", root_source: "local_appdata", relative_path: "FalloutNV/plugins.txt", format: "plain_lines", include_extensions: [".esm", ".esp"] }],
+      external_rules_sources: [
+        {
+          id: "loot_masterlist",
+          label: "LOOT Fallout: New Vegas Masterlist & Userlist",
+          source_type: "loot_yaml",
+          url: "https://raw.githubusercontent.com/loot/falloutnv/v0.21/masterlist.yaml",
+          relative_paths: ["LOOT/games/FalloutNV/userlist.yaml", "FalloutNV/userlist.yaml"],
+        },
+      ],
       priority_tiers: [{ id: "default", label: "Standard (Data/)", priority: 500, folder: "" }],
+    },
+    deployment: {
+      runtime_output_capture: {
+        enabled: true,
+        target_vault_folder: "_RuntimeOutput",
+        watch_roots: ["mods_path"],
+      },
+      ini_mutations: [
+        {
+          root_source: "docs_path",
+          relative_path: "FalloutCustom.ini",
+          section: "Archive",
+          key: "bInvalidateOlderFiles",
+          value: "1",
+          restore_on_purge: true,
+        },
+      ],
     },
     mod_metadata_extractor: { manifest_files: [], binary_master_header: "tes4" },
     install_routes: [{ id: "nvse_plugins", label: "xNVSE Plugins", extensions: [".dll", ".ini"], folder_match: "NVSE/Plugins", target_root: "mods_path", target_subdir: "NVSE/Plugins", preserve_vanilla: true }],
@@ -1695,7 +1861,33 @@ export const GAME_ARCHITECTURE_PRESETS: Record<string, Record<string, any>> = {
       early_master_extensions: [".esm"],
       slot_buckets: [{ id: "full_plugins", label: "Active Plugins", max_slots: 255, include_extensions: [".esm", ".esp"] }],
       manifest_targets: [{ id: "plugins_txt", root_source: "local_appdata", relative_path: "Oblivion/Plugins.txt", format: "plain_lines", include_extensions: [".esm", ".esp"] }],
+      external_rules_sources: [
+        {
+          id: "loot_masterlist",
+          label: "LOOT Oblivion Masterlist & Userlist",
+          source_type: "loot_yaml",
+          url: "https://raw.githubusercontent.com/loot/oblivion/v0.21/masterlist.yaml",
+          relative_paths: ["LOOT/games/Oblivion/userlist.yaml", "Oblivion/userlist.yaml"],
+        },
+      ],
       priority_tiers: [{ id: "default", label: "Standard (Data/)", priority: 500, folder: "" }],
+    },
+    deployment: {
+      runtime_output_capture: {
+        enabled: true,
+        target_vault_folder: "_RuntimeOutput",
+        watch_roots: ["mods_path"],
+      },
+      ini_mutations: [
+        {
+          root_source: "docs_path",
+          relative_path: "Oblivion.ini",
+          section: "Archive",
+          key: "bInvalidateOlderFiles",
+          value: "1",
+          restore_on_purge: true,
+        },
+      ],
     },
     mod_metadata_extractor: { manifest_files: [], binary_master_header: "tes4_20" },
     install_routes: [{ id: "obse_plugins", label: "OBSE Plugins", extensions: [".dll", ".ini"], folder_match: "OBSE/Plugins", target_root: "mods_path", target_subdir: "OBSE/Plugins", preserve_vanilla: true }],
@@ -1798,6 +1990,7 @@ export const GAME_ARCHITECTURE_PRESETS: Record<string, Record<string, any>> = {
       auto_scan_paths_windows: ["C:/Program Files (x86)/Steam/steamapps/common/tModLoader"],
       auto_scan_paths_mac: ["~/Library/Application Support/Steam/steamapps/common/tModLoader"],
       auto_scan_paths_linux: ["~/.steam/steam/steamapps/common/tModLoader"],
+      discover_steam_workshop: true,
     },
     extensions: {
       supported: [".tmod", ".json"],
@@ -1965,6 +2158,11 @@ export const GAME_ARCHITECTURE_PRESETS: Record<string, Record<string, any>> = {
       { id: "bepinex_cfg", label: "BepInEx Config", extensions: [".cfg"], folder_match: "BepInEx/config", target_root: "live_path", target_subdir: "BepInEx/config", preserve_vanilla: true },
       { id: "doorstop_root", label: "Doorstop Hook (winhttp.dll / doorstop_config.ini)", extensions: [".dll", ".ini"], file_names: ["winhttp.dll", "doorstop_config.ini"], target_root: "live_path", target_subdir: "", preserve_vanilla: true, apply_wine_dll_override: true },
     ],
+    deployment: {
+      profile_isolated_dirs: [
+        { id: "bepinex_config", label: "BepInEx Profile Configs", root_source: "live_path", relative_path: "BepInEx/config" },
+      ],
+    },
     lab_verification: {
       require_for_mason_publish: true,
       require_for_scout_approval: true,
@@ -2031,6 +2229,11 @@ export const GAME_ARCHITECTURE_PRESETS: Record<string, Record<string, any>> = {
       { id: "bepinex_cfg", label: "BepInEx Config", extensions: [".cfg"], folder_match: "BepInEx/config", target_root: "live_path", target_subdir: "BepInEx/config", preserve_vanilla: true },
       { id: "doorstop_root", label: "Doorstop Hook (winhttp.dll / doorstop_config.ini)", extensions: [".dll", ".ini"], file_names: ["winhttp.dll", "doorstop_config.ini"], target_root: "live_path", target_subdir: "", preserve_vanilla: true, apply_wine_dll_override: true },
     ],
+    deployment: {
+      profile_isolated_dirs: [
+        { id: "bepinex_config", label: "BepInEx Profile Configs", root_source: "live_path", relative_path: "BepInEx/config" },
+      ],
+    },
     lab_verification: {
       require_for_mason_publish: false,
       require_for_scout_approval: true,
@@ -2097,6 +2300,11 @@ export const GAME_ARCHITECTURE_PRESETS: Record<string, Record<string, any>> = {
       { id: "bepinex_cfg", label: "BepInEx Config", extensions: [".cfg"], folder_match: "BepInEx/config", target_root: "live_path", target_subdir: "BepInEx/config", preserve_vanilla: true },
       { id: "doorstop_root", label: "Doorstop Hook (winhttp.dll / doorstop_config.ini)", extensions: [".dll", ".ini"], file_names: ["winhttp.dll", "doorstop_config.ini"], target_root: "live_path", target_subdir: "", preserve_vanilla: true, apply_wine_dll_override: true },
     ],
+    deployment: {
+      profile_isolated_dirs: [
+        { id: "bepinex_config", label: "BepInEx Profile Configs", root_source: "live_path", relative_path: "BepInEx/config" },
+      ],
+    },
     lab_verification: {
       require_for_mason_publish: false,
       require_for_scout_approval: true,
@@ -2138,6 +2346,7 @@ export const GAME_ARCHITECTURE_PRESETS: Record<string, Record<string, any>> = {
       auto_scan_paths_windows: ["C:/Program Files (x86)/Steam/steamapps/common/RimWorld"],
       auto_scan_paths_mac: ["~/Library/Application Support/Steam/steamapps/common/RimWorld"],
       auto_scan_paths_linux: ["~/.steam/steam/steamapps/common/RimWorld"],
+      discover_steam_workshop: true,
     },
     extensions: {
       supported: [".xml", ".dll", ".png", ".ogg", ".wav"],
@@ -2215,6 +2424,7 @@ export const GAME_ARCHITECTURE_PRESETS: Record<string, Record<string, any>> = {
       auto_scan_paths_windows: ["C:/Program Files (x86)/Steam/steamapps/common/Cities Skylines II"],
       auto_scan_paths_mac: [],
       auto_scan_paths_linux: ["~/.steam/steam/steamapps/common/Cities Skylines II"],
+      discover_steam_workshop: true,
     },
     extensions: {
       supported: [".dll", ".cok", ".json", ".css", ".js"],
